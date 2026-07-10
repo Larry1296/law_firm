@@ -79,7 +79,7 @@ class CompanyClientService:
             last_name=last_name,
             phone_number=validated_data["contact_phone_number"],
             national_id_number=validated_data["contact_national_id_number"],
-            role=UserRole.PORTAL_CLIENT,
+            role=UserRole.PROSPECT,
         )
 
         company.user = portal_user

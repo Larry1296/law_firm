@@ -119,7 +119,7 @@ class ClientAdminCreateService:
             phone_number=base_data.get("phone_number")
             or contact_data.get("contact_phone_number"),
             national_id_number=national_id_number[:20],
-            role=UserRole.PORTAL_CLIENT,
+            role=UserRole.PROSPECT,
         )
 
         client.user = user

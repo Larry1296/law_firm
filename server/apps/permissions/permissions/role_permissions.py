@@ -7,7 +7,7 @@ class RolePermissions:
     LAWYER = UserRole.LAWYER
     SECRETARY = UserRole.SECRETARY
     CLIENT = UserRole.CLIENT
-    PORTAL_CLIENT = UserRole.PORTAL_CLIENT
+    PROSPECT = UserRole.PROSPECT
 
     STAFF_ROLES = [
         LAWYER,

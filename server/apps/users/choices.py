@@ -2,14 +2,14 @@ class UserRole:
     ADMIN = "ADMIN"
     STAFF = "STAFF"
     OFFICIAL_CLIENT = "OFFICIAL_CLIENT"
-    PORTAL_CLIENT = "PORTAL_CLIENT"
+    PROSPECT = "PROSPECT"
 
 
 USER_ROLE_CHOICES = [
     (UserRole.ADMIN, "Admin"),
     (UserRole.STAFF, "Staff"),
     (UserRole.OFFICIAL_CLIENT, "Official Client"),
-    (UserRole.PORTAL_CLIENT, "Portal Client"),
+    (UserRole.PROSPECT, "Portal Client"),
 ]
 
 

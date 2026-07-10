@@ -60,7 +60,7 @@ class IndividualClientService:
                 national_id_number=validated_data.get("national_id")
                 or validated_data.get("passport_number"),
                 phone_number=validated_data.get("phone_number", ""),
-                role=UserRole.PORTAL_CLIENT,
+                role=UserRole.PROSPECT,
                 must_change_password=True,
             )
 

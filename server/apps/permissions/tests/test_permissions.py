@@ -46,7 +46,7 @@ class PermissionServiceTests(TestCase):
             last_name="User",
             phone_number="0700000004",
             national_id_number="10000004",
-            role=UserRole.PORTAL_CLIENT,
+            role=UserRole.PROSPECT,
         )
 
     def test_is_admin(self):

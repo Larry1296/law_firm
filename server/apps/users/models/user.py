@@ -55,7 +55,7 @@ class User(AbstractBaseUser, PermissionsMixin, TimestampedModel):
     role = models.CharField(
         max_length=30,
         choices=UserRole.choices,
-        default=UserRole.PORTAL_CLIENT,
+        default=UserRole.PROSPECT,
     )
 
     must_change_password = models.BooleanField(
@@ -104,7 +104,7 @@ class User(AbstractBaseUser, PermissionsMixin, TimestampedModel):
 
     @property
     def is_portal_client(self):
-        return self.role == UserRole.PORTAL_CLIENT
+        return self.role == UserRole.PROSPECT
 
     def __str__(self):
         return f"{self.full_name} ({self.email})"

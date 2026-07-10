@@ -116,7 +116,7 @@ class UserManager(BaseUserManager):
         Creates a self-registered portal client.
         """
 
-        extra_fields.setdefault("role", UserRole.PORTAL_CLIENT)
+        extra_fields.setdefault("role", UserRole.PROSPECT)
 
         return self.create_user(
             email=email,
