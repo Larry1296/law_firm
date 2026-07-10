@@ -1,0 +1,41 @@
+from django.urls import path
+
+from apps.clients.views.admin import (
+    ClientAdminAssignView,
+    ClientAdminDashboardView,
+    ClientAdminDeleteView,
+    ClientAdminDetailView,
+    ClientAdminLawyersView,
+    ClientAdminListView,
+    ClientAdminRemoveLawyerView,
+    ClientAdminStatisticsView,
+    ClientAdminStatusView,
+    CompanyAdminCreateClientView,
+    EstateAdminCreateClientView,
+    GovernmentAdminCreateClientView,
+    IndividualAdminCreateClientView,
+    NGOAdminCreateClientView,
+    PartnershipAdminCreateClientView,
+    TrustAdminCreateClientView,
+)
+
+urlpatterns = [
+    path("", ClientAdminListView.as_view(), name="admin-client-list"),
+    path("individuals/create/", IndividualAdminCreateClientView.as_view(), name="admin-individual-client-create"),
+    path("companies/create/", CompanyAdminCreateClientView.as_view(), name="admin-company-client-create"),
+    path("partnerships/create/", PartnershipAdminCreateClientView.as_view(), name="admin-partnership-client-create"),
+    path("ngos/create/", NGOAdminCreateClientView.as_view(), name="admin-ngo-client-create"),
+    path("trusts/create/", TrustAdminCreateClientView.as_view(), name="admin-trust-client-create"),
+    path("estates/create/", EstateAdminCreateClientView.as_view(), name="admin-estate-client-create"),
+    path("government/create/", GovernmentAdminCreateClientView.as_view(), name="admin-government-client-create"),
+    path("dashboard/", ClientAdminDashboardView.as_view(), name="admin-client-dashboard"),
+    path("statistics/", ClientAdminStatisticsView.as_view(), name="admin-client-statistics"),
+    path("<uuid:client_id>/", ClientAdminDetailView.as_view(), name="admin-client-detail"),
+    path("<uuid:client_id>/activate/", ClientAdminStatusView.as_view(), name="admin-client-activate"),
+    path("<uuid:client_id>/deactivate/", ClientAdminStatusView.as_view(), name="admin-client-deactivate"),
+    path("<uuid:client_id>/change-status/", ClientAdminStatusView.as_view(), name="admin-client-change-status"),
+    path("<uuid:client_id>/lawyers/", ClientAdminLawyersView.as_view(), name="admin-client-lawyers"),
+    path("<uuid:client_id>/assign-lawyer/", ClientAdminAssignView.as_view(), name="admin-client-assign-lawyer"),
+    path("<uuid:client_id>/remove-lawyer/<uuid:lawyer_id>/", ClientAdminRemoveLawyerView.as_view(), name="admin-client-remove-lawyer"),
+    path("<uuid:client_id>/delete/", ClientAdminDeleteView.as_view(), name="admin-client-delete"),
+]

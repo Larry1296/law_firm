@@ -1,0 +1,313 @@
+/* =========================================================
+   LAW FIRM THEME SYSTEM (NAVY + GOLD)
+   Light + Dark CSS Variables
+   Works with Tailwind darkMode: "class"
+   ========================================================= */
+
+:root {
+  /* =========================
+     BACKGROUNDS (LIGHT)
+     ========================= */
+  --bg: #f3f0ea;
+  --surface: #fffdf8;
+  --surface-raised: #ffffff;
+  --border: #d8d2c8;
+
+  /* =========================
+     TEXT (LIGHT)
+     ========================= */
+  --text-primary: #1f2933;
+  --text-muted: #5f6673;
+
+  /* =========================
+     BRAND (PRIMARY SYSTEM)
+     ========================= */
+  --brand-primary: #12385a; /* Soft navy */
+  --brand-accent: #b88a2b; /* Muted gold */
+
+  /* =========================
+     STATUS COLORS
+     ========================= */
+  --success: #0f8f67;
+  --warning: #b87503;
+  --error: #c2413a;
+  --info: #2563eb;
+
+  /* =========================
+     ROLE COLORS
+     ========================= */
+  --role-admin: #12385a;
+  --role-staff: #1f5f9f;
+  --role-client: #0f7a5a;
+  --role-secretary: #6d4fb0;
+  --role-lawyer: #12385a;
+
+  /* =========================
+     SHADOWS (LIGHT)
+     ========================= */
+  --shadow-soft: 0 2px 10px rgba(31, 41, 51, 0.08);
+  --shadow-medium: 0 8px 22px rgba(31, 41, 51, 0.12);
+  --shadow-strong: 0 14px 34px rgba(31, 41, 51, 0.18);
+}
+
+/* =========================================================
+   DARK MODE OVERRIDES
+   ========================================================= */
+.dark {
+  /* =========================
+     BACKGROUNDS (DARK)
+     ========================= */
+  --bg: #0b1220;
+  --surface: #111b2e;
+  --surface-raised: #162238;
+  --border: #1f2a44;
+
+  /* =========================
+     TEXT (DARK)
+     ========================= */
+  --text-primary: #e5e7eb;
+  --text-muted: #94a3b8;
+
+  /* =========================
+     BRAND (DARK MODE VARIANT)
+     ========================= */
+  --brand-primary: #3b82f6; /* Blue highlight for UI clarity */
+  --brand-accent: #d4af37; /* Brighter gold */
+
+  /* =========================
+     ROLE COLORS (DARK)
+     ========================= */
+  --role-admin: #3b82f6;
+  --role-staff: #60a5fa;
+  --role-client: #34d399;
+  --role-secretary: #a78bfa;
+  --role-lawyer: #3b82f6;
+
+  /* =========================
+     SHADOWS (DARK)
+     ========================= */
+  --shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.25);
+  --shadow-medium: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-strong: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* =========================================================
+   BASE GLOBAL STYLES
+   ========================================================= */
+
+html,
+body {
+  height: 100%;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+/* Smooth theme transitions */
+* {
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* =========================================================
+   UTILITY HELPERS (OPTIONAL BUT VERY USEFUL)
+   ========================================================= */
+
+.bg-surface {
+  background-color: var(--surface);
+}
+
+.bg-app {
+  background-color: var(--bg);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.border-app {
+  border-color: var(--border);
+}
+
+.text-brand {
+  color: var(--brand-primary);
+}
+
+.text-accent {
+  color: var(--brand-accent);
+}
+
+.bg-brand {
+  background-color: var(--brand-primary);
+}
+
+.bg-accent {
+  background-color: var(--brand-accent);
+}
+
+/* Role helpers */
+.text-role-admin {
+  color: var(--role-admin);
+}
+.text-role-staff {
+  color: var(--role-staff);
+}
+.text-role-client {
+  color: var(--role-client);
+}
+.text-role-secretary {
+  color: var(--role-secretary);
+}
+.text-role-lawyer {
+  color: var(--role-lawyer);
+}
+
+.bg-role-admin {
+  background-color: var(--role-admin);
+}
+.bg-role-staff {
+  background-color: var(--role-staff);
+}
+.bg-role-client {
+  background-color: var(--role-client);
+}
+.bg-role-secretary {
+  background-color: var(--role-secretary);
+}
+.bg-role-lawyer {
+  background-color: var(--role-lawyer);
+}
+
+/* =========================================================
+   CARD + UI BASE COMPONENT STYLE HELPERS
+   ========================================================= */
+
+.card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+}
+
+.card-hover {
+  transition: all 0.2s ease;
+}
+
+.card-hover:hover {
+  box-shadow: var(--shadow-medium);
+  transform: translateY(-2px);
+}
+
+/* Buttons */
+.btn-primary {
+  background: var(--brand-primary);
+  color: white;
+}
+
+.btn-accent {
+  background: var(--brand-accent);
+  color: #0b1220;
+}
+
+/* =========================================================
+   SWEETALERT THEME BRIDGE
+   ========================================================= */
+
+.app-swal-container {
+  background: color-mix(in srgb, var(--bg), transparent 18%) !important;
+  backdrop-filter: blur(3px);
+}
+
+.app-swal-popup,
+.swal2-popup.app-swal-popup {
+  background: var(--surface-raised) !important;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-strong);
+  color: var(--text-primary) !important;
+}
+
+.app-swal-title,
+.swal2-popup .app-swal-title,
+.swal2-popup .swal2-title {
+  color: var(--text-primary) !important;
+}
+
+.app-swal-html,
+.swal2-popup .app-swal-html,
+.swal2-popup .swal2-html-container {
+  color: var(--text-muted) !important;
+}
+
+.swal2-popup .swal2-actions {
+  background: transparent !important;
+}
+
+.app-swal-input,
+.swal2-popup .swal2-input,
+.swal2-popup .swal2-textarea,
+.swal2-popup .swal2-select {
+  background: var(--bg) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+  border-radius: 12px;
+  box-shadow: none !important;
+}
+
+.app-swal-input:focus,
+.swal2-popup .swal2-input:focus,
+.swal2-popup .swal2-textarea:focus,
+.swal2-popup .swal2-select:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary), transparent 75%);
+}
+
+.swal2-popup .swal2-input::placeholder,
+.swal2-popup .swal2-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.app-swal-validation {
+  background: color-mix(in srgb, var(--error), transparent 88%) !important;
+  color: var(--error) !important;
+  border-radius: 10px;
+}
+
+.app-swal-confirm,
+.swal2-popup .swal2-confirm {
+  background: var(--brand-primary) !important;
+  border-radius: 10px !important;
+  color: #ffffff !important;
+}
+
+.app-swal-cancel,
+.swal2-popup .swal2-cancel {
+  background: var(--text-muted) !important;
+  border-radius: 10px !important;
+  color: #ffffff !important;
+}
+
+.swal2-popup .swal2-icon.swal2-question {
+  border-color: var(--brand-primary) !important;
+  color: var(--brand-primary) !important;
+}
+
+.swal2-popup .swal2-icon.swal2-success {
+  border-color: var(--success) !important;
+  color: var(--success) !important;
+}
+
+.swal2-popup .swal2-icon.swal2-error {
+  border-color: var(--error) !important;
+  color: var(--error) !important;
+}
+
+.swal2-popup .swal2-icon.swal2-warning {
+  border-color: var(--warning) !important;
+  color: var(--warning) !important;
+}

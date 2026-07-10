@@ -1,0 +1,21 @@
+export const selectClass = `
+w-full
+rounded-2xl
+border
+border-border-light
+dark:border-border-dark
+bg-surface-light
+dark:bg-surface-dark
+text-text-primary-light
+dark:text-text-primary-dark
+placeholder:text-text-muted-light
+dark:placeholder:text-text-muted-dark
+px-4
+py-3
+shadow-soft
+transition-all
+focus:outline-none
+focus:ring-2
+focus:ring-brand-primary
+focus:border-brand-primary
+`;
