@@ -892,7 +892,7 @@ export default function AdminFirmPage() {
         <div className='mb-2'>
           <SectionHeading
             title='Administrative Delegation'
-            subtitle='The owner remains unchanged. Administrative work can be delegated to an active staff member.'
+            subtitle='Transfer Administrative Role to a trusted Staff Member.'
             size='compact'
           />
         </div>
