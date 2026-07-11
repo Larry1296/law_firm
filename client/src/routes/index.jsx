@@ -1,464 +1,632 @@
 import React, { lazy, Suspense } from 'react';
+
 import { Routes, Route, Navigate } from 'react-router-dom';
+
 
 import PageLoader from '@/components/common/PageLoader';
 
-/* =========================================================
-   GUARDS
-========================================================= */
-import ProtectedRoute from '@/routes/ProtectedRoute';
-import RoleRoute from '@/core/guards/RoleRoute';
 
 /* =========================================================
-   LAYOUT WRAPPERS
+  GUARDS
 ========================================================= */
+
+import ProtectedRoute from '@/routes/ProtectedRoute';
+
+import RoleRoute from '@/core/guards/RoleRoute';
+
+
+/* =========================================================
+  LAYOUT WRAPPERS
+========================================================= */
+
 import PublicLayoutWrapper from '@/layouts/public/PublicLayoutWrapper';
+
 import AuthLayoutWrapper from '@/layouts/public/AuthLayoutWrapper';
+
 
 import AdminLayoutWrapper from '@/layouts/admin/AdminLayoutWrapper';
 
+
 import LawyerLayoutWrapper from '@/layouts/staff/lawyer/LawyerLayoutWrapper';
+
 import SecretaryLayoutWrapper from '@/layouts/staff/secretary/SecretaryLayoutWrapper';
+
 import AccountantLayoutWrapper from '@/layouts/staff/accountant/AccountantLayoutWrapper';
+
 import HRLayoutWrapper from '@/layouts/staff/hr/HRLayoutWrapper';
+
 import ITLayoutWrapper from '@/layouts/staff/it/ITLayoutWrapper';
 
+
 import ClientLayoutWrapper from '@/layouts/client/ClientLayoutWrapper';
+
 import PortalLayoutWrapper from '@/layouts/portal/ClientLayoutWrapper';
 
-/* =========================================================
-   PUBLIC
-========================================================= */
-const HomePage = lazy(() => import('@/modules/public/HomePage'));
-const NotFound = lazy(() => import('@/modules/public/NotFound'));
 
 /* =========================================================
-   AUTH
+  PUBLIC
 ========================================================= */
+
+const HomePage = lazy(() => import('@/modules/public/HomePage'));
+
+const NotFound = lazy(() => import('@/modules/public/NotFound'));
+
+const Unauthorized = lazy(() => import('@/modules/public/Unauthorized'));
+
+
+/* =========================================================
+  AUTH
+========================================================= */
+
 const Login = lazy(() => import('@/modules/auth/pages/Login'));
+
 const Register = lazy(() => import('@/modules/auth/pages/Register'));
+
 const ForgotPassword = lazy(
   () => import('@/modules/auth/pages/ForgotPassword'),
 );
+
 const ResetPassword = lazy(() => import('@/modules/auth/pages/ResetPassword'));
+
 const RecoverAccount = lazy(
   () => import('@/modules/auth/pages/RecoverAccount'),
 );
+
 
 const AdminDashboard = lazy(
   () => import('@/modules/admin/dashboard/pages/AdminDashboardPage'),
 );
 
+
 /* CASES */
+
 const AdminCasesPage = lazy(
   () => import('@/modules/admin/cases/pages/AdminCasesPage'),
 );
+
 const AdminCreateCasesPage = lazy(
   () => import('@/modules/admin/cases/pages/AdminCreateCasePage'),
 );
+
 const AdminCaseDetailsPage = lazy(
   () => import('@/modules/admin/cases/pages/AdminCaseDetailsPage'),
 );
+
 const AdminCaseAIAnalysisPage = lazy(
   () => import('@/modules/admin/cases/pages/AdminCaseAIAnalysisPage'),
 );
+
 const AdminCaseAssignmentsPage = lazy(
   () => import('@/modules/admin/cases/pages/AdminCaseAssignmentsPage'),
 );
+
 const AdminCaseCourtroomPage = lazy(
   () => import('@/modules/admin/cases/pages/AdminCaseCourtroomPage'),
 );
+
 const AdminCaseTimelinePage = lazy(
   () => import('@/modules/admin/cases/pages/AdminCaseTimelinePage'),
 );
 
+
 /* CLIENTS */
+
 const AdminClientsPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminClientsPage'),
 );
+
 const AdminCreateClientPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminCreateClientPage'),
 );
+
 const AdminClientDetailsPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminClientDetailsPage'),
 );
+
 const AdminClientCasesPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminClientCasesPage'),
 );
+
 const AdminClientDocumentsPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminClientDocumentsPage'),
 );
+
 const AdminClientCommunicationPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminClientCommunicationPage'),
 );
+
 const AdminClientBillingPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminClientBillingPage'),
 );
+
 const AdminClientActivityPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminClientActivityPage'),
 );
 
+
 /* STAFF */
+
 const AdminStaffPage = lazy(
   () => import('@/modules/admin/staff/pages/AdminStaffPage'),
 );
+
 const AdminCreateStaffPage = lazy(
   () => import('@/modules/admin/staff/pages/AdminCreateStaffPage'),
 );
+
 const AdminStaffDetailsPage = lazy(
   () => import('@/modules/admin/staff/pages/AdminStaffDetailsPage'),
 );
 
+
 /* HEARINGS */
+
 const AdminHearingsPage = lazy(
   () => import('@/modules/admin/hearings/pages/AdminHearingsPage'),
 );
+
 const AdminHearingDetailsPage = lazy(
   () => import('@/modules/admin/hearings/pages/AdminHearingDetailsPage'),
 );
+
 const AdminVirtualCourtroomPage = lazy(
   () => import('@/modules/admin/hearings/pages/AdminVirtualCourtroomPage'),
 );
 
+
 /* DOCUMENTS */
+
 const AdminDocumentsPage = lazy(
   () => import('@/modules/admin/documents/pages/AdminDocumentsPage'),
 );
+
 const AdminDocumentRequestsPage = lazy(
   () => import('@/modules/admin/documents/pages/AdminDocumentRequestsPage'),
 );
+
 const AdminDocumentTemplatePage = lazy(
   () => import('@/modules/admin/documents/pages/AdminDocumentTemplatePage'),
 );
+
 const AdminGeneratedDocumentsPage = lazy(
   () => import('@/modules/admin/documents/pages/AdminGeneratedDocumentsPage'),
 );
 
+
 /* BILLING */
+
 const AdminBillingPage = lazy(
   () => import('@/modules/admin/billing/pages/AdminBillingPage'),
 );
+
 const AdminInvoicesPage = lazy(
   () => import('@/modules/admin/billing/pages/AdminInvoicesPage'),
 );
+
 const AdminPaymentsPage = lazy(
   () => import('@/modules/admin/billing/pages/AdminPaymentsPage'),
 );
 
+
 /* REPORTS */
+
 const AdminReportsPage = lazy(
   () => import('@/modules/admin/reports/pages/AdminReportsPage'),
 );
+
 const AdminITReportPage = lazy(
   () => import('@/modules/admin/it/pages/AdminITReportPage'),
 );
 
+
 /* COMMUNICATION */
+
 const AdminChatPage = lazy(
   () => import('@/modules/admin/communication/pages/AdminChatPage'),
 );
+
 const AdminNotificationsCenterPage = lazy(
   () =>
     import('@/modules/admin/communication/pages/AdminNotificationsCenterPage'),
 );
+
 const StaffInternalChatPage = lazy(
   () => import('@/modules/staff/common/pages/StaffInternalChatPage'),
 );
 
+
 /* COMPLIANCE */
+
 const AdminAuditLogsPage = lazy(
   () => import('@/modules/admin/compliance/pages/AdminAuditLogsPage'),
 );
 
+
 /* SETTINGS */
+
 const AdminSettingsPage = lazy(
   () => import('@/modules/admin/settings/pages/AdminSettingsPage'),
 );
 
+
 /* FIRM */
+
 const AdminFirmPage = lazy(
   () => import('@/modules/admin/firm/pages/AdminFirmPage'),
 );
 
+
 /* AI */
+
 const AdminAIOverviewPage = lazy(
   () => import('@/modules/admin/ai/pages/AdminAIOverviewPage'),
 );
+
 const AdminAIRecommendationsPage = lazy(
   () => import('@/modules/admin/ai/pages/AdminAIRecommendationsPage'),
 );
+
 const AdminCasePredictionsPage = lazy(
   () => import('@/modules/admin/ai/pages/AdminCasePredictionsPage'),
 );
+
 const AdminLegalResearchAIPage = lazy(
   () => import('@/modules/admin/ai/pages/AdminLegalResearchAIPage'),
 );
 
+
 /* CALENDAR */
+
 const AdminCalendarPage = lazy(
   () => import('@/modules/admin/calendar/pages/AdminCalendarPage'),
 );
 
+
 /* =========================================================
-   LAWYER
+  LAWYER
 ========================================================= */
+
 const LawyerDashboard = lazy(
   () => import('@/modules/staff/lawyer/dashboard/pages/LawyerDashboardPage'),
 );
 
+
 const LawyerAI = lazy(
   () => import('@/modules/staff/lawyer/ai/pages/LawyerAIPage'),
 );
+
 const LawyerResearchAI = lazy(
   () => import('@/modules/staff/lawyer/ai/pages/LawyerResearchAIPage'),
 );
 
+
 const LawyerCases = lazy(
   () => import('@/modules/staff/lawyer/cases/pages/LawyerCasesPage'),
 );
+
 const LawyerCaseDetailsPage = lazy(
   () => import('@/modules/staff/lawyer/cases/pages/LawyerCaseDetailsPage'),
 );
+
 const LawyerCreateCase = lazy(
   () => import('@/modules/staff/lawyer/cases/pages/LawyerCreateCasePage'),
 );
 
+
 const LawyerChat = lazy(
   () => import('@/modules/staff/lawyer/communication/pages/LawyerChatPage'),
 );
+
 const LawyerNotifications = lazy(
   () =>
     import('@/modules/staff/lawyer/communication/pages/LawyerNotificationsPage'),
 );
 
+
 const LawyerDocumentsPage = lazy(
   () => import('@/modules/staff/lawyer/documents/pages/LawyerDocumentsPage'),
 );
+
 const LawyerTemplatesPage = lazy(
   () => import('@/modules/staff/lawyer/documents/pages/LawyerTemplatesPage'),
 );
 
+
 const LawyerHearings = lazy(
   () => import('@/modules/staff/lawyer/hearings/pages/LawyerHearingsPage'),
 );
+
 const LawyerHearingDetails = lazy(
   () =>
     import('@/modules/staff/lawyer/hearings/pages/LawyerHearingDetailsPage'),
 );
 
+
 const LawyerResearch = lazy(
   () => import('@/modules/staff/lawyer/research/pages/LawyerResearchPage'),
 );
+
 const LawyerAuthorities = lazy(
   () => import('@/modules/staff/lawyer/research/pages/LawyerAuthoritiesPage'),
 );
 
+
 const LawyerTasks = lazy(
   () => import('@/modules/staff/lawyer/tasks/pages/LawyerTasksPage'),
 );
+
 const LawyerApprovals = lazy(
   () => import('@/modules/staff/lawyer/tasks/pages/LawyerApprovalsPage'),
 );
 
+
 const LawyerProfile = lazy(
   () => import('@/modules/staff/lawyer/profile/pages/LawyerProfilePage'),
 );
+
 const LawyerSecurity = lazy(
   () => import('@/modules/staff/lawyer/security/pages/LawyerSecurityPage'),
 );
+
 const LawyerCalendar = lazy(
   () => import('@/modules/staff/lawyer/calendar/pages/LawyerCalendar'),
 );
 
+
 /* =========================================================
-   SECRETARY
+  SECRETARY
 ========================================================= */
+
 const SecretaryDashboard = lazy(
   () => import('@/modules/staff/secretary/dashboard/pages/SecretaryDashboard'),
 );
 
+
 const SecretaryClients = lazy(
   () => import('@/modules/staff/secretary/clients/pages/SecretaryClients'),
 );
+
 
 const SecretaryClientDetails = lazy(
   () =>
     import('@/modules/staff/secretary/clients/pages/SecretaryClientDetails'),
 );
 
+
 const SecretaryChat = lazy(
   () => import('@/modules/staff/secretary/communication/pages/SecretaryChat'),
 );
+
 
 const SecretaryCalendar = lazy(
   () => import('@/modules/staff/secretary/calendar/pages/SecretaryCalendar'),
 );
 
+
 const SecretaryCasesPage = lazy(
   () => import('@/modules/staff/secretary/cases/pages/SecretaryCasesPage'),
 );
 
+
 const SecretaryCreateCasePage = lazy(
   () => import('@/modules/staff/secretary/cases/pages/SecretaryCreateCasePage'),
 );
+
 
 const SecretaryCaseDetailsPage = lazy(
   () =>
     import('@/modules/staff/secretary/cases/pages/SecretaryCaseDetailsPage'),
 );
 
+
 const SecretaryDocuments = lazy(
   () => import('@/modules/staff/secretary/documents/pages/SecretaryDocuments'),
 );
+
 
 const SecretaryTasks = lazy(
   () => import('@/modules/staff/secretary/tasks/pages/SecretaryTasks'),
 );
 
+
 const SecretaryProfile = lazy(
   () => import('@/modules/staff/secretary/profile/pages/SecretaryProfile'),
 );
 
+
 /* =========================================================
-   ACCOUNTANT
+  ACCOUNTANT
 ========================================================= */
+
 const AccountantDashboard = lazy(
   () => import('@/modules/staff/accountant/pages/AccountantDashboard'),
 );
+
 const AccountantBilling = lazy(
   () => import('@/modules/staff/accountant/pages/AccountantBilling'),
 );
+
 const AccountantTasks = lazy(
   () => import('@/modules/staff/accountant/pages/AccountantTasks'),
 );
+
 const AccountantDocuments = lazy(
   () => import('@/modules/staff/accountant/pages/AccountantDocuments'),
 );
+
 const AccountantCalendar = lazy(
   () => import('@/modules/staff/accountant/pages/AccountantCalendar'),
 );
+
 const AccountantNotifications = lazy(
   () => import('@/modules/staff/accountant/pages/AccountantNotifications'),
 );
+
 const AccountantProfile = lazy(
   () => import('@/modules/staff/accountant/pages/AccountantProfile'),
 );
+
 const AccountantSecurity = lazy(
   () => import('@/modules/staff/accountant/pages/AccountantSecurity'),
 );
 
+
 /* =========================================================
-   HR
+  HR
 ========================================================= */
+
 const HRDashboard = lazy(() => import('@/modules/staff/hr/pages/HRDashboard'));
+
 const HRStaffRecords = lazy(
   () => import('@/modules/staff/hr/pages/HRStaffRecords'),
 );
+
 const HRTasks = lazy(() => import('@/modules/staff/hr/pages/HRTasks'));
+
 const HRDocuments = lazy(() => import('@/modules/staff/hr/pages/HRDocuments'));
+
 const HRCalendar = lazy(() => import('@/modules/staff/hr/pages/HRCalendar'));
+
 const HRNotifications = lazy(
   () => import('@/modules/staff/hr/pages/HRNotifications'),
 );
+
 const HRProfile = lazy(() => import('@/modules/staff/hr/pages/HRProfile'));
+
 const HRSecurity = lazy(() => import('@/modules/staff/hr/pages/HRSecurity'));
 
+
 /* =========================================================
-   IT
+  IT
 ========================================================= */
+
 const ITDashboard = lazy(() => import('@/modules/staff/it/pages/ITDashboard'));
+
 const ITSystems = lazy(() => import('@/modules/staff/it/pages/ITSystems'));
+
 const ITTasks = lazy(() => import('@/modules/staff/it/pages/ITTasks'));
+
 const ITDocuments = lazy(() => import('@/modules/staff/it/pages/ITDocuments'));
+
 const ITCalendar = lazy(() => import('@/modules/staff/it/pages/ITCalendar'));
+
 const ITNotifications = lazy(
   () => import('@/modules/staff/it/pages/ITNotifications'),
 );
+
 const ITProfile = lazy(() => import('@/modules/staff/it/pages/ITProfile'));
+
 const ITSecurity = lazy(() => import('@/modules/staff/it/pages/ITSecurity'));
 
+
 /* =========================================================
-   CLIENT (FIRM)
+  CLIENT (FIRM)
 ========================================================= */
+
 const ClientDashboardPage = lazy(
   () => import('@/modules/client/dashboard/pages/ClientDashboardPage'),
 );
+
 const ClientCasesPage = lazy(
   () => import('@/modules/client/cases/pages/ClientCasesPage'),
 );
+
 const ClientCaseDetailsPage = lazy(
   () => import('@/modules/client/cases/pages/ClientCaseDetailsPage'),
 );
+
 const ClientCaseDocuments = lazy(
   () => import('@/modules/client/documents/pages/ClientCaseDocumentsPage'),
 );
+
 const ClientProfile = lazy(
   () => import('@/modules/client/profile/pages/ClientProfilePage'),
 );
+
 const ClientCalendarPage = lazy(
   () => import('@/modules/client/calendar/pages/ClientCaseCalendarPage'),
 );
+
 const ClientCommunicationPage = lazy(
   () =>
     import('@/modules/client/communication/pages/ClientCaseCommunicationPage'),
 );
+
 const ClientNotificationsPage = lazy(
   () => import('@/modules/client/notifications/pages/ClientNotificationsPage'),
 );
 
+
 /* =========================================================
-   PORTAL
+  PORTAL (PROSPECT)
 ========================================================= */
+
 const PortalDashboard = lazy(
   () => import('@/modules/portal/dashboard/PortalDashboard'),
 );
+
 const PortalConsultations = lazy(
   () => import('@/modules/portal/consultations/PortalConsultations'),
 );
+
 const BookConsultation = lazy(
   () => import('@/modules/portal/consultations/BookConsultation'),
 );
+
 const ConsultationDetails = lazy(
   () => import('@/modules/portal/consultations/ConsultationDetails'),
 );
 
+
 const PortalMessages = lazy(
   () => import('@/modules/portal/communications/PortalMessages'),
 );
+
 const PortalSupport = lazy(
   () => import('@/modules/portal/communications/PortalSupport'),
 );
 
+
 const PortalDocuments = lazy(
   () => import('@/modules/portal/documents/PortalDocuments'),
 );
+
 const UploadDocuments = lazy(
   () => import('@/modules/portal/documents/UploadDocuments'),
 );
 
+
 const IntakeForms = lazy(() => import('@/modules/portal/intake/IntakeForms'));
+
 const IntakeStatus = lazy(() => import('@/modules/portal/intake/IntakeStatus'));
+
 const NewIntakeForm = lazy(
   () => import('@/modules/portal/intake/NewIntakeForm'),
 );
+
 
 const PortalNotifications = lazy(
   () => import('@/modules/portal/notifications/PortalNotifications'),
 );
 
+
 const BecomeClient = lazy(
   () => import('@/modules/portal/onboarding/BecomeClient'),
 );
+
 const FirmMembershipStatus = lazy(
   () => import('@/modules/portal/onboarding/FirmMembershipStatus'),
 );
 
+
 const PortalProfile = lazy(
   () => import('@/modules/portal/profile/PortalProfile'),
 );
+
 /* =========================================================
-   ROUTER
+  ROUTER
 ========================================================= */
+
 const AppRoutes = () => {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -467,6 +635,7 @@ const AppRoutes = () => {
         <Route element={<PublicLayoutWrapper />}>
           <Route path='/' element={<HomePage />} />
         </Route>
+
 
         {/* AUTH */}
         <Route element={<AuthLayoutWrapper />}>
@@ -477,6 +646,8 @@ const AppRoutes = () => {
           <Route path='/reset-password/:token' element={<ResetPassword />} />
         </Route>
 
+
+        {/* ADMIN */}
         <Route
           path='/admin/*'
           element={
@@ -597,6 +768,7 @@ const AppRoutes = () => {
           {/* CALENDAR */}
           <Route path='calendar' element={<AdminCalendarPage />} />
         </Route>
+
         {/* LAWYER */}
         <Route
           path='/lawyer/*'
@@ -770,12 +942,12 @@ const AppRoutes = () => {
           <Route path='profile' element={<ClientProfile />} />
         </Route>
 
-        {/* PORTAL */}
+        {/* PORTAL (PROSPECT) - UPDATED WITH ALL ROUTES */}
         <Route
           path='/portal/*'
           element={
             <ProtectedRoute>
-              <RoleRoute allowedRoles={['PROSPECT']}>
+              <RoleRoute allowedRoles={['PROSPECT', 'PORTAL_CLIENT']}>
                 <PortalLayoutWrapper />
               </RoleRoute>
             </ProtectedRoute>
@@ -799,11 +971,13 @@ const AppRoutes = () => {
           <Route path='profile' element={<PortalProfile />} />
         </Route>
 
-        {/* 404 */}
+        {/* ERROR PAGES - ADDED MISSING UNAUTHORIZED ROUTE */}
+        <Route path='/unauthorized' element={<Unauthorized />} />
         <Route path='*' element={<NotFound />} />
       </Routes>
     </Suspense>
   );
 };
+
 
 export default AppRoutes;

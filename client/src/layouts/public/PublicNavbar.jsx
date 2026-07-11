@@ -93,7 +93,7 @@ export default function PublicNavbar() {
             />
 
             <span className='hidden xl:inline whitespace-nowrap text-yellow-600 font-extrabold text-lg tracking-wide'>
-              kulecho & Co Advocates
+              Sheria Master
             </span>
           </div>
 

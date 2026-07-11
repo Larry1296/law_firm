@@ -15,7 +15,7 @@ export default function Brand({
 
       {showText && (
         <span className={`font-extrabold ${textSize} ${'text-yellow-600'}`}>
-          kulecho & CO Advocates
+          Sheria Master
         </span>
       )}
     </div>
