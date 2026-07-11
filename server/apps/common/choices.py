@@ -9,7 +9,7 @@ class UserRole(models.TextChoices):
     ADMIN = "ADMIN", "Admin"
     STAFF = "STAFF", "Staff"
     OFFICIAL_CLIENT = "OFFICIAL_CLIENT", "Official Client"
-    PORTAL_CLIENT = "PORTAL_CLIENT", "Portal Client"
+    PROSPECT = "PROSPECT", "Prospect" 
 
 
 # ==========================================================

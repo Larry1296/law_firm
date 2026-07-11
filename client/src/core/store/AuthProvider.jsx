@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+
 import { jwtDecode } from 'jwt-decode';
 
 import AuthContext from '@/core/store/AuthContext';
@@ -246,14 +247,14 @@ const AuthProvider = ({ children }) => {
   }, [accessToken, refreshToken, syncSessionUser]);
 
   // =========================
-  // ROLE HELPERS (ADD THIS)
+  // ROLE HELPERS
   // =========================
   const role = user?.role;
   const firmRole = user?.firm_role;
 
   const isAdmin = role === 'ADMIN';
   const isOfficialClient = role === 'OFFICIAL_CLIENT';
-  const isPortalClient = role === 'PORTAL_CLIENT';
+  const isPortalClient = role === 'PROSPECT';           // ← Updated
   const isClient = isOfficialClient || isPortalClient;
   const isStaff = role === 'STAFF';
 

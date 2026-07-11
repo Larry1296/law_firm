@@ -209,6 +209,12 @@ class CaseService:
             client.lifecycle_status = Client.LifecycleStatus.OFFICIAL_CLIENT
             client.save(update_fields=["lifecycle_status", "updated_at"])
 
+            # Sync User role when prospect becomes official client
+            if client.user and client.user.role == UserRole.PROSPECT:
+                client.user.role = UserRole.OFFICIAL_CLIENT
+                client.user.save(update_fields=["role", "updated_at"])
+
+
         CaseService.record_activity(
             case,
             action="Case Created",

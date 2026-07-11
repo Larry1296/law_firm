@@ -3,9 +3,11 @@ from rest_framework.response import Response
 
 from apps.clients.models import Client
 from apps.clients.views.client_admin_base_view import ClientAdminBaseView
+from apps.clients.services.admin.client_admin_status_service import ClientAdminStatusService
 
 
 class ClientAdminStatusView(ClientAdminBaseView):
+
     def post(self, request, client_id):
         try:
             firm = self.get_firm()
@@ -18,12 +20,20 @@ class ClientAdminStatusView(ClientAdminBaseView):
             return Response({"detail": "Client not found."}, status=status.HTTP_404_NOT_FOUND)
 
         action = request.data.get("action", "activate")
-        if action == "activate":
-            client.is_active = True
-            client.lifecycle_status = Client.LifecycleStatus.OFFICIAL_CLIENT
-        else:
-            client.is_active = False
-            client.lifecycle_status = Client.LifecycleStatus.ARCHIVED
 
-        client.save(update_fields=["is_active", "lifecycle_status"])
-        return Response({"detail": f"Client {action}d successfully.", "client": {"id": str(client.id), "is_active": client.is_active, "lifecycle_status": client.lifecycle_status}}, status=status.HTTP_200_OK)
+        if action not in ["activate", "deactivate"]:
+            return Response({"detail": "Invalid action."}, status=status.HTTP_400_BAD_REQUEST)
+
+        updated_client = ClientAdminStatusService.set_status(client, action)
+
+        return Response(
+            {
+                "detail": f"Client {action}d successfully.",
+                "client": {
+                    "id": str(updated_client.id),
+                    "is_active": updated_client.is_active,
+                    "lifecycle_status": updated_client.lifecycle_status,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )

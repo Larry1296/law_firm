@@ -7,8 +7,8 @@ import { motion } from 'framer-motion';
 import { ShieldCheck, Lock, ArrowLeft } from 'lucide-react';
 
 import authService from '@/modules/auth/service/authService';
-import AuthContext from '@/core/store/AuthContext';
 import { useContext } from 'react';
+import AuthContext from '@/core/store/AuthContext';
 
 import Card from '@/components/ui/Card';
 import Button3D from '@/components/ui/Button3D';
@@ -30,14 +30,22 @@ export default function Login() {
   const navigate = useNavigate();
 
   const navigateByRole = (sessionUser) => {
-    const role = sessionUser.role;
-    const sessionFirmRole = sessionUser.firm_role;
+  const role = sessionUser.role;
+  const sessionFirmRole = sessionUser.firm_role;
 
-    if (role === 'ADMIN') return navigate('/admin/dashboard', { replace: true });
+  console.log('User role from server:', role); // ← For debugging
 
-    if (role === 'OFFICIAL_CLIENT') return navigate('/client/dashboard', { replace: true });
+  if (role === 'ADMIN') {
+      return navigate('/admin/dashboard', { replace: true });
+    }
 
-    if (role === 'PORTAL_CLIENT') return navigate('/portal/dashboard', { replace: true });
+    if (role === 'OFFICIAL_CLIENT') {
+      return navigate('/client/dashboard', { replace: true });
+    }
+
+    if (role === 'PROSPECT' || role === 'PORTAL_CLIENT') {
+      return navigate('/portal/dashboard', { replace: true });
+    }
 
     if (role === 'STAFF') {
       if (sessionFirmRole === 'LAWYER') return navigate('/lawyer/dashboard', { replace: true });
@@ -53,7 +61,7 @@ export default function Login() {
 
   const getDashboardThemeRole = (sessionUser) => {
     if (sessionUser.role === 'ADMIN') return 'admin';
-    if (['OFFICIAL_CLIENT', 'PORTAL_CLIENT'].includes(sessionUser.role)) {
+    if (['OFFICIAL_CLIENT', 'PROSPECT'].includes(sessionUser.role)) {
       return 'client';
     }
 
@@ -78,7 +86,7 @@ export default function Login() {
 
   const promptPasswordChoice = async ({ sessionUser, access, refresh }) => {
     const canPrompt =
-      ['ADMIN', 'STAFF', 'PORTAL_CLIENT'].includes(sessionUser.role) &&
+      ['ADMIN', 'STAFF', 'PROSPECT'].includes(sessionUser.role) &&
       sessionUser.must_change_password;
 
     if (!canPrompt) {
@@ -132,13 +140,13 @@ export default function Login() {
             });
           } else {
             await authService.changePassword({
-            current_password: password,
-            new_password: newPassword,
-            confirm_password: confirmPassword,
-          });
+              current_password: password,
+              new_password: newPassword,
+              confirm_password: confirmPassword,
+            });
           }
           return true;
-          } catch (err) {
+        } catch (err) {
           const message = getApiErrorMessage(
             err,
             'Could not update password.',
