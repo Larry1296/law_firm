@@ -34,6 +34,10 @@ const ChatComposer = ({
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
+        autoComplete="on"
+        autoCorrect="on"
+        autoCapitalize="sentences"
+        spellCheck
       />
 
       <button

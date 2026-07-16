@@ -1,9 +1,10 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
 import BackLink from '@/components/ui/BackLink';
+import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
 import { formatDate, formatDateTime } from '@/core/utils/dateFormatter';
 import { displayEnum } from '@/core/utils/textFormatter';
@@ -75,6 +76,14 @@ export default function ClientCaseDetailsPage() {
         title={pageTitle}
         subtitle='Your legal matter overview'
       />
+
+      <div className='md:hidden'>
+        <Link to={`/client/cases/${id}/communication`}>
+          <Button3D className='w-full justify-center'>
+            Open case communication
+          </Button3D>
+        </Link>
+      </div>
 
       <Card className='p-6'>
         <div className='grid gap-6 md:grid-cols-2'>
@@ -198,23 +207,26 @@ export default function ClientCaseDetailsPage() {
         </p>
       </Card>
 
-      <ChatWorkspace
-        title='Case Communication'
-        subtitle='Secure communication for this legal matter.'
-        threads={caseThreads}
-        selectedThreadId={caseThread?.id}
-        onSelectThread={() => {}}
-        messages={caseMessagesQuery.data?.messages || []}
-        onSendMessage={handleSendCaseMessage}
-        isLoadingThreads={caseThreadQuery.isLoading}
-        isLoadingMessages={caseMessagesQuery.isLoading}
-        isSending={sendCaseMessage.isPending}
-        onRefresh={() => {
-          caseThreadQuery.refetch();
-          caseMessagesQuery.refetch();
-        }}
-        emptyThreadMessage='No case communication thread yet.'
-      />
+      <div className='hidden md:block'>
+        <ChatWorkspace
+          title='Case Communication'
+          subtitle='Secure communication for this legal matter.'
+          threads={caseThreads}
+          selectedThreadId={caseThread?.id}
+          onSelectThread={() => {}}
+          messages={caseMessagesQuery.data?.messages || []}
+          onSendMessage={handleSendCaseMessage}
+          isLoadingThreads={caseThreadQuery.isLoading}
+          isLoadingMessages={caseMessagesQuery.isLoading}
+          isSending={sendCaseMessage.isPending}
+          onRefresh={() => {
+            caseThreadQuery.refetch();
+            caseMessagesQuery.refetch();
+          }}
+          emptyThreadMessage='No case communication thread yet.'
+          hideSingleThreadSidebarOnMobile
+        />
+      </div>
     </div>
   );
 }

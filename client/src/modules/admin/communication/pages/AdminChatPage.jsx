@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MessageSquare, UserRound } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
@@ -23,8 +24,11 @@ const getStaffThread = (threads, staffUserId) =>
   );
 
 export default function AdminChatPage() {
+  const [searchParams] = useSearchParams();
   const [selectedStaffId, setSelectedStaffId] = useState('');
-  const [selectedThreadId, setSelectedThreadId] = useState(null);
+  const [selectedThreadId, setSelectedThreadId] = useState(
+    () => searchParams.get('thread') || null,
+  );
   const [message, setMessage] = useState('');
   const [feedback, setFeedback] = useState(null);
 
@@ -130,6 +134,10 @@ export default function AdminChatPage() {
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             placeholder='Optional opening message'
+            autoComplete='on'
+            autoCorrect='on'
+            autoCapitalize='sentences'
+            spellCheck
             className='h-12 rounded-2xl border border-border-light bg-white px-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-border-dark dark:bg-slate-900 dark:text-white'
           />
 

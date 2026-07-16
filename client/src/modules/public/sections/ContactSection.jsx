@@ -423,6 +423,10 @@ export default function ContactSection() {
                   <input
                     key={placeholder}
                     placeholder={placeholder}
+                    autoComplete='on'
+                    autoCorrect='on'
+                    autoCapitalize='words'
+                    spellCheck
                     className="w-full px-5 py-4 rounded-2xl outline-none transition"
                     style={{
                       backgroundColor: colors.inputBg,
@@ -443,6 +447,10 @@ export default function ContactSection() {
                 <textarea
                   rows="6"
                   placeholder="Describe your legal issue..."
+                  autoComplete='on'
+                  autoCorrect='on'
+                  autoCapitalize='sentences'
+                  spellCheck
                   className="w-full px-5 py-4 rounded-2xl outline-none resize-none"
                   style={{
                     backgroundColor: colors.inputBg,

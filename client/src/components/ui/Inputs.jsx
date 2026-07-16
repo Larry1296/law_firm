@@ -6,8 +6,25 @@ export default function Input({
   placeholder,
   type = 'text',
   className = '',
+  autoComplete,
+  autoCorrect,
+  autoCapitalize,
+  spellCheck,
   ...rest
 }) {
+  const supportsWritingAssist = ![
+    'password',
+    'number',
+    'date',
+    'time',
+    'datetime-local',
+    'month',
+    'week',
+    'file',
+    'checkbox',
+    'radio',
+  ].includes(type);
+
   return (
     <div className='space-y-2'>
       {label && (
@@ -26,6 +43,10 @@ export default function Input({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        autoComplete={autoComplete ?? (type === 'password' ? 'current-password' : 'on')}
+        autoCorrect={autoCorrect ?? (supportsWritingAssist ? 'on' : 'off')}
+        autoCapitalize={autoCapitalize ?? (supportsWritingAssist ? 'sentences' : 'none')}
+        spellCheck={spellCheck ?? supportsWritingAssist}
         className={`
           w-full
           px-4

@@ -8,6 +8,7 @@ from apps.common.choices import FirmRole, UserRole
 from apps.communications.choices import ChatMessageType, ChatThreadType
 from apps.communications.models import ChatMessage, ChatThread, ChatThreadParticipant
 from apps.firm.models import LawFirmMember
+from apps.notifications.services import NotificationService
 from apps.users.models import User
 
 
@@ -412,12 +413,13 @@ class ChatService:
 
         ChatService._create_participant(thread, user, can_reply=True)
         ChatService.mark_thread_read(user, thread)
+        NotificationService.notify_chat_message(message=message)
 
         return message
 
     @staticmethod
     def _get_forwardable_message(user, message_id):
-        message = ChatMessage.objects.select_related(
+        message = ChatMessage.objects.select_for_update().select_related(
             "thread",
             "thread__case",
             "thread__case__assigned_lawyer",
@@ -428,6 +430,10 @@ class ChatService:
         ).get(id=message_id)
         if not CommunicationAccessService.can_view_thread(user, message.thread):
             raise PermissionDenied("You do not have access to this message.")
+        if message.is_forwarded:
+            raise PermissionDenied("Forwarded messages cannot be forwarded again.")
+        if message.forwarded_messages.exists():
+            raise PermissionDenied("This message has already been forwarded.")
         return message
 
     @staticmethod
@@ -495,4 +501,5 @@ class ChatService:
         )
         participant.last_read_at = timezone.now()
         participant.save(update_fields=["last_read_at", "updated_at"])
+        NotificationService.mark_chat_thread_notifications_read(user=user, thread=thread)
         return participant

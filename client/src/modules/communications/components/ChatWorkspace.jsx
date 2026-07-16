@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Forward, MessageCircle, Send, Users } from 'lucide-react';
+import { Check, CheckCheck, Forward, MessageCircle, Send, Users } from 'lucide-react';
 
 import useAuth from '@/core/hooks/useAuth';
 import { formatDateTime } from '@/core/utils/dateFormatter';
@@ -30,6 +30,30 @@ const getThreadSubtitle = (thread) => {
     .join(', ');
 };
 
+const MessageStatusTicks = ({ status }) => {
+  if (status === 'read') {
+    return (
+      <span title='Read' className='inline-flex text-sky-300'>
+        <CheckCheck size={16} strokeWidth={2.4} />
+      </span>
+    );
+  }
+
+  if (status === 'delivered') {
+    return (
+      <span title='Delivered' className='inline-flex opacity-80'>
+        <CheckCheck size={16} strokeWidth={2.4} />
+      </span>
+    );
+  }
+
+  return (
+    <span title='Sent' className='inline-flex opacity-80'>
+      <Check size={16} strokeWidth={2.4} />
+    </span>
+  );
+};
+
 export default function ChatWorkspace({
   title = 'Communication',
   subtitle = 'Secure case and staff communication',
@@ -46,6 +70,7 @@ export default function ChatWorkspace({
   readOnlyMessage = 'You can read this conversation but cannot reply.',
   sidebarExtra = null,
   getMessageActions = null,
+  hideSingleThreadSidebarOnMobile = false,
 }) {
   const { user } = useAuth() || {};
   const [body, setBody] = useState('');
@@ -68,10 +93,19 @@ export default function ChatWorkspace({
   const handleSubmit = async (event) => {
     event.preventDefault();
     const trimmed = body.trim();
-    if (!trimmed || !selectedThread || !canReply) return;
+    if (!trimmed || !selectedThread || !canReply || isSending) return;
 
     await onSendMessage(trimmed);
     setBody('');
+  };
+
+  const handleComposerKeyDown = (event) => {
+    if (event.key !== 'Enter' || event.shiftKey) return;
+
+    event.preventDefault();
+
+    if (!body.trim() || !selectedThread || !canReply || isSending) return;
+    event.currentTarget.form?.requestSubmit();
   };
 
   return (
@@ -94,7 +128,13 @@ export default function ChatWorkspace({
       </div>
 
       <div className='grid min-h-[620px] gap-4 lg:grid-cols-[360px_1fr]'>
-        <Card className='flex min-h-[360px] flex-col overflow-hidden'>
+        <Card
+          className={`min-h-[360px] flex-col overflow-hidden ${
+            hideSingleThreadSidebarOnMobile && threads.length <= 1
+              ? 'hidden lg:flex'
+              : 'flex'
+          }`}
+        >
           <div className='border-b border-border-light p-4 dark:border-border-dark'>
             <div className='flex items-center gap-2 font-semibold'>
               <Users size={18} />
@@ -235,12 +275,21 @@ export default function ChatWorkspace({
                             </span>
                             <span>•</span>
                             <span>{formatDateTime(message.created_at)}</span>
-                            {message.is_forwarded && (
+                            {(message.is_forwarded || message.has_been_forwarded) && (
                               <>
                                 <span>•</span>
-                                <span className='inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800 dark:bg-amber-950 dark:text-amber-200'>
+                                <span
+                                  className='inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
+                                  title={
+                                    message.has_been_forwarded && message.forwarded_at
+                                      ? `Forwarded at ${formatDateTime(message.forwarded_at)}`
+                                      : undefined
+                                  }
+                                >
                                   <Forward size={12} />
-                                  Forwarded
+                                  {message.has_been_forwarded
+                                    ? 'Already forwarded'
+                                    : 'Forwarded'}
                                 </span>
                               </>
                             )}
@@ -248,6 +297,13 @@ export default function ChatWorkspace({
                           <p className='whitespace-pre-wrap text-sm leading-relaxed'>
                             {message.body}
                           </p>
+                          {isMine && (
+                            <div className='mt-1 flex justify-end'>
+                              <MessageStatusTicks
+                                status={message.delivery_status || 'sent'}
+                              />
+                            </div>
+                          )}
                           {actions.length > 0 && (
                             <div className='mt-3 flex flex-wrap gap-2'>
                               {actions.map((action) => (
@@ -290,6 +346,7 @@ export default function ChatWorkspace({
                   <textarea
                     value={body}
                     onChange={(event) => setBody(event.target.value)}
+                    onKeyDown={handleComposerKeyDown}
                     disabled={!canReply || isSending}
                     rows={2}
                     placeholder={
@@ -297,6 +354,10 @@ export default function ChatWorkspace({
                         ? 'Type your message...'
                         : 'Replies are disabled for this thread'
                     }
+                    autoComplete='on'
+                    autoCorrect='on'
+                    autoCapitalize='sentences'
+                    spellCheck
                     className='min-h-[52px] flex-1 resize-none rounded-2xl border border-border-light bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-slate-900 dark:text-white'
                   />
 

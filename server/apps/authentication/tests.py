@@ -56,3 +56,48 @@ class ClientRegistrationTests(TestCase):
         self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECT)
         self.assertFalse(client.is_verified)
         self.assertFalse(user.must_change_password)
+
+
+class AdminLoginPasswordResetTests(TestCase):
+    def setUp(self):
+        self.api = APIClient()
+
+    def test_admin_created_normally_does_not_require_password_reset(self):
+        user = User.objects.create_admin(
+            email="admin-default@example.com",
+            password="strong-pass123",
+            first_name="Firm",
+            last_name="Owner",
+            phone_number="+254733000003",
+            national_id_number="733000003",
+        )
+
+        self.assertFalse(user.must_change_password)
+
+    def test_admin_login_clears_stale_password_reset_flag(self):
+        user = User.objects.create_user(
+            email="admin-stale@example.com",
+            password="strong-pass123",
+            first_name="Firm",
+            last_name="Owner",
+            phone_number="+254733000004",
+            national_id_number="733000004",
+            role=UserRole.ADMIN,
+            must_change_password=True,
+            is_staff=True,
+        )
+
+        response = self.api.post(
+            reverse("login"),
+            {
+                "email": "admin-stale@example.com",
+                "password": "strong-pass123",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertFalse(response.data["user"]["must_change_password"])
+
+        user.refresh_from_db()
+        self.assertFalse(user.must_change_password)

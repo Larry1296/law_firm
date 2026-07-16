@@ -17,10 +17,12 @@ class Client(models.Model):
         GOVERNMENT_BODY = "GOVERNMENT_BODY", "Government Body"
         FINANCIAL_INSTITUTION = "FINANCIAL_INSTITUTION", "Financial Institution"
         NGO_ASSOCIATION = "NGO_ASSOCIATION", "NGO / Association"
+        RELIGIOUS_ORGANIZATION = "RELIGIOUS_ORGANIZATION", "Religious Organization"
         EDUCATIONAL_INSTITUTION = "EDUCATIONAL_INSTITUTION", "Educational Institution"
         ESTATE = "ESTATE", "Estate"
         REPRESENTATIVE = "REPRESENTATIVE", "Representative"
         COOPERATIVE = "COOPERATIVE", "Cooperative"
+        SACCO = "SACCO", "SACCO"
         INTERNATIONAL_ENTITY = "INTERNATIONAL_ENTITY", "International Entity"
 
     class AccessType(models.TextChoices):

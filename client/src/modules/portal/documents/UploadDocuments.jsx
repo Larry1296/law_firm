@@ -95,6 +95,10 @@ export default function UploadDocuments() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Add notes about this document..."
+            autoComplete="on"
+            autoCorrect="on"
+            autoCapitalize="sentences"
+            spellCheck
             className="w-full mt-1 p-3 rounded-xl bg-background-dark border border-border-dark text-sm min-h-[120px]"
           />
         </div>

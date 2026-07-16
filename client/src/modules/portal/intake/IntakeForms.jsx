@@ -70,6 +70,10 @@ export default function IntakeForms() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Example: Land ownership dispute"
+              autoComplete="on"
+              autoCorrect="on"
+              autoCapitalize="sentences"
+              spellCheck
               className="w-full mt-1 px-4 py-3 rounded-xl bg-background-dark border border-border-dark text-sm outline-none focus:border-brand-primary"
               required
             />
@@ -108,6 +112,10 @@ export default function IntakeForms() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Provide all relevant details regarding your legal issue..."
+              autoComplete="on"
+              autoCorrect="on"
+              autoCapitalize="sentences"
+              spellCheck
               className="w-full mt-1 px-4 py-3 rounded-xl bg-background-dark border border-border-dark text-sm min-h-[160px] outline-none focus:border-brand-primary"
               required
             />

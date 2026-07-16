@@ -9,6 +9,7 @@ from apps.clients.models import Client
 from apps.common.choices import FirmRole, UserRole
 from apps.communications.models import Announcement, AnnouncementRecipient, ChatMessage, ChatThread
 from apps.firm.models import LawFirm, LawFirmMember
+from apps.notifications.models import Notification
 from apps.staff.models import Lawyer, Secretary
 from apps.users.models import User
 
@@ -166,6 +167,14 @@ class CommunicationApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 201, response.data)
         thread_id = response.data["thread"]["id"]
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.secretary_user,
+                notification_type=Notification.NotificationType.CHAT_MESSAGE,
+                read_at__isnull=True,
+            ).count(),
+            1,
+        )
 
         self.api.force_authenticate(user=self.secretary_user)
         reply = self.api.post(
@@ -174,6 +183,22 @@ class CommunicationApiTests(TestCase):
             format="json",
         )
         self.assertEqual(reply.status_code, 201, reply.data)
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.secretary_user,
+                notification_type=Notification.NotificationType.CHAT_MESSAGE,
+                read_at__isnull=True,
+            ).count(),
+            0,
+        )
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.admin,
+                notification_type=Notification.NotificationType.CHAT_MESSAGE,
+                read_at__isnull=True,
+            ).count(),
+            1,
+        )
 
         self.api.force_authenticate(user=self.lawyer_user)
         forbidden = self.api.get(
@@ -191,6 +216,30 @@ class CommunicationApiTests(TestCase):
         self.assertEqual(message.status_code, 201, message.data)
         self.assertEqual(ChatThread.objects.count(), 1)
         self.assertEqual(ChatMessage.objects.count(), 1)
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.secretary_user,
+                notification_type=Notification.NotificationType.CHAT_MESSAGE,
+                read_at__isnull=True,
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.lawyer_user,
+                notification_type=Notification.NotificationType.CHAT_MESSAGE,
+                read_at__isnull=True,
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.admin,
+                notification_type=Notification.NotificationType.CHAT_MESSAGE,
+                read_at__isnull=True,
+            ).count(),
+            1,
+        )
 
         self.api.force_authenticate(user=self.secretary_user)
         secretary_messages = self.api.get(
@@ -198,6 +247,24 @@ class CommunicationApiTests(TestCase):
         )
         self.assertEqual(secretary_messages.status_code, 200, secretary_messages.data)
         self.assertEqual(len(secretary_messages.data["messages"]), 1)
+        self.assertEqual(secretary_messages.data["messages"][0]["delivery_status"], "delivered")
+        self.assertEqual(
+            Notification.objects.filter(
+                recipient=self.secretary_user,
+                notification_type=Notification.NotificationType.CHAT_MESSAGE,
+                read_at__isnull=True,
+            ).count(),
+            0,
+        )
+
+        self.api.force_authenticate(user=self.client_user)
+        client_messages_after_secretary_open = self.api.get(
+            reverse("communication-case-messages", kwargs={"case_id": self.case.id}),
+        )
+        self.assertEqual(
+            client_messages_after_secretary_open.data["messages"][0]["delivery_status"],
+            "read",
+        )
 
         secretary_reply = self.api.post(
             reverse("communication-case-messages", kwargs={"case_id": self.case.id}),
@@ -216,6 +283,15 @@ class CommunicationApiTests(TestCase):
         self.assertEqual(forward_to_lawyer.status_code, 201, forward_to_lawyer.data)
         self.assertTrue(forward_to_lawyer.data["message"]["is_forwarded"])
         self.assertEqual(forward_to_lawyer.data["message"]["forward_direction"], "TO_LAWYER")
+
+        duplicate_forward_to_lawyer = self.api.post(
+            reverse(
+                "communication-message-forward-lawyer",
+                kwargs={"message_id": message.data["message"]["id"]},
+            ),
+            format="json",
+        )
+        self.assertEqual(duplicate_forward_to_lawyer.status_code, 403)
 
         self.api.force_authenticate(user=self.admin)
         admin_reply = self.api.post(
@@ -258,6 +334,7 @@ class CommunicationApiTests(TestCase):
         self.assertEqual(lawyer_thread_messages.status_code, 200, lawyer_thread_messages.data)
         self.assertEqual(len(lawyer_thread_messages.data["messages"]), 1)
         self.assertTrue(lawyer_thread_messages.data["messages"][0]["is_forwarded"])
+        self.assertFalse(lawyer_thread_messages.data["messages"][0]["has_been_forwarded"])
 
         internal_reply = self.api.post(
             reverse(
@@ -292,6 +369,29 @@ class CommunicationApiTests(TestCase):
         )
         self.assertEqual(forward_to_client.status_code, 201, forward_to_client.data)
         self.assertFalse(forward_to_client.data["message"]["is_forwarded"])
+
+        duplicate_forward_to_client = self.api.post(
+            reverse(
+                "communication-message-forward-client",
+                kwargs={"message_id": internal_reply.data["message"]["id"]},
+            ),
+            format="json",
+        )
+        self.assertEqual(duplicate_forward_to_client.status_code, 403)
+
+        lawyer_messages_after_forward = self.api.get(
+            reverse(
+                "communication-thread-messages",
+                kwargs={"thread_id": lawyer_thread.data["thread"]["id"]},
+            ),
+        )
+        forwarded_source = next(
+            item
+            for item in lawyer_messages_after_forward.data["messages"]
+            if item["id"] == internal_reply.data["message"]["id"]
+        )
+        self.assertTrue(forwarded_source["has_been_forwarded"])
+        self.assertIsNotNone(forwarded_source["forwarded_at"])
 
         self.api.force_authenticate(user=self.client_user)
         client_after_forward = self.api.get(

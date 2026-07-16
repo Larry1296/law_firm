@@ -5,6 +5,7 @@ import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
 import BackLink from '@/components/ui/BackLink';
 import Card from '@/components/ui/Card';
+import useAuth from '@/core/hooks/useAuth';
 import { formatDate, formatDateTime } from '@/core/utils/dateFormatter';
 import { displayEnum } from '@/core/utils/textFormatter';
 import ChatWorkspace from '@/modules/communications/components/ChatWorkspace';
@@ -24,6 +25,7 @@ import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
 
 export default function SecretaryCaseDetailsPage() {
   const { id } = useParams();
+  const { user } = useAuth() || {};
 
   const { caseData, loading, error } = useSecretaryCaseDetails(id);
   const clientThreadQuery = useCaseThread(id);
@@ -101,6 +103,48 @@ export default function SecretaryCaseDetailsPage() {
       threadId: lawyerThread?.id,
     });
     clientMessagesQuery.refetch();
+  };
+
+  const getClientMessageActions = (message) => {
+    const isForwardableClientMessage =
+      message.sender?.role === 'OFFICIAL_CLIENT' &&
+      !message.is_forwarded &&
+      !message.has_been_forwarded;
+
+    if (!isForwardableClientMessage) {
+      return [];
+    }
+
+    return [
+      {
+        key: `forward-lawyer-${message.id}`,
+        label: forwardToLawyer.isPending ? 'Forwarding...' : 'Forward to lawyer',
+        disabled: forwardToLawyer.isPending,
+        onClick: () => handleForwardToLawyer(message),
+      },
+    ];
+  };
+
+  const getLawyerMessageActions = (message) => {
+    const isForwardableLawyerResponse =
+      message.sender?.role !== 'OFFICIAL_CLIENT' &&
+      String(message.sender?.id) !== String(user?.id) &&
+      !message.is_forwarded &&
+      !message.has_been_forwarded &&
+      message.forward_direction !== 'TO_LAWYER';
+
+    if (!isForwardableLawyerResponse) {
+      return [];
+    }
+
+    return [
+      {
+        key: `forward-client-${message.id}`,
+        label: forwardToClient.isPending ? 'Forwarding...' : 'Forward to client',
+        disabled: forwardToClient.isPending,
+        onClick: () => handleForwardToClient(message),
+      },
+    ];
   };
 
   return (
@@ -253,14 +297,7 @@ export default function SecretaryCaseDetailsPage() {
           clientMessagesQuery.refetch();
         }}
         emptyThreadMessage='No client communication thread yet.'
-        getMessageActions={(message) => [
-          {
-            key: `forward-lawyer-${message.id}`,
-            label: forwardToLawyer.isPending ? 'Forwarding...' : 'Forward to lawyer',
-            disabled: forwardToLawyer.isPending,
-            onClick: () => handleForwardToLawyer(message),
-          },
-        ]}
+        getMessageActions={getClientMessageActions}
       />
 
       <ChatWorkspace
@@ -279,14 +316,7 @@ export default function SecretaryCaseDetailsPage() {
           lawyerMessagesQuery.refetch();
         }}
         emptyThreadMessage='No assigned lawyer coordination thread yet.'
-        getMessageActions={(message) => [
-          {
-            key: `forward-client-${message.id}`,
-            label: forwardToClient.isPending ? 'Forwarding...' : 'Forward to client',
-            disabled: forwardToClient.isPending,
-            onClick: () => handleForwardToClient(message),
-          },
-        ]}
+        getMessageActions={getLawyerMessageActions}
       />
     </div>
   );

@@ -23,11 +23,16 @@ from apps.staff.views.secretary.secretary_base_view import SecretaryBaseView
 CLIENT_CREATE_CONFIG = {
     "individuals": (Client.ClientType.INDIVIDUAL, IndividualAdminCreateClientSerializer),
     "companies": (Client.ClientType.COMPANY, CompanyAdminCreateClientSerializer),
+    "saccos": (Client.ClientType.SACCO, CompanyAdminCreateClientSerializer),
+    "cooperatives": (Client.ClientType.COOPERATIVE, CompanyAdminCreateClientSerializer),
     "partnerships": (Client.ClientType.PARTNERSHIP, PartnershipAdminCreateClientSerializer),
     "ngos": (Client.ClientType.NGO, NGOAdminCreateClientSerializer),
+    "associations": (Client.ClientType.NGO_ASSOCIATION, NGOAdminCreateClientSerializer),
+    "religious-organizations": (Client.ClientType.RELIGIOUS_ORGANIZATION, NGOAdminCreateClientSerializer),
     "trusts": (Client.ClientType.TRUST, TrustAdminCreateClientSerializer),
     "estates": (Client.ClientType.ESTATE, EstateAdminCreateClientSerializer),
     "government": (Client.ClientType.GOVERNMENT, GovernmentAdminCreateClientSerializer),
+    "educational-institutions": (Client.ClientType.EDUCATIONAL_INSTITUTION, GovernmentAdminCreateClientSerializer),
 }
 
 

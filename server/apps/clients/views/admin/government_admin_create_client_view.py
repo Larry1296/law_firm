@@ -11,6 +11,8 @@ from apps.clients.views.admin.client_admin_base_view import ClientAdminBaseView
 
 
 class GovernmentAdminCreateClientView(ClientAdminBaseView):
+    client_type = Client.ClientType.GOVERNMENT
+
     def post(self, request):
         serializer = GovernmentAdminCreateClientSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -18,7 +20,7 @@ class GovernmentAdminCreateClientView(ClientAdminBaseView):
         result = ClientAdminCreateService.create_client(
             firm=self.get_firm(),
             created_by=request.user,
-            client_type=Client.ClientType.GOVERNMENT,
+            client_type=self.client_type,
             validated_data=serializer.validated_data,
         )
 
@@ -27,3 +29,7 @@ class GovernmentAdminCreateClientView(ClientAdminBaseView):
             response["temp_password"] = result["temp_password"]
 
         return Response(response, status=status.HTTP_201_CREATED)
+
+
+class EducationalInstitutionAdminCreateClientView(GovernmentAdminCreateClientView):
+    client_type = Client.ClientType.EDUCATIONAL_INSTITUTION

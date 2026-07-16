@@ -25,6 +25,7 @@ export default function LawyerNotificationsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lawyer-notifications'] });
       queryClient.invalidateQueries({ queryKey: ['lawyer-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
     },
   });
 
@@ -32,7 +33,9 @@ export default function LawyerNotificationsPage() {
     if (!notification.is_read) {
       await markRead.mutateAsync(notification.id);
     }
-    if (notification.case) {
+    if (notification.action_url) {
+      navigate(notification.action_url);
+    } else if (notification.case) {
       navigate(`/lawyer/cases/${notification.case}`);
     }
   };

@@ -1,6 +1,5 @@
-import { useState, useContext } from 'react';
+import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import ThemeContext from '@/core/store/ThemeContext';
 
 export default function FloatingInput({
   label,
@@ -13,11 +12,14 @@ export default function FloatingInput({
   disabled = false,
   className = '',
   noFloat = false,
+  autoComplete,
+  autoCorrect,
+  autoCapitalize,
+  spellCheck,
   ...props
 }) {
   const [focused, setFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { theme } = useContext(ThemeContext);
 
   const isPassword = type === 'password';
   const isDate = type === 'date';
@@ -25,10 +27,18 @@ export default function FloatingInput({
   const inputType = isPassword && showPassword ? 'text' : type;
 
   const shouldFloat = !noFloat && !isDate;
-
-  const bgClass = theme === 'dark' ? 'bg-gray-800' : 'bg-white';
-  const borderClass = theme === 'dark' ? 'border-gray-600' : 'border-gray-300';
-  const textClass = theme === 'dark' ? 'text-white' : 'text-gray-900';
+  const supportsWritingAssist = ![
+    'password',
+    'number',
+    'date',
+    'time',
+    'datetime-local',
+    'month',
+    'week',
+    'file',
+    'checkbox',
+    'radio',
+  ].includes(type);
 
   return (
     <div className={`w-full mb-6 ${className}`}>
@@ -36,7 +46,7 @@ export default function FloatingInput({
       {label && (noFloat || isDate) && (
         <label
           htmlFor={name}
-          className='block mb-2 text-sm font-medium text-gray-700 dark:text-gray-200'
+          className='block mb-2 text-sm font-medium text-[color:var(--text-muted)] dark:text-slate-200'
         >
           {label}
         </label>
@@ -46,9 +56,9 @@ export default function FloatingInput({
       <div
         className={`
           relative w-full rounded-xl border transition-all duration-200
-          ${bgClass} ${borderClass}
+          bg-[color:var(--surface-raised)] border-[color:var(--border)]
           shadow-sm
-          ${focused ? 'shadow-md' : ''}
+          ${focused ? 'shadow-md border-[color:var(--brand-primary)]' : ''}
           ${disabled ? 'opacity-60 cursor-not-allowed' : ''}
         `}
       >
@@ -63,10 +73,16 @@ export default function FloatingInput({
           disabled={disabled}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
+          autoComplete={autoComplete ?? (isPassword ? 'current-password' : 'on')}
+          autoCorrect={autoCorrect ?? (supportsWritingAssist ? 'on' : 'off')}
+          autoCapitalize={autoCapitalize ?? (supportsWritingAssist ? 'sentences' : 'none')}
+          spellCheck={spellCheck ?? supportsWritingAssist}
           {...props}
           className={`
-            w-full px-4 py-4 rounded-xl bg-transparent outline-none
-            ${textClass}
+            floating-input-field w-full px-4 py-4 rounded-xl bg-transparent outline-none
+            text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)]
+            dark:text-slate-100 dark:placeholder:text-slate-400 dark:[color-scheme:dark]
+            disabled:cursor-not-allowed
           `}
         />
 
@@ -81,7 +97,11 @@ export default function FloatingInput({
                   ? '-top-3 text-sm font-semibold'
                   : 'top-1/2 text-base'
               }
-              ${focused || value ? 'text-brand-primary' : 'text-gray-400'}
+              ${
+                focused || value
+                  ? 'bg-[color:var(--surface-raised)] px-1 text-[color:var(--brand-primary)] dark:text-sky-300'
+                  : 'text-[color:var(--text-muted)] dark:text-slate-300'
+              }
               transform -translate-y-1/2
             `}
           >
@@ -94,7 +114,7 @@ export default function FloatingInput({
           <button
             type='button'
             onClick={() => setShowPassword(!showPassword)}
-            className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600'
+            className='absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
           >
             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>

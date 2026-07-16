@@ -13,6 +13,10 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     is_forwarded = serializers.SerializerMethodField()
     forward_direction = serializers.SerializerMethodField()
     forwarded_from = serializers.SerializerMethodField()
+    has_been_forwarded = serializers.SerializerMethodField()
+    forwarded_at = serializers.SerializerMethodField()
+    delivery_status = serializers.SerializerMethodField()
+    read_at = serializers.SerializerMethodField()
 
     def _viewer_is_client(self):
         request = self.context.get("request")
@@ -56,6 +60,57 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             "created_at": obj.forwarded_from.created_at,
         }
 
+    def _forwarded_copy(self, obj):
+        if not hasattr(obj, "_cached_forwarded_copy"):
+            obj._cached_forwarded_copy = (
+                obj.forwarded_messages.order_by("created_at").first()
+            )
+        return obj._cached_forwarded_copy
+
+    def get_has_been_forwarded(self, obj):
+        if self._viewer_is_client():
+            return False
+        return self._forwarded_copy(obj) is not None
+
+    def get_forwarded_at(self, obj):
+        if self._viewer_is_client():
+            return None
+        forwarded_copy = self._forwarded_copy(obj)
+        return forwarded_copy.created_at if forwarded_copy else None
+
+    def _recipient_participants(self, obj):
+        if not hasattr(obj, "_cached_recipient_participants"):
+            queryset = obj.thread.participants.exclude(user_id=obj.sender_id)
+            obj._cached_recipient_participants = list(queryset)
+        return obj._cached_recipient_participants
+
+    def _read_participants(self, obj):
+        if not hasattr(obj, "_cached_read_participants"):
+            obj._cached_read_participants = [
+                participant
+                for participant in self._recipient_participants(obj)
+                if participant.last_read_at
+                and participant.last_read_at >= obj.created_at
+            ]
+        return obj._cached_read_participants
+
+    def get_delivery_status(self, obj):
+        recipients = self._recipient_participants(obj)
+        if not recipients:
+            return "sent"
+
+        read_participants = self._read_participants(obj)
+        if len(read_participants) == len(recipients):
+            return "read"
+
+        return "delivered"
+
+    def get_read_at(self, obj):
+        read_participants = self._read_participants(obj)
+        if not read_participants:
+            return None
+        return max(participant.last_read_at for participant in read_participants)
+
     class Meta:
         model = ChatMessage
         fields = [
@@ -68,6 +123,10 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             "is_forwarded",
             "forward_direction",
             "forwarded_from",
+            "has_been_forwarded",
+            "forwarded_at",
+            "delivery_status",
+            "read_at",
             "created_at",
             "updated_at",
         ]

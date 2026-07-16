@@ -23,14 +23,32 @@ export default function AdminCreateClientPage() {
   ).toUpperCase();
 
   const clientTypeMap = {
-    SACCO: 'COMPANY',
-    COOPERATIVE: 'COMPANY',
-    ASSOCIATION: 'NGO',
-    RELIGIOUS: 'NGO',
-    SCHOOL: 'GOVERNMENT',
+    SACCO: 'SACCO',
+    COOPERATIVE: 'COOPERATIVE',
+    ASSOCIATION: 'NGO_ASSOCIATION',
+    RELIGIOUS: 'RELIGIOUS_ORGANIZATION',
+    SCHOOL: 'EDUCATIONAL_INSTITUTION',
   };
 
   const clientType = clientTypeMap[requestedClientType] || requestedClientType;
+  const companyLikeClientTypes = [
+    'COMPANY',
+    'SACCO',
+    'COOPERATIVE',
+    'BUSINESS_ENTITY',
+    'FINANCIAL_INSTITUTION',
+    'INTERNATIONAL_ENTITY',
+  ];
+  const ngoLikeClientTypes = [
+    'NGO',
+    'NGO_ASSOCIATION',
+    'RELIGIOUS_ORGANIZATION',
+  ];
+  const governmentLikeClientTypes = [
+    'GOVERNMENT',
+    'GOVERNMENT_BODY',
+    'EDUCATIONAL_INSTITUTION',
+  ];
   const clientMode = searchParams.get('mode'); // prospect | assisted | null
   const isIndividualClientType = clientType === 'INDIVIDUAL';
   const [selectedClientMode, setSelectedClientMode] = useState(
@@ -198,7 +216,7 @@ export default function AdminCreateClientPage() {
       full_address: formData.full_address,
     };
 
-    if (clientType === 'COMPANY') {
+    if (companyLikeClientTypes.includes(clientType)) {
       return clean({
         ...base,
         company_name:
@@ -230,7 +248,7 @@ export default function AdminCreateClientPage() {
       });
     }
 
-    if (clientType === 'NGO') {
+    if (ngoLikeClientTypes.includes(clientType)) {
       return clean({
         ...base,
         ngo_name: formData.ngo_name || formData.company_name,
@@ -285,7 +303,7 @@ export default function AdminCreateClientPage() {
       });
     }
 
-    if (clientType === 'GOVERNMENT') {
+    if (governmentLikeClientTypes.includes(clientType)) {
       return clean({
         ...base,
         government_entity_name:
@@ -377,12 +395,12 @@ export default function AdminCreateClientPage() {
   };
 
   const isIndividual = clientType === 'INDIVIDUAL';
-  const isCompany = clientType === 'COMPANY';
+  const isCompany = companyLikeClientTypes.includes(clientType);
   const isPartnership = clientType === 'PARTNERSHIP';
-  const isNGO = clientType === 'NGO';
+  const isNGO = ngoLikeClientTypes.includes(clientType);
   const isTrust = clientType === 'TRUST';
   const isEstate = clientType === 'ESTATE';
-  const isGovernment = clientType === 'GOVERNMENT';
+  const isGovernment = governmentLikeClientTypes.includes(clientType);
   const isProspect = !isIndividual || selectedClientMode === 'prospect';
   const isAssistedIndividual = isIndividual && !isProspect;
 
@@ -577,7 +595,13 @@ export default function AdminCreateClientPage() {
           {isNGO && (
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <FloatingInput
-                label='Organization Name'
+                label={
+                  clientType === 'RELIGIOUS_ORGANIZATION'
+                    ? 'Religious Organization Name'
+                    : clientType === 'NGO_ASSOCIATION'
+                      ? 'Association Name'
+                      : 'Organization Name'
+                }
                 name='ngo_name'
                 value={formData.ngo_name}
                 onChange={handleChange}
@@ -585,7 +609,11 @@ export default function AdminCreateClientPage() {
               />
 
               <FloatingInput
-                label='Registration Number'
+                label={
+                  clientType === 'RELIGIOUS_ORGANIZATION'
+                    ? 'Registration / Faith Body Number'
+                    : 'Registration Number'
+                }
                 name='registration_number'
                 value={formData.registration_number}
                 onChange={handleChange}
@@ -622,14 +650,22 @@ export default function AdminCreateClientPage() {
               />
 
               <FloatingInput
-                label='Director Name'
+                label={
+                  clientType === 'RELIGIOUS_ORGANIZATION'
+                    ? 'Leader / Clergy Name'
+                    : 'Director Name'
+                }
                 name='director_name'
                 value={formData.director_name}
                 onChange={handleChange}
               />
 
               <FloatingInput
-                label='Director Contact'
+                label={
+                  clientType === 'RELIGIOUS_ORGANIZATION'
+                    ? 'Leader / Clergy Contact'
+                    : 'Director Contact'
+                }
                 name='director_contact'
                 value={formData.director_contact}
                 onChange={handleChange}

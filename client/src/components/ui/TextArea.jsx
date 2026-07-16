@@ -4,6 +4,11 @@ export default function Textarea({
   onChange,
   placeholder,
   rows = 4,
+  autoComplete = 'on',
+  autoCorrect = 'on',
+  autoCapitalize = 'sentences',
+  spellCheck = true,
+  ...props
 }) {
   return (
     <div className="space-y-1">
@@ -16,6 +21,11 @@ export default function Textarea({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
+        autoComplete={autoComplete}
+        autoCorrect={autoCorrect}
+        autoCapitalize={autoCapitalize}
+        spellCheck={spellCheck}
+        {...props}
         className="
           w-full px-3 py-2
           border border-gray-200

@@ -116,12 +116,21 @@ export const useOpenCaseThread = () => {
   });
 };
 
-export const useThreadMessages = (threadId) =>
-  useQuery({
+export const useThreadMessages = (threadId) => {
+  const queryClient = useQueryClient();
+
+  return useQuery({
     queryKey: communicationKeys.threadMessages(threadId),
-    queryFn: () => communicationService.getThreadMessages(threadId),
+    queryFn: async () => {
+      const data = await communicationService.getThreadMessages(threadId);
+      queryClient.invalidateQueries({
+        queryKey: ['notifications', 'unread-count'],
+      });
+      return data;
+    },
     enabled: Boolean(threadId),
   });
+};
 
 export const useSendThreadMessage = () => {
   const queryClient = useQueryClient();
@@ -134,16 +143,28 @@ export const useSendThreadMessage = () => {
         queryKey: communicationKeys.threadMessages(variables.threadId),
       });
       queryClient.invalidateQueries({ queryKey: ['communications'] });
+      queryClient.invalidateQueries({
+        queryKey: ['notifications', 'unread-count'],
+      });
     },
   });
 };
 
-export const useCaseMessages = (caseId) =>
-  useQuery({
+export const useCaseMessages = (caseId) => {
+  const queryClient = useQueryClient();
+
+  return useQuery({
     queryKey: communicationKeys.caseMessages(caseId),
-    queryFn: () => communicationService.getCaseMessages(caseId),
+    queryFn: async () => {
+      const data = await communicationService.getCaseMessages(caseId);
+      queryClient.invalidateQueries({
+        queryKey: ['notifications', 'unread-count'],
+      });
+      return data;
+    },
     enabled: Boolean(caseId),
   });
+};
 
 export const useSendCaseMessage = () => {
   const queryClient = useQueryClient();
@@ -159,6 +180,9 @@ export const useSendCaseMessage = () => {
         queryKey: communicationKeys.caseThread(variables.caseId),
       });
       queryClient.invalidateQueries({ queryKey: ['communications'] });
+      queryClient.invalidateQueries({
+        queryKey: ['notifications', 'unread-count'],
+      });
     },
   });
 };

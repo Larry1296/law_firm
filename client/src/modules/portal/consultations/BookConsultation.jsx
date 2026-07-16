@@ -210,6 +210,10 @@ export default function BookConsultation() {
                 <input
                   type="text"
                   placeholder="e.g Land Ownership Dispute"
+                  autoComplete="on"
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  spellCheck
                   className={`w-full px-4 py-3 rounded-xl border outline-none transition ${
                     isDark
                       ? "bg-slate-900 border-slate-700 text-white placeholder:text-slate-500"
@@ -304,6 +308,10 @@ export default function BookConsultation() {
 
                     <input
                       type="date"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
                       className={`w-full pl-11 pr-4 py-3 rounded-xl border outline-none ${
                         isDark
                           ? "bg-slate-900 border-slate-700 text-white"
@@ -332,6 +340,10 @@ export default function BookConsultation() {
 
                     <input
                       type="time"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
                       className={`w-full pl-11 pr-4 py-3 rounded-xl border outline-none ${
                         isDark
                           ? "bg-slate-900 border-slate-700 text-white"
@@ -355,6 +367,10 @@ export default function BookConsultation() {
                 <textarea
                   rows={6}
                   placeholder="Describe your legal issue or consultation request..."
+                  autoComplete="on"
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  spellCheck
                   className={`w-full px-4 py-3 rounded-2xl border outline-none resize-none ${
                     isDark
                       ? "bg-slate-900 border-slate-700 text-white placeholder:text-slate-500"

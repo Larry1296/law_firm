@@ -1,6 +1,8 @@
 from django.db import transaction
 from django.utils import timezone
 
+from apps.common.choices import UserRole
+from apps.communications.choices import ChatThreadType
 from apps.notifications.models import Notification
 
 
@@ -15,6 +17,14 @@ class NotificationService:
         if unread_only:
             queryset = queryset.filter(read_at__isnull=True)
         return queryset
+
+    @staticmethod
+    def list_sent_by_user(user):
+        return (
+            Notification.objects.filter(actor=user)
+            .select_related("firm", "recipient", "actor", "case")
+            .order_by("-created_at")
+        )
 
     @staticmethod
     def unread_count(user):
@@ -81,6 +91,119 @@ class NotificationService:
             message=message,
             action_url=action_url,
         )
+
+    @staticmethod
+    def _chat_action_url(*, recipient, thread, message):
+        case = getattr(thread, "case", None)
+        role = getattr(recipient, "role", "")
+
+        if thread.thread_type == ChatThreadType.CASE_CLIENT and case is not None:
+            if role == UserRole.OFFICIAL_CLIENT:
+                return f"/client/cases/{case.id}/communication?message={message.id}"
+            if role == UserRole.ADMIN:
+                return f"/admin/cases/{case.id}?thread={thread.id}&message={message.id}"
+            if hasattr(recipient, "secretary_profile"):
+                return f"/secretary/cases/{case.id}?thread={thread.id}&message={message.id}"
+            if hasattr(recipient, "lawyer_profile"):
+                return f"/lawyer/cases/{case.id}?thread={thread.id}&message={message.id}"
+
+        if role == UserRole.ADMIN:
+            return f"/admin/communication?thread={thread.id}&message={message.id}"
+        if hasattr(recipient, "secretary_profile"):
+            return f"/secretary/chat?thread={thread.id}&message={message.id}"
+        if hasattr(recipient, "lawyer_profile"):
+            return f"/lawyer/chat?thread={thread.id}&message={message.id}"
+        if hasattr(recipient, "accountant_profile"):
+            return f"/accountant/chat?thread={thread.id}&message={message.id}"
+        if hasattr(recipient, "hr_profile"):
+            return f"/hr/chat?thread={thread.id}&message={message.id}"
+        if hasattr(recipient, "it_profile"):
+            return f"/it/chat?thread={thread.id}&message={message.id}"
+        if role == UserRole.OFFICIAL_CLIENT and case is not None:
+            return f"/client/cases/{case.id}/communication?message={message.id}"
+        return f"/notifications?thread={thread.id}&message={message.id}"
+
+    @staticmethod
+    def _chat_sender_label(*, recipient, message):
+        sender = message.sender
+        if sender is None:
+            return "System"
+        sender_id = getattr(sender, "id", None)
+        if (
+            getattr(recipient, "role", "") == UserRole.OFFICIAL_CLIENT
+            and sender_id
+            and sender_id != recipient.id
+        ):
+            return message.thread.firm.name
+        return sender.full_name or sender.email or "Someone"
+
+    @staticmethod
+    @transaction.atomic
+    def notify_chat_message(*, message):
+        if message.is_system_message or message.sender is None:
+            return []
+
+        thread = message.thread
+        participants = thread.participants.select_related("user").exclude(
+            user=message.sender,
+        )
+        recipients_by_id = {
+            participant.user_id: participant.user
+            for participant in participants
+            if participant.user and participant.user.is_active
+        }
+
+        if (
+            thread.thread_type == ChatThreadType.CASE_CLIENT
+            and getattr(message.sender, "client_profile", None) is not None
+            and thread.firm.owner_id
+            and thread.firm.owner_id != message.sender_id
+            and thread.firm.owner.is_active
+        ):
+            recipients_by_id[thread.firm.owner_id] = thread.firm.owner
+
+        notifications = []
+        for recipient in recipients_by_id.values():
+            sender_label = NotificationService._chat_sender_label(
+                recipient=recipient,
+                message=message,
+            )
+            if thread.thread_type == ChatThreadType.CASE_CLIENT and getattr(message.sender, "client_profile", None):
+                title = f"New client message: {thread.case.case_number if thread.case_id else thread.subject}"
+                body = f"{sender_label} sent a new case message that needs attention."
+            else:
+                title = f"New chat message from {sender_label}"
+                body = message.body[:180]
+                if len(message.body) > 180:
+                    body = f"{body}..."
+
+            notification = NotificationService.create(
+                firm=thread.firm,
+                recipient=recipient,
+                actor=message.sender,
+                case=thread.case,
+                notification_type=Notification.NotificationType.CHAT_MESSAGE,
+                title=title,
+                message=body,
+                action_url=NotificationService._chat_action_url(
+                    recipient=recipient,
+                    thread=thread,
+                    message=message,
+                ),
+                event_key=f"CHAT_MESSAGE:{thread.id}:{message.id}:{recipient.id}",
+            )
+            if notification is not None:
+                notifications.append(notification)
+        return notifications
+
+    @staticmethod
+    def mark_chat_thread_notifications_read(*, user, thread):
+        return Notification.objects.filter(
+            recipient=user,
+            notification_type=Notification.NotificationType.CHAT_MESSAGE,
+            event_key__startswith=f"CHAT_MESSAGE:{thread.id}:",
+            read_at__isnull=True,
+        ).update(read_at=timezone.now())
 
     @staticmethod
     def notify_case_assignment(*, case, recipient, role_label, actor=None, reassigned=False):

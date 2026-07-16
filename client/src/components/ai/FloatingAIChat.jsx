@@ -62,6 +62,17 @@ export default function FloatingAIChat() {
 
   const promptText = sectionPrompts[activeSection] || sectionPrompts.home;
 
+  const sendMessage = () => {
+    if (!message.trim()) return;
+    setMessage('');
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    sendMessage();
+  };
+
   return (
     <div
       ref={chatRef}
@@ -107,7 +118,12 @@ export default function FloatingAIChat() {
               <input
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder='Ask your legal question...'
+                autoComplete='on'
+                autoCorrect='on'
+                autoCapitalize='sentences'
+                spellCheck
                 className='
                   flex-1
                   px-3 py-2
@@ -121,6 +137,9 @@ export default function FloatingAIChat() {
               />
 
               <button
+                type='button'
+                onClick={sendMessage}
+                disabled={!message.trim()}
                 className='
                   px-3 py-2
                   rounded-md
@@ -129,6 +148,7 @@ export default function FloatingAIChat() {
                   font-semibold
                   hover:opacity-90
                   transition
+                  disabled:opacity-50
                 '
               >
                 Send

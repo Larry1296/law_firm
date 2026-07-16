@@ -1,6 +1,7 @@
-import { Bell, Menu, User, Sun, Moon } from 'lucide-react';
+import { Menu, Sun, Moon } from 'lucide-react';
 import { useContext } from 'react';
 import ThemeContext from '@/core/store/ThemeContext';
+import NotificationBellDropdown from '@/modules/notifications/components/NotificationBellDropdown';
 
 export default function AdminTopbar({ onMenuClick }) {
   const { theme, toggleTheme } = useContext(ThemeContext);
@@ -26,11 +27,10 @@ export default function AdminTopbar({ onMenuClick }) {
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
-        {/* NOTIFICATIONS */}
-        <button className={`relative p-2 rounded ${hoverEffect}`}>
-          <Bell size={20} />
-          <span className='absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full'></span>
-        </button>
+        <NotificationBellDropdown
+          className={hoverEffect}
+          fallbackPath='/admin/communication/notifications'
+        />
       </div>
     </header>
   );

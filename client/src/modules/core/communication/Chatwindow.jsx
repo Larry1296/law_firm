@@ -8,6 +8,17 @@ export default function ChatWindow({ title = "Chat", messages = [] }) {
   const { theme } = useContext(ThemeContext);
   const [message, setMessage] = useState("");
 
+  const sendMessage = () => {
+    if (!message.trim()) return;
+    setMessage("");
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    sendMessage();
+  };
+
   const card =
     theme === "dark"
       ? "bg-[color:var(--surface-dark)] border border-[color:var(--border-dark)] text-white"
@@ -42,11 +53,17 @@ export default function ChatWindow({ title = "Chat", messages = [] }) {
         <input
           value={message}
           onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Type message..."
           className="flex-1 px-4 py-3 rounded-xl border outline-none"
         />
 
-        <button className="px-4 py-3 rounded-xl bg-[color:var(--brand-primary)] text-white flex items-center gap-2">
+        <button
+          type="button"
+          onClick={sendMessage}
+          disabled={!message.trim()}
+          className="px-4 py-3 rounded-xl bg-[color:var(--brand-primary)] text-white flex items-center gap-2 disabled:opacity-50"
+        >
           <Send size={16} />
           Send
         </button>

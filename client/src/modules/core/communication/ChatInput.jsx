@@ -34,6 +34,10 @@ const ChatInput = ({
         placeholder={placeholder}
         disabled={disabled}
         rows={1}
+        autoComplete="on"
+        autoCorrect="on"
+        autoCapitalize="sentences"
+        spellCheck
         className="flex-1 resize-none rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
       />
 

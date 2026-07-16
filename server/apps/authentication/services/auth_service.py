@@ -27,6 +27,9 @@ class AuthService:
 
     @staticmethod
     def build_session_payload(user):
+        must_change_password = (
+            False if user.role == UserRole.ADMIN else user.must_change_password
+        )
         membership = AuthService.get_active_membership(user)
 
         owned_firm = getattr(user, "owned_firm", None)
@@ -45,7 +48,7 @@ class AuthService:
                 "role": user.role,
                 "firm_role": firm_role,
                 "is_firm_owner": is_firm_owner,
-                "must_change_password": user.must_change_password,
+                "must_change_password": must_change_password,
             },
             "firm": {
                 "id": firm.id if firm else None,
@@ -64,6 +67,10 @@ class AuthService:
 
         if not user:
             return None, "Invalid credentials"
+
+        if user.role == UserRole.ADMIN and user.must_change_password:
+            user.must_change_password = False
+            user.save(update_fields=["must_change_password", "updated_at"])
 
         refresh = RefreshToken.for_user(user)
         session_payload = AuthService.build_session_payload(user)

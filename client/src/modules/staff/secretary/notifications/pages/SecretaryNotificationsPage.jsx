@@ -31,6 +31,7 @@ export default function SecretaryNotificationsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['secretary-notifications'] });
       queryClient.invalidateQueries({ queryKey: ['secretary-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
     },
   });
 
@@ -38,7 +39,9 @@ export default function SecretaryNotificationsPage() {
     if (!notification.is_read) {
       await markRead.mutateAsync(notification.id);
     }
-    if (notification.case) {
+    if (notification.action_url) {
+      navigate(notification.action_url);
+    } else if (notification.case) {
       navigate(`/secretary/cases/${notification.case}`);
     }
   };

@@ -6,7 +6,7 @@ from rest_framework.test import APIClient
 
 from apps.cases.models import Case
 from apps.common.choices import FirmRole, UserRole
-from apps.clients.models import Client
+from apps.clients.models import Client, NGOClient
 from apps.firm.models import LawFirm, LawFirmMember
 from apps.users.models import User
 
@@ -168,3 +168,27 @@ class AdminClientUrlTests(TestCase):
         self.assertIsNone(client.previous_access_type)
         self.assertIsNone(client.previous_is_active)
         self.assertIsNone(client.soft_deleted_at)
+
+    def test_admin_religious_organization_keeps_specific_client_type(self):
+        self.client.force_authenticate(user=self.admin_user)
+
+        response = self.client.post(
+            reverse("admin-religious-organization-client-create"),
+            {
+                "ngo_name": "Grace Chapel Ministries",
+                "registration_number": "REL-001",
+                "email": "grace@example.com",
+                "phone_number": "+254700000026",
+                "access_type": Client.AccessType.ASSISTED_CLIENT,
+                "registration_authority": "Registrar of Societies",
+                "sector": "Faith based organization",
+                "director_name": "Rev. Jane",
+                "director_contact": "+254700000027",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        created = Client.objects.get(full_name="Grace Chapel Ministries")
+        self.assertEqual(created.client_type, Client.ClientType.RELIGIOUS_ORGANIZATION)
+        self.assertTrue(NGOClient.objects.filter(client=created).exists())

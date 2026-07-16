@@ -29,6 +29,10 @@ export default function PasswordInput({
           placeholder={placeholder}
           required={required}
           disabled={disabled}
+          autoComplete='current-password'
+          autoCorrect='off'
+          autoCapitalize='none'
+          spellCheck={false}
           className='
             w-full px-4 py-3 pr-12
             border rounded-xl

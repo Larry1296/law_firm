@@ -5,7 +5,7 @@ from django.urls import resolve, reverse
 from rest_framework.test import APIClient
 
 from apps.cases.models import Case
-from apps.clients.models import Client
+from apps.clients.models import Client, NGOClient
 from apps.common.choices import UserRole
 from apps.firm.models.law_firm import LawFirm
 from apps.staff.models import Lawyer, Secretary, SecretaryPermission, SecretaryPermissionGrant
@@ -268,6 +268,49 @@ class SecretaryEndpointTests(TestCase):
         self.assertIn("temp_password", portal_response.data)
         portal_client = Client.objects.get(full_name="Secretary Portal Client")
         self.assertIsNotNone(portal_client.user)
+
+    def test_secretary_religious_organization_keeps_specific_client_type(self):
+        secretary_user = User.objects.create_user(
+            email="secretary-religious-create@example.com",
+            password="strong-pass123",
+            first_name="Sec",
+            last_name="Religious",
+            phone_number="+254711000014",
+            national_id_number="711000014",
+            role=UserRole.STAFF,
+        )
+        secretary = Secretary.objects.create(
+            user=secretary_user,
+            law_firm=self.firm,
+            staff_number="SEC-TEST-006",
+            date_hired=date(2026, 7, 7),
+        )
+        SecretaryPermissionGrant.objects.create(
+            secretary=secretary,
+            code=SecretaryPermission.MANAGE_CLIENTS,
+            granted_by=self.admin_user,
+        )
+
+        self.client.force_authenticate(user=secretary_user)
+        response = self.client.post(
+            reverse(
+                "secretary-client-create",
+                kwargs={"client_type": "religious-organizations"},
+            ),
+            {
+                "ngo_name": "Mercy Faith Centre",
+                "registration_number": "REL-SEC-001",
+                "email": "mercy-faith@example.com",
+                "phone_number": "+254711000015",
+                "access_type": Client.AccessType.ASSISTED_CLIENT,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        created = Client.objects.get(full_name="Mercy Faith Centre")
+        self.assertEqual(created.client_type, Client.ClientType.RELIGIOUS_ORGANIZATION)
+        self.assertTrue(NGOClient.objects.filter(client=created).exists())
         self.assertEqual(portal_client.user.role, UserRole.PROSPECT)
         self.assertTrue(portal_client.user.must_change_password)
 

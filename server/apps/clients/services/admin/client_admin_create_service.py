@@ -18,6 +18,25 @@ from apps.users.services.auth_service import AuthService
 
 
 class ClientAdminCreateService:
+    COMPANY_PROFILE_TYPES = {
+        Client.ClientType.COMPANY,
+        Client.ClientType.BUSINESS_ENTITY,
+        Client.ClientType.FINANCIAL_INSTITUTION,
+        Client.ClientType.COOPERATIVE,
+        Client.ClientType.SACCO,
+        Client.ClientType.INTERNATIONAL_ENTITY,
+    }
+    NGO_PROFILE_TYPES = {
+        Client.ClientType.NGO,
+        Client.ClientType.NGO_ASSOCIATION,
+        Client.ClientType.RELIGIOUS_ORGANIZATION,
+    }
+    GOVERNMENT_PROFILE_TYPES = {
+        Client.ClientType.GOVERNMENT,
+        Client.ClientType.GOVERNMENT_BODY,
+        Client.ClientType.EDUCATIONAL_INSTITUTION,
+    }
+
     BASE_FIELDS = {
         "full_name",
         "email",
@@ -186,7 +205,7 @@ class ClientAdminCreateService:
                 marital_status=data.get("marital_status"),
             )
 
-        if client_type == Client.ClientType.COMPANY:
+        if client_type in ClientAdminCreateService.COMPANY_PROFILE_TYPES:
             return CompanyClient.objects.create(
                 client=client,
                 company_name=data["company_name"],
@@ -209,7 +228,7 @@ class ClientAdminCreateService:
                 agreement_type=data.get("agreement_type"),
             )
 
-        if client_type == Client.ClientType.NGO:
+        if client_type in ClientAdminCreateService.NGO_PROFILE_TYPES:
             return NGOClient.objects.create(
                 client=client,
                 ngo_name=data["ngo_name"],
@@ -261,7 +280,7 @@ class ClientAdminCreateService:
                 court_status=data.get("court_status"),
             )
 
-        if client_type == Client.ClientType.GOVERNMENT:
+        if client_type in ClientAdminCreateService.GOVERNMENT_PROFILE_TYPES:
             return GovernmentClient.objects.create(
                 client=client,
                 government_entity_name=data["government_entity_name"],

@@ -86,7 +86,7 @@ export default function Login() {
 
   const promptPasswordChoice = async ({ sessionUser, access, refresh }) => {
     const canPrompt =
-      ['ADMIN', 'STAFF', 'PROSPECT'].includes(sessionUser.role) &&
+      ['STAFF', 'PROSPECT'].includes(sessionUser.role) &&
       sessionUser.must_change_password;
 
     if (!canPrompt) {

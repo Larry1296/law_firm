@@ -28,6 +28,17 @@ export default function PortalMessages() {
   const [selectedChat, setSelectedChat] = useState(dummyChats[0]);
   const [message, setMessage] = useState("");
 
+  const sendMessage = () => {
+    if (!message.trim()) return;
+    setMessage("");
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    sendMessage();
+  };
+
   return (
     <div className="grid lg:grid-cols-3 gap-6 h-[80vh] animate-fadeIn">
       {/* CHAT LIST */}
@@ -43,6 +54,10 @@ export default function PortalMessages() {
           />
           <input
             placeholder="Search chats..."
+            autoComplete="on"
+            autoCorrect="on"
+            autoCapitalize="sentences"
+            spellCheck
             className="w-full pl-9 pr-3 py-2 rounded-xl bg-background-dark border border-border-dark text-sm"
           />
         </div>
@@ -99,10 +114,20 @@ export default function PortalMessages() {
           <input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Type a message..."
+            autoComplete="on"
+            autoCorrect="on"
+            autoCapitalize="sentences"
+            spellCheck
             className="flex-1 px-3 py-2 rounded-xl bg-background-dark border border-border-dark text-sm"
           />
-          <button className="bg-brand-primary text-white p-3 rounded-xl">
+          <button
+            type="button"
+            onClick={sendMessage}
+            disabled={!message.trim()}
+            className="bg-brand-primary text-white p-3 rounded-xl disabled:opacity-50"
+          >
             <Send size={16} />
           </button>
         </div>

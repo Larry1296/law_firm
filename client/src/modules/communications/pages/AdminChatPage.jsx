@@ -167,6 +167,10 @@ export default function AdminChatPage() {
               onChange={(event) => updateForm('message', event.target.value)}
               rows={4}
               placeholder='Optional opening message...'
+              autoComplete='on'
+              autoCorrect='on'
+              autoCapitalize='sentences'
+              spellCheck
               className='w-full resize-none rounded-2xl border border-border-light bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-border-dark dark:bg-slate-900 dark:text-white'
             />
 

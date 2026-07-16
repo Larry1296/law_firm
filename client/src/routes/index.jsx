@@ -77,6 +77,10 @@ const AdminDashboard = lazy(
   () => import('@/modules/admin/dashboard/pages/AdminDashboardPage'),
 );
 
+const AdminProfilePage = lazy(
+  () => import('@/modules/admin/profile/pages/AdminProfilePage'),
+);
+
 
 /* CASES */
 
@@ -557,6 +561,10 @@ const ClientNotificationsPage = lazy(
   () => import('@/modules/client/notifications/pages/ClientNotificationsPage'),
 );
 
+const ClientCaseCommunicationPage = lazy(
+  () => import('@/modules/client/communication/pages/ClientCaseCommunicationPage'),
+);
+
 
 /* =========================================================
   PORTAL (PROSPECT)
@@ -661,6 +669,7 @@ const AppRoutes = () => {
 
           {/* DASHBOARD */}
           <Route path='dashboard' element={<AdminDashboard />} />
+          <Route path='profile' element={<AdminProfilePage />} />
 
           {/* CASES */}
           <Route path='cases' element={<AdminCasesPage />} />
@@ -931,13 +940,13 @@ const AppRoutes = () => {
           <Route path='cases/:id' element={<ClientCaseDetailsPage />} />
           <Route
             path='cases/:id/communication'
-            element={<ClientCaseDetailsPage />}
+            element={<ClientCaseCommunicationPage />}
           />
           <Route path='calendar' element={<ClientCalendarPage />} />
           <Route path='communication' element={<Navigate to='../cases' replace />} />
           <Route
             path='communication/:caseId'
-            element={<Navigate to='../cases' replace />}
+            element={<ClientCaseCommunicationPage />}
           />
           <Route path='documents' element={<ClientCaseDocuments />} />
           <Route path='notifications' element={<ClientNotificationsPage />} />

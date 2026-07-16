@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Briefcase, MessageCircle } from 'lucide-react';
 
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
@@ -86,9 +86,18 @@ export default function ClientCaseCommunicationPage() {
           title='Case Communication'
           subtitle='Send and receive case-related communication with the firm.'
         />
-        <Button3D variant='outlineLight' onClick={refetch}>
-          Refresh cases
-        </Button3D>
+        <div className='flex flex-col gap-2 sm:flex-row'>
+          {selectedCaseId && (
+            <Link to={`/client/cases/${selectedCaseId}`}>
+              <Button3D variant='outlineLight' className='w-full justify-center sm:w-auto'>
+                Back to case details
+              </Button3D>
+            </Link>
+          )}
+          <Button3D variant='outlineLight' onClick={refetch}>
+            Refresh cases
+          </Button3D>
+        </div>
       </div>
 
       <Card className='p-5'>
@@ -111,6 +120,7 @@ export default function ClientCaseCommunicationPage() {
             <select
               value={selectedCaseId || ''}
               onChange={(event) => setSelectedCaseId(event.target.value)}
+              disabled={Boolean(routeCaseId)}
               className='h-12 flex-1 rounded-2xl border border-border-light bg-white px-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-border-dark dark:bg-slate-900 dark:text-white'
             >
               <option value=''>Choose case</option>
@@ -157,8 +167,12 @@ export default function ClientCaseCommunicationPage() {
         <Card className='p-6 text-sm text-slate-500'>Loading cases...</Card>
       ) : safeCases.length ? (
         <ChatWorkspace
-          title='Messages'
-          subtitle='Choose a case and communicate with the firm about that matter.'
+          title={selectedCase ? selectedCase.case_number || 'Case Messages' : 'Messages'}
+          subtitle={
+            selectedCase
+              ? selectedCase.title || 'Communicate with the firm about this case.'
+              : 'Choose a case and communicate with the firm about that matter.'
+          }
           threads={threads}
           selectedThreadId={selectedCaseId}
           onSelectThread={(thread) => setSelectedCaseId(thread.id)}
@@ -168,6 +182,7 @@ export default function ClientCaseCommunicationPage() {
           isLoadingMessages={messagesQuery.isLoading}
           isSending={sendMessage.isPending}
           emptyThreadMessage='No cases available for communication.'
+          hideSingleThreadSidebarOnMobile={Boolean(routeCaseId)}
         />
       ) : (
         <Card className='p-6 text-center text-slate-500 dark:text-slate-300'>

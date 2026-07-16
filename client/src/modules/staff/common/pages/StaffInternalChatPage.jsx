@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import ChatWorkspace from '@/modules/communications/components/ChatWorkspace';
 import {
@@ -13,7 +14,10 @@ export default function StaffInternalChatPage({
   title = 'Staff Chat',
   subtitle = 'Private internal messages with admin.',
 }) {
-  const [selectedThreadId, setSelectedThreadId] = useState(null);
+  const [searchParams] = useSearchParams();
+  const [selectedThreadId, setSelectedThreadId] = useState(
+    () => searchParams.get('thread') || null,
+  );
 
   const threadsQuery = useThreads(directStaffParams);
   const sendMessage = useSendThreadMessage();

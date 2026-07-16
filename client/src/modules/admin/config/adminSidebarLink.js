@@ -16,6 +16,7 @@ import {
   Brain,
   Lightbulb,
   MonitorCog,
+  User,
 } from 'lucide-react';
 
 export const adminSidebarLinks = [
@@ -71,4 +72,5 @@ export const adminSidebarLinks = [
   { name: 'Firm', path: '/admin/firm', icon: Building2, section: 'Firm Administration' },
   { name: 'Compliance', path: '/admin/compliance', icon: ShieldCheck, section: 'Firm Administration' },
   { name: 'Settings', path: '/admin/settings', icon: Settings, section: 'Firm Administration' },
+  { name: 'Profile', path: '/admin/profile', icon: User, section: 'Account' },
 ];

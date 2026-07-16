@@ -59,7 +59,7 @@ class User(AbstractBaseUser, PermissionsMixin, TimestampedModel):
     )
 
     must_change_password = models.BooleanField(
-        default=True,
+        default=False,
     )
 
     is_active = models.BooleanField(

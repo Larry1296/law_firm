@@ -12,6 +12,7 @@ class Notification(TimestampedModel):
         CASE_ASSIGNMENT = "CASE_ASSIGNMENT", "Case Assignment"
         CASE_REASSIGNMENT = "CASE_REASSIGNMENT", "Case Reassignment"
         CASE_STATUS_UPDATE = "CASE_STATUS_UPDATE", "Case Status Update"
+        CHAT_MESSAGE = "CHAT_MESSAGE", "Chat Message"
         GENERAL = "GENERAL", "General"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

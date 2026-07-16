@@ -7,6 +7,10 @@ from apps.clients.serializers.client.client_type_profile_serializer import (
 
 class ClientProfileSerializer(serializers.Serializer):
     id = serializers.CharField(read_only=True)
+    firm_id = serializers.CharField(source="firm.id", read_only=True)
+    firm_name = serializers.CharField(source="firm.name", read_only=True)
+    firm_email = serializers.EmailField(source="firm.email", read_only=True)
+    firm_phone_number = serializers.CharField(source="firm.phone_number", read_only=True)
     full_name = serializers.CharField(read_only=True)
     email = serializers.EmailField(read_only=True)
     phone_number = serializers.CharField(read_only=True)
@@ -14,6 +18,8 @@ class ClientProfileSerializer(serializers.Serializer):
     lifecycle_status = serializers.CharField(read_only=True)
     is_verified = serializers.BooleanField(read_only=True)
     is_active = serializers.BooleanField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
     type_profile = serializers.SerializerMethodField()
 
     def get_type_profile(self, obj):
