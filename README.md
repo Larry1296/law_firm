@@ -64,7 +64,7 @@ The system uses a centralized role system:
 - ADMIN → System administration
 - STAFF → Internal firm users (lawyers, secretaries, etc.)
 - CLIENT → Official legal clients
-- PORTAL_CLIENT → External portal users (pre-client stage)
+- PROSPECT → External portal users (pre-client stage)
 
 > Note: Lawyer and Secretary are domain-level concepts under STAFF, not system roles.
 
@@ -88,7 +88,7 @@ Centralized RBAC system using:
   - IsAdmin
   - IsStaff
   - IsClient
-  - IsPortalClient
+  - IsProspect
 
 ---
 

@@ -29,9 +29,10 @@ export default function Register() {
   const clientTypes = [
     { value: 'INDIVIDUAL', label: 'Individual' },
     { value: 'COMPANY', label: 'Company' },
-    { value: 'ORGANIZATION', label: 'Organization' },
+    { value: 'NGO', label: 'NGO' },
     { value: 'GOVERNMENT', label: 'Government Entity' },
-    { value: 'GROUP', label: 'Group of Persons' },
+    { value: 'PARTNERSHIP', label: 'Partnership' },
+    { value: 'TRUST', label: 'Trust' },
     { value: 'ESTATE', label: 'Estate / Deceased Estate' },
   ];
 
@@ -74,14 +75,14 @@ export default function Register() {
       };
 
       const response = await register(payload);
-
-      const user = response?.data?.user;
+      const data = response?.data || response;
+      const user = data?.user;
 
       if (!user) {
         throw new Error('Invalid registration response from server');
       }
 
-      if (user.role === 'CLIENT') {
+      if (['OFFICIAL_CLIENT', 'PROSPECT'].includes(user.role)) {
         navigate('/portal/dashboard');
       } else {
         navigate('/login');

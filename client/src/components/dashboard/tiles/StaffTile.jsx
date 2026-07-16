@@ -7,14 +7,14 @@ export default function StaffTile() {
     <DashboardTile variant='staff'>
       <div className='h-full flex flex-col justify-between'>
         {/* HEADER */}
-        <div className='flex items-start justify-between'>
-          <div>
+        <div className='flex min-w-0 items-start justify-between gap-3 sm:gap-4'>
+          <div className='min-w-0'>
             <p className='text-sm opacity-80'>Active Staff</p>
-            <h2 className='mt-2 text-5xl font-bold'>28</h2>
+            <h2 className='mt-2 text-3xl font-bold sm:text-5xl'>28</h2>
           </div>
 
           <div className='p-3 rounded-xl bg-white/10'>
-            <BriefcaseBusiness size={32} />
+            <BriefcaseBusiness className='shrink-0' size={30} />
           </div>
         </div>
 

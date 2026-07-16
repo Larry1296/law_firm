@@ -115,7 +115,7 @@ class IndividualClientCreateSerializer(serializers.Serializer):
 
         if (
             access_type ==
-            Client.AccessType.PORTAL_CLIENT
+            Client.AccessType.PROSPECT
         ):
             email = attrs.get("email")
 

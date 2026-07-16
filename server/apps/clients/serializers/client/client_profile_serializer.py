@@ -12,6 +12,7 @@ class ClientProfileSerializer(serializers.Serializer):
     phone_number = serializers.CharField(read_only=True)
     client_type = serializers.CharField(read_only=True)
     lifecycle_status = serializers.CharField(read_only=True)
+    is_verified = serializers.BooleanField(read_only=True)
     is_active = serializers.BooleanField(read_only=True)
     type_profile = serializers.SerializerMethodField()
 

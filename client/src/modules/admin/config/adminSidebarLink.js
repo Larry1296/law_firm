@@ -19,64 +19,56 @@ import {
 } from 'lucide-react';
 
 export const adminSidebarLinks = [
+  { name: 'Staff', path: '/admin/staff', icon: UserCog, section: 'Staff' },
+  { name: 'Staff Chat', path: '/admin/communication', icon: MessageSquare, section: 'Staff' },
+
+  {
+    name: 'Clients',
+    path: '/admin/clients',
+    icon: Users,
+    section: 'Clients',
+    ownerOnly: true,
+  },
+
+  { name: 'Cases', path: '/admin/cases', icon: Briefcase, section: 'Cases', ownerOnly: true },
+  { name: 'Hearings', path: '/admin/hearings', icon: Scale, section: 'Cases', ownerOnly: true },
+  { name: 'Calendar', path: '/admin/calendar', icon: Calendar, section: 'Cases', ownerOnly: true },
+  {
+    name: 'Case Predictions',
+    path: '/admin/ai/predictions',
+    icon: Brain,
+    section: 'Cases',
+    ownerOnly: true,
+  },
+
   {
     name: 'Dashboard',
     path: '/admin/dashboard',
     icon: LayoutDashboard,
     end: true,
+    section: 'Overview',
   },
 
-  /* ================= CASES ================= */
-  { name: 'Cases', path: '/admin/cases', icon: Briefcase },
+  { name: 'Documents', path: '/admin/documents', icon: FileText, section: 'Documents & Billing' },
+  { name: 'Billing', path: '/admin/billing', icon: CreditCard, section: 'Documents & Billing' },
 
-  /* ================= HEARINGS ================= */
-  { name: 'Hearings', path: '/admin/hearings', icon: Scale },
+  { name: 'Reports', path: '/admin/reports', icon: BarChart, section: 'Reports & Intelligence' },
+  { name: 'IT Report', path: '/admin/it-report', icon: MonitorCog, section: 'Reports & Intelligence' },
 
-  /* ================= CLIENTS ================= */
-  { name: 'Clients', path: '/admin/clients', icon: Users },
-
-  /* ================= STAFF ================= */
-  { name: 'Staff', path: '/admin/staff', icon: UserCog },
-
-  /* ================= CALENDAR ================= */
-  { name: 'Calendar', path: '/admin/calendar', icon: Calendar },
-
-  /* ================= DOCUMENTS ================= */
-  { name: 'Documents', path: '/admin/documents', icon: FileText },
-
-  /* ================= BILLING ================= */
-  { name: 'Billing', path: '/admin/billing', icon: CreditCard },
-
-  /* ================= REPORTS ================= */
-  { name: 'Reports', path: '/admin/reports', icon: BarChart },
-  { name: 'IT Report', path: '/admin/it-report', icon: MonitorCog },
-
-  /* ================= COMMUNICATION ================= */
-  { name: 'Staff Chat', path: '/admin/communication', icon: MessageSquare },
-
-  /* ================= COMPLIANCE ================= */
-  { name: 'Compliance', path: '/admin/compliance', icon: ShieldCheck },
-
-  /* ================= AI MODULE ================= */
   {
     name: 'AI Overview',
     path: '/admin/ai',
     icon: Bot,
+    section: 'Reports & Intelligence',
   },
   {
     name: 'AI Recommendations',
     path: '/admin/ai/recommendations',
     icon: Lightbulb,
-  },
-  {
-    name: 'Case Predictions',
-    path: '/admin/ai/predictions',
-    icon: Brain,
+    section: 'Reports & Intelligence',
   },
 
-  /* ================= SETTINGS ================= */
-  { name: 'Settings', path: '/admin/settings', icon: Settings },
-
-  /* ================= FIRM ================= */
-  { name: 'Firm', path: '/admin/firm', icon: Building2 },
+  { name: 'Firm', path: '/admin/firm', icon: Building2, section: 'Firm Administration' },
+  { name: 'Compliance', path: '/admin/compliance', icon: ShieldCheck, section: 'Firm Administration' },
+  { name: 'Settings', path: '/admin/settings', icon: Settings, section: 'Firm Administration' },
 ];

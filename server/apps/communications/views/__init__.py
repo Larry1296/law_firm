@@ -4,9 +4,15 @@ from .announcement_view import (
     AnnouncementInboxView,
     AnnouncementReadView,
 )
-from .message_view import CaseThreadMessagesView, ThreadMessagesView
+from .message_view import (
+    CaseThreadMessagesView,
+    ForwardMessageToClientView,
+    ForwardMessageToLawyerView,
+    ThreadMessagesView,
+)
 from .thread_view import (
     CaseChatThreadView,
+    CaseLawyerChatThreadView,
     ChatThreadDetailView,
     ChatThreadListView,
     DirectStaffThreadListCreateView,
@@ -20,8 +26,11 @@ __all__ = [
     "AnnouncementInboxView",
     "AnnouncementReadView",
     "CaseThreadMessagesView",
+    "ForwardMessageToClientView",
+    "ForwardMessageToLawyerView",
     "ThreadMessagesView",
     "CaseChatThreadView",
+    "CaseLawyerChatThreadView",
     "ChatThreadDetailView",
     "ChatThreadListView",
     "DirectStaffThreadListCreateView",

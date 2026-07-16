@@ -18,9 +18,11 @@ class ClientAdminDashboardView(ClientAdminBaseView):
                 "dashboard": {
                     "total_clients": clients.count(),
                     "active_clients": clients.filter(is_active=True).count(),
+                    "inactive_clients": clients.filter(is_active=False).count(),
                     "prospects": clients.filter(lifecycle_status=Client.LifecycleStatus.PROSPECT).count(),
                     "official_clients": clients.filter(lifecycle_status=Client.LifecycleStatus.OFFICIAL_CLIENT).count(),
                     "archived_clients": clients.filter(lifecycle_status=Client.LifecycleStatus.ARCHIVED).count(),
+                    "deleted_clients": clients.filter(soft_deleted_at__isnull=False).count(),
                 }
             },
             status=status.HTTP_200_OK,

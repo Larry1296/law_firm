@@ -64,7 +64,7 @@ class IndividualClientService:
                 must_change_password=True,
             )
 
-            access_type = Client.AccessType.PORTAL_CLIENT
+            access_type = Client.AccessType.PROSPECT
 
         else:
             access_type = Client.AccessType.ASSISTED_CLIENT
@@ -87,6 +87,7 @@ class IndividualClientService:
             kra_pin=validated_data.get("kra_pin"),
             date_of_birth=validated_data.get("date_of_birth"),
             lifecycle_status=Client.LifecycleStatus.PROSPECT,
+            is_verified=True,
         )
 
         # ----------------------------------

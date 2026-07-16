@@ -16,6 +16,11 @@ urlpatterns = [
     path("profile/", SecretaryProfileView.as_view(), name="secretary-profile"),
     path("dashboard/", SecretaryDashboardView.as_view(), name="secretary-dashboard"),
     path("clients/", SecretaryClientsView.as_view(), name="secretary-clients"),
+    path(
+        "clients/<str:client_type>/create/",
+        SecretaryClientsView.as_view(),
+        name="secretary-client-create",
+    ),
     path("cases/", SecretaryCasesView.as_view(), name="secretary-cases"),
     path("cases/<uuid:case_id>/", SecretaryCasesView.as_view(), name="secretary-case-detail"),
     path("documents/", SecretaryDocumentsView.as_view(), name="secretary-documents"),

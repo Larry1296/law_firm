@@ -30,7 +30,7 @@ export default function DocumentsTile({
     <DashboardTile
       size={size}
       variant='documents'
-      className={`h-full min-h-[180px] ${className}`}
+      className={`h-full min-h-[160px] sm:min-h-[180px] ${className}`}
       rounded={rounded}
       shadow={shadow}
     >
@@ -40,18 +40,18 @@ export default function DocumentsTile({
             <FileText size={22} />
           </div>
 
-          <div>
+          <div className='min-w-0'>
             <h3 className='text-lg font-semibold'>Document Management</h3>
 
             <p className='text-sm opacity-80'>Firm-wide document overview</p>
           </div>
         </div>
 
-        <div className='grid grid-cols-2 gap-3 mb-5'>
+        <div className='mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2'>
           <div className='rounded-xl bg-white/10 p-4'>
             <div className='flex items-center justify-between'>
               <Upload size={18} />
-              <span className='text-2xl font-bold'>1,248</span>
+              <span className='text-xl font-bold sm:text-2xl'>1,248</span>
             </div>
 
             <p className='text-sm mt-2 opacity-80'>Total Documents</p>
@@ -60,7 +60,7 @@ export default function DocumentsTile({
           <div className='rounded-xl bg-white/10 p-4'>
             <div className='flex items-center justify-between'>
               <Clock size={18} />
-              <span className='text-2xl font-bold'>27</span>
+              <span className='text-xl font-bold sm:text-2xl'>27</span>
             </div>
 
             <p className='text-sm mt-2 opacity-80'>Pending Review</p>
@@ -69,7 +69,7 @@ export default function DocumentsTile({
           <div className='rounded-xl bg-white/10 p-4'>
             <div className='flex items-center justify-between'>
               <Lock size={18} />
-              <span className='text-2xl font-bold'>412</span>
+              <span className='text-xl font-bold sm:text-2xl'>412</span>
             </div>
 
             <p className='text-sm mt-2 opacity-80'>Confidential</p>
@@ -78,14 +78,14 @@ export default function DocumentsTile({
           <div className='rounded-xl bg-white/10 p-4'>
             <div className='flex items-center justify-between'>
               <CheckCircle2 size={18} />
-              <span className='text-2xl font-bold'>96%</span>
+              <span className='text-xl font-bold sm:text-2xl'>96%</span>
             </div>
 
             <p className='text-sm mt-2 opacity-80'>Compliance Rate</p>
           </div>
         </div>
 
-        <div className='flex-1'>
+        <div className='min-w-0 flex-1'>
           <h4 className='font-medium mb-3'>Recent Uploads</h4>
 
           <div className='space-y-3'>
@@ -95,7 +95,7 @@ export default function DocumentsTile({
                 className='rounded-xl p-3 bg-white/10 border border-white/10'
               >
                 <div className='flex items-center justify-between'>
-                  <p className='font-medium text-sm'>{document.title}</p>
+                  <p className='min-w-0 break-words text-sm font-medium'>{document.title}</p>
 
                   <span
                     className={`text-xs px-2 py-1 rounded-lg ${

@@ -18,14 +18,30 @@ import AuthContext from '@/core/store/AuthContext';
 
 import LogoutButton from '@/components/ui/LogoutButton';
 import SidebarNavLink from '@/components/ui/SidebarNavlink';
-import ThemeContext from '@/core/store/ThemeContext';
 import Brand from '@/components/ui/Brand';
+import useUnreadNotifications from '@/modules/notifications/hooks/useUnreadNotifications';
 
 /* =========================================================
-   PORTAL CLIENT NAVIGATION
+   PROSPECT NAVIGATION
 ========================================================= */
 
 const links = [
+  {
+    section: 'Onboarding',
+    items: [
+      {
+        name: 'Become a Client',
+        path: '/portal/become-client',
+        icon: <Briefcase size={18} />,
+      },
+      {
+        name: 'Membership Status',
+        path: '/portal/membership-status',
+        icon: <ShieldCheck size={18} />,
+      },
+    ],
+  },
+
   {
     section: 'Main',
     items: [
@@ -59,6 +75,7 @@ const links = [
       {
         name: 'Upload Documents',
         path: '/portal/documents/upload',
+        icon: <Upload size={18} />,
       },
     ],
   },
@@ -85,22 +102,6 @@ const links = [
   },
 
   {
-    section: 'Onboarding',
-    items: [
-      {
-        name: 'Become a Client',
-        path: '/portal/become-client',
-        icon: <Briefcase size={18} />,
-      },
-      {
-        name: 'Membership Status',
-        path: '/portal/membership-status',
-        icon: <ShieldCheck size={18} />,
-      },
-    ],
-  },
-
-  {
     section: 'Account',
     items: [
       {
@@ -113,18 +114,16 @@ const links = [
 ];
 
 export default function ClientSidebar({ onClose }) {
-  const { theme } = useContext(ThemeContext);
   const { user } = useContext(AuthContext);
+  const { data: notificationData } = useUnreadNotifications();
+  const unreadCount = notificationData?.unread_count ?? 0;
   const displayName = user?.full_name || user?.profile?.full_name || user?.email || 'User';
   const systemRole = user?.role || 'User';
 
-  const bgSidebar =
-    theme === 'dark'
-      ? 'bg-[color:var(--surface-dark)] text-white'
-      : 'bg-[color:var(--brand-primary)] text-white';
+  const bgSidebar = 'shell-surface';
 
   return (
-    <aside className={`w-64 h-full ${bgSidebar} flex flex-col shadow-2xl`}>
+    <aside className={`w-64 h-full ${bgSidebar} flex flex-col`}>
       {/* =========================================================
           HEADER
       ========================================================= */}
@@ -164,7 +163,14 @@ export default function ClientSidebar({ onClose }) {
                     icon={link.icon}
                     onClick={onClose}
                   >
-                    {link.name}
+                    <span className='flex w-full items-center justify-between gap-3'>
+                      <span>{link.name}</span>
+                      {link.name === 'Notifications' && unreadCount > 0 && (
+                        <span className='rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white'>
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </span>
                   </SidebarNavLink>
                 ))}
               </div>

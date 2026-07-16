@@ -50,7 +50,7 @@ export default function ActivitiesTile({
     <DashboardTile
       size={size}
       variant={variant}
-      className={`h-full min-h-[180px] ${className}`}
+      className={`h-full min-h-[160px] sm:min-h-[180px] ${className}`}
       rounded={rounded}
       shadow={shadow}
     >
@@ -60,7 +60,7 @@ export default function ActivitiesTile({
             <Activity size={22} />
           </div>
 
-          <div>
+          <div className='min-w-0'>
             <h3 className='font-semibold text-lg'>Recent Activities</h3>
             <p className='text-sm opacity-80'>
               Latest activity across the firm
@@ -81,8 +81,8 @@ export default function ActivitiesTile({
                   <Icon size={16} />
                 </div>
 
-                <div className='flex-1'>
-                  <h4 className='font-medium'>{activity.title}</h4>
+                <div className='min-w-0 flex-1'>
+                  <h4 className='break-words font-medium'>{activity.title}</h4>
                   <p className='text-sm opacity-75'>{activity.description}</p>
                 </div>
 

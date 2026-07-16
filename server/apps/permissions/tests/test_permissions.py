@@ -36,13 +36,13 @@ class PermissionServiceTests(TestCase):
             last_name="User",
             phone_number="0700000003",
             national_id_number="10000003",
-            role=UserRole.CLIENT,
+            role=UserRole.OFFICIAL_CLIENT,
         )
 
-        self.portal_client = User.objects.create_user(
-            email="portal@test.com",
+        self.prospect = User.objects.create_user(
+            email="prospect@test.com",
             password="password123",
-            first_name="Portal",
+            first_name="Prospect",
             last_name="User",
             phone_number="0700000004",
             national_id_number="10000004",
@@ -76,15 +76,15 @@ class PermissionServiceTests(TestCase):
             PermissionService.is_client(self.staff)
         )
 
-    def test_is_portal_client(self):
+    def test_is_prospect(self):
         self.assertTrue(
-            PermissionService.is_portal_client(
-                self.portal_client
+            PermissionService.is_prospect(
+                self.prospect
             )
         )
 
         self.assertFalse(
-            PermissionService.is_portal_client(
+            PermissionService.is_prospect(
                 self.client_user
             )
         )

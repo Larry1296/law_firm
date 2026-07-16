@@ -23,6 +23,35 @@ const CASE_TYPES = [
   { value: 'CONSTITUTIONAL', label: 'Constitutional' },
   { value: 'TAX', label: 'Tax' },
   { value: 'IMMIGRATION', label: 'Immigration' },
+  { value: 'JUDICIAL_REVIEW', label: 'Judicial Review' },
+  { value: 'ELECTION_PETITION', label: 'Election Petition' },
+  { value: 'TRIBUNAL', label: 'Tribunal' },
+  { value: 'ARBITRATION', label: 'Arbitration' },
+  { value: 'MEDIATION', label: 'Mediation' },
+  { value: 'CONVEYANCING', label: 'Conveyancing' },
+  { value: 'DEBT_RECOVERY', label: 'Debt Recovery' },
+  { value: 'TRAFFIC', label: 'Traffic' },
+  { value: 'CHILDREN', label: 'Children Matter' },
+  { value: 'SMALL_CLAIM', label: 'Small Claim' },
+];
+
+const PROCEDURE_TRACKS = [
+  { value: 'CIVIL_SUIT', label: 'Civil Suit' },
+  { value: 'MISC_APPLICATION', label: 'Miscellaneous Application' },
+  { value: 'PETITION', label: 'Petition' },
+  { value: 'JUDICIAL_REVIEW', label: 'Judicial Review' },
+  { value: 'APPEAL', label: 'Appeal' },
+  { value: 'CRIMINAL_TRIAL', label: 'Criminal Trial' },
+  { value: 'CRIMINAL_APPEAL', label: 'Criminal Appeal' },
+  { value: 'SUCCESSION_CAUSE', label: 'Succession Cause' },
+  { value: 'FAMILY_CAUSE', label: 'Family Cause' },
+  { value: 'CHILDREN_MATTER', label: 'Children Matter' },
+  { value: 'EMPLOYMENT_CLAIM', label: 'Employment Claim' },
+  { value: 'ELC_SUIT', label: 'Environment and Land Suit' },
+  { value: 'SMALL_CLAIM', label: 'Small Claim' },
+  { value: 'TRIBUNAL_MATTER', label: 'Tribunal Matter' },
+  { value: 'ADR', label: 'Alternative Dispute Resolution' },
+  { value: 'NON_CONTENTIOUS', label: 'Non-Contentious Matter' },
 ];
 
 const COURT_TYPES = [
@@ -34,6 +63,56 @@ const COURT_TYPES = [
   { value: 'EMPLOYMENT_LABOUR', label: 'Employment & Labour Court' },
   { value: 'SMALL_CLAIMS', label: 'Small Claims Court' },
   { value: 'KADHI', label: 'Kadhi Court' },
+  { value: 'COURT_MARTIAL', label: 'Court Martial' },
+  { value: 'TRIBUNAL', label: 'Tribunal' },
+  { value: 'ADR', label: 'Alternative Dispute Resolution' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+const COURT_DIVISIONS = [
+  { value: 'CIVIL', label: 'Civil Division' },
+  { value: 'CRIMINAL', label: 'Criminal Division' },
+  { value: 'COMMERCIAL_TAX', label: 'Commercial and Tax Division' },
+  {
+    value: 'CONSTITUTIONAL_HUMAN_RIGHTS',
+    label: 'Constitutional and Human Rights Division',
+  },
+  { value: 'FAMILY', label: 'Family Division' },
+  { value: 'JUDICIAL_REVIEW', label: 'Judicial Review Division' },
+  {
+    value: 'ANTI_CORRUPTION_ECONOMIC_CRIMES',
+    label: 'Anti-Corruption and Economic Crimes Division',
+  },
+  { value: 'ELC', label: 'Environment and Land Court' },
+  { value: 'ELRC', label: 'Employment and Labour Relations Court' },
+  { value: 'SMALL_CLAIMS', label: 'Small Claims Court' },
+  { value: 'KADHI', label: 'Kadhi Court' },
+  { value: 'TRIBUNAL', label: 'Tribunal' },
+  { value: 'APPELLATE', label: 'Appellate' },
+  { value: 'GENERAL', label: 'General Registry' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+const PARTY_ROLES = [
+  { value: 'PLAINTIFF', label: 'Plaintiff' },
+  { value: 'DEFENDANT', label: 'Defendant' },
+  { value: 'PETITIONER', label: 'Petitioner' },
+  { value: 'RESPONDENT', label: 'Respondent' },
+  { value: 'APPLICANT', label: 'Applicant' },
+  { value: 'APPELLANT', label: 'Appellant' },
+  { value: 'ACCUSED', label: 'Accused' },
+  { value: 'CLAIMANT', label: 'Claimant' },
+  { value: 'OBJECTOR', label: 'Objector' },
+  { value: 'BENEFICIARY', label: 'Beneficiary' },
+  { value: 'ADMINISTRATOR', label: 'Administrator' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+const PRIORITIES = [
+  { value: 'LOW', label: 'Low' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'HIGH', label: 'High' },
+  { value: 'URGENT', label: 'Urgent' },
 ];
 
 export default function AdminCreateCasePage() {
@@ -55,11 +134,23 @@ export default function AdminCreateCasePage() {
     title: '',
     description: '',
     case_type: '',
+    procedure_track: '',
     court_type: '',
+    court_division: '',
     priority: 'MEDIUM',
     filing_date: '',
     court_name: '',
+    court_station: '',
+    registry: '',
+    courtroom: '',
+    judicial_officer: '',
     court_location: '',
+    efiling_reference: '',
+    cts_reference: '',
+    payment_reference: '',
+    next_court_date: '',
+    next_action: '',
+    client_party_role: 'PLAINTIFF',
     defendant: '',
   });
 
@@ -72,6 +163,11 @@ export default function AdminCreateCasePage() {
   const selectedClient = useMemo(() => {
     return sortedClients.find((c) => c.client_id === selectedClientId);
   }, [sortedClients, selectedClientId]);
+
+  const selectableLawyers = useMemo(
+    () => lawyers.filter((lawyer) => lawyer.system_role !== 'ADMIN'),
+    [lawyers],
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -94,7 +190,7 @@ export default function AdminCreateCasePage() {
       return Swal.fire({
         icon: 'warning',
         title: 'Client Required',
-        text: 'Please select a client.',
+        text: 'Please select the client or party represented by the firm.',
       });
     }
 
@@ -144,10 +240,10 @@ export default function AdminCreateCasePage() {
 
       <Card className='p-6'>
         <form onSubmit={handleSubmit} className='space-y-5'>
-          {/* CLIENT */}
+          {/* CLIENT / PARTY */}
           <div>
             <label className='block mb-2 text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-              Client
+              Client / Party Represented
             </label>
 
             <select
@@ -161,7 +257,7 @@ export default function AdminCreateCasePage() {
               }}
               required
             >
-              <option value=''>Select Client</option>
+              <option value=''>Select Client / Party</option>
 
               {sortedClients.map((c) => (
                 <option key={c.client_id} value={c.client_id}>
@@ -228,6 +324,52 @@ export default function AdminCreateCasePage() {
             </select>
           </div>
 
+          {/* PRIORITY */}
+          <div>
+            <label className='block mb-2 text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+              Priority
+            </label>
+
+            <select
+              name='priority'
+              value={formData.priority}
+              onChange={handleChange}
+              className={fieldClass}
+              style={{
+                colorScheme: document.documentElement.classList.contains('dark')
+                  ? 'dark'
+                  : 'light',
+              }}
+              required
+            >
+              {PRIORITIES.map((priority) => (
+                <option key={priority.value} value={priority.value}>
+                  {priority.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className='block mb-2 text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+              Client Role in Matter
+            </label>
+
+            <select
+              name='client_party_role'
+              value={formData.client_party_role}
+              onChange={handleChange}
+              className={fieldClass}
+              required
+            >
+              {PARTY_ROLES.map((role) => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* LAWYERS */}
           <div>
             <label className='block mb-2 text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
@@ -244,12 +386,32 @@ export default function AdminCreateCasePage() {
                   : 'light',
               }}
             >
-              <option value=''>Use firm assignment</option>
+              <option value=''>Firm owner lawyer</option>
 
-              {lawyers.map((l) => (
+              {selectableLawyers.map((l) => (
                 <option key={l.membership_id} value={l.membership_id}>
                   {l.full_name}
-                  {l.is_system_admin ? ' (Admin)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className='block mb-2 text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+              Procedure Track
+            </label>
+
+            <select
+              name='procedure_track'
+              value={formData.procedure_track}
+              onChange={handleChange}
+              className={fieldClass}
+            >
+              <option value=''>Select Procedure Track</option>
+
+              {PROCEDURE_TRACKS.map((track) => (
+                <option key={track.value} value={track.value}>
+                  {track.label}
                 </option>
               ))}
             </select>
@@ -271,11 +433,32 @@ export default function AdminCreateCasePage() {
                   : 'light',
               }}
             >
-              <option value=''>Use firm assignment</option>
+              <option value=''>First registered secretary</option>
 
               {secretaries.map((s) => (
                 <option key={s.membership_id} value={s.membership_id}>
                   {s.full_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className='block mb-2 text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+              Court Division / Registry
+            </label>
+
+            <select
+              name='court_division'
+              value={formData.court_division}
+              onChange={handleChange}
+              className={fieldClass}
+            >
+              <option value=''>Select Division / Registry</option>
+
+              {COURT_DIVISIONS.map((division) => (
+                <option key={division.value} value={division.value}>
+                  {division.label}
                 </option>
               ))}
             </select>
@@ -326,11 +509,76 @@ export default function AdminCreateCasePage() {
           />
 
           <FloatingInput
+            label='Court Station'
+            name='court_station'
+            value={formData.court_station}
+            onChange={handleChange}
+          />
+
+          <FloatingInput
+            label='Registry'
+            name='registry'
+            value={formData.registry}
+            onChange={handleChange}
+          />
+
+          <FloatingInput
+            label='Courtroom'
+            name='courtroom'
+            value={formData.courtroom}
+            onChange={handleChange}
+          />
+
+          <FloatingInput
+            label='Judge / Magistrate / Adjudicator'
+            name='judicial_officer'
+            value={formData.judicial_officer}
+            onChange={handleChange}
+          />
+
+          <FloatingInput
             label='Court Location'
             name='court_location'
             value={formData.court_location}
             onChange={handleChange}
             required
+          />
+
+          <FloatingInput
+            label='eFiling Reference'
+            name='efiling_reference'
+            value={formData.efiling_reference}
+            onChange={handleChange}
+          />
+
+          <FloatingInput
+            label='CTS Reference'
+            name='cts_reference'
+            value={formData.cts_reference}
+            onChange={handleChange}
+          />
+
+          <FloatingInput
+            label='Court Payment Reference'
+            name='payment_reference'
+            value={formData.payment_reference}
+            onChange={handleChange}
+          />
+
+          <FloatingInput
+            label='Next Court Date'
+            name='next_court_date'
+            type='datetime-local'
+            value={formData.next_court_date}
+            onChange={handleChange}
+            noFloat
+          />
+
+          <FloatingInput
+            label='Next Action'
+            name='next_action'
+            value={formData.next_action}
+            onChange={handleChange}
           />
 
           <FloatingInput
@@ -343,7 +591,7 @@ export default function AdminCreateCasePage() {
 
           {selectedClient && (
             <FloatingInput
-              label='Plaintiff'
+              label='Selected Client / Party'
               value={selectedClient.full_name}
               disabled
               required

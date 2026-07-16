@@ -21,7 +21,13 @@ class ClientAdminListView(ClientAdminBaseView):
                 "metadata": {
                     "total_clients": clients.count(),
                     "active_clients": clients.filter(is_active=True).count(),
+                    "inactive_clients": clients.filter(is_active=False).count(),
+                    "prospects_with_access": clients.filter(access_type="PROSPECT").count(),
+                    "assisted_clients": clients.filter(access_type="ASSISTED_CLIENT").count(),
+                    "prospects": clients.filter(lifecycle_status="PROSPECT").count(),
+                    "official_clients": clients.filter(lifecycle_status="OFFICIAL_CLIENT").count(),
                     "archived_clients": clients.filter(lifecycle_status="ARCHIVED").count(),
+                    "deleted_clients": clients.filter(soft_deleted_at__isnull=False).count(),
                 },
             },
             status=status.HTTP_200_OK,

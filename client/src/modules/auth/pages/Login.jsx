@@ -43,7 +43,7 @@ export default function Login() {
       return navigate('/client/dashboard', { replace: true });
     }
 
-    if (role === 'PROSPECT' || role === 'PORTAL_CLIENT') {
+    if (role === 'PROSPECT') {
       return navigate('/portal/dashboard', { replace: true });
     }
 
@@ -190,7 +190,13 @@ export default function Login() {
 
       if (!data) throw new Error('Invalid login response');
 
-      const { user, access, refresh, firm_role: firmRole } = data;
+      const {
+        user,
+        access,
+        refresh,
+        firm_role: firmRole,
+        is_firm_owner: isFirmOwner,
+      } = data;
 
       if (!user || !access || !refresh) {
         throw new Error('Invalid login response from server');
@@ -199,6 +205,7 @@ export default function Login() {
       const sessionUser = {
         ...user,
         firm_role: firmRole ?? user.firm_role ?? null,
+        is_firm_owner: isFirmOwner ?? user.is_firm_owner ?? false,
       };
 
       persistLoginThemeForDashboard(sessionUser);

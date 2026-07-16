@@ -77,6 +77,13 @@ const communicationService = {
     return data;
   },
 
+  async getCaseLawyerThread(caseId) {
+    const { data } = await axiosInstance.get(
+      `/communications/cases/${caseId}/lawyer-thread/`,
+    );
+    return data;
+  },
+
   /* ======================================================
      MESSAGES
   ====================================================== */
@@ -110,6 +117,20 @@ const communicationService = {
       {
         body,
       },
+    );
+    return data;
+  },
+
+  async forwardMessageToLawyer(messageId) {
+    const { data } = await axiosInstance.post(
+      `/communications/messages/${messageId}/forward-to-lawyer/`,
+    );
+    return data;
+  },
+
+  async forwardMessageToClient(messageId) {
+    const { data } = await axiosInstance.post(
+      `/communications/messages/${messageId}/forward-to-client/`,
     );
     return data;
   },

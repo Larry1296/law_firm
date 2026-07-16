@@ -7,6 +7,9 @@ import {
   UserCheck,
   UserPlus,
   Briefcase,
+  Archive,
+  RotateCcw,
+  Trash2,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
@@ -24,8 +27,16 @@ export default function AdminClientsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
 
-  const { analytics, clients, isLoading, isFetching, refetch, deleteClient } =
-    useAdminClients({ search });
+  const {
+    analytics,
+    clients,
+    isLoading,
+    isFetching,
+    refetch,
+    deleteClient,
+    archiveClient,
+    restoreClient,
+  } = useAdminClients({ search });
 
   const handleDelete = async (clientId) => {
     const result = await Swal.fire({
@@ -54,6 +65,67 @@ export default function AdminClientsPage() {
         icon: 'error',
         title: 'Error',
         text: error?.response?.data?.detail || 'Failed to delete client.',
+      });
+    }
+  };
+
+  const handleArchive = async (clientId) => {
+    const result = await Swal.fire({
+      title: 'Archive Client?',
+      text: 'This client has linked cases and will be archived instead of permanently deleted.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ca8a04',
+      confirmButtonText: 'Archive',
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await archiveClient(clientId);
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Archived',
+        text: 'Client archived successfully.',
+        timer: 1800,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error?.response?.data?.detail || 'Failed to archive client.',
+      });
+    }
+  };
+
+  const handleRestore = async (clientId) => {
+    const result = await Swal.fire({
+      title: 'Restore Client?',
+      text: 'This client will be restored to the state they had before archiving.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Restore',
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await restoreClient(clientId);
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Restored',
+        text: 'Client restored successfully.',
+        timer: 1800,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error?.response?.data?.detail || 'Failed to restore client.',
       });
     }
   };
@@ -200,7 +272,7 @@ export default function AdminClientsPage() {
         </div>
       </div>
 
-      <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4'>
+      <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-4'>
         <StatsCard
           title='Total Clients'
           value={analytics?.total_clients ?? 0}
@@ -223,8 +295,8 @@ export default function AdminClientsPage() {
         />
 
         <StatsCard
-          title='Portal Clients'
-          value={analytics?.portal_clients ?? 0}
+          title='Prospects'
+          value={analytics?.prospects_with_access ?? 0}
           icon={<UserPlus size={22} />}
           color='purple'
         />
@@ -234,6 +306,20 @@ export default function AdminClientsPage() {
           value={analytics?.assisted_clients ?? 0}
           icon={<Briefcase size={22} />}
           color='yellow'
+        />
+
+        <StatsCard
+          title='Archived Clients'
+          value={analytics?.archived_clients ?? 0}
+          icon={<Archive size={22} />}
+          color='red'
+        />
+
+        <StatsCard
+          title='Deleted Clients'
+          value={analytics?.deleted_clients ?? 0}
+          icon={<Trash2 size={22} />}
+          color='red'
         />
       </div>
 
@@ -292,13 +378,37 @@ export default function AdminClientsPage() {
               View
             </Button3D>
 
-            <Button3D
-              size='sm'
-              variant='danger'
-              onClick={() => handleDelete(client.id)}
-            >
-              Delete
-            </Button3D>
+            {client.can_restore ? (
+              <Button3D
+                size='sm'
+                variant='success'
+                onClick={() => handleRestore(client.id)}
+                className='gap-2'
+              >
+                <RotateCcw size={15} />
+                Restore
+              </Button3D>
+            ) : client.can_archive ? (
+              <Button3D
+                size='sm'
+                variant='warning'
+                onClick={() => handleArchive(client.id)}
+                className='gap-2'
+              >
+                <Archive size={15} />
+                Archive
+              </Button3D>
+            ) : client.can_hard_delete ? (
+              <Button3D
+                size='sm'
+                variant='danger'
+                onClick={() => handleDelete(client.id)}
+                className='gap-2'
+              >
+                <Trash2 size={15} />
+                Delete
+              </Button3D>
+            ) : null}
           </div>
         )}
       />

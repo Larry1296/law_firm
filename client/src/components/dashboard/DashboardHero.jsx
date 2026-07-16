@@ -12,9 +12,9 @@ const DashboardHero = ({
   const IconComponent = Icon || ShieldCheck;
 
   return (
-    <section className='rounded-none bg-gradient-to-r from-brand-primary to-blue-700 text-white px-6 py-6 shadow-medium lg:px-8 lg:py-8'>
-      <div className='flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6'>
-        <div>
+    <section className='w-full min-w-0 rounded-none bg-gradient-to-r from-brand-primary to-blue-700 px-4 py-5 text-white shadow-medium sm:px-6 sm:py-6 lg:px-8 lg:py-8'>
+      <div className='flex min-w-0 flex-col gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-6'>
+        <div className='min-w-0'>
           <p className='text-sm uppercase tracking-widest text-blue-100 mb-2'>
             {badge}
           </p>
@@ -25,11 +25,11 @@ const DashboardHero = ({
             size='hero'
             variant='dark'
             as='h1'
-            className='max-w-2xl [&_p]:text-blue-100'
+            className='max-w-2xl min-w-0 [&_p]:text-blue-100'
           />
         </div>
 
-        <div className='bg-white/10 backdrop-blur-md rounded-none p-5 min-w-[260px] border border-white/10'>
+        <div className='w-full min-w-0 rounded-none border border-white/10 bg-white/10 p-4 backdrop-blur-md sm:p-5 lg:w-auto lg:min-w-[260px]'>
           <div className='flex items-center gap-3 mb-4'>
             <IconComponent className='text-brand-accent' size={28} />
 

@@ -1,20 +1,10 @@
-import { useContext } from "react";
 import { FaFacebook, FaTwitter, FaLinkedin } from "react-icons/fa";
 import { Mail, Phone, MapPin } from "lucide-react";
 import Brand from "@/components/ui/Brand";
-import ThemeContext from "@/core/store/ThemeContext";
 
 export default function Footer() {
-  const { theme } = useContext(ThemeContext);
-
-  // Dynamic background based on theme
-  const bgFooter =
-    theme === "dark"
-      ? "bg-[color:var(--surface-dark)] text-white"
-      : "bg-[color:var(--brand-primary)] text-white";
-
   return (
-    <footer className={`${bgFooter} mt-auto`}>
+    <footer className="mt-auto shell-surface">
       <div className="max-w-7xl mx-auto px-6 py-12 grid md:grid-cols-3 gap-10">
         {/* LOGO / ABOUT */}
         <div>

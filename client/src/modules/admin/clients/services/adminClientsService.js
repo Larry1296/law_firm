@@ -107,7 +107,26 @@ const adminClientsService = {
      DELETE CLIENT
   ====================================================== */
   async deleteClient(clientId) {
-    await axiosInstance.delete(`/admin/clients/${clientId}/delete/`);
+    const { data } = await axiosInstance.delete(
+      `/admin/clients/${clientId}/delete/`,
+    );
+    return data;
+  },
+
+  async archiveClient(clientId) {
+    const { data } = await axiosInstance.post(
+      `/admin/clients/${clientId}/change-status/`,
+      { action: 'archive' },
+    );
+    return data;
+  },
+
+  async restoreClient(clientId) {
+    const { data } = await axiosInstance.post(
+      `/admin/clients/${clientId}/change-status/`,
+      { action: 'restore' },
+    );
+    return data;
   },
 };
 

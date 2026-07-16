@@ -33,6 +33,10 @@ class ClientDetailSerializer(
 ):
 
     type_profile = serializers.SerializerMethodField()
+    has_cases = serializers.BooleanField(read_only=True)
+    can_hard_delete = serializers.BooleanField(read_only=True)
+    can_archive = serializers.BooleanField(read_only=True)
+    can_restore = serializers.BooleanField(read_only=True)
 
     addresses = ClientAddressSerializer(
         many=True,
@@ -62,7 +66,13 @@ class ClientDetailSerializer(
             "client_type",
             "access_type",
             "lifecycle_status",
+            "is_verified",
             "is_active",
+            "has_cases",
+            "can_hard_delete",
+            "can_archive",
+            "can_restore",
+            "soft_deleted_at",
 
             "created_at",
             "updated_at",

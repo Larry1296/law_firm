@@ -1,23 +1,21 @@
 import { Bell, Menu, User, Sun, Moon } from 'lucide-react';
 import { useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ThemeContext from '@/core/store/ThemeContext';
+import useUnreadNotifications from '@/modules/notifications/hooks/useUnreadNotifications';
 
 export default function SecretaryTopbar({ onMenuClick }) {
   const { theme, toggleTheme } = useContext(ThemeContext);
+  const navigate = useNavigate();
+  const { data } = useUnreadNotifications();
+  const unreadCount = data?.unread_count ?? 0;
 
-  // Topbar background matches sidebar
-  const bgTopbar =
-    theme === 'dark'
-      ? 'bg-[color:var(--surface-dark)] text-white'
-      : 'bg-[color:var(--brand-primary)] text-white';
-
-  // Hover effect for buttons
-  const hoverEffect =
-    theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-blue-700/20';
+  const bgTopbar = 'shell-surface';
+  const hoverEffect = 'shell-hover';
 
   return (
     <header
-      className={`h-16 ${bgTopbar} shadow flex items-center justify-between px-4 sm:px-6`}
+      className={`h-16 ${bgTopbar} flex items-center justify-between px-4 sm:px-6`}
     >
       {/* HAMBURGER (mobile only) */}
       <button
@@ -42,9 +40,17 @@ export default function SecretaryTopbar({ onMenuClick }) {
         </button>
 
         {/* NOTIFICATIONS */}
-        <button className={`relative p-2 rounded ${hoverEffect}`}>
+        <button
+          onClick={() => navigate('/secretary/notifications')}
+          className={`relative p-2 rounded ${hoverEffect}`}
+          aria-label='Notifications'
+        >
           <Bell size={20} />
-          <span className='absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full'></span>
+          {unreadCount > 0 && (
+            <span className='absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-[10px] font-semibold text-white flex items-center justify-center'>
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </button>
       </div>
     </header>

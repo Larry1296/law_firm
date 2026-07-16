@@ -1,5 +1,6 @@
 from apps.firm.services.it_department_service import ITDepartmentService
 from apps.firm.services.it_system_report_service import ITSystemReportService
+from apps.notifications.services import NotificationService
 
 
 class StaffWorkspaceService:
@@ -41,6 +42,7 @@ class StaffWorkspaceService:
                 "overall_health_percentage": system_report["overall_health_percentage"],
                 "status": system_report["status"],
             }
+        recent_notifications = NotificationService.dashboard_items(user)
 
         return {
             "profile": {
@@ -55,13 +57,15 @@ class StaffWorkspaceService:
                 "active_permissions": len(permissions),
                 "pending_tasks": 0,
                 "documents": 0,
-                "notifications": 0,
+                "notifications": NotificationService.unread_count(user),
+                "unread_notifications": NotificationService.unread_count(user),
                 **({"it_management": it_management} if it_management else {}),
             },
             "permissions": permissions,
             "default_work": default_work(profile),
             **({"system_health": system_report} if profile.firm_role == "IT" else {}),
-            "recent_activity": [
+            "recent_notifications": recent_notifications,
+            "recent_activity": recent_notifications or [
                 {
                     "id": "activity-001",
                     "title": f"{role_label} dashboard ready",
@@ -85,6 +89,8 @@ class StaffWorkspaceService:
     @staticmethod
     def placeholder_items(user, profile_attr, role_label, item_type):
         StaffWorkspaceService.get_profile(user, profile_attr, role_label)
+        if item_type == "notification":
+            return NotificationService.list_for_user(user)
         return [
             {
                 "id": f"{item_type}-001",

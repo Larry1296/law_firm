@@ -1,3 +1,3 @@
-from django.db import models
+from apps.notifications.models.notification import Notification
 
-# Create your models here.
+__all__ = ["Notification"]

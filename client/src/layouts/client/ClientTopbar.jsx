@@ -5,19 +5,12 @@ import ThemeContext from '@/core/store/ThemeContext';
 export default function ClientTopbar({ onMenuClick }) {
   const { theme, toggleTheme } = useContext(ThemeContext);
 
-  // Topbar background matches sidebar
-  const bgTopbar =
-    theme === 'dark'
-      ? 'bg-[color:var(--surface-dark)] text-white'
-      : 'bg-[color:var(--brand-primary)] text-white';
-
-  // Hover effect for buttons
-  const hoverEffect =
-    theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-blue-700/20';
+  const bgTopbar = 'shell-surface';
+  const hoverEffect = 'shell-hover';
 
   return (
     <header
-      className={`h-16 ${bgTopbar} shadow flex items-center justify-between px-4 sm:px-6`}
+      className={`h-16 ${bgTopbar} flex items-center justify-between px-4 sm:px-6`}
     >
       {/* HAMBURGER (mobile only) */}
       <button

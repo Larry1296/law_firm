@@ -42,7 +42,7 @@ export default function WorkloadTile({
     <DashboardTile
       size={size}
       variant='staff'
-      className={`h-full min-h-[180px] ${className}`}
+      className={`h-full min-h-[160px] sm:min-h-[180px] ${className}`}
       rounded={rounded}
       shadow={shadow}
     >
@@ -53,7 +53,7 @@ export default function WorkloadTile({
             <Users size={22} />
           </div>
 
-          <div>
+          <div className='min-w-0'>
             <h3 className='font-semibold text-lg'>Workload Distribution</h3>
             <p className='text-sm opacity-80'>
               Case assignment across legal teams
@@ -71,9 +71,9 @@ export default function WorkloadTile({
                 key={group.id}
                 className='rounded-xl p-3 bg-white/10 border border-white/10'
               >
-                <div className='flex items-start justify-between'>
+                <div className='flex min-w-0 items-start justify-between gap-3 sm:gap-4'>
                   <div>
-                    <h4 className='font-medium'>{group.name}</h4>
+                    <h4 className='break-words font-medium'>{group.name}</h4>
                     <p className='text-sm opacity-80 mt-1'>
                       {group.cases} active cases
                     </p>
@@ -95,19 +95,19 @@ export default function WorkloadTile({
         </div>
 
         {/* Footer stats */}
-        <div className='grid grid-cols-3 gap-2 mt-4'>
+        <div className='mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3'>
           <div className='rounded-xl bg-white/10 p-3 text-center'>
-            <p className='text-xl font-bold'>45</p>
+            <p className='text-lg font-bold sm:text-xl'>45</p>
             <p className='text-xs opacity-75'>Active Staff</p>
           </div>
 
           <div className='rounded-xl bg-white/10 p-3 text-center'>
-            <p className='text-xl font-bold'>12</p>
+            <p className='text-lg font-bold sm:text-xl'>12</p>
             <p className='text-xs opacity-75'>Overloaded</p>
           </div>
 
           <div className='rounded-xl bg-white/10 p-3 text-center'>
-            <p className='text-xl font-bold'>8</p>
+            <p className='text-lg font-bold sm:text-xl'>8</p>
             <p className='text-xs opacity-75'>Free Capacity</p>
           </div>
         </div>

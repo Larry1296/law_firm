@@ -52,11 +52,11 @@ class ClientAnalyticsService:
             ).count(),
 
             # ----------------------------
-            # Portal Access
+            # Prospect Access
             # ----------------------------
 
-            "portal_clients": queryset.filter(
-                access_type=Client.AccessType.PORTAL_CLIENT
+            "prospects_with_access": queryset.filter(
+                access_type=Client.AccessType.PROSPECT
             ).count(),
 
             "assisted_clients": queryset.filter(
@@ -77,6 +77,10 @@ class ClientAnalyticsService:
 
             "archived_clients": queryset.filter(
                 lifecycle_status=Client.LifecycleStatus.ARCHIVED
+            ).count(),
+
+            "deleted_clients": queryset.filter(
+                soft_deleted_at__isnull=False
             ).count(),
 
             # ----------------------------

@@ -52,7 +52,9 @@ class CompanyClientService:
             email=validated_data["email"],
             phone_number=validated_data.get("phone_number", ""),
             client_type=Client.ClientType.COMPANY,
-            access_type=Client.AccessType.PORTAL_CLIENT,
+            access_type=Client.AccessType.PROSPECT,
+            lifecycle_status=Client.LifecycleStatus.PROSPECT,
+            is_verified=True,
         )
 
         company = CompanyClient.objects.create(
@@ -82,8 +84,8 @@ class CompanyClientService:
             role=UserRole.PROSPECT,
         )
 
-        company.user = portal_user
-        company.save(update_fields=["user"])
+        client.user = portal_user
+        client.save(update_fields=["user", "updated_at"])
 
         ClientAddress.objects.create(
             client=client,

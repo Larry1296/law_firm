@@ -24,28 +24,51 @@ class ChatThreadParticipantSerializer(serializers.ModelSerializer):
 
 
 class ChatThreadSerializer(serializers.ModelSerializer):
-    participants = ChatThreadParticipantSerializer(many=True, read_only=True)
+    participants = serializers.SerializerMethodField()
     case = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
     can_reply = serializers.SerializerMethodField()
 
+    def _viewer_is_client(self):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        return bool(user and user.is_authenticated and hasattr(user, "client_profile"))
+
+    def get_participants(self, obj):
+        if self._viewer_is_client():
+            return []
+        return ChatThreadParticipantSerializer(obj.participants.all(), many=True).data
+
     def get_case(self, obj):
         if obj.case is None:
             return None
         case = obj.case
         client = case.client
-        return {
+        data = {
             "id": str(case.id),
             "case_number": case.case_number,
             "title": case.title,
             "status": case.status,
+            "firm": {
+                "id": str(case.firm.id),
+                "name": case.firm.name,
+                "email": case.firm.email,
+                "phone_number": case.firm.phone_number,
+            },
             "client": {
                 "id": str(client.id),
                 "full_name": client.full_name,
                 "email": client.email,
             },
+        }
+
+        if self._viewer_is_client():
+            return data
+
+        return {
+            **data,
             "assigned_lawyer": (
                 {
                     "id": str(case.assigned_lawyer.id),
@@ -67,11 +90,22 @@ class ChatThreadSerializer(serializers.ModelSerializer):
         }
 
     def get_created_by(self, obj):
+        if self._viewer_is_client() and obj.created_by_id != self.context["request"].user.id:
+            return {
+                "id": str(obj.firm.id),
+                "full_name": obj.firm.name,
+                "email": obj.firm.email,
+                "role": "FIRM",
+            }
         return serialize_user(obj.created_by)
 
     def get_last_message(self, obj):
         last_message = obj.messages.select_related("sender").order_by("-created_at").first()
-        return ChatMessageSerializer(last_message).data if last_message else None
+        return (
+            ChatMessageSerializer(last_message, context=self.context).data
+            if last_message
+            else None
+        )
 
     def get_unread_count(self, obj):
         request = self.context.get("request")

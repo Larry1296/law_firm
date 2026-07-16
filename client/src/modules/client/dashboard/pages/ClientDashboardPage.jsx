@@ -12,30 +12,39 @@ import {
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
+import useClientDashboard from '@/modules/client/dashboard/hooks/useClientDashboard';
+import { useNavigate } from 'react-router-dom';
 
 const clientTiles = [
   {
+    key: 'cases',
     title: 'My Matters',
-    subtitle: '12 active cases and 4 urgent matters',
+    subtitle: 'Your active legal matters',
     icon: Briefcase,
     variant: 'cases',
     size: 'large',
+    path: '/client/cases',
   },
   {
+    key: 'hearings',
     title: 'Upcoming Hearings',
-    subtitle: '3 sessions this week',
+    subtitle: 'Court dates from your cases',
     icon: CalendarDays,
     variant: 'calendar',
     size: 'wide',
+    path: '/client/calendar',
   },
   {
+    key: 'documents',
     title: 'Documents',
     subtitle: 'Secure case files and evidence',
     icon: FileText,
     variant: 'documents',
     size: 'wide',
+    path: '/client/documents',
   },
   {
+    key: 'billing',
     title: 'Trust & Billing',
     subtitle: 'Invoices, payments, and balances',
     icon: ReceiptText,
@@ -43,27 +52,34 @@ const clientTiles = [
     size: 'wide',
   },
   {
+    key: 'messages',
     title: 'Messages',
-    subtitle: 'Updates from your lawyer and staff',
+    subtitle: 'Case-attached firm communication',
     icon: MessageSquareText,
     variant: 'messages',
     size: 'wide',
+    path: '/client/cases',
   },
   {
-    title: 'My Lawyer',
-    subtitle: 'Contact your assigned legal team',
+    key: 'firm',
+    title: 'My Firm',
+    subtitle: 'Contact the firm handling your matter',
     icon: UserRound,
     variant: 'lawyerContacts',
     size: 'wide',
+    path: '/client/profile',
   },
   {
+    key: 'notifications',
     title: 'Case Timeline',
-    subtitle: 'Milestones, deadlines, and next steps',
+    subtitle: 'Unread status and case updates',
     icon: CalendarDays,
     variant: 'notifications',
     size: 'wide',
+    path: '/client/notifications',
   },
   {
+    key: 'support',
     title: 'Support',
     subtitle: 'Get help whenever you need it',
     icon: LifeBuoy,
@@ -71,29 +87,64 @@ const clientTiles = [
     size: 'wide',
   },
   {
+    key: 'profile',
     title: 'Profile',
     subtitle: 'Preferences, contacts, and firm details',
     icon: Settings,
     variant: 'settings',
     size: 'wide',
+    path: '/client/profile',
   },
 ];
 
 export default function ClientDashboardPage() {
+  const navigate = useNavigate();
+  const { data, isLoading, isFetching } = useClientDashboard();
+  const summary = data?.summary || {};
+  const client = data?.client || {};
+  const firm = data?.firm || {};
+
+  const tileValue = (tile) => {
+    if (tile.key === 'cases') return summary.active_cases ?? 0;
+    if (tile.key === 'hearings') return summary.upcoming_hearings ?? 0;
+    if (tile.key === 'documents') return summary.documents ?? 0;
+    if (tile.key === 'notifications') return summary.unread_notifications ?? 0;
+    if (tile.key === 'firm') return firm.name || 'Firm';
+    if (tile.key === 'messages') return summary.total_cases ?? 0;
+    return null;
+  };
+
+  const tileDetail = (tile) => {
+    if (tile.key === 'cases') {
+      return `${summary.total_cases ?? 0} total · ${summary.urgent_cases ?? 0} urgent`;
+    }
+    if (tile.key === 'notifications') {
+      return `${summary.unread_notifications ?? 0} unread`;
+    }
+    if (tile.key === 'messages') return 'Open a case to message the firm';
+    if (!tile.path) return 'Coming soon';
+    return 'Open workspace';
+  };
+
   return (
     <>
       <DashboardHero
         badge='Law Firm Home'
-        title='Welcome back, John 👋'
-        description='A bright, tile-based home screen for your legal workspace—quick access to files, cases, billing, and team updates.'
-        statusTitle='Cases Active'
-        statusDescription='Your legal matters are being actively managed and reviewed in real time.'
+        title={`Welcome back${client.full_name ? `, ${client.full_name}` : ''}`}
+        description='Track your cases, documents, notifications, and firm communication from one place.'
+        statusTitle={client.is_verified ? 'Verified Client' : 'Profile Under Review'}
+        statusDescription={
+          isFetching
+            ? 'Refreshing your dashboard.'
+            : `${summary.active_cases ?? 0} active matters are available.`
+        }
       />
 
-      <section className='mt-4'>
+      <section className='mt-0'>
         <DashboardGrid>
           {clientTiles.map((tile) => {
             const Icon = tile.icon;
+            const value = tileValue(tile);
 
             return (
               <DashboardTile
@@ -102,28 +153,38 @@ export default function ClientDashboardPage() {
                 variant={tile.variant}
                 rounded='none'
                 shadow={true}
-                className='group min-h-[180px] cursor-pointer p-5'
+                onClick={tile.path ? () => navigate(tile.path) : undefined}
+                className='group min-h-[160px] p-4 sm:min-h-[180px] sm:p-5'
               >
                 <div className='relative z-10 flex h-full flex-col justify-between'>
-                  <div className='flex items-start justify-between'>
-                    <div>
-                      <p className='text-xs uppercase tracking-[0.25em] text-white/80'>
+                  <div className='flex items-start justify-between gap-3 sm:gap-4'>
+                    <div className='min-w-0'>
+                      <p className='text-[11px] uppercase tracking-[0.16em] text-white/80 sm:text-xs sm:tracking-[0.25em]'>
                         {tile.title}
                       </p>
-                      <h3 className='mt-2 text-xl font-semibold'>
-                        {tile.subtitle}
+                      <h3 className='mt-2 break-words text-lg font-semibold leading-tight sm:text-xl'>
+                        {isLoading
+                          ? '...'
+                          : value === null
+                            ? tile.subtitle
+                            : typeof value === 'number'
+                              ? value.toLocaleString()
+                              : value}
                       </h3>
+                      {value !== null && (
+                        <p className='mt-2 text-sm text-white/80'>{tile.subtitle}</p>
+                      )}
                     </div>
 
-                    <div className='rounded-2xl bg-white/15 p-3 shadow-inner backdrop-blur-sm transition group-hover:scale-110'>
+                    <div className='shrink-0 rounded-2xl bg-white/15 p-3 shadow-inner backdrop-blur-sm transition group-hover:scale-110'>
                       <Icon size={22} />
                     </div>
                   </div>
 
-                  <div className='mt-4 flex items-center justify-between text-sm text-white/80'>
-                    <span>Open workspace</span>
-                    <span className='rounded-full bg-white/15 px-3 py-1 text-xs font-semibold'>
-                      Quick access
+                  <div className='mt-4 flex flex-col gap-2 text-sm text-white/80 sm:flex-row sm:items-center sm:justify-between'>
+                    <span className='min-w-0 break-words'>{tileDetail(tile)}</span>
+                    <span className='w-fit shrink-0 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold'>
+                      {tile.path ? 'Quick access' : 'Not ready'}
                     </span>
                   </div>
                 </div>

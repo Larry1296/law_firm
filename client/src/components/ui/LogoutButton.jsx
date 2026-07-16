@@ -15,7 +15,7 @@ const LogoutButton = () => {
 
     try {
       setIsLoggingOut(true);
-      logout({ redirect: false });
+      await logout({ redirect: false });
       navigate('/login', { replace: true });
     } catch (error) {
       console.error('Logout failed:', error);

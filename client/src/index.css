@@ -28,6 +28,79 @@
   }
 }
 
+@layer utilities {
+  .bg-shell-light {
+    background-color: #222222;
+    background-image: none;
+    color: #FFFFFF;
+  }
+
+  .dark .dark\:bg-shell-dark {
+    background-color: #061A3A;
+    background-image: radial-gradient(circle at 12% 0%, rgba(125,211,252,0.24), transparent 30%), linear-gradient(135deg, #0B2A5B 0%, #061A3A 52%, #020617 100%);
+    color: #EAF6FF;
+  }
+
+  .text-shell-on-light {
+    color: #FFFFFF;
+  }
+
+  .dark .dark\:text-shell-on-dark {
+    color: #EAF6FF;
+  }
+
+  .text-shell-muted-light {
+    color: rgba(255,255,255,0.78);
+  }
+
+  .dark .dark\:text-shell-muted-dark {
+    color: rgba(234,246,255,0.78);
+  }
+
+  .hover\:bg-shell-hover-light:hover {
+    background-color: #2F2F2F;
+    background-image: none;
+  }
+
+  .dark .dark\:hover\:bg-shell-hover-dark:hover {
+    background-color: #0B2A5B;
+    background-image: linear-gradient(135deg, #0B2A5B 0%, #0B2A5B 100%);
+  }
+
+  .shadow-shell-light {
+    box-shadow: 0 14px 34px rgba(34,34,34,0.22);
+  }
+
+  .dark .dark\:shadow-shell-dark {
+    box-shadow: 0 16px 40px rgba(2,6,23,0.55);
+  }
+}
+
+
+.shell-surface {
+  background-color: #222222;
+  background-image: none;
+  color: #FFFFFF;
+  box-shadow: 0 14px 34px rgba(34,34,34,0.22);
+}
+
+.dark .shell-surface {
+  background-color: #061A3A;
+  background-image: radial-gradient(circle at 12% 0%, rgba(125,211,252,0.24), transparent 30%), linear-gradient(135deg, #0B2A5B 0%, #061A3A 52%, #020617 100%);
+  color: #EAF6FF;
+  box-shadow: 0 16px 40px rgba(2,6,23,0.55);
+}
+
+.shell-hover:hover {
+  background-color: #2F2F2F;
+  background-image: none;
+}
+
+.dark .shell-hover:hover {
+  background-color: #0B2A5B;
+  background-image: linear-gradient(135deg, #0B2A5B 0%, #0B2A5B 100%);
+}
+
 /* CSS Variables for theme-aware colors */
 :root {
   /* Light theme (default) */
@@ -130,14 +203,12 @@ body {
   @apply bg-[color:var(--text-muted)];
 }
 
-/* Public navbar shell - uses CSS variables */
+/* Public navbar shell - structural styling only; colors come from Tailwind shell tokens. */
 .public-navbar-shell {
-  background-color: var(--brand-primary) !important;
   border-color: rgba(255, 255, 255, 0.18) !important;
 }
 
 .dark .public-navbar-shell {
-  background-color: var(--surface-dark) !important;
   border-color: rgba(148, 163, 184, 0.28) !important;
 }
 

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import lawyerCasesService from '@/modules/staff/lawyer/cases/services/lawyerCasesService';
 
 /* LIST */
@@ -15,5 +15,17 @@ export const useMyCase = (caseId) => {
     queryKey: ['lawyer-case', caseId],
     queryFn: () => lawyerCasesService.getMyCaseById(caseId),
     enabled: !!caseId,
+  });
+};
+
+export const useUpdateCaseStatus = (caseId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload) => lawyerCasesService.updateCaseStatus(caseId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lawyer-case', caseId] });
+      queryClient.invalidateQueries({ queryKey: ['lawyer-cases'] });
+    },
   });
 };

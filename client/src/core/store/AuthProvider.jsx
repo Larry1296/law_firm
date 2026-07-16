@@ -69,8 +69,18 @@ const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const logout = ({ redirect = true } = {}) => {
+  const logout = async ({ redirect = true } = {}) => {
     const refresh = refreshToken || getStoredAuth().refreshToken;
+
+    if (refresh) {
+      try {
+        await authService.logout({
+          refresh,
+        });
+      } catch (error) {
+        console.error('Logout API failed:', error);
+      }
+    }
 
     setUser(null);
     setAccessToken(null);
@@ -80,16 +90,6 @@ const AuthProvider = ({ children }) => {
 
     if (redirect && window.location.pathname !== '/login') {
       window.location.replace('/login');
-    }
-
-    if (refresh) {
-      authService
-        .logout({
-          refresh,
-        })
-        .catch((error) => {
-          console.error('Logout API failed:', error);
-        });
     }
   };
 
@@ -144,6 +144,7 @@ const AuthProvider = ({ children }) => {
       const serverUser = {
         ...data.user,
         firm_role: data.firm_role ?? data.user?.firm_role ?? null,
+        is_firm_owner: data.is_firm_owner ?? data.user?.is_firm_owner ?? false,
       };
       const wasAdmin = stored.user?.role === 'ADMIN';
       const isStillAdmin = serverUser.role === 'ADMIN';
@@ -254,8 +255,8 @@ const AuthProvider = ({ children }) => {
 
   const isAdmin = role === 'ADMIN';
   const isOfficialClient = role === 'OFFICIAL_CLIENT';
-  const isPortalClient = role === 'PROSPECT';           // ← Updated
-  const isClient = isOfficialClient || isPortalClient;
+  const isProspect = role === 'PROSPECT';
+  const isClient = isOfficialClient || isProspect;
   const isStaff = role === 'STAFF';
 
   const isLawyer = firmRole === 'LAWYER';
@@ -282,7 +283,7 @@ const AuthProvider = ({ children }) => {
     isAdmin,
     isClient,
     isOfficialClient,
-    isPortalClient,
+    isProspect,
     isStaff,
     isLawyer,
     isSecretary,

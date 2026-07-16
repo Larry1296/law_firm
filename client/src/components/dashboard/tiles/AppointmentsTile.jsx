@@ -9,10 +9,10 @@ export default function AppointmentsTile({
     <DashboardTile size={size} variant={variant}>
       <div className='flex h-full flex-col justify-between'>
         {/* HEADER */}
-        <div className='flex items-start justify-between'>
-          <div>
+        <div className='flex min-w-0 items-start justify-between gap-3 sm:gap-4'>
+          <div className='min-w-0'>
             <p className='text-sm opacity-80'>Upcoming Appointments</p>
-            <h2 className='mt-2 text-5xl font-bold'>4</h2>
+            <h2 className='mt-2 text-3xl font-bold sm:text-5xl'>4</h2>
           </div>
 
           <CalendarDays size={34} />

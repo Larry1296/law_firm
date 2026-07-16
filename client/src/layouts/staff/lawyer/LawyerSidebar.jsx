@@ -2,7 +2,6 @@ import { X } from 'lucide-react';
 import { useContext } from 'react';
 import AuthContext from '@/core/store/AuthContext';
 
-import ThemeContext from '@/core/store/ThemeContext';
 import LogoutButton from '@/components/ui/LogoutButton';
 import SidebarNavLink from '@/components/ui/SidebarNavlink';
 import Brand from '@/components/ui/Brand';
@@ -28,43 +27,44 @@ import {
 //* ================= LAWYER NAVIGATION ================= */
 const links = [
   {
-    name: 'Dashboard',
-    path: '/lawyer/dashboard',
-    icon: LayoutDashboard,
-    end: true,
-  },
-
-  // CASE MANAGEMENT
-  {
     name: 'Cases',
     path: '/lawyer/cases',
     icon: Briefcase,
+    section: 'Cases',
   },
 
-  // CALENDAR
   {
     name: 'Calendar',
     path: '/lawyer/calendar',
     icon: Calendar,
+    section: 'Cases',
   },
 
-  // AI TOOLS
   {
-    name: 'AI Assistant',
-    path: '/lawyer/ai',
-    icon: Brain,
-  },
-  {
-    name: 'Research AI',
-    path: '/lawyer/research-ai',
-    icon: Search,
+    name: 'Hearings',
+    path: '/lawyer/hearings',
+    icon: Gavel,
+    section: 'Cases',
   },
 
-  // DOCUMENTS
+  {
+    name: 'Tasks',
+    path: '/lawyer/tasks',
+    icon: ListTodo,
+    section: 'Work Management',
+  },
+  {
+    name: 'Approvals',
+    path: '/lawyer/approvals',
+    icon: CheckCircle,
+    section: 'Work Management',
+  },
+
   {
     name: 'Documents',
     path: '/lawyer/documents',
     icon: FileText,
+    section: 'Documents',
   },
 
   // COMMUNICATION
@@ -72,71 +72,84 @@ const links = [
     name: 'Staff Chat',
     path: '/lawyer/chat',
     icon: MessageSquare,
+    section: 'Communication',
   },
   {
     name: 'Notifications',
     path: '/lawyer/notifications',
     icon: Bell,
+    section: 'Communication',
   },
 
-  // HEARINGS
   {
-    name: 'Hearings',
-    path: '/lawyer/hearings',
-    icon: Gavel,
+    name: 'AI Assistant',
+    path: '/lawyer/ai',
+    icon: Brain,
+    section: 'Research & AI',
   },
-
-  // RESEARCH & LEGAL REFERENCES
+  {
+    name: 'Research AI',
+    path: '/lawyer/research-ai',
+    icon: Search,
+    section: 'Research & AI',
+  },
   {
     name: 'Legal Research',
     path: '/lawyer/research',
     icon: BookOpen,
+    section: 'Research & AI',
   },
   {
     name: 'Authorities',
     path: '/lawyer/authorities',
     icon: FolderOpen,
+    section: 'Research & AI',
   },
 
-  // TASK MANAGEMENT
   {
-    name: 'Tasks',
-    path: '/lawyer/tasks',
-    icon: ListTodo,
-  },
-  {
-    name: 'Approvals',
-    path: '/lawyer/approvals',
-    icon: CheckCircle,
+    name: 'Dashboard',
+    path: '/lawyer/dashboard',
+    icon: LayoutDashboard,
+    end: true,
+    section: 'Overview',
   },
 
-  // PROFILE & SECURITY
   {
     name: 'Profile',
     path: '/lawyer/profile',
     icon: User,
+    section: 'Account',
   },
   {
     name: 'Security',
     path: '/lawyer/security',
     icon: Shield,
+    section: 'Account',
   },
 ];
 
+const groupLinks = (items) =>
+  items.reduce((groups, link) => {
+    const section = link.section || 'Main';
+    const existing = groups.find((group) => group.section === section);
+    if (existing) {
+      existing.items.push(link);
+    } else {
+      groups.push({ section, items: [link] });
+    }
+    return groups;
+  }, []);
+
 export default function LawyerSidebar({ onClose }) {
-  const { theme } = useContext(ThemeContext);
   const { user } = useContext(AuthContext);
   const displayName = user?.full_name || user?.profile?.full_name || user?.email || 'User';
   const systemRole = user?.role || 'User';
 
-  const isDark = theme === 'dark';
-
-  const bgSidebar = isDark
-    ? 'bg-[color:var(--surface-dark)] text-white'
-    : 'bg-[color:var(--brand-primary)] text-white';
+  const bgSidebar = 'shell-surface';
+  const sidebarGroups = groupLinks(links);
 
   return (
-    <aside className={`w-64 h-full ${bgSidebar} flex flex-col shadow-2xl`}>
+    <aside className={`w-64 h-full ${bgSidebar} flex flex-col`}>
       {/* HEADER */}
       <div className='relative py-4 px-5 border-b border-white/10'>
         <div className='flex items-center justify-center'>
@@ -152,22 +165,33 @@ export default function LawyerSidebar({ onClose }) {
       </div>
 
       {/* NAV */}
-      <nav className='sidebar-scrollbar h-full flex-1 p-3 space-y-2 overflow-y-auto'>
-        {links.map((link) => {
-          const Icon = link.icon;
+      <nav className='sidebar-scrollbar h-full flex-1 p-3 overflow-y-auto'>
+        <div className='space-y-5'>
+          {sidebarGroups.map((group) => (
+            <div key={group.section}>
+              <p className='px-3 mb-2 text-xs uppercase tracking-widest text-white/50 font-semibold'>
+                {group.section}
+              </p>
+              <div className='space-y-1'>
+                {group.items.map((link) => {
+                  const Icon = link.icon;
 
-          return (
-            <SidebarNavLink
-              key={link.name}
-              to={link.path}
-              end={link.end}
-              icon={<Icon size={18} />}
-              onClick={onClose}
-            >
-              {link.name}
-            </SidebarNavLink>
-          );
-        })}
+                  return (
+                    <SidebarNavLink
+                      key={link.name}
+                      to={link.path}
+                      end={link.end}
+                      icon={<Icon size={18} />}
+                      onClick={onClose}
+                    >
+                      {link.name}
+                    </SidebarNavLink>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
       </nav>
 
       {/* FOOTER */}

@@ -9,10 +9,10 @@ export default function LawyerContactsTile({
     <DashboardTile size={size} variant={variant}>
       <div className='flex h-full flex-col justify-between'>
         {/* HEADER */}
-        <div className='flex items-start justify-between'>
-          <div>
+        <div className='flex min-w-0 items-start justify-between gap-3 sm:gap-4'>
+          <div className='min-w-0'>
             <p className='text-sm opacity-80'>Your Lawyer</p>
-            <h2 className='mt-2 text-2xl font-bold'>A. Mwangi</h2>
+            <h2 className='mt-2 text-xl font-bold sm:text-2xl'>A. Mwangi</h2>
             <p className='text-xs opacity-70'>
               Advocate • Civil & Property Law
             </p>

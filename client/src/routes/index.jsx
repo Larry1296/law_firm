@@ -428,6 +428,12 @@ const SecretaryTasks = lazy(
   () => import('@/modules/staff/secretary/tasks/pages/SecretaryTasks'),
 );
 
+const SecretaryNotifications = lazy(
+  () =>
+    import(
+      '@/modules/staff/secretary/notifications/pages/SecretaryNotificationsPage'
+    ),
+);
 
 const SecretaryProfile = lazy(
   () => import('@/modules/staff/secretary/profile/pages/SecretaryProfile'),
@@ -547,11 +553,6 @@ const ClientCalendarPage = lazy(
   () => import('@/modules/client/calendar/pages/ClientCaseCalendarPage'),
 );
 
-const ClientCommunicationPage = lazy(
-  () =>
-    import('@/modules/client/communication/pages/ClientCaseCommunicationPage'),
-);
-
 const ClientNotificationsPage = lazy(
   () => import('@/modules/client/notifications/pages/ClientNotificationsPage'),
 );
@@ -605,9 +606,7 @@ const NewIntakeForm = lazy(
 );
 
 
-const PortalNotifications = lazy(
-  () => import('@/modules/portal/notifications/PortalNotifications'),
-);
+const PortalNotifications = ClientNotificationsPage;
 
 
 const BecomeClient = lazy(
@@ -836,6 +835,9 @@ const AppRoutes = () => {
           {/* TASKS */}
           <Route path='tasks' element={<SecretaryTasks />} />
 
+          {/* NOTIFICATIONS */}
+          <Route path='notifications' element={<SecretaryNotifications />} />
+
           {/* COMMUNICATION */}
           <Route path='chat' element={<SecretaryChat />} />
 
@@ -929,25 +931,25 @@ const AppRoutes = () => {
           <Route path='cases/:id' element={<ClientCaseDetailsPage />} />
           <Route
             path='cases/:id/communication'
-            element={<ClientCommunicationPage />}
+            element={<ClientCaseDetailsPage />}
           />
           <Route path='calendar' element={<ClientCalendarPage />} />
-          <Route path='communication' element={<ClientCommunicationPage />} />
+          <Route path='communication' element={<Navigate to='../cases' replace />} />
           <Route
             path='communication/:caseId'
-            element={<ClientCommunicationPage />}
+            element={<Navigate to='../cases' replace />}
           />
           <Route path='documents' element={<ClientCaseDocuments />} />
           <Route path='notifications' element={<ClientNotificationsPage />} />
           <Route path='profile' element={<ClientProfile />} />
         </Route>
 
-        {/* PORTAL (PROSPECT) - UPDATED WITH ALL ROUTES */}
+        {/* PROSPECT ROUTES */}
         <Route
           path='/portal/*'
           element={
             <ProtectedRoute>
-              <RoleRoute allowedRoles={['PROSPECT', 'PORTAL_CLIENT']}>
+              <RoleRoute allowedRoles={['PROSPECT']}>
                 <PortalLayoutWrapper />
               </RoleRoute>
             </ProtectedRoute>

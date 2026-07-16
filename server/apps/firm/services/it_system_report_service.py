@@ -144,7 +144,7 @@ class ITSystemReportService:
                     ("Portal client support enabled", True),
                     ("Portal-enabled clients exist", Client.objects.filter(
                         firm=firm,
-                        access_type=Client.AccessType.PORTAL_CLIENT,
+                        access_type=Client.AccessType.PROSPECT,
                     ).exists()),
                     ("Assisted client separation ready", True),
                 ],

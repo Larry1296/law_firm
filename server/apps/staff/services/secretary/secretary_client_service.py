@@ -9,6 +9,9 @@ class SecretaryClientService:
         if secretary is None:
             raise ValueError("Only secretaries can access this endpoint.")
 
+        if not secretary.is_active:
+            raise PermissionError("Secretary profile is inactive.")
+
         return secretary
 
     @staticmethod
@@ -22,7 +25,7 @@ class SecretaryClientService:
 
     @staticmethod
     def list_clients(user):
-        secretary = SecretaryClientService.ensure_can_manage_clients(user)
+        secretary = SecretaryClientService.get_secretary(user)
 
         return Client.objects.filter(
             firm=secretary.law_firm,

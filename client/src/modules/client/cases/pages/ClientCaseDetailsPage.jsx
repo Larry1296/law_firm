@@ -5,14 +5,25 @@ import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
 import BackLink from '@/components/ui/BackLink';
 import Card from '@/components/ui/Card';
-import { formatDateTime } from '@/core/utils/dateFormatter';
+import { formatDate, formatDateTime } from '@/core/utils/dateFormatter';
+import { displayEnum } from '@/core/utils/textFormatter';
+import ChatWorkspace from '@/modules/communications/components/ChatWorkspace';
+import {
+  useCaseThread,
+  useCaseMessages,
+  useSendCaseMessage,
+} from '@/modules/communications/hooks/useCommunications';
 
 import { useClientCaseDetails } from '@/modules/client/cases/hooks/useClientCaseDetails';
+import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
 
 export default function ClientCaseDetailsPage() {
   const { id } = useParams();
 
   const { caseData, loading, error } = useClientCaseDetails(id);
+  const caseThreadQuery = useCaseThread(id);
+  const caseMessagesQuery = useCaseMessages(id);
+  const sendCaseMessage = useSendCaseMessage();
 
   if (loading) {
     return (
@@ -40,7 +51,21 @@ export default function ClientCaseDetailsPage() {
 
   const safe = (value, fallback = 'N/A') =>
     value !== null && value !== undefined && value !== '' ? value : fallback;
+  const friendly = (value, fallback = 'N/A') =>
+    value !== null && value !== undefined && value !== ''
+      ? displayEnum(value)
+      : fallback;
+  const firstValue = (...values) =>
+    values.find((value) => value !== null && value !== undefined && value !== '') || '';
   const pageTitle = safe(caseData.title, safe(caseData.case_number, 'Case Details'));
+  const courtName = firstValue(caseData.court_name, caseData.court_station, caseData.registry);
+  const courtLocation = firstValue(caseData.court_location, caseData.court_station, caseData.registry);
+  const caseThread = caseThreadQuery.data?.thread;
+  const caseThreads = caseThread ? [caseThread] : [];
+
+  const handleSendCaseMessage = async (body) => {
+    await sendCaseMessage.mutateAsync({ caseId: id, body });
+  };
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
@@ -61,33 +86,31 @@ export default function ClientCaseDetailsPage() {
               <strong>Title:</strong> {safe(caseData.title)}
             </p>
             <p>
-              <strong>Status:</strong> {safe(caseData.status)}
+              <strong>Status:</strong> {friendly(caseData.status)}
             </p>
             <p>
-              <strong>Priority:</strong> {safe(caseData.priority)}
+              <strong>Priority:</strong> {friendly(caseData.priority)}
             </p>
             <p>
-              <strong>Type:</strong> {safe(caseData.case_type)}
+              <strong>Type:</strong> {friendly(caseData.case_type)}
             </p>
             <p>
-              <strong>Court:</strong> {safe(caseData.court_name)}
+              <strong>Court:</strong> {safe(courtName, 'Not Set')}
             </p>
           </div>
 
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
             <p>
-              <strong>Court Location:</strong> {safe(caseData.court_location)}
+              <strong>Court Location:</strong> {safe(courtLocation, 'Not Set')}
             </p>
             <p>
-              <strong>Filing Date:</strong> {safe(caseData.filing_date)}
+              <strong>Filing Date:</strong> {caseData.filing_date ? formatDate(caseData.filing_date) : 'Not Set'}
             </p>
             <p>
-              <strong>Assigned Lawyer:</strong>{' '}
-              {safe(caseData.assigned_lawyer?.full_name)}
+              <strong>Firm:</strong> {safe(caseData.firm?.name, 'Not Set')}
             </p>
             <p>
-              <strong>Assigned Secretary:</strong>{' '}
-              {safe(caseData.assigned_secretary?.full_name)}
+              <strong>Firm Email:</strong> {safe(caseData.firm?.email, 'Not Set')}
             </p>
             <p>
               <strong>Created:</strong> {formatDateTime(caseData.created_at)}
@@ -110,43 +133,58 @@ export default function ClientCaseDetailsPage() {
 
       <Card className='p-6'>
         <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-          Client Information
+          Court Registry
         </h3>
 
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p>
-              <strong>Name:</strong> {safe(caseData.client?.full_name)}
-            </p>
-            <p>
-              <strong>Email:</strong> {safe(caseData.client?.email)}
-            </p>
-            <p>
-              <strong>Phone:</strong> {safe(caseData.client?.phone_number)}
-            </p>
-            <p>
-              <strong>Type:</strong> {safe(caseData.client?.client_type)}
-            </p>
-            <p>
-              <strong>Status:</strong> {safe(caseData.client?.lifecycle_status)}
-            </p>
+            <p><strong>Procedure:</strong> {friendly(caseData.procedure_track, 'Not Set')}</p>
+            <p><strong>Court Division:</strong> {friendly(caseData.court_division, 'Not Set')}</p>
+            <p><strong>Court Station:</strong> {safe(caseData.court_station, 'Not Set')}</p>
+            <p><strong>Registry:</strong> {safe(caseData.registry, 'Not Set')}</p>
           </div>
-
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p>
-              <strong>Plaintiff:</strong> {safe(caseData.plaintiff)}
-            </p>
-            <p>
-              <strong>Defendant:</strong> {safe(caseData.defendant)}
-            </p>
+            <p><strong>Courtroom:</strong> {safe(caseData.courtroom, 'Not Set')}</p>
+            <p><strong>Judicial Officer:</strong> {safe(caseData.judicial_officer, 'Not Set')}</p>
+            <p><strong>Next Court Date:</strong> {caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not Set'}</p>
+            <p><strong>Next Action:</strong> {safe(caseData.next_action, 'Not Set')}</p>
           </div>
+        </div>
+
+        <div className='mt-4 grid gap-6 md:grid-cols-2'>
+          <p><strong>eFiling Ref:</strong> {safe(caseData.efiling_reference, 'Not Set')}</p>
+          <p><strong>CTS Ref:</strong> {safe(caseData.cts_reference, 'Not Set')}</p>
         </div>
       </Card>
 
+      <Card className='p-6'>
+        <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+          Parties
+        </h3>
+
+        {caseData.parties?.length ? (
+          <div className='grid gap-4 md:grid-cols-2'>
+            {caseData.parties.map((party) => (
+              <div key={party.id} className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
+                <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>{safe(party.name)}</p>
+                <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                  {party.role_label || friendly(party.party_role)}
+                  {party.is_our_client ? ' • Your Party' : ''}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className='text-text-muted-light dark:text-text-muted-dark'>No structured party records yet.</p>
+        )}
+      </Card>
+
+      <CaseProcedurePanels caseData={caseData} />
+
       <div className='grid gap-4 sm:grid-cols-3'>
         <StatsCard title='Case Progress' value={caseData.stage_progress || 0} />
-        <StatsCard title='Status' value={safe(caseData.status)} />
-        <StatsCard title='Priority' value={safe(caseData.priority)} />
+        <StatsCard title='Status' value={friendly(caseData.status)} />
+        <StatsCard title='Priority' value={friendly(caseData.priority)} />
       </div>
 
       <Card className='p-6'>
@@ -159,6 +197,24 @@ export default function ClientCaseDetailsPage() {
           legal progress as your firm works on your matter.
         </p>
       </Card>
+
+      <ChatWorkspace
+        title='Case Communication'
+        subtitle='Secure communication for this legal matter.'
+        threads={caseThreads}
+        selectedThreadId={caseThread?.id}
+        onSelectThread={() => {}}
+        messages={caseMessagesQuery.data?.messages || []}
+        onSendMessage={handleSendCaseMessage}
+        isLoadingThreads={caseThreadQuery.isLoading}
+        isLoadingMessages={caseMessagesQuery.isLoading}
+        isSending={sendCaseMessage.isPending}
+        onRefresh={() => {
+          caseThreadQuery.refetch();
+          caseMessagesQuery.refetch();
+        }}
+        emptyThreadMessage='No case communication thread yet.'
+      />
     </div>
   );
 }

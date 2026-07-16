@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MessageCircle, Send, Users } from 'lucide-react';
+import { Forward, MessageCircle, Send, Users } from 'lucide-react';
 
 import useAuth from '@/core/hooks/useAuth';
 import { formatDateTime } from '@/core/utils/dateFormatter';
@@ -45,6 +45,7 @@ export default function ChatWorkspace({
   emptyThreadMessage = 'No conversations found.',
   readOnlyMessage = 'You can read this conversation but cannot reply.',
   sidebarExtra = null,
+  getMessageActions = null,
 }) {
   const { user } = useAuth() || {};
   const [body, setBody] = useState('');
@@ -211,6 +212,8 @@ export default function ChatWorkspace({
                   messages.map((message) => {
                     const isMine =
                       String(message.sender?.id) === String(user?.id);
+                    const actions =
+                      getMessageActions?.(message, selectedThread) || [];
 
                     return (
                       <div
@@ -232,10 +235,40 @@ export default function ChatWorkspace({
                             </span>
                             <span>•</span>
                             <span>{formatDateTime(message.created_at)}</span>
+                            {message.is_forwarded && (
+                              <>
+                                <span>•</span>
+                                <span className='inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800 dark:bg-amber-950 dark:text-amber-200'>
+                                  <Forward size={12} />
+                                  Forwarded
+                                </span>
+                              </>
+                            )}
                           </div>
                           <p className='whitespace-pre-wrap text-sm leading-relaxed'>
                             {message.body}
                           </p>
+                          {actions.length > 0 && (
+                            <div className='mt-3 flex flex-wrap gap-2'>
+                              {actions.map((action) => (
+                                <button
+                                  key={action.key || action.label}
+                                  type='button'
+                                  onClick={action.onClick}
+                                  disabled={action.disabled}
+                                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                                    isMine
+                                      ? 'border-white/40 bg-white/10 text-white hover:bg-white/20'
+                                      : 'border-border-light bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-border-dark dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
+                                  }`}
+                                  title={action.title || action.label}
+                                >
+                                  {action.icon || <Forward size={13} />}
+                                  {action.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );

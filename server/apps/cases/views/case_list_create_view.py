@@ -60,6 +60,9 @@ class CaseListCreateView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
 
         return Response(
-            {"data": CaseDetailSerializer(case).data, "case": CaseDetailSerializer(case).data},
+            {
+                "data": CaseDetailSerializer(case, context={"request": request}).data,
+                "case": CaseDetailSerializer(case, context={"request": request}).data,
+            },
             status=status.HTTP_201_CREATED,
         )

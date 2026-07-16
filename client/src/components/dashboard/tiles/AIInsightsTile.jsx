@@ -43,7 +43,7 @@ export default function AIInsightsTile() {
     <DashboardTile size='large' variant='ai'>
       <div className='h-full flex flex-col'>
         {/* HEADER */}
-        <div className='flex items-start justify-between mb-6'>
+        <div className='mb-6 flex min-w-0 items-start justify-between gap-3 sm:gap-4'>
           <div className='flex items-center gap-3'>
             <div className='p-3 rounded-xl bg-white/15'>
               <Brain size={22} />

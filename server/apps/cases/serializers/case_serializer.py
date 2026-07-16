@@ -5,9 +5,26 @@ from apps.cases.models import Case
 
 class CaseSerializer(serializers.ModelSerializer):
     client_name = serializers.CharField(source="client.full_name", read_only=True)
+    plaintiff_name = serializers.SerializerMethodField()
+    case_owner = serializers.SerializerMethodField()
     client_national_id = serializers.CharField(source="client.national_id", read_only=True)
     assigned_lawyer_name = serializers.CharField(source="assigned_lawyer.user.full_name", read_only=True)
     assigned_secretary_name = serializers.CharField(source="assigned_secretary.user.full_name", read_only=True)
+
+    def get_plaintiff_name(self, obj):
+        return obj.plaintiff or obj.client.full_name
+
+    def get_case_owner(self, obj):
+        party = obj.parties.filter(client=obj.client, is_our_client=True).first()
+        return {
+            "id": str(obj.client.id),
+            "full_name": party.name if party else obj.plaintiff or obj.client.full_name,
+            "email": obj.client.email,
+            "phone_number": obj.client.phone_number,
+            "party_role": party.party_role if party else "PLAINTIFF",
+            "party_role_label": party.get_party_role_display() if party else "Plaintiff",
+            "client_id": str(obj.client.id),
+        }
 
     class Meta:
         model = Case
@@ -17,16 +34,29 @@ class CaseSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "case_type",
+            "procedure_track",
             "status",
             "priority",
             "court_type",
+            "court_division",
             "court_name",
+            "court_station",
+            "registry",
+            "courtroom",
+            "judicial_officer",
             "court_location",
+            "efiling_reference",
+            "cts_reference",
+            "payment_reference",
             "filing_date",
+            "next_court_date",
+            "next_action",
             "plaintiff",
             "defendant",
             "client",
             "client_name",
+            "plaintiff_name",
+            "case_owner",
             "client_national_id",
             "assigned_lawyer",
             "assigned_lawyer_name",

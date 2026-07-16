@@ -22,7 +22,13 @@ class ThreadMessagesView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
 
         return Response(
-            {"messages": ChatMessageSerializer(messages, many=True).data},
+            {
+                "messages": ChatMessageSerializer(
+                    messages,
+                    many=True,
+                    context={"request": request},
+                ).data
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -45,7 +51,12 @@ class ThreadMessagesView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            {"message": ChatMessageSerializer(message).data},
+            {
+                "message": ChatMessageSerializer(
+                    message,
+                    context={"request": request},
+                ).data
+            },
             status=status.HTTP_201_CREATED,
         )
 
@@ -64,7 +75,13 @@ class CaseThreadMessagesView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
 
         return Response(
-            {"messages": ChatMessageSerializer(messages, many=True).data},
+            {
+                "messages": ChatMessageSerializer(
+                    messages,
+                    many=True,
+                    context={"request": request},
+                ).data
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -87,6 +104,65 @@ class CaseThreadMessagesView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            {"message": ChatMessageSerializer(message).data},
+            {
+                "message": ChatMessageSerializer(
+                    message,
+                    context={"request": request},
+                ).data
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ForwardMessageToLawyerView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, message_id):
+        try:
+            message = ChatService.forward_message_to_lawyer(
+                user=request.user,
+                message_id=message_id,
+            )
+        except ObjectDoesNotExist:
+            return Response({"detail": "Message not found."}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionDenied as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {
+                "message": ChatMessageSerializer(
+                    message,
+                    context={"request": request},
+                ).data
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ForwardMessageToClientView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, message_id):
+        try:
+            message = ChatService.forward_message_to_client(
+                user=request.user,
+                message_id=message_id,
+            )
+        except ObjectDoesNotExist:
+            return Response({"detail": "Message not found."}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionDenied as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {
+                "message": ChatMessageSerializer(
+                    message,
+                    context={"request": request},
+                ).data
+            },
             status=status.HTTP_201_CREATED,
         )

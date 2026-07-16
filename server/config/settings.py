@@ -57,6 +57,7 @@ LOCAL_APPS = [
     "apps.tasks",
     "apps.scheduling",
     "apps.communications",
+    "apps.notifications",
     "apps.documents",
     "apps.hearings",
     "apps.ai",

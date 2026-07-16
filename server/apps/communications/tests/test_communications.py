@@ -75,6 +75,7 @@ class CommunicationApiTests(TestCase):
             role=FirmRole.LAWYER,
             created_by=self.admin,
         )
+        self.secretary.assigned_lawyers.add(self.lawyer)
 
         self.other_lawyer_user = User.objects.create_user(
             email="comm-other-lawyer@example.com",
@@ -180,7 +181,7 @@ class CommunicationApiTests(TestCase):
         )
         self.assertEqual(forbidden.status_code, 404)
 
-    def test_case_thread_allows_client_and_secretary_write_but_lawyer_read_only(self):
+    def test_case_thread_is_client_safe_and_lawyer_read_only(self):
         self.api.force_authenticate(user=self.client_user)
         message = self.api.post(
             reverse("communication-case-messages", kwargs={"case_id": self.case.id}),
@@ -192,23 +193,87 @@ class CommunicationApiTests(TestCase):
         self.assertEqual(ChatMessage.objects.count(), 1)
 
         self.api.force_authenticate(user=self.secretary_user)
-        inbox = self.api.get(reverse("secretary-case-thread-list"))
-        self.assertEqual(inbox.status_code, 200)
-        self.assertEqual(len(inbox.data["threads"]), 1)
+        secretary_messages = self.api.get(
+            reverse("communication-case-messages", kwargs={"case_id": self.case.id}),
+        )
+        self.assertEqual(secretary_messages.status_code, 200, secretary_messages.data)
+        self.assertEqual(len(secretary_messages.data["messages"]), 1)
 
         secretary_reply = self.api.post(
             reverse("communication-case-messages", kwargs={"case_id": self.case.id}),
-            {"body": "We will confirm after the registry update."},
+            {"body": "We will coordinate with counsel and revert."},
             format="json",
         )
         self.assertEqual(secretary_reply.status_code, 201, secretary_reply.data)
 
+        forward_to_lawyer = self.api.post(
+            reverse(
+                "communication-message-forward-lawyer",
+                kwargs={"message_id": message.data["message"]["id"]},
+            ),
+            format="json",
+        )
+        self.assertEqual(forward_to_lawyer.status_code, 201, forward_to_lawyer.data)
+        self.assertTrue(forward_to_lawyer.data["message"]["is_forwarded"])
+        self.assertEqual(forward_to_lawyer.data["message"]["forward_direction"], "TO_LAWYER")
+
+        self.api.force_authenticate(user=self.admin)
+        admin_reply = self.api.post(
+            reverse("communication-case-messages", kwargs={"case_id": self.case.id}),
+            {"body": "We will confirm after the registry update."},
+            format="json",
+        )
+        self.assertEqual(admin_reply.status_code, 201, admin_reply.data)
+
+        self.api.force_authenticate(user=self.client_user)
+        client_thread = self.api.get(
+            reverse("communication-case-thread", kwargs={"case_id": self.case.id}),
+        )
+        self.assertEqual(client_thread.status_code, 200, client_thread.data)
+        self.assertEqual(client_thread.data["thread"]["participants"], [])
+        self.assertIn("firm", client_thread.data["thread"]["case"])
+        self.assertNotIn("assigned_lawyer", client_thread.data["thread"]["case"])
+        self.assertNotIn("assigned_secretary", client_thread.data["thread"]["case"])
+
+        client_messages = self.api.get(
+            reverse("communication-case-messages", kwargs={"case_id": self.case.id}),
+        )
+        self.assertEqual(client_messages.status_code, 200, client_messages.data)
+        firm_sender = client_messages.data["messages"][1]["sender"]
+        self.assertEqual(firm_sender["role"], "FIRM")
+        self.assertEqual(firm_sender["full_name"], self.firm.name)
+        self.assertFalse(client_messages.data["messages"][1]["is_forwarded"])
+
         self.api.force_authenticate(user=self.lawyer_user)
+        lawyer_thread = self.api.get(
+            reverse("communication-case-lawyer-thread", kwargs={"case_id": self.case.id}),
+        )
+        self.assertEqual(lawyer_thread.status_code, 200, lawyer_thread.data)
+        lawyer_thread_messages = self.api.get(
+            reverse(
+                "communication-thread-messages",
+                kwargs={"thread_id": lawyer_thread.data["thread"]["id"]},
+            ),
+        )
+        self.assertEqual(lawyer_thread_messages.status_code, 200, lawyer_thread_messages.data)
+        self.assertEqual(len(lawyer_thread_messages.data["messages"]), 1)
+        self.assertTrue(lawyer_thread_messages.data["messages"][0]["is_forwarded"])
+
+        internal_reply = self.api.post(
+            reverse(
+                "communication-thread-messages",
+                kwargs={"thread_id": lawyer_thread.data["thread"]["id"]},
+            ),
+            {"body": "Tell the plaintiff the hearing date is Friday."},
+            format="json",
+        )
+        self.assertEqual(internal_reply.status_code, 201, internal_reply.data)
+
         lawyer_read = self.api.get(
             reverse("communication-case-messages", kwargs={"case_id": self.case.id}),
         )
         self.assertEqual(lawyer_read.status_code, 200)
-        self.assertEqual(len(lawyer_read.data["messages"]), 2)
+        self.assertEqual(len(lawyer_read.data["messages"]), 3)
 
         lawyer_reply = self.api.post(
             reverse("communication-case-messages", kwargs={"case_id": self.case.id}),
@@ -217,8 +282,80 @@ class CommunicationApiTests(TestCase):
         )
         self.assertEqual(lawyer_reply.status_code, 403)
 
+        self.api.force_authenticate(user=self.secretary_user)
+        forward_to_client = self.api.post(
+            reverse(
+                "communication-message-forward-client",
+                kwargs={"message_id": internal_reply.data["message"]["id"]},
+            ),
+            format="json",
+        )
+        self.assertEqual(forward_to_client.status_code, 201, forward_to_client.data)
+        self.assertFalse(forward_to_client.data["message"]["is_forwarded"])
+
+        self.api.force_authenticate(user=self.client_user)
+        client_after_forward = self.api.get(
+            reverse("communication-case-messages", kwargs={"case_id": self.case.id}),
+        )
+        self.assertEqual(client_after_forward.status_code, 200, client_after_forward.data)
+        forwarded_client_message = client_after_forward.data["messages"][-1]
+        self.assertEqual(forwarded_client_message["sender"]["role"], "FIRM")
+        self.assertFalse(forwarded_client_message["is_forwarded"])
+        self.assertEqual(forwarded_client_message["forward_direction"], "")
+
         self.api.force_authenticate(user=self.other_lawyer_user)
         other_lawyer_read = self.api.get(
             reverse("communication-case-messages", kwargs={"case_id": self.case.id}),
+        )
+        self.assertEqual(other_lawyer_read.status_code, 404)
+
+    def test_secretary_case_lawyer_thread_is_only_for_assigned_lawyer(self):
+        self.api.force_authenticate(user=self.secretary_user)
+        response = self.api.get(
+            reverse("communication-case-lawyer-thread", kwargs={"case_id": self.case.id}),
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        thread = response.data["thread"]
+        self.assertEqual(thread["thread_type"], "DIRECT_STAFF")
+        self.assertEqual(thread["case"]["id"], str(self.case.id))
+
+        participant_emails = {
+            participant["user"]["email"] for participant in thread["participants"]
+        }
+        self.assertEqual(
+            participant_emails,
+            {self.secretary_user.email, self.lawyer_user.email},
+        )
+
+        secretary_message = self.api.post(
+            reverse("communication-thread-messages", kwargs={"thread_id": thread["id"]}),
+            {"body": "Please review this case update."},
+            format="json",
+        )
+        self.assertEqual(secretary_message.status_code, 201, secretary_message.data)
+
+        self.api.force_authenticate(user=self.lawyer_user)
+        lawyer_messages = self.api.get(
+            reverse("communication-thread-messages", kwargs={"thread_id": thread["id"]}),
+        )
+        self.assertEqual(lawyer_messages.status_code, 200, lawyer_messages.data)
+        self.assertEqual(len(lawyer_messages.data["messages"]), 1)
+
+        lawyer_thread_response = self.api.get(
+            reverse("communication-case-lawyer-thread", kwargs={"case_id": self.case.id}),
+        )
+        self.assertEqual(lawyer_thread_response.status_code, 200, lawyer_thread_response.data)
+        self.assertEqual(lawyer_thread_response.data["thread"]["id"], thread["id"])
+
+        lawyer_reply = self.api.post(
+            reverse("communication-thread-messages", kwargs={"thread_id": thread["id"]}),
+            {"body": "Reviewed. I will handle it."},
+            format="json",
+        )
+        self.assertEqual(lawyer_reply.status_code, 201, lawyer_reply.data)
+
+        self.api.force_authenticate(user=self.other_lawyer_user)
+        other_lawyer_read = self.api.get(
+            reverse("communication-thread-messages", kwargs={"thread_id": thread["id"]}),
         )
         self.assertEqual(other_lawyer_read.status_code, 404)

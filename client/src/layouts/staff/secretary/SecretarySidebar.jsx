@@ -1,7 +1,6 @@
 import { useContext } from 'react';
 import AuthContext from '@/core/store/AuthContext';
 
-import ThemeContext from '@/core/store/ThemeContext';
 import LogoutButton from '@/components/ui/LogoutButton';
 import SidebarNavLink from '@/components/ui/SidebarNavlink';
 import Brand from '@/components/ui/Brand';
@@ -21,54 +20,60 @@ import {
 
 const links = [
   {
-    name: 'Dashboard',
-    path: '/secretary/dashboard',
-    icon: LayoutDashboard,
-    end: true,
-  },
-
-  {
     name: 'Clients',
     path: '/secretary/clients',
     icon: Users,
-    permission: 'MANAGE_CLIENTS',
+    section: 'Clients',
   },
 
   {
     name: 'Cases',
     path: '/secretary/cases',
     icon: Briefcase,
-    permission: 'MANAGE_CASES',
+    section: 'Cases',
   },
 
   {
     name: 'Calendar',
     path: '/secretary/calendar',
     icon: Calendar,
+    section: 'Cases',
   },
 
   {
     name: 'Documents',
     path: '/secretary/documents',
     icon: FileText,
+    section: 'Documents & Work',
   },
 
   {
     name: 'Tasks',
     path: '/secretary/tasks',
     icon: CheckSquare,
+    section: 'Documents & Work',
   },
 
   {
     name: 'Staff Chat',
     path: '/secretary/chat',
     icon: MessageSquare,
+    section: 'Communication',
+  },
+
+  {
+    name: 'Dashboard',
+    path: '/secretary/dashboard',
+    icon: LayoutDashboard,
+    end: true,
+    section: 'Overview',
   },
 
   {
     name: 'Profile',
     path: '/secretary/profile',
     icon: User,
+    section: 'Account',
   },
 ];
 
@@ -78,25 +83,33 @@ const hasPermission = (permissions, permission) => {
   return normalized.includes(permission);
 };
 
+const groupLinks = (items) =>
+  items.reduce((groups, link) => {
+    const section = link.section || 'Main';
+    const existing = groups.find((group) => group.section === section);
+    if (existing) {
+      existing.items.push(link);
+    } else {
+      groups.push({ section, items: [link] });
+    }
+    return groups;
+  }, []);
+
 export default function SecretarySidebar({ onClose }) {
-  const { theme } = useContext(ThemeContext);
   const { user } = useContext(AuthContext);
   const { data } = useSecretaryDashboard();
   const permissions = data?.permissions || [];
   const visibleLinks = links.filter((link) =>
     hasPermission(permissions, link.permission),
   );
+  const sidebarGroups = groupLinks(visibleLinks);
   const displayName = user?.full_name || user?.profile?.full_name || user?.email || 'User';
   const systemRole = user?.role || 'User';
 
-  const isDark = theme === 'dark';
-
-  const bgSidebar = isDark
-    ? 'bg-[color:var(--surface-dark)] text-white'
-    : 'bg-[color:var(--brand-primary)] text-white';
+  const bgSidebar = 'shell-surface';
 
   return (
-    <aside className={`w-64 h-full ${bgSidebar} flex flex-col shadow-2xl`}>
+    <aside className={`w-64 h-full ${bgSidebar} flex flex-col`}>
       {/* HEADER */}
       <div className='relative py-4 px-5 border-b border-white/10'>
         <div className='flex items-center justify-center'>
@@ -112,22 +125,33 @@ export default function SecretarySidebar({ onClose }) {
       </div>
 
       {/* NAV */}
-      <nav className='sidebar-scrollbar h-full flex-1 p-3 space-y-2 overflow-y-auto'>
-        {visibleLinks.map((link) => {
-          const Icon = link.icon;
+      <nav className='sidebar-scrollbar h-full flex-1 p-3 overflow-y-auto'>
+        <div className='space-y-5'>
+          {sidebarGroups.map((group) => (
+            <div key={group.section}>
+              <p className='px-3 mb-2 text-xs uppercase tracking-widest text-white/50 font-semibold'>
+                {group.section}
+              </p>
+              <div className='space-y-1'>
+                {group.items.map((link) => {
+                  const Icon = link.icon;
 
-          return (
-            <SidebarNavLink
-              key={link.name}
-              to={link.path}
-              end={link.end}
-              icon={<Icon size={18} />}
-              onClick={onClose}
-            >
-              {link.name}
-            </SidebarNavLink>
-          );
-        })}
+                  return (
+                    <SidebarNavLink
+                      key={link.name}
+                      to={link.path}
+                      end={link.end}
+                      icon={<Icon size={18} />}
+                      onClick={onClose}
+                    >
+                      {link.name}
+                    </SidebarNavLink>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
       </nav>
 
       {/* FOOTER */}

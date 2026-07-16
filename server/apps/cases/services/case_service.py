@@ -1,9 +1,10 @@
 from django.db import transaction
 from django.db.models import Count, Q
 
-from apps.cases.models import Case, CaseActivity, CaseTimeline
+from apps.cases.models import Case, CaseActivity, CaseParty, CaseTimeline
 from apps.clients.models import Client
 from apps.common.choices import UserRole
+from apps.notifications.services import NotificationService
 from apps.staff.models import Lawyer, Secretary
 
 
@@ -49,10 +50,20 @@ class CaseService:
                 "assigned_secretary__user",
                 "created_by",
             )
-            .prefetch_related("timeline", "activities")
+            .prefetch_related(
+                "timeline",
+                "activities",
+                "attachments",
+                "events",
+                "filings",
+                "notes",
+                "parties",
+                "tasks",
+            )
         )
 
-        if user.role == UserRole.ADMIN:
+        is_owner_admin = user.role == UserRole.ADMIN and getattr(firm, "owner_id", None) == user.id
+        if is_owner_admin:
             return queryset
         if hasattr(user, "lawyer_profile"):
             queryset = queryset.filter(assigned_lawyer=user.lawyer_profile)
@@ -60,6 +71,8 @@ class CaseService:
             queryset = queryset.filter(assigned_secretary=user.secretary_profile)
         elif hasattr(user, "client_profile"):
             queryset = queryset.filter(client=user.client_profile)
+        else:
+            queryset = queryset.none()
 
         return queryset
 
@@ -120,14 +133,6 @@ class CaseService:
 
     @staticmethod
     def get_default_lawyer_for_user(firm, user):
-        user_lawyer = getattr(user, "lawyer_profile", None)
-        if (
-            user.role == UserRole.ADMIN
-            and user_lawyer is not None
-            and user_lawyer.law_firm_id == firm.id
-            and user_lawyer.is_active
-        ):
-            return user_lawyer
         return CaseService.get_default_lawyer(firm)
 
     @staticmethod
@@ -140,7 +145,8 @@ class CaseService:
 
     @staticmethod
     def get_case_assignments(firm, user, *, lawyer_id=None, secretary_id=None):
-        if user.role == UserRole.ADMIN:
+        is_owner_admin = user.role == UserRole.ADMIN and firm.owner_id == user.id
+        if is_owner_admin:
             assigned_lawyer = (
                 CaseService.resolve_lawyer(firm, lawyer_id)
                 if lawyer_id
@@ -153,7 +159,11 @@ class CaseService:
             )
             return assigned_lawyer, assigned_secretary
 
-        return CaseService.get_default_lawyer_for_user(firm, user), CaseService.get_default_secretary(firm)
+        user_secretary = getattr(user, "secretary_profile", None)
+        if user_secretary is not None and user_secretary.law_firm_id == firm.id:
+            return CaseService.get_default_lawyer(firm), CaseService.get_default_secretary(firm)
+
+        raise PermissionError("Only the firm owner or secretary can create cases.")
 
     @staticmethod
     def record_activity(case, *, action, description="", actor=None, metadata=None):
@@ -170,6 +180,38 @@ class CaseService:
             actor=actor,
             metadata=metadata or {},
         )
+
+    @staticmethod
+    def notify_case_assignments(
+        case,
+        *,
+        actor=None,
+        reassigned=False,
+        lawyer=None,
+        secretary=None,
+        include_lawyer=True,
+        include_secretary=True,
+    ):
+        lawyer = lawyer if lawyer is not None else case.assigned_lawyer
+        secretary = secretary if secretary is not None else case.assigned_secretary
+
+        if include_lawyer and lawyer and lawyer.user:
+            NotificationService.notify_case_assignment(
+                case=case,
+                recipient=lawyer.user,
+                role_label="lawyer",
+                actor=actor,
+                reassigned=reassigned,
+            )
+
+        if include_secretary and secretary and secretary.user:
+            NotificationService.notify_case_assignment(
+                case=case,
+                recipient=secretary.user,
+                role_label="secretary",
+                actor=actor,
+                reassigned=reassigned,
+            )
 
     @staticmethod
     @transaction.atomic
@@ -193,6 +235,12 @@ class CaseService:
         if not case_number:
             case_number = CaseService.generate_case_number(firm)
         plaintiff = validated_data.pop("plaintiff", "") or client.full_name
+        client_party_role = validated_data.pop("client_party_role", "") or CaseParty.PartyRole.PLAINTIFF
+        if client_party_role not in CaseParty.PartyRole.values:
+            client_party_role = CaseParty.PartyRole.PLAINTIFF
+        is_owner_admin = user.role == UserRole.ADMIN and firm.owner_id == user.id
+        if not is_owner_admin:
+            validated_data.pop("priority", None)
 
         case = Case.objects.create(
             firm=firm,
@@ -204,15 +252,45 @@ class CaseService:
             plaintiff=plaintiff,
             **validated_data,
         )
+        CaseParty.objects.create(
+            case=case,
+            client=client,
+            name=plaintiff,
+            party_role=client_party_role,
+            party_type=CaseParty.PartyType.ORGANISATION
+            if client.client_type != Client.ClientType.INDIVIDUAL
+            else CaseParty.PartyType.INDIVIDUAL,
+            is_our_client=True,
+            party_order=1,
+            phone_number=client.phone_number or "",
+            email=client.email or "",
+            national_id=client.national_id or "",
+            kra_pin=client.kra_pin or "",
+        )
+        defendant = (case.defendant or "").strip()
+        if defendant:
+            CaseParty.objects.create(
+                case=case,
+                name=defendant,
+                party_role=CaseParty.PartyRole.DEFENDANT,
+                party_type=CaseParty.PartyType.OTHER,
+                party_order=2,
+            )
 
         if client.lifecycle_status == Client.LifecycleStatus.PROSPECT:
             client.lifecycle_status = Client.LifecycleStatus.OFFICIAL_CLIENT
-            client.save(update_fields=["lifecycle_status", "updated_at"])
+            if client.access_type == Client.AccessType.PROSPECT:
+                client.access_type = Client.AccessType.ASSISTED_CLIENT
+            client.is_verified = True
+            client.save(update_fields=["lifecycle_status", "access_type", "is_verified", "updated_at"])
 
             # Sync User role when prospect becomes official client
             if client.user and client.user.role == UserRole.PROSPECT:
                 client.user.role = UserRole.OFFICIAL_CLIENT
                 client.user.save(update_fields=["role", "updated_at"])
+        elif not client.is_verified:
+            client.is_verified = True
+            client.save(update_fields=["is_verified", "updated_at"])
 
 
         CaseService.record_activity(
@@ -222,12 +300,21 @@ class CaseService:
             actor=user,
             metadata={"client_id": str(client.id)},
         )
+        CaseService.notify_case_assignments(case, actor=user)
 
         return case
 
     @staticmethod
     @transaction.atomic
     def update_case(*, case, validated_data, actor):
+        if "priority" in validated_data:
+            is_owner_admin = (
+                actor.role == UserRole.ADMIN
+                and case.firm.owner_id == actor.id
+            )
+            if not is_owner_admin:
+                raise PermissionError("Only the firm owner can update case priority.")
+
         for field, value in validated_data.items():
             setattr(case, field, value)
         case.save()
@@ -243,8 +330,16 @@ class CaseService:
     @staticmethod
     @transaction.atomic
     def change_status(*, case, status, actor, note=""):
+        is_owner_admin = actor.role == UserRole.ADMIN and case.firm.owner_id == actor.id
+        is_assigned_lawyer = (
+            getattr(actor, "lawyer_profile", None) is not None
+            and case.assigned_lawyer_id == actor.lawyer_profile.id
+        )
+        if not (is_owner_admin or is_assigned_lawyer):
+            raise PermissionError("Only the firm owner or assigned lawyer can update case status.")
+
         case.status = status
-        case.is_active = status not in [Case.Status.CLOSED, Case.Status.ARCHIVED, Case.Status.DISMISSED]
+        case.is_active = status not in Case.Status.inactive_statuses()
         case.save(update_fields=["status", "is_active", "updated_at"])
         CaseService.record_activity(
             case,
@@ -253,12 +348,19 @@ class CaseService:
             actor=actor,
             metadata={"status": status},
         )
+        NotificationService.notify_case_status_update(
+            case=case,
+            status=status,
+            actor=actor,
+            note=note,
+        )
         return case
 
     @staticmethod
     @transaction.atomic
     def reassign_lawyer(*, case, lawyer_id, actor):
-        case.assigned_lawyer = CaseService.resolve_lawyer(case.firm, lawyer_id)
+        assigned_lawyer = CaseService.resolve_lawyer(case.firm, lawyer_id)
+        case.assigned_lawyer = assigned_lawyer
         case.save(update_fields=["assigned_lawyer", "updated_at"])
         CaseService.record_activity(
             case,
@@ -267,12 +369,20 @@ class CaseService:
             actor=actor,
             metadata={"lawyer_id": str(lawyer_id)},
         )
+        CaseService.notify_case_assignments(
+            case,
+            actor=actor,
+            reassigned=True,
+            lawyer=assigned_lawyer,
+            include_secretary=False,
+        )
         return case
 
     @staticmethod
     @transaction.atomic
     def reassign_secretary(*, case, secretary_id, actor):
-        case.assigned_secretary = CaseService.resolve_secretary(case.firm, secretary_id)
+        assigned_secretary = CaseService.resolve_secretary(case.firm, secretary_id)
+        case.assigned_secretary = assigned_secretary
         case.save(update_fields=["assigned_secretary", "updated_at"])
         CaseService.record_activity(
             case,
@@ -280,6 +390,13 @@ class CaseService:
             description="Assigned secretary was updated.",
             actor=actor,
             metadata={"secretary_id": str(secretary_id)},
+        )
+        CaseService.notify_case_assignments(
+            case,
+            actor=actor,
+            reassigned=True,
+            secretary=assigned_secretary,
+            include_lawyer=False,
         )
         return case
 

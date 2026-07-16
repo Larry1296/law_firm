@@ -100,7 +100,7 @@ class ClientAdminCreateService:
 
     @staticmethod
     def _create_portal_user(client, base_data, contact_data):
-        if client.access_type != Client.AccessType.PORTAL_CLIENT:
+        if client.access_type != Client.AccessType.PROSPECT:
             return None, None
 
         full_name = contact_data.get("contact_full_name") or client.full_name
@@ -150,6 +150,7 @@ class ClientAdminCreateService:
             kra_pin=base_data.get("kra_pin"),
             date_of_birth=base_data.get("date_of_birth"),
             lifecycle_status=Client.LifecycleStatus.PROSPECT,
+            is_verified=True,
         )
 
         profile = ClientAdminCreateService._create_profile(client, client_type, data)

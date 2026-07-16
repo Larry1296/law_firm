@@ -16,7 +16,7 @@ export default function ClientLayout() {
         className={`
           fixed lg:static inset-y-0 left-0 z-50 w-64
           transform transition-transform duration-300
-          ${theme === "dark" ? "bg-black" : "bg-[color:var(--brand-primary)]"}
+          ${theme === "dark" ? "bg-black" : "bg-[#222222]"}
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >

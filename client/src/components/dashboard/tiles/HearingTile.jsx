@@ -12,15 +12,15 @@ export default function HearingsTile({
     <DashboardTile
       size={size}
       variant={variant}
-      className={`h-full min-h-[180px] ${className}`}
+      className={`h-full min-h-[160px] sm:min-h-[180px] ${className}`}
       rounded={rounded}
       shadow={shadow}
     >
       <div className='flex h-full flex-col justify-between'>
-        <div className='flex items-start justify-between'>
-          <div>
+        <div className='flex min-w-0 items-start justify-between gap-3 sm:gap-4'>
+          <div className='min-w-0'>
             <p className='text-sm opacity-80'>Upcoming Hearings</p>
-            <h2 className='mt-2 text-5xl font-bold'>18</h2>
+            <h2 className='mt-2 text-3xl font-bold sm:text-5xl'>18</h2>
           </div>
 
           <Gavel size={34} />

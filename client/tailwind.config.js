@@ -39,6 +39,25 @@ export default {
           accent: '#B88A2B',
         },
 
+        shell: {
+          light: '#222222',
+          lightFrom: '#222222',
+          lightVia: '#222222',
+          lightTo: '#222222',
+          dark: '#061A3A',
+          darkFrom: '#0B2A5B',
+          darkVia: '#061A3A',
+          darkTo: '#020617',
+          onLight: '#FFFFFF',
+          onDark: '#EAF6FF',
+          mutedLight: 'rgba(255,255,255,0.78)',
+          mutedDark: 'rgba(234,246,255,0.78)',
+          hover: {
+            light: '#2F2F2F',
+            dark: '#0B2A5B',
+          },
+        },
+
         // Status colors
         success: '#0F8F67',
         warning: '#B87503',
@@ -55,6 +74,15 @@ export default {
         soft: '0 2px 10px rgba(31,41,51,0.08)',
         medium: '0 8px 22px rgba(31,41,51,0.12)',
         strong: '0 14px 34px rgba(31,41,51,0.18)',
+        shellLight: '0 14px 34px rgba(34,34,34,0.22)',
+        shellDark: '0 16px 40px rgba(2,6,23,0.55)',
+      },
+
+      backgroundImage: {
+        'shell-light': 'none',
+        'shell-dark': 'linear-gradient(135deg, #0B2A5B 0%, #061A3A 52%, #020617 100%)',
+        'shell-light-shine': 'none',
+        'shell-dark-shine': 'radial-gradient(circle at 12% 0%, rgba(125,211,252,0.24), transparent 30%), linear-gradient(135deg, #0B2A5B 0%, #061A3A 52%, #020617 100%)',
       },
 
       borderRadius: {

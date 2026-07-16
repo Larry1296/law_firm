@@ -4,9 +4,12 @@ from apps.communications.views import (
     AnnouncementInboxView,
     AnnouncementReadView,
     CaseChatThreadView,
+    CaseLawyerChatThreadView,
     CaseThreadMessagesView,
     ChatThreadDetailView,
     ChatThreadListView,
+    ForwardMessageToClientView,
+    ForwardMessageToLawyerView,
     ThreadMessagesView,
 )
 
@@ -30,8 +33,23 @@ urlpatterns = [
         name="communication-case-thread",
     ),
     path(
+        "cases/<uuid:case_id>/lawyer-thread/",
+        CaseLawyerChatThreadView.as_view(),
+        name="communication-case-lawyer-thread",
+    ),
+    path(
         "cases/<uuid:case_id>/messages/",
         CaseThreadMessagesView.as_view(),
         name="communication-case-messages",
+    ),
+    path(
+        "messages/<uuid:message_id>/forward-to-lawyer/",
+        ForwardMessageToLawyerView.as_view(),
+        name="communication-message-forward-lawyer",
+    ),
+    path(
+        "messages/<uuid:message_id>/forward-to-client/",
+        ForwardMessageToClientView.as_view(),
+        name="communication-message-forward-client",
     ),
 ]

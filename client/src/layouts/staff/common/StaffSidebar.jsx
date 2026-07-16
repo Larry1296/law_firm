@@ -2,26 +2,33 @@ import { useContext } from 'react';
 import { X, User } from 'lucide-react';
 
 import AuthContext from '@/core/store/AuthContext';
-import ThemeContext from '@/core/store/ThemeContext';
 import Brand from '@/components/ui/Brand';
 import LogoutButton from '@/components/ui/LogoutButton';
 import SidebarNavLink from '@/components/ui/SidebarNavlink';
 
+const groupLinks = (items = []) =>
+  items.reduce((groups, link) => {
+    const section = link.section || 'Main';
+    const existing = groups.find((group) => group.section === section);
+    if (existing) {
+      existing.items.push(link);
+    } else {
+      groups.push({ section, items: [link] });
+    }
+    return groups;
+  }, []);
+
 export default function StaffSidebar({ config, onClose }) {
-  const { theme } = useContext(ThemeContext);
   const { user } = useContext(AuthContext);
 
   const displayName =
     user?.full_name || user?.profile?.full_name || user?.email || 'User';
   const systemRole = config?.label || user?.firm_role || 'Staff';
-  const isDark = theme === 'dark';
-
-  const bgSidebar = isDark
-    ? 'bg-[color:var(--surface-dark)] text-white'
-    : 'bg-[color:var(--brand-primary)] text-white';
+  const bgSidebar = 'shell-surface';
+  const sidebarGroups = groupLinks(config.navLinks);
 
   return (
-    <aside className={`w-64 h-full ${bgSidebar} flex flex-col shadow-2xl`}>
+    <aside className={`w-64 h-full ${bgSidebar} flex flex-col`}>
       <div className='relative py-4 px-5 border-b border-white/10'>
         <div className='flex items-center justify-center'>
           <Brand size='h-14 w-14' showText />
@@ -36,22 +43,33 @@ export default function StaffSidebar({ config, onClose }) {
         </button>
       </div>
 
-      <nav className='sidebar-scrollbar h-full flex-1 p-3 space-y-2 overflow-y-auto'>
-        {config.navLinks.map((link) => {
-          const Icon = link.icon;
+      <nav className='sidebar-scrollbar h-full flex-1 p-3 overflow-y-auto'>
+        <div className='space-y-5'>
+          {sidebarGroups.map((group) => (
+            <div key={group.section}>
+              <p className='px-3 mb-2 text-xs uppercase tracking-widest text-white/50 font-semibold'>
+                {group.section}
+              </p>
+              <div className='space-y-1'>
+                {group.items.map((link) => {
+                  const Icon = link.icon;
 
-          return (
-            <SidebarNavLink
-              key={link.name}
-              to={link.path}
-              end={link.end}
-              icon={<Icon size={18} />}
-              onClick={onClose}
-            >
-              {link.name}
-            </SidebarNavLink>
-          );
-        })}
+                  return (
+                    <SidebarNavLink
+                      key={link.name}
+                      to={link.path}
+                      end={link.end}
+                      icon={<Icon size={18} />}
+                      onClick={onClose}
+                    >
+                      {link.name}
+                    </SidebarNavLink>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
       </nav>
 
       <div className='p-4 mt-auto border-t border-white/10'>

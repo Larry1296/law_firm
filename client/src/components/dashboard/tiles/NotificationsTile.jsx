@@ -44,7 +44,7 @@ export default function NotificationsTile({
     <DashboardTile
       size={size}
       variant='notifications'
-      className={`h-full min-h-[180px] ${className}`}
+      className={`h-full min-h-[160px] sm:min-h-[180px] ${className}`}
       rounded={rounded}
       shadow={shadow}
     >
@@ -54,7 +54,7 @@ export default function NotificationsTile({
             <Bell size={22} />
           </div>
 
-          <div>
+          <div className='min-w-0'>
             <h3 className='font-semibold text-lg'>Notifications</h3>
 
             <p className='text-sm opacity-80'>Recent alerts & updates</p>
@@ -77,7 +77,7 @@ export default function NotificationsTile({
                     <Icon size={16} />
                   </div>
 
-                  <div className='flex-1'>
+                  <div className='min-w-0 flex-1'>
                     <h4 className='font-medium text-sm'>
                       {notification.title}
                     </h4>

@@ -11,6 +11,7 @@ export const communicationKeys = {
   secretaryCaseThreads: ['communications', 'secretary-case-threads'],
   threadMessages: (threadId) => ['communications', 'thread-messages', threadId],
   caseThread: (caseId) => ['communications', 'case-thread', caseId],
+  caseLawyerThread: (caseId) => ['communications', 'case-lawyer-thread', caseId],
   caseMessages: (caseId) => ['communications', 'case-messages', caseId],
 };
 
@@ -97,6 +98,13 @@ export const useCaseThread = (caseId) =>
     enabled: Boolean(caseId),
   });
 
+export const useCaseLawyerThread = (caseId) =>
+  useQuery({
+    queryKey: communicationKeys.caseLawyerThread(caseId),
+    queryFn: () => communicationService.getCaseLawyerThread(caseId),
+    enabled: Boolean(caseId),
+  });
+
 export const useOpenCaseThread = () => {
   const queryClient = useQueryClient();
 
@@ -150,6 +158,53 @@ export const useSendCaseMessage = () => {
       queryClient.invalidateQueries({
         queryKey: communicationKeys.caseThread(variables.caseId),
       });
+      queryClient.invalidateQueries({ queryKey: ['communications'] });
+    },
+  });
+};
+
+export const useForwardMessageToLawyer = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ messageId }) =>
+      communicationService.forwardMessageToLawyer(messageId),
+    onSuccess: (_, variables) => {
+      if (variables.caseId) {
+        queryClient.invalidateQueries({
+          queryKey: communicationKeys.caseMessages(variables.caseId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: communicationKeys.caseLawyerThread(variables.caseId),
+        });
+      }
+      if (variables.threadId) {
+        queryClient.invalidateQueries({
+          queryKey: communicationKeys.threadMessages(variables.threadId),
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['communications'] });
+    },
+  });
+};
+
+export const useForwardMessageToClient = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ messageId }) =>
+      communicationService.forwardMessageToClient(messageId),
+    onSuccess: (_, variables) => {
+      if (variables.caseId) {
+        queryClient.invalidateQueries({
+          queryKey: communicationKeys.caseMessages(variables.caseId),
+        });
+      }
+      if (variables.threadId) {
+        queryClient.invalidateQueries({
+          queryKey: communicationKeys.threadMessages(variables.threadId),
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ['communications'] });
     },
   });

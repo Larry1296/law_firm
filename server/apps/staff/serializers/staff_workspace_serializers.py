@@ -7,6 +7,7 @@ class StaffWorkspaceDashboardSerializer(serializers.Serializer):
     permissions = serializers.ListField(child=serializers.CharField())
     default_work = serializers.DictField()
     system_health = serializers.DictField(required=False)
+    recent_notifications = serializers.ListField(child=serializers.DictField())
     recent_activity = serializers.ListField(child=serializers.DictField())
 
 
@@ -58,3 +59,8 @@ class StaffWorkspaceItemSerializer(serializers.Serializer):
     id = serializers.CharField(read_only=True)
     title = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
+    message = serializers.CharField(read_only=True, required=False)
+    is_read = serializers.BooleanField(read_only=True, required=False)
+    created_at = serializers.DateTimeField(read_only=True, required=False)
+    action_url = serializers.CharField(read_only=True, required=False)
+    notification_type = serializers.CharField(read_only=True, required=False)

@@ -4,30 +4,42 @@ import { useContext } from 'react';
 import AuthContext from '@/core/store/AuthContext';
 import { User } from 'lucide-react';
 
-import ThemeContext from '@/core/store/ThemeContext';
 import LogoutButton from '@/components/ui/LogoutButton';
 import SidebarNavLink from '@/components/ui/SidebarNavlink';
 import Brand from '@/components/ui/Brand';
 
 import { adminSidebarLinks } from '@/modules/admin/config/adminSidebarLink';
 
+const groupLinks = (links) =>
+  links.reduce((groups, link) => {
+    const section = link.section || 'Main';
+    const existing = groups.find((group) => group.section === section);
+    if (existing) {
+      existing.items.push(link);
+    } else {
+      groups.push({ section, items: [link] });
+    }
+    return groups;
+  }, []);
+
 export default function AdminSidebar({ onClose }) {
-  const { theme } = useContext(ThemeContext);
   const { user } = useContext(AuthContext);
   const displayName = user?.full_name || user?.profile?.full_name || user?.email || 'User';
   const systemRole = user?.role || 'User';
 
-  const bgSidebar =
-    theme === 'dark'
-      ? 'bg-[color:var(--surface-dark)] text-white'
-      : 'bg-[color:var(--brand-primary)] text-white';
+  const bgSidebar = 'shell-surface';
 
   const handleClose = () => {
     if (window.innerWidth < 1024) onClose?.();
   };
+  const isFirmOwner = Boolean(user?.is_firm_owner);
+  const visibleLinks = adminSidebarLinks.filter(
+    (link) => !link.ownerOnly || isFirmOwner,
+  );
+  const sidebarGroups = groupLinks(visibleLinks);
 
   return (
-    <aside className={`w-64 h-full ${bgSidebar} flex flex-col shadow-2xl`}>
+    <aside className={`w-64 h-full ${bgSidebar} flex flex-col`}>
       {/* HEADER */}
       <div className='relative py-4 px-5 border-b border-white/10'>
         <div className='flex items-center justify-center'>
@@ -43,22 +55,29 @@ export default function AdminSidebar({ onClose }) {
       </div>
 
       {/* NAV */}
-      <nav className='sidebar-scrollbar h-full flex-1 p-3 space-y-2 overflow-y-auto'>
-        {adminSidebarLinks.map(({ name, path, icon: Icon, end }) => {
-          const IconComponent = Icon;
-
-          return (
-            <SidebarNavLink
-              key={name}
-              to={path}
-              end={end}
-              icon={<IconComponent size={18} />}
-              onClick={handleClose}
-            >
-              {name}
-            </SidebarNavLink>
-          );
-        })}
+      <nav className='sidebar-scrollbar h-full flex-1 p-3 overflow-y-auto'>
+        <div className='space-y-5'>
+          {sidebarGroups.map((group) => (
+            <div key={group.section}>
+              <p className='px-3 mb-2 text-xs uppercase tracking-widest text-white/50 font-semibold'>
+                {group.section}
+              </p>
+              <div className='space-y-1'>
+                {group.items.map(({ name, path, icon: Icon, end }) => (
+                  <SidebarNavLink
+                    key={name}
+                    to={path}
+                    end={end}
+                    icon={<Icon size={18} />}
+                    onClick={handleClose}
+                  >
+                    {name}
+                  </SidebarNavLink>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </nav>
 
       {/* FOOTER */}

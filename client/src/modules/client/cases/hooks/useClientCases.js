@@ -8,7 +8,7 @@ export const useClientCases = (params = {}) => {
     queryFn: async () => {
       const res = await clientCasesService.getMyCases(params);
 
-      const cases = res?.data || [];
+      const cases = res?.cases || res?.data?.cases || res?.data || [];
 
       return cases;
     },

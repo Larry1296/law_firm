@@ -13,7 +13,7 @@ class ClientCaseService:
                 "assigned_secretary",
                 "assigned_secretary__user",
             )
-            .prefetch_related("timeline", "activities")
+            .prefetch_related("timeline", "activities", "parties")
             .order_by("-created_at")
         )
 

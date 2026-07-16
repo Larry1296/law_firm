@@ -12,8 +12,8 @@ export default function MyCasesTile() {
       <div className='absolute -left-10 -bottom-10 h-32 w-32 rounded-full bg-black/10 blur-3xl' />
 
       <div className='relative z-10 flex h-full flex-col justify-between'>
-        <div className='flex items-start justify-between'>
-          <div>
+        <div className='flex min-w-0 items-start justify-between gap-3 sm:gap-4'>
+          <div className='min-w-0'>
             <p className='text-sm font-medium text-white/80'>My Cases</p>
 
             <h2 className='mt-2 text-4xl font-bold'>{activeCases}</h2>

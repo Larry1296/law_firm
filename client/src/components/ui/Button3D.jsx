@@ -59,6 +59,11 @@ export default function Button3D({
       theme === "dark"
         ? "bg-yellow-500 text-black hover:bg-yellow-600"
         : "bg-yellow-600 text-black hover:bg-yellow-700";
+  else if (variant === "danger")
+    variantClass =
+      theme === "dark"
+        ? "bg-red-600 text-white hover:bg-red-700"
+        : "bg-red-600 text-white hover:bg-red-700";
   else if (variant === "aiGlow")
     variantClass =
       theme === "dark"

@@ -78,9 +78,8 @@ export default function PublicNavbar() {
             gap-3
             px-4 md:px-6 py-4
             rounded-2xl
-            bg-[color:var(--brand-primary)]
-            border border-[color:var(--border-light)]
-            shadow-[0_12px_36px_rgba(0,0,0,0.25)]
+            shell-surface
+            border border-white/20
             backdrop-blur-xl
           '
         >
@@ -92,7 +91,7 @@ export default function PublicNavbar() {
               className='h-14 w-14 md:h-16 md:w-16 rounded-2xl object-cover border border-white/20'
             />
 
-            <span className='hidden xl:inline whitespace-nowrap text-yellow-600 font-extrabold text-lg tracking-wide'>
+            <span className='hidden xl:inline whitespace-nowrap text-white font-extrabold text-lg tracking-wide'>
               Sheria Master
             </span>
           </div>
@@ -165,7 +164,7 @@ export default function PublicNavbar() {
 
       {/* Mobile Menu */}
       {!isAuthPage && menuOpen && (
-        <div className='fixed inset-0 z-40 flex flex-col items-center justify-center bg-[color:var(--brand-primary)] text-white'>
+        <div className='fixed inset-0 z-40 flex flex-col items-center justify-center shell-surface'>
           {/* Close */}
           <button
             onClick={() => setMenuOpen(false)}

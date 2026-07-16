@@ -68,6 +68,16 @@ class CommunicationAccessService:
         return lawyer is not None and case.assigned_lawyer_id == lawyer.id
 
     @staticmethod
+    def is_case_secretary(user, case):
+        secretary = getattr(user, "secretary_profile", None)
+        if secretary is None or not secretary.is_active:
+            return False
+        return (
+            case.assigned_secretary_id == secretary.id
+            or secretary.assigned_lawyers.filter(id=case.assigned_lawyer_id).exists()
+        )
+
+    @staticmethod
     def is_same_firm(user, firm):
         return CommunicationAccessService.get_user_firm(user).id == firm.id
 
@@ -92,7 +102,7 @@ class CommunicationAccessService:
         if thread.thread_type == ChatThreadType.CASE_CLIENT:
             if thread.case is None:
                 return False
-            if CommunicationAccessService.is_secretary(user):
+            if CommunicationAccessService.is_case_secretary(user, thread.case):
                 return True
             if CommunicationAccessService.is_assigned_lawyer(user, thread.case):
                 return True
@@ -113,7 +123,7 @@ class CommunicationAccessService:
         if thread.thread_type == ChatThreadType.CASE_CLIENT:
             if thread.case is None:
                 return False
-            if CommunicationAccessService.is_secretary(user):
+            if CommunicationAccessService.is_case_secretary(user, thread.case):
                 return True
             if CommunicationAccessService.is_case_client(user, thread.case):
                 return True
@@ -150,10 +160,7 @@ class ChatService:
         if CommunicationAccessService.is_admin(user):
             pass
         elif CommunicationAccessService.is_secretary(user):
-            queryset = queryset.filter(
-                Q(thread_type=ChatThreadType.CASE_CLIENT)
-                | Q(participants__user=user)
-            )
+            queryset = queryset.filter(participants__user=user)
         elif CommunicationAccessService.is_lawyer(user):
             queryset = queryset.filter(
                 Q(thread_type=ChatThreadType.CASE_CLIENT, case__assigned_lawyer=user.lawyer_profile)
@@ -249,8 +256,14 @@ class ChatService:
             "assigned_secretary__user",
         ).filter(firm=firm, is_active=True)
 
-        if CommunicationAccessService.is_admin(user) or CommunicationAccessService.is_secretary(user):
+        if CommunicationAccessService.is_admin(user):
             return queryset
+        if CommunicationAccessService.is_secretary(user):
+            secretary = user.secretary_profile
+            return queryset.filter(
+                Q(assigned_secretary=secretary)
+                | Q(assigned_lawyer__in=secretary.assigned_lawyers.all())
+            )
         if CommunicationAccessService.is_lawyer(user):
             return queryset.filter(assigned_lawyer=user.lawyer_profile)
         if hasattr(user, "client_profile"):
@@ -291,16 +304,91 @@ class ChatService:
             getattr(case.client, "user", None),
             can_reply=True,
         )
-        if case.assigned_secretary_id and case.assigned_secretary.user_id:
-            ChatService._create_participant(thread, case.assigned_secretary.user, can_reply=True)
         if case.assigned_lawyer_id and case.assigned_lawyer.user_id:
             ChatService._create_participant(thread, case.assigned_lawyer.user, can_reply=False)
+        if case.assigned_secretary_id and case.assigned_secretary.user_id:
+            ChatService._create_participant(thread, case.assigned_secretary.user, can_reply=True)
 
         return thread
 
     @staticmethod
     @transaction.atomic
-    def send_message(user, thread, *, body, message_type=ChatMessageType.TEXT, is_system_message=False):
+    def get_or_create_case_lawyer_thread(*, user, case_id):
+        firm = CommunicationAccessService.get_user_firm(user)
+        case_queryset = Case.objects.select_related(
+            "firm",
+            "client",
+            "assigned_lawyer",
+            "assigned_lawyer__user",
+            "assigned_secretary",
+            "assigned_secretary__user",
+        ).filter(
+            firm=firm,
+            is_active=True,
+        )
+
+        secretary = getattr(user, "secretary_profile", None)
+        lawyer = getattr(user, "lawyer_profile", None)
+        if secretary is not None and secretary.is_active:
+            case_queryset = case_queryset.filter(
+                Q(assigned_secretary=secretary)
+                | Q(assigned_lawyer__in=secretary.assigned_lawyers.all())
+            )
+        elif lawyer is not None and lawyer.is_active:
+            case_queryset = case_queryset.filter(assigned_lawyer=lawyer)
+        else:
+            raise PermissionDenied("Only the assigned secretary or lawyer can open this case chat.")
+
+        case = case_queryset.get(id=case_id)
+
+        if case.assigned_lawyer is None or case.assigned_lawyer.user is None:
+            raise PermissionDenied("This case has no assigned lawyer chat target.")
+        if case.assigned_secretary is None or case.assigned_secretary.user is None:
+            raise PermissionDenied("This case has no assigned secretary chat target.")
+
+        thread_key = f"case_lawyer:{case.id}:{case.assigned_secretary.user_id}:{case.assigned_lawyer.user_id}"
+        subject = f"{case.case_number} - Assigned lawyer coordination"
+
+        thread, _ = ChatThread.objects.get_or_create(
+            firm=case.firm,
+            thread_type=ChatThreadType.DIRECT_STAFF,
+            thread_key=thread_key,
+            defaults={
+                "case": case,
+                "subject": subject,
+                "created_by": user,
+            },
+        )
+
+        update_fields = []
+        if thread.case_id != case.id:
+            thread.case = case
+            update_fields.append("case")
+        if not thread.subject:
+            thread.subject = subject
+            update_fields.append("subject")
+        if update_fields:
+            update_fields.append("updated_at")
+            thread.save(update_fields=update_fields)
+
+        ChatService._create_participant(thread, case.assigned_secretary.user, can_reply=True)
+        ChatService._create_participant(thread, case.assigned_lawyer.user, can_reply=True)
+
+        return thread
+
+    @staticmethod
+    @transaction.atomic
+    def send_message(
+        user,
+        thread,
+        *,
+        body,
+        message_type=ChatMessageType.TEXT,
+        is_system_message=False,
+        is_forwarded=False,
+        forwarded_from=None,
+        forward_direction="",
+    ):
         body = (body or "").strip()
         if not body:
             raise ValueError("Message body is required.")
@@ -314,6 +402,9 @@ class ChatService:
             body=body,
             message_type=message_type,
             is_system_message=is_system_message,
+            is_forwarded=is_forwarded,
+            forwarded_from=forwarded_from,
+            forward_direction=forward_direction,
         )
 
         thread.last_message_at = message.created_at
@@ -323,6 +414,71 @@ class ChatService:
         ChatService.mark_thread_read(user, thread)
 
         return message
+
+    @staticmethod
+    def _get_forwardable_message(user, message_id):
+        message = ChatMessage.objects.select_related(
+            "thread",
+            "thread__case",
+            "thread__case__assigned_lawyer",
+            "thread__case__assigned_lawyer__user",
+            "thread__case__assigned_secretary",
+            "thread__case__assigned_secretary__user",
+            "sender",
+        ).get(id=message_id)
+        if not CommunicationAccessService.can_view_thread(user, message.thread):
+            raise PermissionDenied("You do not have access to this message.")
+        return message
+
+    @staticmethod
+    @transaction.atomic
+    def forward_message_to_lawyer(*, user, message_id):
+        message = ChatService._get_forwardable_message(user, message_id)
+        if message.thread.thread_type != ChatThreadType.CASE_CLIENT:
+            raise PermissionDenied("Only client case messages can be forwarded to the lawyer.")
+        if message.thread.case is None:
+            raise PermissionDenied("This message is not attached to a case.")
+        if not CommunicationAccessService.is_case_secretary(user, message.thread.case):
+            raise PermissionDenied("Only the case secretary can forward messages to the lawyer.")
+
+        lawyer_thread = ChatService.get_or_create_case_lawyer_thread(
+            user=user,
+            case_id=message.thread.case_id,
+        )
+        return ChatService.send_message(
+            user,
+            lawyer_thread,
+            body=message.body,
+            is_forwarded=True,
+            forwarded_from=message,
+            forward_direction="TO_LAWYER",
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def forward_message_to_client(*, user, message_id):
+        message = ChatService._get_forwardable_message(user, message_id)
+        if message.thread.thread_type != ChatThreadType.DIRECT_STAFF:
+            raise PermissionDenied("Only assigned lawyer messages can be forwarded to the client.")
+        if message.thread.case is None:
+            raise PermissionDenied("This message is not attached to a case.")
+        if not CommunicationAccessService.is_case_secretary(user, message.thread.case):
+            raise PermissionDenied("Only the case secretary can forward messages to the client.")
+        if message.sender_id == user.id:
+            raise PermissionDenied("Only lawyer messages can be forwarded to the client.")
+
+        case_thread = ChatService.get_or_create_case_thread(
+            user=user,
+            case_id=message.thread.case_id,
+        )
+        return ChatService.send_message(
+            user,
+            case_thread,
+            body=message.body,
+            is_forwarded=False,
+            forwarded_from=message,
+            forward_direction="",
+        )
 
     @staticmethod
     @transaction.atomic

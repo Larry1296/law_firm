@@ -18,7 +18,7 @@ class User(AbstractBaseUser, PermissionsMixin, TimestampedModel):
         - ADMIN
         - STAFF
         - OFFICIAL_CLIENT
-        - PORTAL_CLIENT
+        - PROSPECT
 
     Employment information is stored in the Staff model.
     Client information is stored in the Client model.
@@ -103,7 +103,7 @@ class User(AbstractBaseUser, PermissionsMixin, TimestampedModel):
         return self.role == UserRole.OFFICIAL_CLIENT
 
     @property
-    def is_portal_client(self):
+    def is_prospect(self):
         return self.role == UserRole.PROSPECT
 
     def __str__(self):

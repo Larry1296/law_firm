@@ -1,7 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Users, UserCheck } from 'lucide-react';
+import {
+  Users,
+  UserCheck,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
 
 import { useSecretaryClients } from '@/modules/staff/secretary/clients/hooks/useSecretaryClients';
 
@@ -24,6 +29,10 @@ export default function SecretaryClients() {
   const { data: dashboardData } = useSecretaryDashboard();
   const permissions = dashboardData?.permissions || [];
   const canManageClients = hasPermission(permissions, 'MANAGE_CLIENTS');
+
+  const goToCreate = (type, mode) => {
+    navigate(`/secretary/clients/create?type=${type}&mode=${mode || ''}`);
+  };
 
   const filteredClients = useMemo(() => {
     if (!search.trim()) return clients;
@@ -74,12 +83,105 @@ export default function SecretaryClients() {
           <Button3D onClick={refetch}>Refresh</Button3D>
 
           {canManageClients && (
-            <Button3D
-              variant='primary'
-              onClick={() => navigate('/secretary/clients/create')}
-            >
-              + Create Client
-            </Button3D>
+            <div className='relative group'>
+              <Button3D variant='primary' className='flex items-center'>
+                + Create Client
+                <ChevronDown size={16} className='ml-2' />
+              </Button3D>
+
+              <div
+                className='
+                  invisible opacity-0
+                  group-hover:visible group-hover:opacity-100
+                  transition-all duration-200
+
+                  absolute right-0 mt-2
+                  w-64
+
+                  rounded-xl shadow-2xl border z-50
+
+                  bg-surface-light dark:bg-surface-dark
+                  border-border-light dark:border-border-dark
+                '
+              >
+                <div className='relative group/individual'>
+                  <button
+                    type='button'
+                    className='
+                      w-full flex items-center justify-between px-4 py-3 text-left
+                      text-text-primary-light dark:text-text-primary-dark
+                      hover:bg-background-light dark:hover:bg-background-dark
+                    '
+                  >
+                    <span>Individual</span>
+                    <ChevronRight size={16} />
+                  </button>
+
+                  <div
+                    className='
+                      invisible opacity-0
+                      group-hover/individual:visible group-hover/individual:opacity-100
+                      transition-all duration-200
+
+                      absolute top-0 right-full mr-1
+                      w-56
+
+                      rounded-xl shadow-2xl border z-50
+
+                      bg-surface-light dark:bg-surface-dark
+                      border-border-light dark:border-border-dark
+                    '
+                  >
+                    <button
+                      onClick={() => goToCreate('individual', 'portal')}
+                      className='
+                        w-full px-4 py-3 text-left
+                        text-text-primary-light dark:text-text-primary-dark
+                        hover:bg-background-light dark:hover:bg-background-dark
+                      '
+                    >
+                      Portal Enabled
+                    </button>
+
+                    <button
+                      onClick={() => goToCreate('individual', 'assisted')}
+                      className='
+                        w-full px-4 py-3 text-left
+                        text-text-primary-light dark:text-text-primary-dark
+                        hover:bg-background-light dark:hover:bg-background-dark
+                      '
+                    >
+                      Assisted Client
+                    </button>
+                  </div>
+                </div>
+
+                {[
+                  ['Company', 'company'],
+                  ['Partnership', 'partnership'],
+                  ['Trust', 'trust'],
+                  ['NGO', 'ngo'],
+                  ['SACCO', 'sacco'],
+                  ['Cooperative', 'cooperative'],
+                  ['Association', 'association'],
+                  ['Government Institution', 'government'],
+                  ['School', 'school'],
+                  ['Religious Organization', 'religious'],
+                ].map(([label, type]) => (
+                  <button
+                    key={type}
+                    onClick={() => goToCreate(type)}
+                    className='
+                      w-full px-4 py-3 text-left
+                      text-text-primary-light dark:text-text-primary-dark
+                      hover:bg-background-light dark:hover:bg-background-dark
+                    '
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>

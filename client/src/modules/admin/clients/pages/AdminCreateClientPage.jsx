@@ -31,10 +31,10 @@ export default function AdminCreateClientPage() {
   };
 
   const clientType = clientTypeMap[requestedClientType] || requestedClientType;
-  const clientMode = searchParams.get('mode'); // portal | assisted | null
+  const clientMode = searchParams.get('mode'); // prospect | assisted | null
   const isIndividualClientType = clientType === 'INDIVIDUAL';
   const [selectedClientMode, setSelectedClientMode] = useState(
-    isIndividualClientType && clientMode === 'assisted' ? 'assisted' : 'portal',
+    isIndividualClientType && clientMode === 'assisted' ? 'assisted' : 'prospect',
   );
   const partnershipAgreementTypes = [
     {
@@ -168,19 +168,19 @@ export default function AdminCreateClientPage() {
   };
 
   const buildPayload = () => {
-    const isPortalClient = clientType !== 'INDIVIDUAL' || selectedClientMode === 'portal';
+    const isProspect = clientType !== 'INDIVIDUAL' || selectedClientMode === 'prospect';
     const clean = (payload) =>
       Object.fromEntries(
         Object.entries(payload).filter(([, value]) => value !== '' && value !== null),
       );
 
     const base = {
-      email: isPortalClient
+      email: isProspect
         ? formData.email ||
           formData.contact_email ||
           formData.contact_person_email
         : formData.email,
-      phone_number: isPortalClient
+      phone_number: isProspect
         ? formData.phone_number ||
           formData.contact_phone_number ||
           formData.contact_person_phone ||
@@ -189,7 +189,7 @@ export default function AdminCreateClientPage() {
           formData.administrator_contact ||
           formData.director_contact
         : formData.phone_number,
-      access_type: isPortalClient ? 'PORTAL_CLIENT' : 'ASSISTED_CLIENT',
+      access_type: isProspect ? 'PROSPECT' : 'ASSISTED_CLIENT',
       country: formData.country,
       county: formData.county,
       city: formData.city,
@@ -339,12 +339,12 @@ export default function AdminCreateClientPage() {
         title: 'Client Created Successfully',
         html: tempPassword
           ? `
-              <p style="margin-bottom:10px;">The client login account has been created.</p>
-              <div style="padding:12px;border-radius:8px;background:#f3f4f6;text-align:left;">
-                <strong>Temporary Password</strong>
-                <div style="font-family:monospace;font-size:18px;margin-top:6px;">${tempPassword}</div>
+              <p>The client login account has been created.</p>
+              <div class="app-swal-password-card">
+                <div class="app-swal-password-label">Temporary Password</div>
+                <div class="app-swal-password-value">${tempPassword}</div>
               </div>
-              <p style="font-size:13px;margin-top:10px;">Share this with the client. They will be prompted to change it after login.</p>
+              <p class="app-swal-help-text">Share this with the client. They will be required to change it after their first login.</p>
             `
           : 'Client record created successfully.',
         confirmButtonText: 'Continue',
@@ -383,14 +383,14 @@ export default function AdminCreateClientPage() {
   const isTrust = clientType === 'TRUST';
   const isEstate = clientType === 'ESTATE';
   const isGovernment = clientType === 'GOVERNMENT';
-  const isPortalClient = !isIndividual || selectedClientMode === 'portal';
-  const isAssistedIndividual = isIndividual && !isPortalClient;
+  const isProspect = !isIndividual || selectedClientMode === 'prospect';
+  const isAssistedIndividual = isIndividual && !isProspect;
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
       <SectionHeading
         title='Create Client'
-        subtitle={`${requestedClientType} / ${isPortalClient ? 'portal' : 'assisted'}`}
+        subtitle={`${requestedClientType} / ${isProspect ? 'prospect' : 'assisted'}`}
       />
 
       <Card className='p-6'>
@@ -403,7 +403,7 @@ export default function AdminCreateClientPage() {
                 value={selectedClientMode}
                 onChange={(event) => setSelectedClientMode(event.target.value)}
                 options={[
-                  { value: 'portal', label: 'Portal Client' },
+                  { value: 'prospect', label: 'Prospect' },
                   { value: 'assisted', label: 'Assisted Client' },
                 ]}
               />
@@ -413,19 +413,19 @@ export default function AdminCreateClientPage() {
           {!isAssistedIndividual && (
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <FloatingInput
-                label={isPortalClient ? 'Login Email' : 'Email'}
+                label={isProspect ? 'Login Email' : 'Email'}
                 name='email'
                 value={formData.email}
                 onChange={handleChange}
-                required={isPortalClient}
+                required={isProspect}
               />
 
               <FloatingInput
-                label={isPortalClient ? 'Login Phone Number' : 'Phone Number'}
+                label={isProspect ? 'Login Phone Number' : 'Phone Number'}
                 name='phone_number'
                 value={formData.phone_number}
                 onChange={handleChange}
-                required={isPortalClient}
+                required={isProspect}
               />
             </div>
           )}

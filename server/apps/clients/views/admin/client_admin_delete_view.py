@@ -18,5 +18,22 @@ class ClientAdminDeleteView(ClientAdminBaseView):
         except Exception:
             return Response({"detail": "Client not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        ClientAdminDeleteService.delete_client(client)
-        return Response({"detail": "Client deleted successfully."}, status=status.HTTP_200_OK)
+        result = ClientAdminDeleteService.delete_client(client)
+        if result["action"] == "archived":
+            return Response(
+                {
+                    "detail": "Client has linked cases and was archived instead.",
+                    "action": "archived",
+                    "client": {
+                        "id": str(result["client"].id),
+                        "is_active": result["client"].is_active,
+                        "lifecycle_status": result["client"].lifecycle_status,
+                    },
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {"detail": "Client deleted successfully.", "action": "deleted"},
+            status=status.HTTP_200_OK,
+        )

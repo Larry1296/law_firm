@@ -9,7 +9,7 @@ USER_ROLE_CHOICES = [
     (UserRole.ADMIN, "Admin"),
     (UserRole.STAFF, "Staff"),
     (UserRole.OFFICIAL_CLIENT, "Official Client"),
-    (UserRole.PROSPECT, "Portal Client"),
+    (UserRole.PROSPECT, "Prospect"),
 ]
 
 

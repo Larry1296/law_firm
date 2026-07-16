@@ -1,6 +1,7 @@
 import uuid
 
 from django.db import models
+from django.utils import timezone
 
 
 class Client(models.Model):
@@ -23,7 +24,7 @@ class Client(models.Model):
         INTERNATIONAL_ENTITY = "INTERNATIONAL_ENTITY", "International Entity"
 
     class AccessType(models.TextChoices):
-        PORTAL_CLIENT = "PORTAL_CLIENT", "Portal Client"
+        PROSPECT = "PROSPECT", "Prospect"
         ASSISTED_CLIENT = "ASSISTED_CLIENT", "Assisted Client"
 
     class LifecycleStatus(models.TextChoices):
@@ -124,8 +125,36 @@ class Client(models.Model):
         default=LifecycleStatus.PROSPECT,
     )
 
+    is_verified = models.BooleanField(
+        default=False,
+    )
+
     is_active = models.BooleanField(
         default=True,
+    )
+
+    previous_lifecycle_status = models.CharField(
+        max_length=30,
+        choices=LifecycleStatus.choices,
+        null=True,
+        blank=True,
+    )
+
+    previous_access_type = models.CharField(
+        max_length=30,
+        choices=AccessType.choices,
+        null=True,
+        blank=True,
+    )
+
+    previous_is_active = models.BooleanField(
+        null=True,
+        blank=True,
+    )
+
+    soft_deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
     )
 
     created_at = models.DateTimeField(
@@ -147,3 +176,27 @@ class Client(models.Model):
 
     def __str__(self):
         return self.full_name
+
+    @property
+    def has_cases(self):
+        return self.cases.exists()
+
+    @property
+    def can_hard_delete(self):
+        return not self.has_cases
+
+    @property
+    def can_archive(self):
+        return self.has_cases and self.lifecycle_status != self.LifecycleStatus.ARCHIVED
+
+    @property
+    def can_restore(self):
+        return self.lifecycle_status == self.LifecycleStatus.ARCHIVED or self.soft_deleted_at is not None
+
+    def snapshot_state_for_archive(self):
+        if self.lifecycle_status != self.LifecycleStatus.ARCHIVED:
+            self.previous_lifecycle_status = self.lifecycle_status
+        if self.access_type:
+            self.previous_access_type = self.access_type
+        self.previous_is_active = self.is_active
+        self.soft_deleted_at = timezone.now()

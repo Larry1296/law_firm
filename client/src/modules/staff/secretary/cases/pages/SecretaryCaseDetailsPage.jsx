@@ -5,23 +5,37 @@ import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
 import BackLink from '@/components/ui/BackLink';
 import Card from '@/components/ui/Card';
-import { formatDateTime } from '@/core/utils/dateFormatter';
+import { formatDate, formatDateTime } from '@/core/utils/dateFormatter';
+import { displayEnum } from '@/core/utils/textFormatter';
 import ChatWorkspace from '@/modules/communications/components/ChatWorkspace';
 import {
-  useCaseThread,
   useCaseMessages,
+  useCaseLawyerThread,
+  useCaseThread,
+  useForwardMessageToClient,
+  useForwardMessageToLawyer,
   useSendCaseMessage,
+  useThreadMessages,
+  useSendThreadMessage,
 } from '@/modules/communications/hooks/useCommunications';
 
 import useSecretaryCaseDetails from '@/modules/staff/secretary/cases/hooks/useSecretaryCaseDetails';
+import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
 
 export default function SecretaryCaseDetailsPage() {
   const { id } = useParams();
 
   const { caseData, loading, error } = useSecretaryCaseDetails(id);
-  const caseThreadQuery = useCaseThread(id);
-  const caseMessagesQuery = useCaseMessages(id);
+  const clientThreadQuery = useCaseThread(id);
+  const clientThread = clientThreadQuery.data?.thread;
+  const clientMessagesQuery = useCaseMessages(id);
   const sendCaseMessage = useSendCaseMessage();
+  const lawyerThreadQuery = useCaseLawyerThread(id);
+  const lawyerThread = lawyerThreadQuery.data?.thread;
+  const lawyerMessagesQuery = useThreadMessages(lawyerThread?.id);
+  const sendThreadMessage = useSendThreadMessage();
+  const forwardToLawyer = useForwardMessageToLawyer();
+  const forwardToClient = useForwardMessageToClient();
 
   if (loading) {
     return (
@@ -49,17 +63,49 @@ export default function SecretaryCaseDetailsPage() {
 
   const safe = (value, fallback = 'N/A') =>
     value !== null && value !== undefined && value !== '' ? value : fallback;
+  const friendly = (value, fallback = 'N/A') =>
+    value !== null && value !== undefined && value !== ''
+      ? displayEnum(value)
+      : fallback;
+  const firstValue = (...values) =>
+    values.find((value) => value !== null && value !== undefined && value !== '') || '';
   const pageTitle = safe(caseData.title, safe(caseData.case_number, 'Case Details'));
-  const caseThread = caseThreadQuery.data?.thread;
-  const caseThreads = caseThread ? [caseThread] : [];
+  const courtName = firstValue(caseData.court_name, caseData.court_station, caseData.registry);
+  const courtLocation = firstValue(caseData.court_location, caseData.court_station, caseData.registry);
+  const clientThreads = clientThread ? [clientThread] : [];
+  const lawyerThreads = lawyerThread ? [lawyerThread] : [];
 
-  const handleSendCaseMessage = async (body) => {
+  const handleSendClientMessage = async (body) => {
     await sendCaseMessage.mutateAsync({ caseId: id, body });
+  };
+
+  const handleSendLawyerMessage = async (body) => {
+    if (!lawyerThread?.id) return;
+    await sendThreadMessage.mutateAsync({ threadId: lawyerThread.id, body });
+  };
+
+  const handleForwardToLawyer = async (message) => {
+    await forwardToLawyer.mutateAsync({
+      messageId: message.id,
+      caseId: id,
+      threadId: lawyerThread?.id,
+    });
+    lawyerThreadQuery.refetch();
+    lawyerMessagesQuery.refetch();
+  };
+
+  const handleForwardToClient = async (message) => {
+    await forwardToClient.mutateAsync({
+      messageId: message.id,
+      caseId: id,
+      threadId: lawyerThread?.id,
+    });
+    clientMessagesQuery.refetch();
   };
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <BackLink label='Back to Cases' fallbackPath='/staff/secretary/cases' />
+      <BackLink label='Back to Cases' fallbackPath='/secretary/cases' />
 
       <SectionHeading
         title={pageTitle}
@@ -76,29 +122,29 @@ export default function SecretaryCaseDetailsPage() {
               <strong>Title:</strong> {safe(caseData.title)}
             </p>
             <p>
-              <strong>Status:</strong> {safe(caseData.status)}
+              <strong>Status:</strong> {friendly(caseData.status)}
             </p>
             <p>
-              <strong>Priority:</strong> {safe(caseData.priority)}
+              <strong>Priority:</strong> {friendly(caseData.priority)}
             </p>
             <p>
-              <strong>Type:</strong> {safe(caseData.case_type)}
+              <strong>Type:</strong> {friendly(caseData.case_type)}
             </p>
             <p>
-              <strong>Court:</strong> {safe(caseData.court_name)}
+              <strong>Court:</strong> {safe(courtName, 'Not Set')}
             </p>
           </div>
 
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
             <p>
-              <strong>Court Location:</strong> {safe(caseData.court_location)}
+              <strong>Court Location:</strong> {safe(courtLocation, 'Not Set')}
             </p>
             <p>
-              <strong>Filing Date:</strong> {safe(caseData.filing_date)}
+              <strong>Filing Date:</strong> {caseData.filing_date ? formatDate(caseData.filing_date) : 'Not Set'}
             </p>
             <p>
               <strong>Assigned Lawyer:</strong>{' '}
-              {safe(caseData.assigned_lawyer?.full_name)}
+              {safe(caseData.assigned_lawyer?.full_name, 'Not Assigned')}
             </p>
             <p>
               <strong>Created:</strong> {formatDateTime(caseData.created_at)}
@@ -121,43 +167,62 @@ export default function SecretaryCaseDetailsPage() {
 
       <Card className='p-6'>
         <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-          Client Information
+          Kenyan Court Registry
         </h3>
 
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p>
-              <strong>Name:</strong> {safe(caseData.client?.full_name)}
-            </p>
-            <p>
-              <strong>Email:</strong> {safe(caseData.client?.email)}
-            </p>
-            <p>
-              <strong>Phone:</strong> {safe(caseData.client?.phone_number)}
-            </p>
-            <p>
-              <strong>Type:</strong> {safe(caseData.client?.client_type)}
-            </p>
-            <p>
-              <strong>Status:</strong> {safe(caseData.client?.lifecycle_status)}
-            </p>
+            <p><strong>Procedure Track:</strong> {friendly(caseData.procedure_track, 'Not Set')}</p>
+            <p><strong>Court Division:</strong> {friendly(caseData.court_division, 'Not Set')}</p>
+            <p><strong>Court Station:</strong> {safe(caseData.court_station, 'Not Set')}</p>
+            <p><strong>Registry:</strong> {safe(caseData.registry, 'Not Set')}</p>
           </div>
-
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p>
-              <strong>Plaintiff:</strong> {safe(caseData.plaintiff)}
-            </p>
-            <p>
-              <strong>Defendant:</strong> {safe(caseData.defendant)}
-            </p>
+            <p><strong>Courtroom:</strong> {safe(caseData.courtroom, 'Not Set')}</p>
+            <p><strong>Judicial Officer:</strong> {safe(caseData.judicial_officer, 'Not Set')}</p>
+            <p><strong>Next Court Date:</strong> {caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not Set'}</p>
+            <p><strong>Next Action:</strong> {safe(caseData.next_action, 'Not Set')}</p>
           </div>
+        </div>
+
+        <div className='mt-4 grid gap-6 md:grid-cols-3'>
+          <p><strong>eFiling Ref:</strong> {safe(caseData.efiling_reference, 'Not Set')}</p>
+          <p><strong>CTS Ref:</strong> {safe(caseData.cts_reference, 'Not Set')}</p>
+          <p><strong>Payment Ref:</strong> {safe(caseData.payment_reference, 'Not Set')}</p>
         </div>
       </Card>
 
+      <Card className='p-6'>
+        <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+          Parties
+        </h3>
+
+        {caseData.parties?.length ? (
+          <div className='grid gap-4 md:grid-cols-2'>
+            {caseData.parties.map((party) => (
+              <div key={party.id} className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
+                <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>{safe(party.name)}</p>
+                <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                  {party.role_label || friendly(party.party_role)}
+                  {party.is_our_client ? ' • Firm Client' : ''}
+                </p>
+                <p className='mt-2 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                  {safe(party.email)} {party.phone_number ? `• ${party.phone_number}` : ''}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className='text-text-muted-light dark:text-text-muted-dark'>No structured party records yet.</p>
+        )}
+      </Card>
+
+      <CaseProcedurePanels caseData={caseData} />
+
       <div className='grid gap-4 sm:grid-cols-3'>
         <StatsCard title='Case Progress' value={caseData.stage_progress || 0} />
-        <StatsCard title='Status' value={safe(caseData.status)} />
-        <StatsCard title='Priority' value={safe(caseData.priority)} />
+        <StatsCard title='Status' value={friendly(caseData.status)} />
+        <StatsCard title='Priority' value={friendly(caseData.priority)} />
       </div>
 
       <Card className='p-6'>
@@ -174,20 +239,54 @@ export default function SecretaryCaseDetailsPage() {
 
       <ChatWorkspace
         title='Client Case Communication'
-        subtitle='Case-specific client-firm communication thread.'
-        threads={caseThreads}
-        selectedThreadId={caseThread?.id}
+        subtitle='Case-attached communication with the client or represented party, sent from the firm.'
+        threads={clientThreads}
+        selectedThreadId={clientThread?.id}
         onSelectThread={() => {}}
-        messages={caseMessagesQuery.data?.messages || []}
-        onSendMessage={handleSendCaseMessage}
-        isLoadingThreads={caseThreadQuery.isLoading}
-        isLoadingMessages={caseMessagesQuery.isLoading}
+        messages={clientMessagesQuery.data?.messages || []}
+        onSendMessage={handleSendClientMessage}
+        isLoadingThreads={clientThreadQuery.isLoading}
+        isLoadingMessages={clientMessagesQuery.isLoading}
         isSending={sendCaseMessage.isPending}
         onRefresh={() => {
-          caseThreadQuery.refetch();
-          caseMessagesQuery.refetch();
+          clientThreadQuery.refetch();
+          clientMessagesQuery.refetch();
         }}
-        emptyThreadMessage='No case communication thread yet.'
+        emptyThreadMessage='No client communication thread yet.'
+        getMessageActions={(message) => [
+          {
+            key: `forward-lawyer-${message.id}`,
+            label: forwardToLawyer.isPending ? 'Forwarding...' : 'Forward to lawyer',
+            disabled: forwardToLawyer.isPending,
+            onClick: () => handleForwardToLawyer(message),
+          },
+        ]}
+      />
+
+      <ChatWorkspace
+        title='Assigned Lawyer Coordination'
+        subtitle='Internal case chat with the assigned lawyer.'
+        threads={lawyerThreads}
+        selectedThreadId={lawyerThread?.id}
+        onSelectThread={() => {}}
+        messages={lawyerMessagesQuery.data?.messages || []}
+        onSendMessage={handleSendLawyerMessage}
+        isLoadingThreads={lawyerThreadQuery.isLoading}
+        isLoadingMessages={lawyerMessagesQuery.isLoading}
+        isSending={sendThreadMessage.isPending}
+        onRefresh={() => {
+          lawyerThreadQuery.refetch();
+          lawyerMessagesQuery.refetch();
+        }}
+        emptyThreadMessage='No assigned lawyer coordination thread yet.'
+        getMessageActions={(message) => [
+          {
+            key: `forward-client-${message.id}`,
+            label: forwardToClient.isPending ? 'Forwarding...' : 'Forward to client',
+            disabled: forwardToClient.isPending,
+            onClick: () => handleForwardToClient(message),
+          },
+        ]}
       />
     </div>
   );

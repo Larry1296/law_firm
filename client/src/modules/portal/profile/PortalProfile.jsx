@@ -16,6 +16,7 @@ import {
   FileText,
   CheckCircle2,
 } from "lucide-react";
+import { initials } from "../../../core/utils/textFormatter";
 
 export default function PortalProfile() {
   const [profile, setProfile] = useState({
@@ -94,7 +95,7 @@ export default function PortalProfile() {
               {/* AVATAR */}
               <div className="relative">
                 <div className="w-32 h-32 rounded-3xl border-4 border-white dark:border-surface-dark bg-brand-primary text-white flex items-center justify-center text-4xl font-bold shadow-medium">
-                  S
+                  {initials(profile.fullName)}
                 </div>
 
                 <button className="absolute bottom-2 right-2 w-10 h-10 rounded-xl bg-white dark:bg-gray-900 shadow flex items-center justify-center hover:scale-105 transition">

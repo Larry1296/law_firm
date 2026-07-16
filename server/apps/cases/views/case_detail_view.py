@@ -22,7 +22,10 @@ class CaseDetailView(APIView):
         except PermissionError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
 
-        return Response({"data": CaseDetailSerializer(case).data}, status=status.HTTP_200_OK)
+        return Response(
+            {"data": CaseDetailSerializer(case, context={"request": request}).data},
+            status=status.HTTP_200_OK,
+        )
 
     def patch(self, request, case_id):
         try:
@@ -32,9 +35,15 @@ class CaseDetailView(APIView):
 
         serializer = CaseUpdateSerializer(case, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        case = CaseService.update_case(
-            case=case,
-            validated_data=serializer.validated_data,
-            actor=request.user,
+        try:
+            case = CaseService.update_case(
+                case=case,
+                validated_data=serializer.validated_data,
+                actor=request.user,
+            )
+        except PermissionError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"data": CaseDetailSerializer(case, context={"request": request}).data},
+            status=status.HTTP_200_OK,
         )
-        return Response({"data": CaseDetailSerializer(case).data}, status=status.HTTP_200_OK)

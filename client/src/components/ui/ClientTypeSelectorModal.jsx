@@ -19,11 +19,11 @@ export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
           </p>
         </div>
 
-        {/* PORTAL CLIENT */}
+        {/* PROSPECT */}
         <motion.button
           whileHover={{ y: -3 }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => onSelect('portal')}
+          onClick={() => onSelect('prospect')}
           className='
             w-full
             text-left
@@ -53,11 +53,11 @@ export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
               </div>
 
               <div>
-                <h4 className='font-semibold text-base'>Portal Client</h4>
+                <h4 className='font-semibold text-base'>Prospect</h4>
 
                 <p className='text-sm text-[color:var(--text-muted)] mt-1'>
-                  This client receives portal access and can log into the
-                  system.
+                  This prospect receives account access and can log into the
+                  system before becoming an official client.
                 </p>
 
                 <div className='mt-3 flex flex-wrap gap-2'>
@@ -201,8 +201,8 @@ export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
             <p className='text-sm font-medium'>Recommended Workflow</p>
 
             <p className='text-xs text-[color:var(--text-muted)] mt-1'>
-              Use Portal Clients for individuals who need access to documents,
-              case updates and billing. Use Assisted Clients for walk-ins,
+              Use Prospects for individuals who need access to documents,
+              case updates and billing before becoming official clients. Use Assisted Clients for walk-ins,
               consultations and clients managed entirely by firm staff.
             </p>
           </div>

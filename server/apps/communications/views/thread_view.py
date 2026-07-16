@@ -137,6 +137,26 @@ class CaseChatThreadView(APIView):
         )
 
 
+class CaseLawyerChatThreadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, case_id):
+        try:
+            thread = ChatService.get_or_create_case_lawyer_thread(
+                user=request.user,
+                case_id=case_id,
+            )
+        except ObjectDoesNotExist:
+            return Response({"detail": "Case not found."}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionDenied as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+
+        return Response(
+            {"thread": ChatThreadSerializer(thread, context={"request": request}).data},
+            status=status.HTTP_200_OK,
+        )
+
+
 class SecretaryCaseThreadListView(APIView):
     permission_classes = [IsAuthenticated]
 

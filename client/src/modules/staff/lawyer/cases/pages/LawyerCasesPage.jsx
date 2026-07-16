@@ -10,6 +10,14 @@ import StatsCard from '@/components/ui/StatsCard';
 import DataTable from '@/components/ui/DataTable';
 import Button3D from '@/components/ui/Button3D';
 import SectionHeading from '@/components/ui/SectionHeading';
+import {
+  casePartyLabel,
+  casePartyName,
+  renderDateTime,
+  renderEnum,
+  renderPriorityBadge,
+  renderStatusBadge,
+} from '@/modules/cases/shared/casePresentation';
 
 export default function LawyerCasesPage() {
   const navigate = useNavigate();
@@ -28,55 +36,6 @@ export default function LawyerCasesPage() {
   const pendingCases = cases.filter((c) => normalize(c.status) === 'pending');
 
   const closedCases = cases.filter((c) => normalize(c.status) === 'closed');
-
-  const renderStatus = (value) => {
-    const styles = {
-      PENDING: 'bg-yellow-100 text-yellow-800',
-      IN_PROGRESS: 'bg-blue-100 text-blue-800',
-      CLOSED: 'bg-green-100 text-green-800',
-      DISMISSED: 'bg-red-100 text-red-800',
-      JUDGMENT_DELIVERED: 'bg-purple-100 text-purple-800',
-
-      pending: 'bg-yellow-100 text-yellow-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      closed: 'bg-green-100 text-green-800',
-      active: 'bg-blue-100 text-blue-800',
-    };
-
-    return (
-      <span
-        className={`px-2 py-1 rounded-full text-xs font-semibold ${
-          styles[value] || 'bg-gray-100 text-gray-800'
-        }`}
-      >
-        {value}
-      </span>
-    );
-  };
-
-  const renderPriority = (value) => {
-    const styles = {
-      LOW: 'bg-green-100 text-green-800',
-      MEDIUM: 'bg-yellow-100 text-yellow-800',
-      HIGH: 'bg-orange-100 text-orange-800',
-      URGENT: 'bg-red-100 text-red-800',
-
-      low: 'bg-green-100 text-green-800',
-      medium: 'bg-yellow-100 text-yellow-800',
-      high: 'bg-orange-100 text-orange-800',
-      urgent: 'bg-red-100 text-red-800',
-    };
-
-    return (
-      <span
-        className={`px-2 py-1 rounded-full text-xs font-semibold ${
-          styles[value] || 'bg-gray-100 text-gray-800'
-        }`}
-      >
-        {value}
-      </span>
-    );
-  };
 
   if (isLoading) {
     return (
@@ -140,19 +99,34 @@ export default function LawyerCasesPage() {
           columns={[
             { key: 'case_number', label: 'Case No' },
             { key: 'title', label: 'Title' },
-            { key: 'client_name', label: 'Client' },
+            {
+              key: 'represented_party',
+              label: 'Represented Party',
+              render: (_, row) => casePartyName(row),
+            },
+            {
+              key: 'represented_party_role',
+              label: 'Role',
+              render: (_, row) => casePartyLabel(row),
+            },
             {
               key: 'status',
               label: 'Status',
-              render: renderStatus,
+              render: renderStatusBadge,
             },
             {
               key: 'priority',
               label: 'Priority',
-              render: renderPriority,
+              render: renderPriorityBadge,
             },
-            { key: 'court_name', label: 'Court' },
-            { key: 'case_type', label: 'Type' },
+            { key: 'procedure_track', label: 'Procedure', render: renderEnum },
+            {
+              key: 'court_station',
+              label: 'Court Station',
+              render: (value, row) => value || row.court_name || 'Not Set',
+            },
+            { key: 'registry', label: 'Registry', render: (value) => value || 'Not Set' },
+            { key: 'next_court_date', label: 'Next Date', render: renderDateTime },
           ]}
           actions={(caseItem) => (
             <div className='flex gap-2'>

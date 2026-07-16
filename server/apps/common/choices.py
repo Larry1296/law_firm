@@ -62,3 +62,48 @@ class EmploymentStatus(models.TextChoices):
     RESIGNED = "RESIGNED", "Resigned"
     TERMINATED = "TERMINATED", "Terminated"
     RETIRED = "RETIRED", "Retired"
+
+
+# ==========================================================
+# Case Statuses
+# ==========================================================
+
+class CaseStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending Review"
+    PENDING_FILING = "PENDING_FILING", "Pending Filing"
+    FILED = "FILED", "Filed in Court"
+    SERVICE_PENDING = "SERVICE_PENDING", "Service Pending"
+    SERVED = "SERVED", "Served"
+    AWAITING_RESPONSE = "AWAITING_RESPONSE", "Awaiting Response"
+    MENTION = "MENTION", "Mention"
+    DIRECTIONS = "DIRECTIONS", "Directions"
+    PRE_TRIAL = "PRE_TRIAL", "Pre-Trial"
+    MEDIATION = "MEDIATION", "Mediation"
+    HEARING = "HEARING", "Hearing"
+    SUBMISSIONS = "SUBMISSIONS", "Submissions"
+    AWAITING_RULING = "AWAITING_RULING", "Awaiting Ruling"
+    AWAITING_JUDGMENT = "AWAITING_JUDGMENT", "Awaiting Judgment"
+    JUDGMENT_DELIVERED = "JUDGMENT_DELIVERED", "Judgment Delivered"
+    DECREE_EXTRACTION = "DECREE_EXTRACTION", "Decree Extraction"
+    EXECUTION = "EXECUTION", "Execution"
+    APPEAL_WINDOW = "APPEAL_WINDOW", "Appeal Window"
+    NOTICE_OF_APPEAL_FILED = "NOTICE_OF_APPEAL_FILED", "Notice of Appeal Filed"
+    ON_APPEAL = "ON_APPEAL", "On Appeal"
+    APPEAL_DECIDED = "APPEAL_DECIDED", "Appeal Decided"
+    IN_PROGRESS = "IN_PROGRESS", "In Progress"
+    ON_HOLD = "ON_HOLD", "On Hold"
+    SETTLED = "SETTLED", "Settled"
+    WITHDRAWN = "WITHDRAWN", "Withdrawn"
+    DISMISSED = "DISMISSED", "Dismissed"
+    CLOSED = "CLOSED", "Closed"
+    ARCHIVED = "ARCHIVED", "Archived"
+
+    @classmethod
+    def inactive_statuses(cls):
+        return [
+            cls.CLOSED,
+            cls.ARCHIVED,
+            cls.DISMISSED,
+            cls.SETTLED,
+            cls.WITHDRAWN,
+        ]

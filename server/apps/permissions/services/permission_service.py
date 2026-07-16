@@ -26,8 +26,8 @@ class PermissionService:
         )
 
     @staticmethod
-    def is_portal_client(user):
+    def is_prospect(user):
         return (
             user.is_authenticated
-            and user.role == RolePermissions.PORTAL_CLIENT
+            and user.role == RolePermissions.PROSPECT
         )

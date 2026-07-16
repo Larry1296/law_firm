@@ -51,7 +51,7 @@ export default function TasksTile({
     <DashboardTile
       size={size}
       variant='tasks'
-      className={`h-full min-h-[180px] ${className}`}
+      className={`h-full min-h-[160px] sm:min-h-[180px] ${className}`}
       rounded={rounded}
       shadow={shadow}
     >
@@ -61,7 +61,7 @@ export default function TasksTile({
             <CheckSquare size={22} />
           </div>
 
-          <div>
+          <div className='min-w-0'>
             <h3 className='font-semibold text-lg'>Tasks & Approvals</h3>
 
             <p className='text-sm opacity-80'>Pending operational actions</p>
@@ -79,7 +79,7 @@ export default function TasksTile({
               >
                 <div className='flex justify-between items-start gap-3'>
                   <div>
-                    <h4 className='font-medium'>{task.title}</h4>
+                    <h4 className='break-words font-medium'>{task.title}</h4>
 
                     <div className='flex gap-2 mt-2'>
                       <span
@@ -99,19 +99,19 @@ export default function TasksTile({
           })}
         </div>
 
-        <div className='grid grid-cols-3 gap-2 mt-4'>
+        <div className='mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3'>
           <div className='rounded-xl bg-white/10 p-3 text-center'>
-            <p className='text-xl font-bold'>18</p>
+            <p className='text-lg font-bold sm:text-xl'>18</p>
             <p className='text-xs opacity-75'>Open</p>
           </div>
 
           <div className='rounded-xl bg-white/10 p-3 text-center'>
-            <p className='text-xl font-bold'>7</p>
+            <p className='text-lg font-bold sm:text-xl'>7</p>
             <p className='text-xs opacity-75'>Review</p>
           </div>
 
           <div className='rounded-xl bg-white/10 p-3 text-center'>
-            <p className='text-xl font-bold'>42</p>
+            <p className='text-lg font-bold sm:text-xl'>42</p>
             <p className='text-xs opacity-75'>Done</p>
           </div>
         </div>

@@ -244,6 +244,51 @@ body {
   color: var(--text-muted) !important;
 }
 
+.swal2-popup .app-swal-html strong,
+.swal2-popup .swal2-html-container strong {
+  color: var(--text-primary) !important;
+}
+
+.app-swal-password-card {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  text-align: left;
+}
+
+.app-swal-password-label {
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.app-swal-password-value {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--brand-primary), transparent 60%);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brand-primary), transparent 88%);
+  color: var(--text-primary);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  user-select: all;
+  word-break: break-all;
+}
+
+.app-swal-help-text {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 .swal2-popup .swal2-actions {
   background: transparent !important;
 }

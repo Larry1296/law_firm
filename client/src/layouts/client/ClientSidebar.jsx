@@ -8,64 +8,74 @@ import {
   FileText,
   Calendar,
   Briefcase,
-  MessageSquare,
   Bell,
 } from 'lucide-react';
-import ThemeContext from '@/core/store/ThemeContext';
 import LogoutButton from '@/components/ui/LogoutButton';
 import SidebarNavLink from '@/components/ui/SidebarNavlink';
 import Brand from '@/components/ui/Brand';
+import useUnreadNotifications from '@/modules/notifications/hooks/useUnreadNotifications';
 
 const links = [
   {
-    name: 'Dashboard',
-    path: '/client/dashboard',
-    icon: <LayoutDashboard size={18} />,
-    end: true,
+    name: 'Cases',
+    path: '/client/cases',
+    icon: <Briefcase size={18} />,
+    section: 'Cases',
   },
   {
     name: 'Calendar',
     path: '/client/calendar',
     icon: <Calendar size={18} />,
-  },
-  {
-    name: 'Cases',
-    path: '/client/cases',
-    icon: <Briefcase size={18} />,
-  },
-  {
-    name: 'Communication',
-    path: '/client/communication',
-    icon: <MessageSquare size={18} />,
+    section: 'Cases',
   },
   {
     name: 'Documents',
     path: '/client/documents',
     icon: <FileText size={18} />,
+    section: 'Documents',
   },
   {
     name: 'Notifications',
     path: '/client/notifications',
     icon: <Bell size={18} />,
+    section: 'Communication',
+  },
+  {
+    name: 'Dashboard',
+    path: '/client/dashboard',
+    icon: <LayoutDashboard size={18} />,
+    end: true,
+    section: 'Overview',
   },
   {
     name: 'Profile',
     path: '/client/profile',
     icon: <Users size={18} />,
+    section: 'Account',
   },
 ];
 
+const groupLinks = (items) =>
+  items.reduce((groups, link) => {
+    const section = link.section || 'Main';
+    const existing = groups.find((group) => group.section === section);
+    if (existing) {
+      existing.items.push(link);
+    } else {
+      groups.push({ section, items: [link] });
+    }
+    return groups;
+  }, []);
+
 export default function ClientSidebar({ onClose }) {
-  const { theme } = useContext(ThemeContext);
   const { user } = useContext(AuthContext);
+  const { data: notificationData } = useUnreadNotifications();
+  const unreadCount = notificationData?.unread_count ?? 0;
   const displayName = user?.full_name || user?.profile?.full_name || user?.email || 'User';
   const systemRole = user?.role || 'User';
 
-  const isDark = theme === 'dark';
-
-  const bgSidebar = isDark
-    ? 'bg-[color:var(--surface-dark)] text-white'
-    : 'bg-[color:var(--brand-primary)] text-white';
+  const bgSidebar = 'shell-surface';
+  const sidebarGroups = groupLinks(links);
 
   const handleClose = () => {
     if (window.innerWidth < 1024) {
@@ -74,7 +84,7 @@ export default function ClientSidebar({ onClose }) {
   };
 
   return (
-    <aside className={`w-64 h-full flex flex-col shadow-2xl ${bgSidebar}`}>
+    <aside className={`w-64 h-full flex flex-col ${bgSidebar}`}>
       {/* HEADER */}
       <div className='relative py-3 px-5 border-b border-white/10'>
         <div className='flex items-center justify-center'>
@@ -90,18 +100,36 @@ export default function ClientSidebar({ onClose }) {
       </div>
 
       {/* NAVIGATION */}
-      <nav className='flex-1 p-3 space-y-2 overflow-y-auto'>
-        {links.map((link) => (
-          <SidebarNavLink
-            key={link.name}
-            to={link.path}
-            end={link.end}
-            icon={link.icon}
-            onClick={handleClose}
-          >
-            {link.name}
-          </SidebarNavLink>
-        ))}
+      <nav className='sidebar-scrollbar flex-1 p-3 overflow-y-auto'>
+        <div className='space-y-5'>
+          {sidebarGroups.map((group) => (
+            <div key={group.section}>
+              <p className='px-3 mb-2 text-xs uppercase tracking-widest text-white/50 font-semibold'>
+                {group.section}
+              </p>
+              <div className='space-y-1'>
+                {group.items.map((link) => (
+                  <SidebarNavLink
+                    key={link.name}
+                    to={link.path}
+                    end={link.end}
+                    icon={link.icon}
+                    onClick={handleClose}
+                  >
+                    <span className='flex w-full items-center justify-between gap-3'>
+                      <span>{link.name}</span>
+                      {link.name === 'Notifications' && unreadCount > 0 && (
+                        <span className='rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white'>
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </span>
+                  </SidebarNavLink>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </nav>
 
       {/* FOOTER */}

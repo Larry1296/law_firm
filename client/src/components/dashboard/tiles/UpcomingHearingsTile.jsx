@@ -15,13 +15,13 @@ export default function UpcomingHearingsTile() {
       <div className='absolute -left-12 -bottom-12 h-40 w-40 rounded-full bg-black/10 blur-3xl' />
 
       <div className='relative z-10 flex h-full flex-col justify-between'>
-        <div className='flex items-start justify-between'>
-          <div>
+        <div className='flex min-w-0 items-start justify-between gap-3 sm:gap-4'>
+          <div className='min-w-0'>
             <p className='text-sm font-medium text-white/80'>
               Upcoming Hearing
             </p>
 
-            <h3 className='mt-2 text-xl font-bold'>{nextHearing.title}</h3>
+            <h3 className='mt-2 text-lg font-bold sm:text-xl'>{nextHearing.title}</h3>
           </div>
 
           <div className='rounded-2xl bg-white/15 p-3 backdrop-blur-sm'>
@@ -44,7 +44,7 @@ export default function UpcomingHearingsTile() {
         </div>
 
         <div className='mt-6 flex items-center justify-between border-t border-white/20 pt-4'>
-          <div>
+          <div className='min-w-0'>
             <p className='text-xs text-white/70'>Days Remaining</p>
             <p className='text-lg font-bold'>9 Days</p>
           </div>

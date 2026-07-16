@@ -35,7 +35,7 @@ export default function CourtroomAccessTile() {
     <DashboardTile size='large' variant='courtroom'>
       <div className='h-full flex flex-col'>
         {/* HEADER */}
-        <div className='flex items-start justify-between mb-6'>
+        <div className='mb-6 flex min-w-0 items-start justify-between gap-3 sm:gap-4'>
           <div className='flex items-center gap-4'>
             <div className='p-3 rounded-xl bg-black/15 backdrop-blur-sm'>
               <Video size={24} />
@@ -160,7 +160,7 @@ export default function CourtroomAccessTile() {
         </div>
 
         {/* QUICK STATS */}
-        <div className='grid grid-cols-3 gap-3 mt-5'>
+        <div className='mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3'>
           <div className='rounded-xl bg-slate-900/25 p-3 text-center border border-white/15'>
             <p className='text-2xl font-black'>3</p>
 

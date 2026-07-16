@@ -6,31 +6,31 @@ const useSecretaryCases = (params = {}) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const loadCases = async (isMounted = true) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await secretaryCasesService.getMyCases(params);
+
+      if (isMounted) {
+        setCases(response.cases || []);
+      }
+    } catch (err) {
+      if (isMounted) {
+        setError(err);
+      }
+    } finally {
+      if (isMounted) {
+        setLoading(false);
+      }
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
 
-    const loadCases = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const response = await secretaryCasesService.getMyCases(params);
-
-        if (isMounted) {
-          setCases(response.cases || []);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadCases();
+    loadCases(isMounted);
 
     return () => {
       isMounted = false;
@@ -41,6 +41,7 @@ const useSecretaryCases = (params = {}) => {
     cases,
     loading,
     error,
+    refetch: () => loadCases(true),
   };
 };
 

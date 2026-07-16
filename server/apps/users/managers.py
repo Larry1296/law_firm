@@ -106,14 +106,14 @@ class UserManager(BaseUserManager):
             **extra_fields,
         )
 
-    def create_portal_client(
+    def create_prospect(
         self,
         email,
         password=None,
         **extra_fields,
     ):
         """
-        Creates a self-registered portal client.
+        Creates a self-registered prospect.
         """
 
         extra_fields.setdefault("role", UserRole.PROSPECT)
@@ -123,6 +123,7 @@ class UserManager(BaseUserManager):
             password=password,
             **extra_fields,
         )
+
 
     def create_official_client(
         self,

@@ -32,12 +32,7 @@ class SecretaryCasesView(SecretaryBaseView):
 
     def post(self, request):
         try:
-            secretary = self.get_secretary()
-            if not secretary.has_permission(SecretaryPermission.MANAGE_CASES):
-                return Response(
-                    {"detail": "Admin permission is required to manage cases."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+            SecretaryCaseService.ensure_can_manage_cases(request.user)
 
             serializer = CaseCreateSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)

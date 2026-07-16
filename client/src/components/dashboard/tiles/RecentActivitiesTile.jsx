@@ -7,10 +7,10 @@ export default function RecentActivitiesTile() {
     <DashboardTile size='wide' variant='activity'>
       <div className='h-full flex flex-col'>
         <div className='flex items-center justify-between mb-5'>
-          <div>
+          <div className='min-w-0'>
             <p className='text-sm opacity-80'>Recent Activities</p>
 
-            <h2 className='text-2xl font-bold mt-1'>Firm Activity Feed</h2>
+            <h2 className='text-xl font-bold sm:text-2xl mt-1'>Firm Activity Feed</h2>
           </div>
         </div>
 

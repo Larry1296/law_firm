@@ -38,12 +38,12 @@ export default function StatsCard({
         shadow-soft
         hover:shadow-medium
         transition-all duration-300
-        p-5
+        p-4 sm:p-5
       "
     >
-      <div className="flex items-start justify-between">
+      <div className="flex min-w-0 items-start justify-between gap-3 sm:gap-4">
         {/* LEFT */}
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           <p
             className="
               text-sm font-medium
@@ -56,7 +56,7 @@ export default function StatsCard({
           <div>
             <h2
               className="
-                text-3xl font-bold tracking-tight
+                break-words text-2xl font-bold tracking-tight sm:text-3xl
                 text-slate-900 dark:text-white
               "
             >
@@ -66,7 +66,7 @@ export default function StatsCard({
             {subtitle && (
               <p
                 className="
-                  mt-1 text-sm
+                  mt-1 break-words text-sm
                   text-slate-500 dark:text-text-muted-dark
                 "
               >
@@ -90,7 +90,7 @@ export default function StatsCard({
         {/* ICON */}
         <div
           className={`
-            h-12 w-12 rounded-2xl
+            h-10 w-10 shrink-0 rounded-2xl sm:h-12 sm:w-12
             flex items-center justify-center
             ${iconStyles[color]}
           `}

@@ -4,23 +4,20 @@ from apps.common.choices import UserRole
 class RolePermissions:
 
     ADMIN = UserRole.ADMIN
-    LAWYER = UserRole.LAWYER
-    SECRETARY = UserRole.SECRETARY
-    CLIENT = UserRole.CLIENT
+    STAFF = UserRole.STAFF
+    CLIENT = UserRole.OFFICIAL_CLIENT
     PROSPECT = UserRole.PROSPECT
 
     STAFF_ROLES = [
-        LAWYER,
-        SECRETARY,
+        STAFF,
     ]
 
     INTERNAL_USERS = [
         ADMIN,
-        LAWYER,
-        SECRETARY,
+        STAFF,
     ]
 
     CLIENT_USERS = [
         CLIENT,
-        PORTAL_CLIENT,
+        PROSPECT,
     ]

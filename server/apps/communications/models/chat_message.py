@@ -27,6 +27,15 @@ class ChatMessage(TimestampedModel):
         default=ChatMessageType.TEXT,
     )
     is_system_message = models.BooleanField(default=False)
+    is_forwarded = models.BooleanField(default=False)
+    forwarded_from = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="forwarded_messages",
+    )
+    forward_direction = models.CharField(max_length=30, blank=True, default="")
 
     class Meta:
         db_table = "communication_chat_messages"

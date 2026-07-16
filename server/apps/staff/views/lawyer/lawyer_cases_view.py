@@ -20,7 +20,13 @@ class LawyerCasesView(LawyerBaseView):
                 serializer = LawyerCaseSerializer(case)
                 return Response({"case": serializer.data}, status=status.HTTP_200_OK)
 
-            cases = LawyerCaseService.list_cases(request.user)
+            cases = LawyerCaseService.list_cases(
+                request.user,
+                search=request.query_params.get("search"),
+                status=request.query_params.get("status"),
+                priority=request.query_params.get("priority"),
+                case_type=request.query_params.get("case_type"),
+            )
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
 

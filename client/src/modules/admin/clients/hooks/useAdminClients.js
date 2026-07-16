@@ -62,17 +62,38 @@ export const useAdminClients = (params = {}) => {
     },
   });
 
+  const archiveClientMutation = useMutation({
+    mutationFn: (clientId) => adminClientsService.archiveClient(clientId),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: CLIENTS_KEY,
+      });
+    },
+  });
+
+  const restoreClientMutation = useMutation({
+    mutationFn: (clientId) => adminClientsService.restoreClient(clientId),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: CLIENTS_KEY,
+      });
+    },
+  });
+
   return {
     /* Dashboard Analytics */
     analytics: data?.analytics ?? {
       total_clients: 0,
       active_clients: 0,
       inactive_clients: 0,
-      portal_clients: 0,
+      prospects_with_access: 0,
       assisted_clients: 0,
       prospects: 0,
       official_clients: 0,
       archived_clients: 0,
+      deleted_clients: 0,
       clients_by_type: {},
       recent_clients: 0,
       growth_metrics: {
@@ -105,6 +126,12 @@ export const useAdminClients = (params = {}) => {
     /* Delete */
     deleteClient: deleteClientMutation.mutateAsync,
     isDeletingClient: deleteClientMutation.isPending,
+
+    /* Archive / Restore */
+    archiveClient: archiveClientMutation.mutateAsync,
+    isArchivingClient: archiveClientMutation.isPending,
+    restoreClient: restoreClientMutation.mutateAsync,
+    isRestoringClient: restoreClientMutation.isPending,
   };
 };
 
