@@ -30,7 +30,7 @@ const adminTiles = [
     icon: Gavel,
     variant: 'courtroom',
     size: 'large',
-    path: '/admin/cases',
+    path: '/admin/courtroom',
   },
   {
     key: 'clients',
@@ -78,13 +78,13 @@ const adminTiles = [
     path: '/admin/ai',
   },
   {
-    key: 'hearings',
-    title: 'Hearings',
+    key: 'courtroom',
+    title: 'Courtroom',
     subtitle: 'Upcoming court appearances and schedules',
     icon: CalendarDays,
-    variant: 'hearings',
+    variant: 'courtroom',
     size: 'wide',
-    path: '/admin/hearings',
+    path: '/admin/courtroom',
   },
   {
     key: 'notifications',
@@ -178,7 +178,7 @@ const buildTileMetrics = (dashboard = {}) => {
       value: 'Ready',
       detail: 'Insights workspace',
     },
-    hearings: {
+    courtroom: {
       value: cases.courtroom_cases,
       detail: 'Cases with court details',
     },

@@ -17,6 +17,8 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     forwarded_at = serializers.SerializerMethodField()
     delivery_status = serializers.SerializerMethodField()
     read_at = serializers.SerializerMethodField()
+    recipient_count = serializers.SerializerMethodField()
+    read_count = serializers.SerializerMethodField()
 
     def _viewer_is_client(self):
         request = self.context.get("request")
@@ -111,6 +113,12 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             return None
         return max(participant.last_read_at for participant in read_participants)
 
+    def get_recipient_count(self, obj):
+        return len(self._recipient_participants(obj))
+
+    def get_read_count(self, obj):
+        return len(self._read_participants(obj))
+
     class Meta:
         model = ChatMessage
         fields = [
@@ -127,6 +135,8 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             "forwarded_at",
             "delivery_status",
             "read_at",
+            "recipient_count",
+            "read_count",
             "created_at",
             "updated_at",
         ]

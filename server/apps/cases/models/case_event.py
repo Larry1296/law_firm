@@ -41,6 +41,11 @@ class CaseEvent(TimestampedModel):
     court_station = models.CharField(max_length=255, blank=True, default="")
     courtroom = models.CharField(max_length=100, blank=True, default="")
     judicial_officer = models.CharField(max_length=255, blank=True, default="")
+    virtual_courtroom_url = models.URLField(max_length=1000, blank=True, default="")
+    virtual_courtroom_label = models.CharField(max_length=120, blank=True, default="")
+    virtual_courtroom_available_from = models.DateTimeField(null=True, blank=True)
+    virtual_courtroom_available_until = models.DateTimeField(null=True, blank=True)
+    is_virtual_courtroom_enabled = models.BooleanField(default=False)
     cause_list_position = models.CharField(max_length=50, blank=True, default="")
     adjournment_reason = models.TextField(blank=True, default="")
     outcome = models.TextField(blank=True, default="")
@@ -63,6 +68,7 @@ class CaseEvent(TimestampedModel):
             models.Index(fields=["event_type"]),
             models.Index(fields=["status"]),
             models.Index(fields=["is_client_visible"]),
+            models.Index(fields=["is_virtual_courtroom_enabled", "starts_at"]),
         ]
 
     def __str__(self):

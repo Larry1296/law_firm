@@ -63,6 +63,14 @@ const communicationService = {
     return data;
   },
 
+  async sendStaffBulkMessage(payload) {
+    const { data } = await axiosInstance.post(
+      '/admin/communications/staff-threads/bulk/',
+      payload,
+    );
+    return data;
+  },
+
   async getStaffContacts() {
     const { data } = await axiosInstance.get(
       '/admin/communications/staff-contacts/',

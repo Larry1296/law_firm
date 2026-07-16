@@ -8,6 +8,7 @@ from apps.common.choices import FirmRole
 from apps.communications.choices import ChatThreadType
 from apps.communications.serializers import (
     ChatThreadSerializer,
+    DirectStaffBulkMessageSerializer,
     DirectStaffThreadCreateSerializer,
 )
 from apps.communications.services import ChatService, CommunicationAccessService
@@ -80,6 +81,51 @@ class DirectStaffThreadListCreateView(APIView):
 
         return Response(
             {"thread": ChatThreadSerializer(thread, context={"request": request}).data},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class DirectStaffBulkMessageView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = DirectStaffBulkMessageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            deliveries = ChatService.send_direct_staff_bulk_message(
+                admin_user=request.user,
+                message=serializer.validated_data["message"],
+                staff_user_ids=serializer.validated_data.get("staff_user_ids", []),
+                target_roles=serializer.validated_data.get("target_roles", []),
+                include_all_staff=serializer.validated_data.get("include_all_staff", False),
+                subject=serializer.validated_data.get("subject", ""),
+            )
+        except PermissionDenied as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {
+                "delivery_count": len(deliveries),
+                "deliveries": [
+                    {
+                        "thread": ChatThreadSerializer(
+                            delivery["thread"],
+                            context={"request": request},
+                        ).data,
+                        "message_id": str(delivery["message"].id),
+                        "recipient": {
+                            "id": str(delivery["recipient"].id),
+                            "full_name": delivery["recipient"].full_name,
+                            "email": delivery["recipient"].email,
+                        },
+                        "created": delivery["created"],
+                    }
+                    for delivery in deliveries
+                ],
+            },
             status=status.HTTP_201_CREATED,
         )
 

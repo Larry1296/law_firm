@@ -32,7 +32,7 @@ export const adminSidebarLinks = [
   },
 
   { name: 'Cases', path: '/admin/cases', icon: Briefcase, section: 'Cases', ownerOnly: true },
-  { name: 'Hearings', path: '/admin/hearings', icon: Scale, section: 'Cases', ownerOnly: true },
+  { name: 'Courtroom', path: '/admin/courtroom', icon: Scale, section: 'Cases', ownerOnly: true },
   { name: 'Calendar', path: '/admin/calendar', icon: Calendar, section: 'Cases', ownerOnly: true },
   {
     name: 'Case Predictions',

@@ -245,6 +245,94 @@ class ChatService:
         return thread, created
 
     @staticmethod
+    def _resolve_staff_recipients(*, firm, staff_user_ids=None, target_roles=None, include_all_staff=False):
+        staff_user_ids = staff_user_ids or []
+        target_roles = target_roles or []
+        queryset = ChatService._staff_user_queryset(firm)
+
+        if include_all_staff:
+            recipients = list(queryset)
+        else:
+            filters = Q()
+            if staff_user_ids:
+                filters |= Q(id__in=staff_user_ids)
+            if target_roles:
+                filters |= Q(firm_memberships__role__in=target_roles)
+
+            recipients = list(queryset.filter(filters).distinct())
+
+            if staff_user_ids:
+                found_ids = {str(user.id) for user in recipients}
+                missing_ids = {
+                    str(staff_user_id)
+                    for staff_user_id in staff_user_ids
+                    if str(staff_user_id) not in found_ids
+                }
+                if missing_ids:
+                    raise ValueError(
+                        "One or more selected staff members are not active staff in this firm."
+                    )
+
+        if not recipients:
+            raise ValueError("No active staff recipients matched this message target.")
+
+        return sorted(
+            recipients,
+            key=lambda user: (
+                user.firm_memberships.filter(firm=firm, is_active=True).first().role,
+                user.first_name,
+                user.last_name,
+                user.email,
+            ),
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def send_direct_staff_bulk_message(
+        *,
+        admin_user,
+        message,
+        staff_user_ids=None,
+        target_roles=None,
+        include_all_staff=False,
+        subject="",
+    ):
+        if not CommunicationAccessService.is_admin(admin_user):
+            raise PermissionDenied("Only admins can send staff messages.")
+
+        firm = CommunicationAccessService.get_user_firm(admin_user)
+        recipients = ChatService._resolve_staff_recipients(
+            firm=firm,
+            staff_user_ids=staff_user_ids,
+            target_roles=target_roles,
+            include_all_staff=include_all_staff,
+        )
+
+        deliveries = []
+        for staff_user in recipients:
+            thread, created = ChatService.start_direct_staff_thread(
+                admin_user=admin_user,
+                staff_user_id=staff_user.id,
+                subject=subject,
+                message="",
+            )
+            chat_message = ChatService.send_message(
+                admin_user,
+                thread,
+                body=message,
+            )
+            deliveries.append(
+                {
+                    "thread": thread,
+                    "message": chat_message,
+                    "recipient": staff_user,
+                    "created": created,
+                }
+            )
+
+        return deliveries
+
+    @staticmethod
     def _case_queryset_for_user(user):
         firm = CommunicationAccessService.get_user_firm(user)
         queryset = Case.objects.select_related(
@@ -419,7 +507,7 @@ class ChatService:
 
     @staticmethod
     def _get_forwardable_message(user, message_id):
-        message = ChatMessage.objects.select_for_update().select_related(
+        message = ChatMessage.objects.select_for_update(of=("self",)).select_related(
             "thread",
             "thread__case",
             "thread__case__assigned_lawyer",

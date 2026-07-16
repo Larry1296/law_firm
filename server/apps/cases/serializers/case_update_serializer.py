@@ -1,9 +1,12 @@
 from rest_framework import serializers
 
 from apps.cases.models import Case
+from apps.cases.serializers.case_status_serializer import CaseNextEventSerializer
 
 
 class CaseUpdateSerializer(serializers.ModelSerializer):
+    next_event = CaseNextEventSerializer(required=False, allow_null=True, write_only=True)
+
     class Meta:
         model = Case
         fields = [
@@ -30,4 +33,5 @@ class CaseUpdateSerializer(serializers.ModelSerializer):
             "plaintiff",
             "defendant",
             "is_active",
+            "next_event",
         ]

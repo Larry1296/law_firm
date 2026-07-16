@@ -15,6 +15,7 @@ import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
 import DashboardNotifications from '@/components/dashboard/DashboardNotifications';
+import CourtroomTodayPanel from '@/modules/courtroom/components/CourtroomTodayPanel';
 import useLawyerDashboard from '@/modules/staff/lawyer/dashboard/hooks/useLawyerDashboard';
 
 const lawyerTiles = [
@@ -34,12 +35,12 @@ const lawyerTiles = [
     size: 'wide',
   },
   {
-    title: 'Hearings',
+    title: 'Courtroom',
     subtitle: 'Upcoming court appearances and schedules',
     icon: CalendarDays,
-    variant: 'hearings',
+    variant: 'courtroom',
     size: 'wide',
-    path: '/lawyer/hearings',
+    path: '/lawyer/courtroom',
   },
   {
     title: 'Notifications',
@@ -102,7 +103,7 @@ export default function LawyerDashboardPage() {
     if (tile.title === 'Notifications') return summary.unread_notifications ?? 0;
     if (tile.title === 'My Cases') return summary.active_cases ?? 0;
     if (tile.title === 'Clients') return summary.clients ?? 0;
-    if (tile.title === 'Hearings') return summary.hearings ?? 0;
+    if (tile.title === 'Courtroom') return summary.hearings ?? 0;
     if (tile.title === 'Workload') return summary.total_cases ?? 0;
     if (tile.title === 'Tasks') return summary.tasks_due ?? 0;
     if (tile.title === 'Documents') return summary.documents ?? 0;
@@ -114,7 +115,7 @@ export default function LawyerDashboardPage() {
       <DashboardHero
         badge='Advocate'
         title={`Welcome back${profile.full_name ? `, ${profile.full_name}` : ''}`}
-        description='Manage assigned matters, prepare hearings, track deadlines, and collaborate with clients.'
+        description='Manage assigned matters, prepare court appearances, track deadlines, and collaborate with clients.'
         statusTitle='Practice Active'
         statusDescription={`${summary.tasks_due ?? 0} pending tasks, ${summary.unread_notifications ?? 0} unread notifications.`}
       />
@@ -174,6 +175,8 @@ export default function LawyerDashboardPage() {
           })}
         </DashboardGrid>
       </section>
+
+      <CourtroomTodayPanel />
 
       <DashboardNotifications
         notifications={recentNotifications}

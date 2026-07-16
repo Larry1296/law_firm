@@ -54,12 +54,13 @@ LOCAL_APPS = [
     "apps.firm",
     "apps.staff",
     "apps.cases",
+    "apps.events",
     "apps.tasks",
     "apps.scheduling",
     "apps.communications",
     "apps.notifications",
     "apps.documents",
-    "apps.hearings",
+    "apps.courtroom",
     "apps.ai",
     "apps.billing",
     "apps.reports",
@@ -252,3 +253,10 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
 ]
+
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@sheriamaster.local")
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.console.EmailBackend",
+)

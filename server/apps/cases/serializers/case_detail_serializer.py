@@ -3,12 +3,12 @@ from rest_framework import serializers
 from apps.cases.models import Case
 from apps.cases.serializers.case_activity_serializer import CaseActivitySerializer
 from apps.cases.serializers.case_attachment_serializer import CaseAttachmentSerializer
-from apps.cases.serializers.case_event_serializer import CaseEventSerializer
 from apps.cases.serializers.case_filing_serializer import CaseFilingSerializer
 from apps.cases.serializers.case_note_serializer import CaseNoteSerializer
 from apps.cases.serializers.case_party_serializer import CasePartySerializer
 from apps.cases.serializers.case_task_serializer import CaseTaskSerializer
 from apps.cases.serializers.case_timeline_serializer import CaseTimelineSerializer
+from apps.events.serializers import EventSerializer
 
 
 class CaseDetailSerializer(serializers.ModelSerializer):
@@ -99,7 +99,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         queryset = obj.events.all()
         if self._client_visible_only():
             queryset = queryset.filter(is_client_visible=True)
-        return CaseEventSerializer(queryset, many=True).data
+        return EventSerializer(queryset, many=True).data
 
     def get_filings(self, obj):
         queryset = obj.filings.all()

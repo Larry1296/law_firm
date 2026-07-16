@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { MessageSquare, UserRound } from 'lucide-react';
+import { MessageSquare, Send, UserRound, Users } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 import Button3D from '@/components/ui/Button3D';
@@ -8,6 +8,7 @@ import ChatWorkspace from '@/modules/communications/components/ChatWorkspace';
 import {
   useAdminThreads,
   useSendThreadMessage,
+  useSendStaffBulkMessage,
   useStaffContacts,
   useStartStaffThread,
   useThreadMessages,
@@ -23,9 +24,27 @@ const getStaffThread = (threads, staffUserId) =>
     ),
   );
 
+const roleLabels = {
+  LAWYER: 'Lawyers',
+  SECRETARY: 'Secretaries',
+  ACCOUNTANT: 'Accountants',
+  HR: 'HR',
+  IT: 'IT',
+};
+
+const groupStaffByRole = (staff) =>
+  staff.reduce((groups, member) => {
+    const role = member.firm_role || 'STAFF';
+    return {
+      ...groups,
+      [role]: [...(groups[role] || []), member],
+    };
+  }, {});
+
 export default function AdminChatPage() {
   const [searchParams] = useSearchParams();
-  const [selectedStaffId, setSelectedStaffId] = useState('');
+  const [targetMode, setTargetMode] = useState('single');
+  const [selectedStaffIds, setSelectedStaffIds] = useState([]);
   const [selectedThreadId, setSelectedThreadId] = useState(
     () => searchParams.get('thread') || null,
   );
@@ -35,6 +54,7 @@ export default function AdminChatPage() {
   const contactsQuery = useStaffContacts();
   const threadsQuery = useAdminThreads(directStaffParams);
   const startThread = useStartStaffThread();
+  const sendBulkMessage = useSendStaffBulkMessage();
   const sendMessage = useSendThreadMessage();
 
   const staff = useMemo(
@@ -45,6 +65,7 @@ export default function AdminChatPage() {
     () => threadsQuery.data?.threads || [],
     [threadsQuery.data?.threads],
   );
+  const groupedStaff = useMemo(() => groupStaffByRole(staff), [staff]);
 
   const resolvedThreadId = useMemo(() => {
     if (
@@ -59,8 +80,31 @@ export default function AdminChatPage() {
 
   const messagesQuery = useThreadMessages(resolvedThreadId);
 
-  const handleStartThread = async () => {
-    if (!selectedStaffId) {
+  const selectedStaffId = selectedStaffIds[0] || '';
+
+  const handleStaffSelect = (event) => {
+    const values = Array.from(event.target.selectedOptions).map(
+      (option) => option.value,
+    );
+    setSelectedStaffIds(targetMode === 'single' ? values.slice(0, 1) : values);
+  };
+
+  const buildBulkPayload = () => {
+    const trimmedMessage = message.trim();
+    if (targetMode === 'all') {
+      return { include_all_staff: true, message: trimmedMessage };
+    }
+    if (targetMode === 'lawyers') {
+      return { target_roles: ['LAWYER'], message: trimmedMessage };
+    }
+    if (targetMode === 'secretaries') {
+      return { target_roles: ['SECRETARY'], message: trimmedMessage };
+    }
+    return { staff_user_ids: selectedStaffIds, message: trimmedMessage };
+  };
+
+  const handleOpenThread = async () => {
+    if (!selectedStaffId || targetMode !== 'single') {
       setFeedback({ type: 'error', text: 'Choose a staff member first.' });
       return;
     }
@@ -88,14 +132,56 @@ export default function AdminChatPage() {
     }
   };
 
+  const handleBulkSend = async () => {
+    if (!message.trim()) {
+      setFeedback({ type: 'error', text: 'Type a message to send.' });
+      return;
+    }
+    if (
+      ['single', 'selected'].includes(targetMode) &&
+      selectedStaffIds.length === 0
+    ) {
+      setFeedback({ type: 'error', text: 'Choose at least one staff member.' });
+      return;
+    }
+
+    setFeedback(null);
+
+    try {
+      if (targetMode === 'single' && selectedStaffIds.length === 1) {
+        const response = await startThread.mutateAsync({
+          staff_user_id: selectedStaffId,
+          message: message.trim(),
+        });
+        setSelectedThreadId(response.thread?.id);
+        setFeedback({ type: 'success', text: 'Message sent to 1 staff member.' });
+      } else {
+        const response = await sendBulkMessage.mutateAsync(buildBulkPayload());
+        setSelectedThreadId(response.deliveries?.[0]?.thread?.id || null);
+        setFeedback({
+          type: 'success',
+          text: `Message sent to ${response.delivery_count || 0} staff member${
+            response.delivery_count === 1 ? '' : 's'
+          }.`,
+        });
+      }
+      setMessage('');
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        text: getApiErrorMessage(error, 'Could not send staff message.'),
+      });
+    }
+  };
+
   const handleSendMessage = async (body) => {
     await sendMessage.mutateAsync({ threadId: resolvedThreadId, body });
   };
 
   const sidebarExtra = (
     <div className='mt-3 rounded-xl bg-blue-50 px-3 py-3 text-xs text-blue-800 dark:bg-blue-950/50 dark:text-blue-200'>
-      One private thread per staff member. Select a staff member above to open
-      or create the thread.
+      Group sends are delivered as private admin chats. Staff only see their own
+      thread and can reply privately.
     </div>
   );
 
@@ -114,19 +200,46 @@ export default function AdminChatPage() {
           </div>
         </div>
 
-        <div className='grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]'>
+        <div className='grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_minmax(0,1fr)]'>
           <select
-            value={selectedStaffId}
-            onChange={(event) => setSelectedStaffId(event.target.value)}
+            value={targetMode}
+            onChange={(event) => {
+              setTargetMode(event.target.value);
+              setSelectedStaffIds([]);
+            }}
             className='h-12 rounded-2xl border border-border-light bg-white px-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-border-dark dark:bg-slate-900 dark:text-white'
           >
+            <option value='single'>One staff member</option>
+            <option value='selected'>Selected staff</option>
+            <option value='lawyers'>All lawyers</option>
+            <option value='secretaries'>All secretaries</option>
+            <option value='all'>All staff</option>
+          </select>
+
+          <select
+            value={targetMode === 'single' ? selectedStaffId : selectedStaffIds}
+            onChange={handleStaffSelect}
+            multiple={targetMode === 'selected'}
+            disabled={!['single', 'selected'].includes(targetMode)}
+            className={`rounded-2xl border border-border-light bg-white px-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-slate-900 dark:text-white ${
+              targetMode === 'selected' ? 'min-h-28 py-3' : 'h-12'
+            }`}
+          >
             <option value=''>
-              {contactsQuery.isLoading ? 'Loading staff...' : 'Choose staff'}
+              {contactsQuery.isLoading
+                ? 'Loading staff...'
+                : targetMode === 'selected'
+                  ? 'Use Ctrl/Cmd to select staff'
+                  : 'Choose staff'}
             </option>
-            {staff.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.full_name || member.email} ({member.firm_role})
-              </option>
+            {Object.entries(groupedStaff).map(([role, members]) => (
+              <optgroup key={role} label={roleLabels[role] || role}>
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.full_name || member.email} ({member.email})
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
 
@@ -140,18 +253,42 @@ export default function AdminChatPage() {
             spellCheck
             className='h-12 rounded-2xl border border-border-light bg-white px-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-border-dark dark:bg-slate-900 dark:text-white'
           />
+        </div>
 
+        <div className='mt-3 flex flex-wrap gap-3'>
           <Button3D
-            onClick={handleStartThread}
-            disabled={startThread.isPending || !selectedStaffId}
+            onClick={handleOpenThread}
+            disabled={
+              startThread.isPending || targetMode !== 'single' || !selectedStaffId
+            }
           >
             <UserRound size={16} />
             {startThread.isPending ? 'Opening...' : 'Open Chat'}
           </Button3D>
+
+          <Button3D
+            onClick={handleBulkSend}
+            disabled={sendBulkMessage.isPending || startThread.isPending}
+          >
+            {['selected', 'lawyers', 'secretaries', 'all'].includes(targetMode) ? (
+              <Users size={16} />
+            ) : (
+              <Send size={16} />
+            )}
+            {sendBulkMessage.isPending || startThread.isPending
+              ? 'Sending...'
+              : 'Send Message'}
+          </Button3D>
         </div>
 
         {feedback && (
-          <div className='mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-200'>
+          <div
+            className={`mt-4 rounded-xl px-4 py-3 text-sm ${
+              feedback.type === 'success'
+                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200'
+                : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200'
+            }`}
+          >
             {feedback.text}
           </div>
         )}

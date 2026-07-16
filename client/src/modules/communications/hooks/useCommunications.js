@@ -85,6 +85,20 @@ export const useStartStaffThread = () => {
   });
 };
 
+export const useSendStaffBulkMessage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: communicationService.sendStaffBulkMessage,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['communications'] });
+      queryClient.invalidateQueries({
+        queryKey: ['notifications', 'unread-count'],
+      });
+    },
+  });
+};
+
 export const useStaffContacts = () =>
   useQuery({
     queryKey: communicationKeys.staffContacts,

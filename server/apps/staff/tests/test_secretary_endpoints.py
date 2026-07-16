@@ -311,8 +311,7 @@ class SecretaryEndpointTests(TestCase):
         created = Client.objects.get(full_name="Mercy Faith Centre")
         self.assertEqual(created.client_type, Client.ClientType.RELIGIOUS_ORGANIZATION)
         self.assertTrue(NGOClient.objects.filter(client=created).exists())
-        self.assertEqual(portal_client.user.role, UserRole.PROSPECT)
-        self.assertTrue(portal_client.user.must_change_password)
+        self.assertIsNone(created.user)
 
     def test_secretary_only_sees_cases_for_assigned_lawyers(self):
         secretary_user = User.objects.create_user(

@@ -26,6 +26,7 @@ class CaseStatusView(APIView):
                 case=case,
                 status=serializer.validated_data["status"],
                 note=serializer.validated_data.get("note", ""),
+                next_event=serializer.validated_data.get("next_event"),
                 actor=request.user,
             )
         except PermissionError as exc:

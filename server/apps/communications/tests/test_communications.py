@@ -206,6 +206,63 @@ class CommunicationApiTests(TestCase):
         )
         self.assertEqual(forbidden.status_code, 404)
 
+    def test_admin_bulk_staff_message_fans_out_to_private_lawyer_threads(self):
+        self.api.force_authenticate(user=self.admin)
+        response = self.api.post(
+            reverse("admin-staff-thread-bulk"),
+            {
+                "target_roles": [FirmRole.LAWYER],
+                "message": "All lawyers should file weekly case updates.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["delivery_count"], 2)
+        self.assertEqual(ChatThread.objects.count(), 2)
+        self.assertEqual(ChatMessage.objects.count(), 2)
+
+        thread_recipients = []
+        for thread in ChatThread.objects.prefetch_related("participants__user"):
+            participant_emails = {
+                participant.user.email
+                for participant in thread.participants.all()
+            }
+            self.assertIn(self.admin.email, participant_emails)
+            self.assertEqual(len(participant_emails), 2)
+            thread_recipients.extend(
+                email
+                for email in participant_emails
+                if email != self.admin.email
+            )
+
+        self.assertEqual(
+            set(thread_recipients),
+            {self.lawyer_user.email, self.other_lawyer_user.email},
+        )
+
+        self.api.force_authenticate(user=self.lawyer_user)
+        lawyer_threads = self.api.get(
+            reverse("communication-thread-list"),
+            {"thread_type": "DIRECT_STAFF"},
+        )
+        self.assertEqual(lawyer_threads.status_code, 200, lawyer_threads.data)
+        self.assertEqual(len(lawyer_threads.data["threads"]), 1)
+        self.assertEqual(
+            lawyer_threads.data["threads"][0]["last_message"]["body"],
+            "All lawyers should file weekly case updates.",
+        )
+
+        reply = self.api.post(
+            reverse(
+                "communication-thread-messages",
+                kwargs={"thread_id": lawyer_threads.data["threads"][0]["id"]},
+            ),
+            {"body": "Received."},
+            format="json",
+        )
+        self.assertEqual(reply.status_code, 201, reply.data)
+
     def test_case_thread_is_client_safe_and_lawyer_read_only(self):
         self.api.force_authenticate(user=self.client_user)
         message = self.api.post(
@@ -263,9 +320,11 @@ class CommunicationApiTests(TestCase):
         )
         self.assertEqual(
             client_messages_after_secretary_open.data["messages"][0]["delivery_status"],
-            "read",
+            "delivered",
         )
+        self.assertEqual(client_messages_after_secretary_open.data["messages"][0]["read_count"], 1)
 
+        self.api.force_authenticate(user=self.secretary_user)
         secretary_reply = self.api.post(
             reverse("communication-case-messages", kwargs={"case_id": self.case.id}),
             {"body": "We will coordinate with counsel and revert."},

@@ -41,8 +41,8 @@ const links = [
   },
 
   {
-    name: 'Hearings',
-    path: '/lawyer/hearings',
+    name: 'Courtroom',
+    path: '/lawyer/courtroom',
     icon: Gavel,
     section: 'Cases',
   },

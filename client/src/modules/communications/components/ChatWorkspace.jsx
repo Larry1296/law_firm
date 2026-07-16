@@ -298,7 +298,12 @@ export default function ChatWorkspace({
                             {message.body}
                           </p>
                           {isMine && (
-                            <div className='mt-1 flex justify-end'>
+                            <div className='mt-1 flex items-center justify-end gap-1 text-xs opacity-90'>
+                              {message.recipient_count > 1 && (
+                                <span>
+                                  {message.read_count || 0}/{message.recipient_count} read
+                                </span>
+                              )}
                               <MessageStatusTicks
                                 status={message.delivery_status || 'sent'}
                               />

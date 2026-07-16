@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.cases.models import Case
+from apps.cases.models import Case, CaseEvent
 from apps.clients.models import Client
 from apps.common.choices import UserRole
 from apps.common.choices import FirmRole
@@ -310,18 +311,40 @@ class CaseApiTests(TestCase):
         created = Case.objects.get(case_number="CASE-2026-001")
 
         self.client_api.force_authenticate(user=self.lawyer.user)
+        next_event_at = timezone.now() + timedelta(days=14)
         status_response = self.client_api.post(
             reverse("case-status", kwargs={"case_id": created.id}),
             {
-                "status": Case.Status.NOTICE_OF_APPEAL_FILED,
-                "note": "Notice of Appeal lodged after judgment.",
+                "status": Case.Status.HEARING,
+                "note": "Matter certified ready for hearing.",
+                "next_event": {
+                    "starts_at": next_event_at.isoformat(),
+                    "court_station": "Milimani Law Courts",
+                    "courtroom": "Court 3",
+                    "is_client_visible": True,
+                },
             },
             format="json",
         )
         self.assertEqual(status_response.status_code, 200, status_response.data)
         created.refresh_from_db()
-        self.assertEqual(created.status, Case.Status.NOTICE_OF_APPEAL_FILED)
+        self.assertEqual(created.status, Case.Status.HEARING)
         self.assertTrue(created.is_active)
+        self.assertIsNotNone(created.next_court_date)
+        self.assertEqual(created.next_action, f"Hearing - {created.case_number}")
+        next_event = CaseEvent.objects.get(case=created, event_type=CaseEvent.EventType.HEARING)
+        self.assertEqual(next_event.title, f"Hearing - {created.case_number}")
+        self.assertEqual(next_event.court_station, "Milimani Law Courts")
+        self.assertEqual(next_event.courtroom, "Court 3")
+        self.assertTrue(next_event.is_client_visible)
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=client_user,
+                case=created,
+                notification_type=Notification.NotificationType.CASE_EVENT,
+                read_at__isnull=True,
+            ).exists()
+        )
         self.assertTrue(
             Notification.objects.filter(
                 recipient=client_user,
@@ -339,7 +362,7 @@ class CaseApiTests(TestCase):
         )
         self.assertEqual(secretary_response.status_code, 403, secretary_response.data)
         created.refresh_from_db()
-        self.assertEqual(created.status, Case.Status.NOTICE_OF_APPEAL_FILED)
+        self.assertEqual(created.status, Case.Status.HEARING)
 
     def test_secretary_only_sees_assigned_cases_when_permitted(self):
         response = self.client_api.post(reverse("case-create"), self.payload(), format="json")

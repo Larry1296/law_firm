@@ -163,18 +163,18 @@ const AdminStaffDetailsPage = lazy(
 );
 
 
-/* HEARINGS */
+/* COURTROOM */
 
-const AdminHearingsPage = lazy(
-  () => import('@/modules/admin/hearings/pages/AdminHearingsPage'),
+const AdminCourtroomPage = lazy(
+  () => import('@/modules/admin/courtroom/pages/AdminCourtroomPage'),
 );
 
-const AdminHearingDetailsPage = lazy(
-  () => import('@/modules/admin/hearings/pages/AdminHearingDetailsPage'),
+const AdminCourtroomDetailsPage = lazy(
+  () => import('@/modules/admin/courtroom/pages/AdminCourtroomDetailsPage'),
 );
 
 const AdminVirtualCourtroomPage = lazy(
-  () => import('@/modules/admin/hearings/pages/AdminVirtualCourtroomPage'),
+  () => import('@/modules/admin/courtroom/pages/AdminVirtualCourtroomPage'),
 );
 
 
@@ -336,13 +336,13 @@ const LawyerTemplatesPage = lazy(
 );
 
 
-const LawyerHearings = lazy(
-  () => import('@/modules/staff/lawyer/hearings/pages/LawyerHearingsPage'),
+const LawyerCourtroom = lazy(
+  () => import('@/modules/staff/lawyer/courtroom/pages/LawyerCourtroomPage'),
 );
 
-const LawyerHearingDetails = lazy(
+const LawyerCourtroomDetails = lazy(
   () =>
-    import('@/modules/staff/lawyer/hearings/pages/LawyerHearingDetailsPage'),
+    import('@/modules/staff/lawyer/courtroom/pages/LawyerCourtroomDetailsPage'),
 );
 
 
@@ -716,13 +716,11 @@ const AppRoutes = () => {
           <Route path='staff/create' element={<AdminCreateStaffPage />} />
           <Route path='staff/:id' element={<AdminStaffDetailsPage />} />
 
-          {/* HEARINGS */}
-          <Route path='hearings' element={<AdminHearingsPage />} />
-          <Route path='hearings/:id' element={<AdminHearingDetailsPage />} />
-          <Route
-            path='hearings/:id/courtroom'
-            element={<AdminVirtualCourtroomPage />}
-          />
+          {/* COURTROOM */}
+          <Route path='courtroom' element={<AdminVirtualCourtroomPage />} />
+          <Route path='courtroom/sessions' element={<AdminCourtroomPage />} />
+          <Route path='courtroom/:id' element={<AdminCourtroomDetailsPage />} />
+          <Route path='hearings' element={<Navigate to='../courtroom' replace />} />
 
           {/* DOCUMENTS */}
           <Route path='documents' element={<AdminDocumentsPage />} />
@@ -800,8 +798,9 @@ const AppRoutes = () => {
           <Route path='documents/:id' element={<LawyerTemplatesPage />} />
           <Route path='chat' element={<LawyerChat />} />
           <Route path='notifications' element={<LawyerNotifications />} />
-          <Route path='hearings' element={<LawyerHearings />} />
-          <Route path='hearings/:id' element={<LawyerHearingDetails />} />
+          <Route path='courtroom' element={<LawyerCourtroom />} />
+          <Route path='courtroom/:id' element={<LawyerCourtroomDetails />} />
+          <Route path='hearings' element={<Navigate to='../courtroom' replace />} />
           <Route path='research' element={<LawyerResearch />} />
           <Route path='authorities' element={<LawyerAuthorities />} />
           <Route path='tasks' element={<LawyerTasks />} />

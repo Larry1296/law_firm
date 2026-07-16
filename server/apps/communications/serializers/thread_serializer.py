@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.common.choices import FirmRole
 from apps.communications.models import ChatThread, ChatThreadParticipant
 from apps.communications.serializers.announcement_serializer import serialize_user
 from apps.communications.serializers.message_serializer import ChatMessageSerializer
@@ -9,6 +10,33 @@ class DirectStaffThreadCreateSerializer(serializers.Serializer):
     staff_user_id = serializers.UUIDField()
     subject = serializers.CharField(max_length=255, required=False, allow_blank=True)
     message = serializers.CharField(required=False, allow_blank=True)
+
+
+class DirectStaffBulkMessageSerializer(serializers.Serializer):
+    staff_user_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        allow_empty=True,
+    )
+    target_roles = serializers.ListField(
+        child=serializers.ChoiceField(choices=FirmRole.staff_roles()),
+        required=False,
+        allow_empty=True,
+    )
+    include_all_staff = serializers.BooleanField(required=False, default=False)
+    subject = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    message = serializers.CharField(allow_blank=False, trim_whitespace=True)
+
+    def validate(self, attrs):
+        if not (
+            attrs.get("include_all_staff")
+            or attrs.get("target_roles")
+            or attrs.get("staff_user_ids")
+        ):
+            raise serializers.ValidationError(
+                "Choose at least one staff member, staff role, or all staff."
+            )
+        return attrs
 
 
 class ChatThreadParticipantSerializer(serializers.ModelSerializer):

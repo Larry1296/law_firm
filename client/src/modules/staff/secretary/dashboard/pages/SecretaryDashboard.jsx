@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
+import CourtroomTodayPanel from '@/modules/courtroom/components/CourtroomTodayPanel';
 import useSecretaryDashboard from '@/modules/staff/secretary/dashboard/hooks/useSecretaryDashboard';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 
@@ -199,6 +200,8 @@ export default function SecretaryDashboard() {
           })}
         </DashboardGrid>
       </section>
+
+      <CourtroomTodayPanel title="Today's Case Courtrooms" />
     </>
   );
 }

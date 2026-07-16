@@ -19,7 +19,7 @@ export default function CourtroomAccessTile() {
     },
     {
       id: 3,
-      court: 'Virtual Hearing Room',
+      court: 'Virtual Courtroom',
       case: 'EMP/2026/0021',
       status: 'Scheduled',
     },
@@ -55,7 +55,7 @@ export default function CourtroomAccessTile() {
               </h3>
 
               <p className='text-sm font-medium text-white/90'>
-                Manage virtual hearings and courtroom links
+                Manage virtual courtrooms and access links
               </p>
             </div>
           </div>
@@ -170,7 +170,7 @@ export default function CourtroomAccessTile() {
           <div className='rounded-xl bg-slate-900/25 p-3 text-center border border-white/15'>
             <p className='text-2xl font-black'>12</p>
 
-            <p className='text-xs font-medium text-white/80'>Hearings Today</p>
+            <p className='text-xs font-medium text-white/80'>Courtrooms Today</p>
           </div>
 
           <div className='rounded-xl bg-slate-900/25 p-3 text-center border border-white/15'>

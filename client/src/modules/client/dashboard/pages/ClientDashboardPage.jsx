@@ -12,6 +12,7 @@ import {
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
+import CourtroomTodayPanel from '@/modules/courtroom/components/CourtroomTodayPanel';
 import useClientDashboard from '@/modules/client/dashboard/hooks/useClientDashboard';
 import { useNavigate } from 'react-router-dom';
 
@@ -193,6 +194,11 @@ export default function ClientDashboardPage() {
           })}
         </DashboardGrid>
       </section>
+
+      <CourtroomTodayPanel
+        title="Today's Court Access"
+        emptyMessage='No courtroom link is available for your matters today.'
+      />
     </>
   );
 }

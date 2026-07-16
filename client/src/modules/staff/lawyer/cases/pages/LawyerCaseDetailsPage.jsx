@@ -20,6 +20,7 @@ import {
   useUpdateCaseStatus,
 } from '@/modules/staff/lawyer/cases/hooks/useLawyerCases';
 import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
+import CaseCourtroomPanel from '@/modules/courtroom/components/CaseCourtroomPanel';
 
 const CASE_STATUS_OPTIONS = [
   { value: 'PENDING', label: 'Pending Review' },
@@ -50,6 +51,52 @@ const CASE_STATUS_OPTIONS = [
   { value: 'CLOSED', label: 'Closed' },
 ];
 
+const EVENT_TYPE_OPTIONS = [
+  { value: 'MENTION', label: 'Mention' },
+  { value: 'HEARING', label: 'Hearing' },
+  { value: 'DIRECTIONS', label: 'Directions' },
+  { value: 'PRE_TRIAL', label: 'Pre-Trial Conference' },
+  { value: 'MEDIATION', label: 'Mediation' },
+  { value: 'SUBMISSIONS', label: 'Submissions' },
+  { value: 'RULING', label: 'Ruling' },
+  { value: 'JUDGMENT', label: 'Judgment' },
+  { value: 'EXECUTION', label: 'Execution' },
+  { value: 'REGISTRY_ACTION', label: 'Registry Action' },
+  { value: 'CLIENT_MEETING', label: 'Client Meeting' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+const STATUS_EVENT_TYPE = {
+  PENDING_FILING: 'REGISTRY_ACTION',
+  FILED: 'REGISTRY_ACTION',
+  SERVICE_PENDING: 'REGISTRY_ACTION',
+  AWAITING_RESPONSE: 'REGISTRY_ACTION',
+  MENTION: 'MENTION',
+  DIRECTIONS: 'DIRECTIONS',
+  PRE_TRIAL: 'PRE_TRIAL',
+  MEDIATION: 'MEDIATION',
+  HEARING: 'HEARING',
+  SUBMISSIONS: 'SUBMISSIONS',
+  AWAITING_RULING: 'RULING',
+  AWAITING_JUDGMENT: 'JUDGMENT',
+  DECREE_EXTRACTION: 'REGISTRY_ACTION',
+  EXECUTION: 'EXECUTION',
+  APPEAL_WINDOW: 'REGISTRY_ACTION',
+  NOTICE_OF_APPEAL_FILED: 'REGISTRY_ACTION',
+  ON_APPEAL: 'MENTION',
+  APPEAL_DECIDED: 'JUDGMENT',
+  IN_PROGRESS: 'OTHER',
+  ON_HOLD: 'OTHER',
+};
+
+const TERMINAL_STATUSES = new Set(['SETTLED', 'WITHDRAWN', 'DISMISSED', 'CLOSED']);
+
+const toIsoDateTime = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+};
+
 export default function LawyerCaseDetailsPage() {
   const { id } = useParams();
 
@@ -61,12 +108,36 @@ export default function LawyerCaseDetailsPage() {
   const updateStatus = useUpdateCaseStatus(id);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
+  const [nextEvent, setNextEvent] = useState({
+    event_type: 'OTHER',
+    title: '',
+    starts_at: '',
+    court_station: '',
+    courtroom: '',
+    judicial_officer: '',
+    description: '',
+    is_client_visible: true,
+  });
 
   useEffect(() => {
     if (data?.status) {
       setSelectedStatus(data.status);
     }
   }, [data?.status]);
+
+  useEffect(() => {
+    if (!selectedStatus || !data) return;
+    const eventType = STATUS_EVENT_TYPE[selectedStatus] || 'OTHER';
+    const statusLabel = CASE_STATUS_OPTIONS.find((item) => item.value === selectedStatus)?.label || 'Next Event';
+    setNextEvent((current) => ({
+      ...current,
+      event_type: eventType,
+      title: current.title && current.starts_at ? current.title : `${statusLabel} - ${data.case_number}`,
+      court_station: current.court_station || data.court_station || data.court_name || '',
+      courtroom: current.courtroom || data.courtroom || '',
+      judicial_officer: current.judicial_officer || data.judicial_officer || '',
+    }));
+  }, [data, selectedStatus]);
 
   if (isLoading) {
     return (
@@ -126,18 +197,44 @@ export default function LawyerCaseDetailsPage() {
   };
 
   const handleStatusUpdate = async () => {
-    if (!selectedStatus || selectedStatus === caseData.status) return;
+    const requiresNextEvent = !TERMINAL_STATUSES.has(selectedStatus);
+    if (!selectedStatus) return;
+    if (requiresNextEvent && !nextEvent.starts_at) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Next Event Required',
+        text: 'Please provide the next event date before updating this active matter.',
+      });
+      return;
+    }
 
     try {
-      await updateStatus.mutateAsync({
+      const payload = {
         status: selectedStatus,
         note: statusNote,
-      });
+      };
+      if (nextEvent.starts_at) {
+        payload.next_event = {
+          ...nextEvent,
+          starts_at: toIsoDateTime(nextEvent.starts_at),
+        };
+      }
+      await updateStatus.mutateAsync(payload);
       setStatusNote('');
+      setNextEvent({
+        event_type: STATUS_EVENT_TYPE[selectedStatus] || 'OTHER',
+        title: '',
+        starts_at: '',
+        court_station: caseData.court_station || caseData.court_name || '',
+        courtroom: caseData.courtroom || '',
+        judicial_officer: caseData.judicial_officer || '',
+        description: '',
+        is_client_visible: true,
+      });
       await Swal.fire({
         icon: 'success',
-        title: 'Status Updated',
-        text: 'The case status has been updated.',
+        title: 'Case Updated',
+        text: 'The lifecycle status and next event have been updated.',
         timer: 1600,
         showConfirmButton: false,
       });
@@ -270,6 +367,12 @@ export default function LawyerCaseDetailsPage() {
 
       <CaseProcedurePanels caseData={caseData} />
 
+      <CaseCourtroomPanel
+        caseId={id}
+        title='Case Courtroom'
+        emptyMessage='No courtroom session has been attached to this assigned case yet.'
+      />
+
       <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
         <StatsCard
           title='Timeline Items'
@@ -336,12 +439,119 @@ export default function LawyerCaseDetailsPage() {
             disabled={
               updateStatus.isPending ||
               !selectedStatus ||
-              selectedStatus === caseData.status
+              (selectedStatus === caseData.status && !nextEvent.starts_at)
             }
             className='rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
           >
-            {updateStatus.isPending ? 'Updating...' : 'Update Status'}
+            {updateStatus.isPending ? 'Updating...' : 'Update Case'}
           </button>
+        </div>
+
+        <div className='mt-6 border-t border-border-light pt-6 dark:border-border-dark'>
+          <div className='mb-4'>
+            <h4 className='text-base font-semibold text-text-primary-light dark:text-text-primary-dark'>
+              Next Event
+            </h4>
+            <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
+              Active lifecycle updates should include the next date the firm, client, or court must act on.
+            </p>
+          </div>
+
+          <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Event Type
+              </label>
+              <select
+                value={nextEvent.event_type}
+                onChange={(event) => setNextEvent((current) => ({ ...current, event_type: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              >
+                {EVENT_TYPE_OPTIONS.map((eventType) => (
+                  <option key={eventType.value} value={eventType.value}>
+                    {eventType.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Event Date
+              </label>
+              <input
+                type='datetime-local'
+                value={nextEvent.starts_at}
+                onChange={(event) => setNextEvent((current) => ({ ...current, starts_at: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Event Title
+              </label>
+              <input
+                value={nextEvent.title}
+                onChange={(event) => setNextEvent((current) => ({ ...current, title: event.target.value }))}
+                placeholder='Mention, hearing, filing follow-up...'
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition placeholder:text-text-muted-light focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:placeholder:text-text-muted-dark'
+              />
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Court Station
+              </label>
+              <input
+                value={nextEvent.court_station}
+                onChange={(event) => setNextEvent((current) => ({ ...current, court_station: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Courtroom
+              </label>
+              <input
+                value={nextEvent.courtroom}
+                onChange={(event) => setNextEvent((current) => ({ ...current, courtroom: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Judicial Officer
+              </label>
+              <input
+                value={nextEvent.judicial_officer}
+                onChange={(event) => setNextEvent((current) => ({ ...current, judicial_officer: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+            </div>
+          </div>
+
+          <div className='mt-4 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center'>
+            <textarea
+              value={nextEvent.description}
+              onChange={(event) => setNextEvent((current) => ({ ...current, description: event.target.value }))}
+              placeholder='Optional event notes'
+              rows={3}
+              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition placeholder:text-text-muted-light focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:placeholder:text-text-muted-dark'
+            />
+
+            <label className='inline-flex items-center gap-3 rounded-xl border border-border-light px-4 py-3 text-sm font-semibold text-text-primary-light dark:border-border-dark dark:text-text-primary-dark'>
+              <input
+                type='checkbox'
+                checked={nextEvent.is_client_visible}
+                onChange={(event) => setNextEvent((current) => ({ ...current, is_client_visible: event.target.checked }))}
+                className='h-4 w-4'
+              />
+              Notify client
+            </label>
+          </div>
         </div>
       </Card>
 

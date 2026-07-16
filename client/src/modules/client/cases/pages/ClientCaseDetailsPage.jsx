@@ -17,6 +17,7 @@ import {
 
 import { useClientCaseDetails } from '@/modules/client/cases/hooks/useClientCaseDetails';
 import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
+import CaseCourtroomPanel from '@/modules/courtroom/components/CaseCourtroomPanel';
 
 export default function ClientCaseDetailsPage() {
   const { id } = useParams();
@@ -189,6 +190,12 @@ export default function ClientCaseDetailsPage() {
       </Card>
 
       <CaseProcedurePanels caseData={caseData} />
+
+      <CaseCourtroomPanel
+        caseId={id}
+        title='Case Courtroom'
+        emptyMessage='Your firm has not attached a courtroom session to this case yet.'
+      />
 
       <div className='grid gap-4 sm:grid-cols-3'>
         <StatsCard title='Case Progress' value={caseData.stage_progress || 0} />

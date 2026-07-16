@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.db.models import Count, Q
 
-from apps.cases.models import Case, CaseActivity, CaseParty, CaseTimeline
+from apps.cases.models import Case, CaseActivity, CaseEvent, CaseParty, CaseTimeline
 from apps.clients.models import Client
 from apps.common.choices import UserRole
 from apps.notifications.services import NotificationService
@@ -9,6 +9,29 @@ from apps.staff.models import Lawyer, Secretary
 
 
 class CaseService:
+    STATUS_EVENT_TYPE_MAP = {
+        Case.Status.PENDING_FILING: CaseEvent.EventType.REGISTRY_ACTION,
+        Case.Status.FILED: CaseEvent.EventType.REGISTRY_ACTION,
+        Case.Status.SERVICE_PENDING: CaseEvent.EventType.REGISTRY_ACTION,
+        Case.Status.AWAITING_RESPONSE: CaseEvent.EventType.REGISTRY_ACTION,
+        Case.Status.MENTION: CaseEvent.EventType.MENTION,
+        Case.Status.DIRECTIONS: CaseEvent.EventType.DIRECTIONS,
+        Case.Status.PRE_TRIAL: CaseEvent.EventType.PRE_TRIAL,
+        Case.Status.MEDIATION: CaseEvent.EventType.MEDIATION,
+        Case.Status.HEARING: CaseEvent.EventType.HEARING,
+        Case.Status.SUBMISSIONS: CaseEvent.EventType.SUBMISSIONS,
+        Case.Status.AWAITING_RULING: CaseEvent.EventType.RULING,
+        Case.Status.AWAITING_JUDGMENT: CaseEvent.EventType.JUDGMENT,
+        Case.Status.DECREE_EXTRACTION: CaseEvent.EventType.REGISTRY_ACTION,
+        Case.Status.EXECUTION: CaseEvent.EventType.EXECUTION,
+        Case.Status.APPEAL_WINDOW: CaseEvent.EventType.REGISTRY_ACTION,
+        Case.Status.NOTICE_OF_APPEAL_FILED: CaseEvent.EventType.REGISTRY_ACTION,
+        Case.Status.ON_APPEAL: CaseEvent.EventType.MENTION,
+        Case.Status.APPEAL_DECIDED: CaseEvent.EventType.JUDGMENT,
+        Case.Status.IN_PROGRESS: CaseEvent.EventType.OTHER,
+        Case.Status.ON_HOLD: CaseEvent.EventType.OTHER,
+    }
+
     @staticmethod
     def get_user_firm(user):
         if user.role == UserRole.ADMIN and hasattr(user, "owned_firm"):
@@ -182,6 +205,48 @@ class CaseService:
         )
 
     @staticmethod
+    def default_event_type_for_status(status):
+        return CaseService.STATUS_EVENT_TYPE_MAP.get(status, CaseEvent.EventType.OTHER)
+
+    @staticmethod
+    def default_event_title_for_status(case, status):
+        return f"{case.get_status_display()} - {case.case_number}"
+
+    @staticmethod
+    def create_next_event_for_case(*, case, status, next_event_data, actor):
+        if not next_event_data:
+            return None
+
+        from apps.events.services import EventService
+
+        payload = {
+            "case_id": case.id,
+            "event_type": next_event_data.get("event_type") or CaseService.default_event_type_for_status(status),
+            "title": next_event_data.get("title") or CaseService.default_event_title_for_status(case, status),
+            "description": next_event_data.get("description", ""),
+            "starts_at": next_event_data["starts_at"],
+            "ends_at": next_event_data.get("ends_at"),
+            "court_station": next_event_data.get("court_station", case.court_station),
+            "courtroom": next_event_data.get("courtroom", case.courtroom),
+            "judicial_officer": next_event_data.get("judicial_officer", case.judicial_officer),
+            "cause_list_position": next_event_data.get("cause_list_position", ""),
+            "is_client_visible": next_event_data.get("is_client_visible", True),
+            "notify_participants": next_event_data.get("notify_participants", True),
+        }
+        event = EventService.create_event(user=actor, validated_data=payload)
+        case.next_court_date = event.starts_at
+        case.next_action = event.title
+        case.save(update_fields=["next_court_date", "next_action", "updated_at"])
+        CaseService.record_activity(
+            case,
+            action="Next Event Scheduled",
+            description=f"{event.title} was scheduled for the case.",
+            actor=actor,
+            metadata={"event_id": str(event.id), "starts_at": event.starts_at.isoformat()},
+        )
+        return event
+
+    @staticmethod
     def notify_case_assignments(
         case,
         *,
@@ -307,6 +372,7 @@ class CaseService:
     @staticmethod
     @transaction.atomic
     def update_case(*, case, validated_data, actor):
+        next_event_data = validated_data.pop("next_event", None)
         if "priority" in validated_data:
             is_owner_admin = (
                 actor.role == UserRole.ADMIN
@@ -325,11 +391,18 @@ class CaseService:
             actor=actor,
             metadata={"updated_fields": list(validated_data.keys())},
         )
+        if next_event_data:
+            CaseService.create_next_event_for_case(
+                case=case,
+                status=case.status,
+                next_event_data=next_event_data,
+                actor=actor,
+            )
         return case
 
     @staticmethod
     @transaction.atomic
-    def change_status(*, case, status, actor, note=""):
+    def change_status(*, case, status, actor, note="", next_event=None):
         is_owner_admin = actor.role == UserRole.ADMIN and case.firm.owner_id == actor.id
         is_assigned_lawyer = (
             getattr(actor, "lawyer_profile", None) is not None
@@ -340,13 +413,20 @@ class CaseService:
 
         case.status = status
         case.is_active = status not in Case.Status.inactive_statuses()
-        case.save(update_fields=["status", "is_active", "updated_at"])
+        update_fields = ["status", "is_active", "updated_at"]
+        case.save(update_fields=update_fields)
         CaseService.record_activity(
             case,
             action="Status Changed",
             description=note or f"Case status changed to {status}.",
             actor=actor,
             metadata={"status": status},
+        )
+        CaseService.create_next_event_for_case(
+            case=case,
+            status=status,
+            next_event_data=next_event,
+            actor=actor,
         )
         NotificationService.notify_case_status_update(
             case=case,

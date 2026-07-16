@@ -37,7 +37,7 @@ export default function ResetPassword() {
       await resetPassword({
         uid,
         token,
-        password: newPassword,
+        new_password: newPassword,
         confirm_password: confirmPassword,
       });
 
