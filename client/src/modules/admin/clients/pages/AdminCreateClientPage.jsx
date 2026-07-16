@@ -54,6 +54,7 @@ export default function AdminCreateClientPage() {
   const [selectedClientMode, setSelectedClientMode] = useState(
     isIndividualClientType && clientMode === 'assisted' ? 'assisted' : 'prospect',
   );
+  const [selectedCompanyAccessType, setSelectedCompanyAccessType] = useState('PROSPECT');
   const partnershipAgreementTypes = [
     {
       value: 'GENERAL_PARTNERSHIP',
@@ -90,6 +91,9 @@ export default function AdminCreateClientPage() {
   ];
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [generalError, setGeneralError] = useState('');
+  const [successData, setSuccessData] = useState(null);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -103,12 +107,21 @@ export default function AdminCreateClientPage() {
     marital_status: '',
 
     company_name: '',
+    trading_name: '',
     registration_number: '',
+    kra_pin: '',
+    company_type: 'PRIVATE_LIMITED',
     incorporation_date: '',
-    country_of_incorporation: '',
+    country_of_incorporation: 'Kenya',
     industry: '',
+    nature_of_business: '',
+    website: '',
     company_status: 'ACTIVE',
     director_count: '',
+    employee_count: '',
+    beneficial_ownership_declared: false,
+    annual_returns_up_to_date: false,
+    compliance_notes: '',
 
     partnership_name: '',
     tax_pin: '',
@@ -181,12 +194,84 @@ export default function AdminCreateClientPage() {
   });
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    const nextValue = type === 'checkbox' ? checked : value;
+    setFormData((prev) => ({ ...prev, [name]: nextValue }));
+    setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+    setGeneralError('');
+  };
+
+  const normalizeUpper = (value) => (value || '').trim().toUpperCase();
+
+  const isValidEmail = (value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+  const isValidUrl = (value) => {
+    if (!value) return true;
+    try {
+      const parsed = new URL(value);
+      return ['http:', 'https:'].includes(parsed.protocol);
+    } catch {
+      return false;
+    }
+  };
+
+  const validateCompanyForm = () => {
+    const errors = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const incorporationDate = formData.incorporation_date
+      ? new Date(`${formData.incorporation_date}T00:00:00`)
+      : null;
+
+    if (!formData.company_name.trim()) {
+      errors.company_name = 'Company name is required.';
+    }
+    if (!formData.registration_number.trim()) {
+      errors.registration_number = 'Registration number is required.';
+    }
+    if (formData.kra_pin && normalizeUpper(formData.kra_pin).length < 8) {
+      errors.kra_pin = 'Enter a valid KRA PIN.';
+    }
+    if (incorporationDate && incorporationDate > today) {
+      errors.incorporation_date = 'Incorporation date cannot be in the future.';
+    }
+    if (formData.director_count !== '' && Number(formData.director_count) < 0) {
+      errors.director_count = 'Number of directors cannot be negative.';
+    }
+    if (formData.employee_count !== '' && Number(formData.employee_count) < 0) {
+      errors.employee_count = 'Number of employees cannot be negative.';
+    }
+    if (!isValidEmail(formData.email)) {
+      errors.email = 'Enter a valid company email.';
+    }
+    if (!isValidEmail(formData.contact_email)) {
+      errors.contact_email = 'Enter a valid contact email.';
+    }
+    if (!isValidUrl(formData.website)) {
+      errors.website = 'Enter a valid http or https URL.';
+    }
+
+    if (selectedCompanyAccessType === 'PROSPECT') {
+      if (!formData.email.trim()) {
+        errors.email = 'Company email is required for client portal access.';
+      }
+      if (!formData.phone_number.trim() && !formData.contact_phone_number.trim()) {
+        errors.phone_number = 'Add a company phone or authorised contact phone.';
+      }
+      if (!formData.contact_full_name.trim()) {
+        errors.contact_full_name = 'Authorised contact full name is required.';
+      }
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const buildPayload = () => {
-    const isProspect = clientType !== 'INDIVIDUAL' || selectedClientMode === 'prospect';
+    const isCompanyClient = clientType === 'COMPANY';
+    const isProspect = isCompanyClient
+      ? selectedCompanyAccessType === 'PROSPECT'
+      : clientType !== 'INDIVIDUAL' || selectedClientMode === 'prospect';
     const clean = (payload) =>
       Object.fromEntries(
         Object.entries(payload).filter(([, value]) => value !== '' && value !== null),
@@ -220,14 +305,23 @@ export default function AdminCreateClientPage() {
       return clean({
         ...base,
         company_name:
-          formData.company_name ||
+          formData.company_name.trim() ||
           `${requestedClientType.replace(/_/g, ' ')} Client`,
-        registration_number: formData.registration_number,
+        trading_name: formData.trading_name.trim(),
+        registration_number: normalizeUpper(formData.registration_number),
+        kra_pin: normalizeUpper(formData.kra_pin),
+        company_type: formData.company_type,
         incorporation_date: formData.incorporation_date || null,
-        country_of_incorporation: formData.country_of_incorporation,
+        country_of_incorporation: formData.country_of_incorporation || 'Kenya',
         industry: formData.industry,
+        nature_of_business: formData.nature_of_business,
+        website: formData.website,
         company_status: formData.company_status,
         director_count: formData.director_count,
+        employee_count: formData.employee_count,
+        beneficial_ownership_declared: formData.beneficial_ownership_declared,
+        annual_returns_up_to_date: formData.annual_returns_up_to_date,
+        compliance_notes: formData.compliance_notes,
         contact_full_name: formData.contact_full_name,
         contact_email: formData.contact_email,
         contact_phone_number: formData.contact_phone_number,
@@ -341,14 +435,27 @@ export default function AdminCreateClientPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
+    if (clientType === 'COMPANY' && !validateCompanyForm()) {
+      setGeneralError('Please fix the highlighted company details.');
+      return;
+    }
 
     try {
       setIsSubmitting(true);
+      setFieldErrors({});
+      setGeneralError('');
 
       const payload = buildPayload();
       const response = isSecretaryCreate
         ? await secretaryClientsService.createClient(payload, clientType)
         : await adminClientsService.createClient(payload, clientType);
+
+      if (clientType === 'COMPANY') {
+        setSuccessData(response);
+        return;
+      }
 
       const tempPassword = response?.temp_password;
 
@@ -372,6 +479,23 @@ export default function AdminCreateClientPage() {
       navigate(isSecretaryCreate ? '/secretary/clients' : '/admin/clients');
     } catch (error) {
       const data = error?.response?.data;
+      const backendErrors = data?.errors || data || {};
+
+      if (clientType === 'COMPANY') {
+        const nextFieldErrors = {};
+        Object.entries(backendErrors).forEach(([field, errors]) => {
+          if (['detail', 'message', 'non_field_errors'].includes(field)) return;
+          nextFieldErrors[field] = Array.isArray(errors) ? errors.join(', ') : errors;
+        });
+        setFieldErrors(nextFieldErrors);
+        setGeneralError(
+          backendErrors.non_field_errors?.join?.(', ') ||
+            data?.detail ||
+            data?.message ||
+            'Unable to create company client.',
+        );
+        return;
+      }
 
       let html = `<p>${data?.message ?? 'Unable to create client'}</p>`;
 
@@ -395,14 +519,65 @@ export default function AdminCreateClientPage() {
   };
 
   const isIndividual = clientType === 'INDIVIDUAL';
+  const isCompanyClient = clientType === 'COMPANY';
   const isCompany = companyLikeClientTypes.includes(clientType);
   const isPartnership = clientType === 'PARTNERSHIP';
   const isNGO = ngoLikeClientTypes.includes(clientType);
   const isTrust = clientType === 'TRUST';
   const isEstate = clientType === 'ESTATE';
   const isGovernment = governmentLikeClientTypes.includes(clientType);
-  const isProspect = !isIndividual || selectedClientMode === 'prospect';
+  const isProspect = isCompanyClient
+    ? selectedCompanyAccessType === 'PROSPECT'
+    : !isIndividual || selectedClientMode === 'prospect';
   const isAssistedIndividual = isIndividual && !isProspect;
+  const createdClient = successData?.client;
+  const createdProfile = successData?.profile;
+  const createdPortalUser = successData?.portal_user;
+  const createdTempPassword = successData?.temp_password;
+
+  const resetCompanyForm = () => {
+    setSuccessData(null);
+    setFieldErrors({});
+    setGeneralError('');
+    setSelectedCompanyAccessType('PROSPECT');
+    setFormData((prev) => ({
+      ...prev,
+      email: '',
+      phone_number: '',
+      company_name: '',
+      trading_name: '',
+      registration_number: '',
+      kra_pin: '',
+      company_type: 'PRIVATE_LIMITED',
+      incorporation_date: '',
+      country_of_incorporation: 'Kenya',
+      industry: '',
+      nature_of_business: '',
+      website: '',
+      company_status: 'ACTIVE',
+      director_count: '',
+      employee_count: '',
+      beneficial_ownership_declared: false,
+      annual_returns_up_to_date: false,
+      compliance_notes: '',
+      contact_full_name: '',
+      contact_email: '',
+      contact_phone_number: '',
+      contact_national_id_number: '',
+      contact_role_or_designation: '',
+      country: 'Kenya',
+      county: '',
+      city: '',
+      street: '',
+      postal_code: '',
+      full_address: '',
+    }));
+  };
+
+  const copyTempPassword = async () => {
+    if (!createdTempPassword) return;
+    await navigator.clipboard.writeText(createdTempPassword);
+  };
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
@@ -411,8 +586,63 @@ export default function AdminCreateClientPage() {
         subtitle={`${requestedClientType} / ${isProspect ? 'prospect' : 'assisted'}`}
       />
 
+      {isCompanyClient && successData && (
+        <div className='rounded-xl border border-green-200 bg-green-50 p-6 text-green-950'>
+          <h2 className='text-xl font-semibold'>Company client created</h2>
+          <div className='mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm'>
+            <div><strong>Company:</strong> {createdProfile?.company_name}</div>
+            <div><strong>Client ID:</strong> {createdClient?.id}</div>
+            <div><strong>Registration number:</strong> {createdProfile?.registration_number}</div>
+            <div><strong>KRA PIN:</strong> {createdClient?.kra_pin || 'Not provided'}</div>
+            <div><strong>Access type:</strong> {createdClient?.access_type}</div>
+            <div><strong>Portal login email:</strong> {createdPortalUser?.email || 'Not created'}</div>
+          </div>
+          {createdTempPassword && (
+            <div className='mt-4 rounded-lg border border-green-300 bg-white p-4'>
+              <div className='text-sm font-semibold'>Temporary password</div>
+              <div className='mt-2 flex flex-col gap-3 sm:flex-row sm:items-center'>
+                <code className='rounded bg-slate-100 px-3 py-2 text-slate-950'>
+                  {createdTempPassword}
+                </code>
+                <Button3D type='button' variant='outlineLight' size='sm' onClick={copyTempPassword}>
+                  Copy
+                </Button3D>
+              </div>
+              <p className='mt-2 text-sm'>
+                Save this securely. It is only shown on this confirmation screen.
+              </p>
+            </div>
+          )}
+          <div className='mt-5 flex flex-wrap gap-3'>
+            <Button3D
+              type='button'
+              variant='primary'
+              onClick={() => navigate(`/admin/clients/${createdClient?.id}`)}
+            >
+              View company client
+            </Button3D>
+            <Button3D type='button' variant='outlineLight' onClick={resetCompanyForm}>
+              Create another client
+            </Button3D>
+            <Button3D
+              type='button'
+              variant='success'
+              onClick={() => navigate('/admin/cases/create')}
+            >
+              Continue to create a case
+            </Button3D>
+          </div>
+        </div>
+      )}
+
+      {!(isCompanyClient && successData) && (
       <Card className='p-6'>
         <form onSubmit={handleSubmit} className='space-y-6'>
+          {generalError && (
+            <div className='rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700'>
+              {generalError}
+            </div>
+          )}
           {isIndividual && (
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <Select3D
@@ -428,7 +658,7 @@ export default function AdminCreateClientPage() {
             </div>
           )}
 
-          {!isAssistedIndividual && (
+          {!isCompanyClient && !isAssistedIndividual && (
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <FloatingInput
                 label={isProspect ? 'Login Email' : 'Email'}
@@ -448,7 +678,7 @@ export default function AdminCreateClientPage() {
             </div>
           )}
 
-          {isCompany && (
+          {isCompany && !isCompanyClient && (
             <>
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <FloatingInput
@@ -1087,12 +1317,274 @@ export default function AdminCreateClientPage() {
             </>
           )}
 
+          {isCompanyClient && (
+            <>
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Company identity
+                </h3>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput
+                    label='Company Name'
+                    name='company_name'
+                    value={formData.company_name}
+                    onChange={handleChange}
+                    error={fieldErrors.company_name}
+                    required
+                  />
+                  <FloatingInput
+                    label='Trading Name'
+                    name='trading_name'
+                    value={formData.trading_name}
+                    onChange={handleChange}
+                    error={fieldErrors.trading_name}
+                  />
+                  <FloatingInput
+                    label='Registration Number'
+                    name='registration_number'
+                    value={formData.registration_number}
+                    onChange={handleChange}
+                    error={fieldErrors.registration_number}
+                    required
+                  />
+                  <FloatingInput
+                    label='KRA PIN'
+                    name='kra_pin'
+                    value={formData.kra_pin}
+                    onChange={handleChange}
+                    error={fieldErrors.kra_pin}
+                  />
+                  <Select3D
+                    label='Company Type'
+                    name='company_type'
+                    value={formData.company_type}
+                    onChange={handleChange}
+                    options={[
+                      { value: 'PRIVATE_LIMITED', label: 'Private Company Limited by Shares' },
+                      { value: 'PUBLIC_LIMITED', label: 'Public Limited Company' },
+                      { value: 'COMPANY_LIMITED_BY_GUARANTEE', label: 'Company Limited by Guarantee' },
+                      { value: 'FOREIGN_COMPANY', label: 'Foreign Company' },
+                      { value: 'UNLIMITED_COMPANY', label: 'Unlimited Company' },
+                      { value: 'OTHER', label: 'Other' },
+                    ]}
+                  />
+                  <FloatingInput
+                    label='Incorporation Date'
+                    name='incorporation_date'
+                    type='date'
+                    value={formData.incorporation_date}
+                    onChange={handleChange}
+                    error={fieldErrors.incorporation_date}
+                  />
+                  <FloatingInput
+                    label='Country of Incorporation'
+                    name='country_of_incorporation'
+                    value={formData.country_of_incorporation}
+                    onChange={handleChange}
+                    error={fieldErrors.country_of_incorporation}
+                  />
+                  <Select3D
+                    label='Company Status'
+                    name='company_status'
+                    value={formData.company_status}
+                    onChange={handleChange}
+                    options={[
+                      { value: 'ACTIVE', label: 'Active' },
+                      { value: 'DORMANT', label: 'Dormant' },
+                      { value: 'UNDER_ADMINISTRATION', label: 'Under Administration' },
+                      { value: 'IN_RECEIVERSHIP', label: 'In Receivership' },
+                      { value: 'INSOLVENT', label: 'Insolvent' },
+                      { value: 'LIQUIDATION', label: 'In Liquidation' },
+                      { value: 'DISSOLVED', label: 'Dissolved' },
+                      { value: 'STRUCK_OFF', label: 'Struck Off' },
+                      { value: 'OTHER', label: 'Other' },
+                    ]}
+                  />
+                </div>
+              </section>
+
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Business information
+                </h3>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput
+                    label='Industry'
+                    name='industry'
+                    value={formData.industry}
+                    onChange={handleChange}
+                    error={fieldErrors.industry}
+                  />
+                  <FloatingInput
+                    label='Nature of Business'
+                    name='nature_of_business'
+                    value={formData.nature_of_business}
+                    onChange={handleChange}
+                    error={fieldErrors.nature_of_business}
+                  />
+                  <FloatingInput
+                    label='Website'
+                    name='website'
+                    value={formData.website}
+                    onChange={handleChange}
+                    error={fieldErrors.website}
+                  />
+                  <FloatingInput
+                    label='Number of Directors'
+                    name='director_count'
+                    type='number'
+                    min='0'
+                    value={formData.director_count}
+                    onChange={handleChange}
+                    error={fieldErrors.director_count}
+                  />
+                  <FloatingInput
+                    label='Number of Employees'
+                    name='employee_count'
+                    type='number'
+                    min='0'
+                    value={formData.employee_count}
+                    onChange={handleChange}
+                    error={fieldErrors.employee_count}
+                  />
+                  <label className='flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                    <input
+                      type='checkbox'
+                      name='beneficial_ownership_declared'
+                      checked={formData.beneficial_ownership_declared}
+                      onChange={handleChange}
+                    />
+                    <span>Beneficial ownership declared</span>
+                  </label>
+                  <label className='flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                    <input
+                      type='checkbox'
+                      name='annual_returns_up_to_date'
+                      checked={formData.annual_returns_up_to_date}
+                      onChange={handleChange}
+                    />
+                    <span>Annual returns up to date</span>
+                  </label>
+                  <FloatingInput
+                    label='Compliance Notes'
+                    name='compliance_notes'
+                    value={formData.compliance_notes}
+                    onChange={handleChange}
+                    error={fieldErrors.compliance_notes}
+                    className='md:col-span-2'
+                  />
+                </div>
+              </section>
+
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Company contact details
+                </h3>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput
+                    label='Company Email'
+                    name='email'
+                    value={formData.email}
+                    onChange={handleChange}
+                    error={fieldErrors.email}
+                    required={isProspect}
+                  />
+                  <FloatingInput
+                    label='Company Phone Number'
+                    name='phone_number'
+                    value={formData.phone_number}
+                    onChange={handleChange}
+                    error={fieldErrors.phone_number}
+                    required={isProspect && !formData.contact_phone_number}
+                  />
+                </div>
+              </section>
+
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Authorised portal contact
+                </h3>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput
+                    label='Full Name'
+                    name='contact_full_name'
+                    value={formData.contact_full_name}
+                    onChange={handleChange}
+                    error={fieldErrors.contact_full_name}
+                    required={isProspect}
+                  />
+                  <FloatingInput
+                    label='Role or Designation'
+                    name='contact_role_or_designation'
+                    value={formData.contact_role_or_designation}
+                    onChange={handleChange}
+                    error={fieldErrors.contact_role_or_designation}
+                  />
+                  <FloatingInput
+                    label='Email'
+                    name='contact_email'
+                    value={formData.contact_email}
+                    onChange={handleChange}
+                    error={fieldErrors.contact_email}
+                  />
+                  <FloatingInput
+                    label='Phone Number'
+                    name='contact_phone_number'
+                    value={formData.contact_phone_number}
+                    onChange={handleChange}
+                    error={fieldErrors.contact_phone_number}
+                    required={isProspect && !formData.phone_number}
+                  />
+                  <FloatingInput
+                    label='National ID Number'
+                    name='contact_national_id_number'
+                    value={formData.contact_national_id_number}
+                    onChange={handleChange}
+                    error={fieldErrors.contact_national_id_number}
+                  />
+                </div>
+              </section>
+
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Portal access
+                </h3>
+                <Select3D
+                  label='Access Type'
+                  name='access_type'
+                  value={selectedCompanyAccessType}
+                  onChange={(event) => {
+                    setSelectedCompanyAccessType(event.target.value);
+                    setGeneralError('');
+                  }}
+                  options={[
+                    { value: 'ASSISTED_CLIENT', label: 'Firm-managed client' },
+                    { value: 'PROSPECT', label: 'Client portal access' },
+                  ]}
+                />
+                {isProspect && (
+                  <div className='rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950'>
+                    The main company email will be used as the login email. A
+                    temporary password will be generated after creation.
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+
+          {isCompanyClient && (
+            <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+              Registered office
+            </h3>
+          )}
+
           <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
             <FloatingInput
               label='Country'
               name='country'
               value={formData.country}
               onChange={handleChange}
+              error={fieldErrors.country}
             />
 
             <FloatingInput
@@ -1100,6 +1592,7 @@ export default function AdminCreateClientPage() {
               name='county'
               value={formData.county}
               onChange={handleChange}
+              error={fieldErrors.county}
             />
 
             <FloatingInput
@@ -1107,6 +1600,7 @@ export default function AdminCreateClientPage() {
               name='city'
               value={formData.city}
               onChange={handleChange}
+              error={fieldErrors.city}
             />
 
             <FloatingInput
@@ -1114,6 +1608,7 @@ export default function AdminCreateClientPage() {
               name='street'
               value={formData.street}
               onChange={handleChange}
+              error={fieldErrors.street}
             />
 
             <FloatingInput
@@ -1121,6 +1616,7 @@ export default function AdminCreateClientPage() {
               name='postal_code'
               value={formData.postal_code}
               onChange={handleChange}
+              error={fieldErrors.postal_code}
             />
 
             <FloatingInput
@@ -1128,6 +1624,7 @@ export default function AdminCreateClientPage() {
               name='full_address'
               value={formData.full_address}
               onChange={handleChange}
+              error={fieldErrors.full_address}
               required={!isAssistedIndividual}
             />
           </div>
@@ -1149,6 +1646,7 @@ export default function AdminCreateClientPage() {
           </div>
         </form>
       </Card>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 from django.db import transaction
+from rest_framework.exceptions import ValidationError
 
 from apps.common.choices import UserRole
 from apps.clients.models import (
@@ -15,6 +16,7 @@ from apps.clients.models import (
     TrustClient,
 )
 from apps.users.services.auth_service import AuthService
+from apps.users.models import User
 
 
 class ClientAdminCreateService:
@@ -122,12 +124,17 @@ class ClientAdminCreateService:
         if client.access_type != Client.AccessType.PROSPECT:
             return None, None
 
+        if User.objects.filter(email__iexact=client.email).exists():
+            raise ValidationError(
+                {"email": "A user account with this email already exists."}
+            )
+
         full_name = contact_data.get("contact_full_name") or client.full_name
         first_name, last_name = ClientAdminCreateService._split_name(full_name)
         national_id_number = (
-            base_data.get("national_id")
+            contact_data.get("contact_national_id_number")
+            or base_data.get("national_id")
             or base_data.get("passport_number")
-            or contact_data.get("contact_national_id_number")
             or f"CLIENT-{str(client.id)[:13]}"
         )
 
@@ -173,14 +180,14 @@ class ClientAdminCreateService:
         )
 
         profile = ClientAdminCreateService._create_profile(client, client_type, data)
-        ClientAdminCreateService._create_address(
+        registered_address = ClientAdminCreateService._create_address(
             client,
             address_data,
             ClientAddress.AddressType.REGISTERED
             if client_type != Client.ClientType.INDIVIDUAL
             else ClientAddress.AddressType.HOME,
         )
-        ClientAdminCreateService._create_contact(
+        primary_contact = ClientAdminCreateService._create_contact(
             client,
             contact_data,
             fallback_name=full_name,
@@ -193,7 +200,14 @@ class ClientAdminCreateService:
             contact_data,
         )
 
-        return {"client": client, "profile": profile, "user": user, "temp_password": temp_password}
+        return {
+            "client": client,
+            "profile": profile,
+            "primary_contact": primary_contact,
+            "registered_address": registered_address,
+            "user": user,
+            "temp_password": temp_password,
+        }
 
     @staticmethod
     def _create_profile(client, client_type, data):
@@ -209,12 +223,26 @@ class ClientAdminCreateService:
             return CompanyClient.objects.create(
                 client=client,
                 company_name=data["company_name"],
+                trading_name=data.get("trading_name", ""),
                 registration_number=data["registration_number"],
+                company_type=data.get(
+                    "company_type",
+                    CompanyClient.CompanyType.PRIVATE_LIMITED,
+                ),
                 incorporation_date=data.get("incorporation_date"),
-                country_of_incorporation=data.get("country_of_incorporation", ""),
+                country_of_incorporation=data.get("country_of_incorporation", "Kenya"),
                 industry=data.get("industry", ""),
+                nature_of_business=data.get("nature_of_business", ""),
+                website=data.get("website", ""),
                 company_status=data.get("company_status", CompanyClient.CompanyStatus.ACTIVE),
                 director_count=data.get("director_count", 0),
+                employee_count=data.get("employee_count"),
+                beneficial_ownership_declared=data.get(
+                    "beneficial_ownership_declared",
+                    False,
+                ),
+                annual_returns_up_to_date=data.get("annual_returns_up_to_date", False),
+                compliance_notes=data.get("compliance_notes", ""),
             )
 
         if client_type == Client.ClientType.PARTNERSHIP:

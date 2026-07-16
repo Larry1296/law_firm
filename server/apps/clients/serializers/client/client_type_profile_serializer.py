@@ -20,7 +20,7 @@ class IndividualClientProfileSerializer(serializers.ModelSerializer):
 class CompanyClientProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanyClient
-        exclude = ["client", "user"]
+        exclude = ["client"]
 
 
 class PartnershipClientProfileSerializer(serializers.ModelSerializer):
