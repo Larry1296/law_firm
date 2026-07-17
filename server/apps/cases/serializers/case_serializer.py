@@ -10,6 +10,9 @@ class CaseSerializer(serializers.ModelSerializer):
     client_national_id = serializers.CharField(source="client.national_id", read_only=True)
     assigned_lawyer_name = serializers.CharField(source="assigned_lawyer.user.full_name", read_only=True)
     assigned_secretary_name = serializers.CharField(source="assigned_secretary.user.full_name", read_only=True)
+    internal_case_number = serializers.CharField(source="case_number", read_only=True)
+    matter_status_label = serializers.CharField(source="get_matter_status_display", read_only=True)
+    court_stage_label = serializers.CharField(source="get_court_stage_display", read_only=True)
 
     def get_plaintiff_name(self, obj):
         return obj.plaintiff or obj.client.full_name
@@ -31,11 +34,20 @@ class CaseSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "case_number",
+            "internal_case_number",
+            "official_court_case_number",
             "title",
             "description",
             "case_type",
             "procedure_track",
             "status",
+            "matter_status",
+            "matter_status_label",
+            "court_stage",
+            "court_stage_label",
+            "outcome_status",
+            "enforcement_status",
+            "appeal_status",
             "priority",
             "court_type",
             "court_division",

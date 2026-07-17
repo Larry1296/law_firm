@@ -8,6 +8,14 @@ from apps.cases.serializers.case_note_serializer import CaseNoteSerializer
 from apps.cases.serializers.case_party_serializer import CasePartySerializer
 from apps.cases.serializers.case_task_serializer import CaseTaskSerializer
 from apps.cases.serializers.case_timeline_serializer import CaseTimelineSerializer
+from apps.cases.serializers.case_conflict_check_serializer import (
+    CaseConflictCheckSerializer,
+)
+from apps.cases.serializers.case_lifecycle_transition_serializer import (
+    CaseLifecycleTransitionSerializer,
+)
+from apps.cases.services.case_conflict_check_service import CaseConflictCheckService
+from apps.cases.services.case_lifecycle_service import CaseLifecycleService
 from apps.events.serializers import EventSerializer
 
 
@@ -26,6 +34,16 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     tasks = serializers.SerializerMethodField()
     parties = serializers.SerializerMethodField()
     activities = CaseActivitySerializer(many=True, read_only=True)
+    lifecycle_transitions = CaseLifecycleTransitionSerializer(many=True, read_only=True)
+    matter_status_label = serializers.CharField(source="get_matter_status_display", read_only=True)
+    court_stage_label = serializers.CharField(source="get_court_stage_display", read_only=True)
+    outcome_status_label = serializers.CharField(source="get_outcome_status_display", read_only=True)
+    enforcement_status_label = serializers.CharField(source="get_enforcement_status_display", read_only=True)
+    appeal_status_label = serializers.CharField(source="get_appeal_status_display", read_only=True)
+    internal_case_number = serializers.CharField(source="case_number", read_only=True)
+    available_transitions = serializers.SerializerMethodField()
+    jurisdiction_warnings = serializers.SerializerMethodField()
+    conflict_check = serializers.SerializerMethodField()
     analytics = serializers.SerializerMethodField()
 
     def _client_visible_only(self):
@@ -155,12 +173,24 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "case_number",
+            "internal_case_number",
+            "official_court_case_number",
             "title",
             "description",
             "firm",
             "case_type",
             "procedure_track",
             "status",
+            "matter_status",
+            "matter_status_label",
+            "court_stage",
+            "court_stage_label",
+            "outcome_status",
+            "outcome_status_label",
+            "enforcement_status",
+            "enforcement_status_label",
+            "appeal_status",
+            "appeal_status_label",
             "priority",
             "court_type",
             "court_division",
@@ -173,7 +203,19 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "efiling_reference",
             "cts_reference",
             "payment_reference",
+            "assessment_reference",
+            "court_fee_amount",
+            "payment_date",
             "filing_date",
+            "filed_by",
+            "claim_amount",
+            "currency",
+            "court_level",
+            "judicial_officer_rank",
+            "jurisdiction_notes",
+            "jurisdiction_verified",
+            "jurisdiction_verified_by",
+            "jurisdiction_verified_at",
             "next_court_date",
             "next_action",
             "plaintiff",
@@ -195,6 +237,37 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "tasks",
             "parties",
             "activities",
+            "lifecycle_transitions",
+            "available_transitions",
+            "jurisdiction_warnings",
+            "conflict_check",
             "analytics",
         ]
         read_only_fields = fields
+
+    def get_available_transitions(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        return CaseLifecycleService.get_available_transitions(obj, user)
+
+    def get_jurisdiction_warnings(self, obj):
+        warnings = []
+        if obj.claim_amount is None:
+            warnings.append("Claim amount has not been captured.")
+        if not obj.court_station and not obj.court_name:
+            warnings.append("Court station or court identification is missing.")
+        if not obj.jurisdiction_verified:
+            warnings.append("Jurisdiction has not been verified.")
+        if not obj.court_level:
+            warnings.append("Court level has not been confirmed.")
+        if obj.court_stage in {obj.CourtStage.READY_FOR_FILING, obj.CourtStage.FILED} and not obj.court_fee_amount:
+            warnings.append("Court fee assessment is pending.")
+        if obj.court_stage in {obj.CourtStage.READY_FOR_FILING, obj.CourtStage.FILED} and not obj.official_court_case_number:
+            warnings.append("Official court case number has not been assigned.")
+        return warnings
+
+    def get_conflict_check(self, obj):
+        check = CaseConflictCheckService.existing_check(obj)
+        if self._client_visible_only():
+            return {"status": CaseConflictCheckService.client_safe_status(check)}
+        return CaseConflictCheckSerializer(check).data if check else None

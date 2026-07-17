@@ -16,22 +16,54 @@ class CaseUpdateSerializer(serializers.ModelSerializer):
             "procedure_track",
             "court_type",
             "court_division",
-            "status",
             "priority",
-            "filing_date",
             "court_name",
             "court_station",
             "registry",
             "courtroom",
             "judicial_officer",
             "court_location",
-            "efiling_reference",
-            "cts_reference",
-            "payment_reference",
+            "claim_amount",
+            "currency",
+            "court_level",
+            "judicial_officer_rank",
+            "jurisdiction_notes",
             "next_court_date",
             "next_action",
             "plaintiff",
             "defendant",
-            "is_active",
             "next_event",
         ]
+
+    def validate(self, attrs):
+        controlled_fields = {
+            "status",
+            "matter_status",
+            "court_stage",
+            "outcome_status",
+            "enforcement_status",
+            "appeal_status",
+            "filing_date",
+            "official_court_case_number",
+            "efiling_reference",
+            "cts_reference",
+            "payment_reference",
+            "assessment_reference",
+            "court_fee_amount",
+            "payment_date",
+            "jurisdiction_verified",
+            "jurisdiction_verified_by",
+            "jurisdiction_verified_at",
+        }
+        supplied = [field for field in controlled_fields if field in self.initial_data]
+        if supplied:
+            raise serializers.ValidationError(
+                {
+                    field: (
+                        "This field is controlled by the lifecycle, filing or "
+                        "jurisdiction verification workflow."
+                    )
+                    for field in supplied
+                }
+            )
+        return attrs

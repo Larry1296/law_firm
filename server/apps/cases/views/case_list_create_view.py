@@ -62,7 +62,6 @@ class CaseListCreateView(APIView):
         return Response(
             {
                 "data": CaseDetailSerializer(case, context={"request": request}).data,
-                "case": CaseDetailSerializer(case, context={"request": request}).data,
             },
             status=status.HTTP_201_CREATED,
         )

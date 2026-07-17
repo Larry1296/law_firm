@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.db.models import Q
+from django.conf import settings
 from django.utils import timezone
 
 from apps.cases.models import Case, CaseEvent
@@ -181,6 +182,13 @@ class EventService:
         case_id = validated_data.pop("case_id")
         case = cls.scoped_cases(user).get(id=case_id)
         cls.ensure_can_manage(user, case)
+        if validated_data.get("event_type") in cls.COURT_EVENT_TYPES:
+            validated_data.setdefault(
+                "hearing_mode",
+                getattr(settings, "DEFAULT_COURT_HEARING_MODE", CaseEvent.HearingMode.VIRTUAL),
+            )
+        validated_data.setdefault("court_stage_before", case.court_stage)
+        validated_data.setdefault("matter_status_before", case.matter_status)
         event = CaseEvent.objects.create(case=case, created_by=user, **validated_data)
         cls.awareness_for_event(event)
         if notify_participants:

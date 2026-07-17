@@ -99,7 +99,6 @@ class CaseApiTests(TestCase):
             "case_type": Case.CaseType.LAND,
             "court_type": Case.CourtType.ENVIRONMENT_LAND,
             "priority": Case.Priority.HIGH,
-            "filing_date": "2026-07-07",
             "court_name": "ELC Nairobi",
             "court_location": "Nairobi",
             "defendant": "John Doe",
@@ -109,9 +108,10 @@ class CaseApiTests(TestCase):
         response = self.client_api.post(reverse("case-create"), self.payload(), format="json")
 
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertEqual(response.data["case"]["plaintiff_name"], "Mary Wanjiku")
-        self.assertEqual(response.data["case"]["case_owner"]["party_role"], "PLAINTIFF")
-        self.assertEqual(response.data["case"]["case_owner"]["full_name"], "Mary Wanjiku")
+        self.assertNotIn("case", response.data)
+        self.assertEqual(response.data["data"]["plaintiff_name"], "Mary Wanjiku")
+        self.assertEqual(response.data["data"]["case_owner"]["party_role"], "PLAINTIFF")
+        self.assertEqual(response.data["data"]["case_owner"]["full_name"], "Mary Wanjiku")
         created = Case.objects.get(case_number="CASE-2026-001")
         self.assertEqual(created.client, self.client)
         self.assertEqual(created.assigned_lawyer, self.lawyer)

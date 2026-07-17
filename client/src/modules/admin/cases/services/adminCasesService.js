@@ -21,6 +21,21 @@ const adminCasesService = {
     return data;
   },
 
+  async transitionCase(caseId, payload) {
+    const { data } = await axiosInstance.post(`/cases/${caseId}/transitions/`, payload);
+    return data;
+  },
+
+  async conflictCheckAction(caseId, payload) {
+    const { data } = await axiosInstance.post(`/cases/${caseId}/conflict-check/actions/`, payload);
+    return data;
+  },
+
+  async verifyJurisdiction(caseId, payload) {
+    const { data } = await axiosInstance.post(`/cases/${caseId}/jurisdiction/actions/`, payload);
+    return data;
+  },
+
   async reassignLawyer(caseId, membershipId) {
     const { data } = await axiosInstance.patch(
       `/cases/${caseId}/reassign-lawyer/`,

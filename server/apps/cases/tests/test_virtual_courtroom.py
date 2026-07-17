@@ -135,7 +135,9 @@ class VirtualCourtroomTests(TestCase):
 
     def test_admin_creates_virtual_courtroom_event_visible_to_assigned_users(self):
         self.api.force_authenticate(user=self.admin)
-        starts_at = timezone.now() + timedelta(hours=1)
+        starts_at = timezone.now() + timedelta(minutes=10)
+        if timezone.localdate(starts_at) != timezone.localdate():
+            starts_at = timezone.now()
         response = self.api.post(
             reverse("case-event-list-create", kwargs={"case_id": self.case.id}),
             {

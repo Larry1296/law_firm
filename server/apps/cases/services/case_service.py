@@ -2,6 +2,7 @@ from django.db import transaction
 from django.db.models import Count, Q
 
 from apps.cases.models import Case, CaseActivity, CaseEvent, CaseParty, CaseTimeline
+from apps.cases.services.case_lifecycle_service import CaseLifecycleService
 from apps.clients.models import Client
 from apps.common.choices import UserRole
 from apps.notifications.services import NotificationService
@@ -112,7 +113,12 @@ class CaseService:
                 | Q(court_name__icontains=search)
             )
         if status:
-            queryset = queryset.filter(status=status)
+            if status in Case.MatterStatus.values:
+                queryset = queryset.filter(matter_status=status)
+            elif status in Case.CourtStage.values:
+                queryset = queryset.filter(court_stage=status)
+            else:
+                queryset = queryset.filter(status=status)
         if priority:
             queryset = queryset.filter(priority=priority)
         if case_type:
@@ -190,12 +196,6 @@ class CaseService:
 
     @staticmethod
     def record_activity(case, *, action, description="", actor=None, metadata=None):
-        CaseTimeline.objects.create(
-            case=case,
-            action=action,
-            description=description,
-            created_by=actor,
-        )
         CaseActivity.objects.create(
             case=case,
             action=action,
@@ -344,15 +344,9 @@ class CaseService:
 
         if client.lifecycle_status == Client.LifecycleStatus.PROSPECT:
             client.lifecycle_status = Client.LifecycleStatus.OFFICIAL_CLIENT
-            if client.access_type == Client.AccessType.PROSPECT:
-                client.access_type = Client.AccessType.ASSISTED_CLIENT
             client.is_verified = True
-            client.save(update_fields=["lifecycle_status", "access_type", "is_verified", "updated_at"])
+            client.save(update_fields=["lifecycle_status", "is_verified", "updated_at"])
 
-            # Sync User role when prospect becomes official client
-            if client.user and client.user.role == UserRole.PROSPECT:
-                client.user.role = UserRole.OFFICIAL_CLIENT
-                client.user.save(update_fields=["role", "updated_at"])
         elif not client.is_verified:
             client.is_verified = True
             client.save(update_fields=["is_verified", "updated_at"])
@@ -363,8 +357,12 @@ class CaseService:
             action="Case Created",
             description=f"Case {case.case_number} was created for {client.full_name}.",
             actor=user,
-            metadata={"client_id": str(client.id)},
+            metadata={
+                "client_id": str(client.id),
+                "internal_case_number": case.case_number,
+            },
         )
+        CaseLifecycleService.record_initial_case_opening(case, user)
         CaseService.notify_case_assignments(case, actor=user)
 
         return case
@@ -482,9 +480,9 @@ class CaseService:
 
     @staticmethod
     def summary(queryset):
-        status_counts = {
-            row["status"]: row["count"]
-            for row in queryset.values("status").annotate(count=Count("id"))
+        matter_counts = {
+            row["matter_status"]: row["count"]
+            for row in queryset.values("matter_status").annotate(count=Count("id"))
         }
         priority_counts = {
             row["priority"]: row["count"]
@@ -493,7 +491,15 @@ class CaseService:
         return {
             "total_cases": queryset.count(),
             "active_cases": queryset.filter(is_active=True).count(),
-            "pending_cases": status_counts.get(Case.Status.PENDING, 0),
-            "closed_cases": status_counts.get(Case.Status.CLOSED, 0),
+            "pending_cases": (
+                matter_counts.get(Case.MatterStatus.INSTRUCTIONS_RECEIVED, 0)
+                + matter_counts.get(Case.MatterStatus.CONFLICT_CHECK_PENDING, 0)
+                + matter_counts.get(Case.MatterStatus.ENGAGEMENT_PENDING, 0)
+            ),
+            "closed_cases": (
+                matter_counts.get(Case.MatterStatus.CLOSED, 0)
+                + matter_counts.get(Case.MatterStatus.ARCHIVED, 0)
+                + matter_counts.get(Case.MatterStatus.CANCELLED, 0)
+            ),
             "urgent_cases": priority_counts.get(Case.Priority.URGENT, 0),
         }

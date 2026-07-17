@@ -141,9 +141,14 @@ export default function AdminCasesPage() {
             render: (_, row) => casePartyLabel(row),
           },
           {
-            key: 'status',
-            label: 'Status',
-            render: renderStatusBadge,
+            key: 'matter_status',
+            label: 'Matter Status',
+            render: (value, row) => renderStatusBadge(row.matter_status_label || value),
+          },
+          {
+            key: 'court_stage',
+            label: 'Court Stage',
+            render: (value, row) => renderStatusBadge(row.court_stage_label || value),
           },
           {
             key: 'priority',

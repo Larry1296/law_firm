@@ -82,6 +82,47 @@ export default function useCaseDetails(caseId) {
     },
   });
 
+  const transitionCaseMutation = useMutation({
+    mutationFn: ({ caseId, payload }) =>
+      adminCasesService.transitionCase(caseId, payload),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['admin-case', caseId],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ['admin-cases'],
+      });
+    },
+  });
+
+  const conflictCheckActionMutation = useMutation({
+    mutationFn: ({ caseId, payload }) =>
+      adminCasesService.conflictCheckAction(caseId, payload),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['admin-case', caseId],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ['admin-cases'],
+      });
+    },
+  });
+
+  const verifyJurisdictionMutation = useMutation({
+    mutationFn: ({ caseId, payload }) =>
+      adminCasesService.verifyJurisdiction(caseId, payload),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['admin-case', caseId],
+      });
+    },
+  });
+
   return {
     caseData,
 
@@ -100,5 +141,11 @@ export default function useCaseDetails(caseId) {
     isUpdatingCase: updateCaseMutation.isPending,
     reassignSecretary: reassignSecretaryMutation.mutateAsync,
     isReassigningSecretary: reassignSecretaryMutation.isPending,
+    transitionCase: transitionCaseMutation.mutateAsync,
+    isTransitioning: transitionCaseMutation.isPending,
+    conflictCheckAction: conflictCheckActionMutation.mutateAsync,
+    isUpdatingConflictCheck: conflictCheckActionMutation.isPending,
+    verifyJurisdiction: verifyJurisdictionMutation.mutateAsync,
+    isVerifyingJurisdiction: verifyJurisdictionMutation.isPending,
   };
 }

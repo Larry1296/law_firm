@@ -79,6 +79,7 @@ class EventSerializer(serializers.ModelSerializer):
             "id",
             "case",
             "event_type",
+            "event_subtype",
             "event_type_label",
             "status",
             "status_label",
@@ -86,8 +87,19 @@ class EventSerializer(serializers.ModelSerializer):
             "description",
             "starts_at",
             "ends_at",
+            "actual_start",
+            "actual_end",
+            "court_stage_before",
+            "court_stage_after",
+            "matter_status_before",
+            "matter_status_after",
+            "court",
             "court_station",
             "courtroom",
+            "hearing_mode",
+            "virtual_meeting_url",
+            "virtual_access_instructions",
+            "physical_venue",
             "judicial_officer",
             "virtual_courtroom_url",
             "virtual_courtroom_label",
@@ -98,8 +110,11 @@ class EventSerializer(serializers.ModelSerializer):
             "cause_list_position",
             "adjournment_reason",
             "outcome",
+            "orders_directions",
             "next_action",
             "next_date",
+            "cancelled_by",
+            "cancellation_reason",
             "is_client_visible",
             "client_awareness",
             "created_at",
@@ -111,12 +126,24 @@ class EventSerializer(serializers.ModelSerializer):
 class EventCreateSerializer(serializers.Serializer):
     case_id = serializers.UUIDField()
     event_type = serializers.ChoiceField(choices=CaseEvent.EventType.choices)
+    event_subtype = serializers.CharField(max_length=80, required=False, allow_blank=True)
     title = serializers.CharField(max_length=255)
     description = serializers.CharField(required=False, allow_blank=True)
     starts_at = serializers.DateTimeField()
     ends_at = serializers.DateTimeField(required=False, allow_null=True)
+    actual_start = serializers.DateTimeField(required=False, allow_null=True)
+    actual_end = serializers.DateTimeField(required=False, allow_null=True)
+    court_stage_before = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    court_stage_after = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    matter_status_before = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    matter_status_after = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    court = serializers.CharField(max_length=255, required=False, allow_blank=True)
     court_station = serializers.CharField(max_length=255, required=False, allow_blank=True)
     courtroom = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    hearing_mode = serializers.ChoiceField(choices=CaseEvent.HearingMode.choices, required=False)
+    virtual_meeting_url = serializers.URLField(max_length=1000, required=False, allow_blank=True)
+    virtual_access_instructions = serializers.CharField(required=False, allow_blank=True)
+    physical_venue = serializers.CharField(max_length=255, required=False, allow_blank=True)
     judicial_officer = serializers.CharField(max_length=255, required=False, allow_blank=True)
     cause_list_position = serializers.CharField(max_length=50, required=False, allow_blank=True)
     is_client_visible = serializers.BooleanField(required=False, default=True)
@@ -145,12 +172,24 @@ class EventCreateSerializer(serializers.Serializer):
 class EventUpdateSerializer(serializers.Serializer):
     event_type = serializers.ChoiceField(choices=CaseEvent.EventType.choices, required=False)
     status = serializers.ChoiceField(choices=CaseEvent.EventStatus.choices, required=False)
+    event_subtype = serializers.CharField(max_length=80, required=False, allow_blank=True)
     title = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
     starts_at = serializers.DateTimeField(required=False)
     ends_at = serializers.DateTimeField(required=False, allow_null=True)
+    actual_start = serializers.DateTimeField(required=False, allow_null=True)
+    actual_end = serializers.DateTimeField(required=False, allow_null=True)
+    court_stage_before = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    court_stage_after = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    matter_status_before = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    matter_status_after = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    court = serializers.CharField(max_length=255, required=False, allow_blank=True)
     court_station = serializers.CharField(max_length=255, required=False, allow_blank=True)
     courtroom = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    hearing_mode = serializers.ChoiceField(choices=CaseEvent.HearingMode.choices, required=False)
+    virtual_meeting_url = serializers.URLField(max_length=1000, required=False, allow_blank=True)
+    virtual_access_instructions = serializers.CharField(required=False, allow_blank=True)
+    physical_venue = serializers.CharField(max_length=255, required=False, allow_blank=True)
     judicial_officer = serializers.CharField(max_length=255, required=False, allow_blank=True)
     cause_list_position = serializers.CharField(max_length=50, required=False, allow_blank=True)
     virtual_courtroom_url = serializers.URLField(max_length=1000, required=False, allow_blank=True)
@@ -161,8 +200,10 @@ class EventUpdateSerializer(serializers.Serializer):
     is_client_visible = serializers.BooleanField(required=False)
     adjournment_reason = serializers.CharField(required=False, allow_blank=True)
     outcome = serializers.CharField(required=False, allow_blank=True)
+    orders_directions = serializers.CharField(required=False, allow_blank=True)
     next_action = serializers.CharField(max_length=255, required=False, allow_blank=True)
     next_date = serializers.DateTimeField(required=False, allow_null=True)
+    cancellation_reason = serializers.CharField(required=False, allow_blank=True)
     notify_participants = serializers.BooleanField(required=False, default=True)
 
     def validate(self, attrs):

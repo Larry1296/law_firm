@@ -25,6 +25,8 @@ CSRF_TRUSTED_ORIGINS = config(
     cast=lambda value: [origin.strip() for origin in value.split(",") if origin.strip()],
 )
 
+DEFAULT_COURT_HEARING_MODE = config("DEFAULT_COURT_HEARING_MODE", default="VIRTUAL")
+
 
 # ==========================================================
 # APPLICATIONS
