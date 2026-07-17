@@ -270,4 +270,4 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         check = CaseConflictCheckService.existing_check(obj)
         if self._client_visible_only():
             return {"status": CaseConflictCheckService.client_safe_status(check)}
-        return CaseConflictCheckSerializer(check).data if check else None
+        return CaseConflictCheckSerializer(check, context=self.context).data if check else None

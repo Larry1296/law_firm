@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.cases.models import CaseConflictCheck
+from apps.cases.services.case_conflict_check_service import CaseConflictCheckService
 
 
 class CaseConflictCheckSerializer(serializers.ModelSerializer):
@@ -9,6 +10,12 @@ class CaseConflictCheckSerializer(serializers.ModelSerializer):
     completed_by_name = serializers.CharField(source="completed_by.full_name", read_only=True)
     reviewed_by_name = serializers.CharField(source="reviewed_by.full_name", read_only=True)
     approved_by_name = serializers.CharField(source="approved_by.full_name", read_only=True)
+    available_actions = serializers.SerializerMethodField()
+
+    def get_available_actions(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        return CaseConflictCheckService.available_actions(obj, user)
 
     class Meta:
         model = CaseConflictCheck
@@ -29,6 +36,7 @@ class CaseConflictCheckSerializer(serializers.ModelSerializer):
             "approved_by",
             "approved_by_name",
             "approved_at",
+            "available_actions",
             "search_scope",
             "searched_names",
             "searched_entities",
@@ -81,6 +89,7 @@ class ConflictCheckActionSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         action = attrs["action"]
+        data = attrs.get("data") or {}
         if action in {
             "REVIEW",
             "MARK_CLEAR",
@@ -91,6 +100,16 @@ class ConflictCheckActionSerializer(serializers.Serializer):
             "REJECT",
         } and not attrs.get("reason"):
             raise serializers.ValidationError({"reason": "A reason is required for this conflict-check action."})
-        if action == "REVIEW" and not (attrs.get("data") or {}).get("result_summary"):
-            raise serializers.ValidationError({"data": {"result_summary": "A result summary is required for review."}})
+        if action == "REVIEW":
+            errors = {}
+            if not attrs.get("effective_at"):
+                errors["effective_at"] = "An effective date and time is required when reviewing a conflict check."
+            if not data.get("result_summary"):
+                errors["result_summary"] = "A result summary is required for review."
+            if errors:
+                raise serializers.ValidationError(errors)
+        if action == "MARK_CLEAR" and not attrs.get("effective_at"):
+            raise serializers.ValidationError(
+                {"effective_at": "An effective date and time is required when marking a conflict check clear."}
+            )
         return attrs

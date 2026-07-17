@@ -412,6 +412,48 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertIsNotNone(check.reviewed_at)
         self.assertEqual(check.reviewed_by, self.admin)
         self.assertEqual(case.matter_status, Case.MatterStatus.CONFLICT_CHECK_PENDING)
+        self.assertIsNone(check.completed_at)
+        self.assertIsNone(check.completed_by)
+        self.assertIsNone(check.approved_at)
+        self.assertIsNone(check.approved_by)
+
+    def test_review_requires_effective_at_reason_and_result_summary(self):
+        case = self.create_case()
+        self.transition(case, CaseLifecycleTransition.Dimension.MATTER_STATUS, Case.MatterStatus.CONFLICT_CHECK_PENDING)
+        url = reverse("case-conflict-check-action", kwargs={"case_id": case.id})
+        missing_effective = self.api.post(
+            url,
+            {"action": "REVIEW", "reason": "Reviewed.", "data": {"result_summary": "Reviewed search."}},
+            format="json",
+        )
+        self.assertEqual(missing_effective.status_code, 400, missing_effective.data)
+        self.assertEqual(
+            str(missing_effective.data["errors"]["effective_at"][0]),
+            "An effective date and time is required when reviewing a conflict check.",
+        )
+        missing_reason = self.api.post(
+            url,
+            {
+                "action": "REVIEW",
+                "effective_at": timezone.now().isoformat(),
+                "data": {"result_summary": "Reviewed search."},
+            },
+            format="json",
+        )
+        self.assertEqual(missing_reason.status_code, 400, missing_reason.data)
+        self.assertIn("reason", missing_reason.data["errors"])
+        missing_summary = self.api.post(
+            url,
+            {
+                "action": "REVIEW",
+                "effective_at": timezone.now().isoformat(),
+                "reason": "Reviewed.",
+                "data": {},
+            },
+            format="json",
+        )
+        self.assertEqual(missing_summary.status_code, 400, missing_summary.data)
+        self.assertEqual(str(missing_summary.data["errors"]["result_summary"][0]), "A result summary is required for review.")
 
     def test_mark_clear_fails_before_review(self):
         case = self.create_case()
@@ -513,25 +555,27 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.conflict_action(case, "MARK_CLEAR", reason="Clear after search.", data={"result_summary": "No conflict found."})
         self.assertTrue(CaseTimeline.objects.filter(case=case, action="Conflict Check Reviewed").exists())
         self.assertTrue(CaseTimeline.objects.filter(case=case, action="Conflict Cleared").exists())
-        self.assertTrue(CaseActivity.objects.filter(case=case, action__icontains="Conflict check reviewed").exists())
-        self.assertTrue(CaseActivity.objects.filter(case=case, action__icontains="Conflict check marked clear").exists())
+        self.assertTrue(CaseActivity.objects.filter(case=case, action="CONFLICT_CHECK_REVIEWED").exists())
+        self.assertTrue(CaseActivity.objects.filter(case=case, action="CONFLICT_CHECK_CLEARED").exists())
 
     def test_repeated_review_and_clear_are_idempotent_without_duplicate_logs(self):
         case = self.create_case()
         self.transition(case, CaseLifecycleTransition.Dimension.MATTER_STATUS, Case.MatterStatus.CONFLICT_CHECK_PENDING)
         review_payload = {"result_summary": "Search reviewed.", "internal_notes": "Internal review note."}
-        first_review = self.conflict_action(case, "REVIEW", reason="Reviewed.", data=review_payload)
-        second_review = self.conflict_action(case, "REVIEW", reason="Reviewed again.", data=review_payload)
+        effective_at = timezone.now().isoformat()
+        first_review = self.conflict_action(case, "REVIEW", reason="Reviewed.", data=review_payload, effective_at=effective_at)
+        second_review = self.conflict_action(case, "REVIEW", reason="Reviewed.", data=review_payload, effective_at=effective_at)
         self.assertEqual(first_review.status_code, 200, first_review.data)
         self.assertEqual(second_review.status_code, 200, second_review.data)
         self.assertEqual(CaseTimeline.objects.filter(case=case, action="Conflict Check Reviewed").count(), 1)
-        self.assertEqual(CaseActivity.objects.filter(case=case, action__icontains="Conflict check reviewed").count(), 1)
-        first_clear = self.conflict_action(case, "MARK_CLEAR", reason="Clear.", data={"result_summary": "Search reviewed."})
-        second_clear = self.conflict_action(case, "MARK_CLEAR", reason="Clear duplicate.", data={"result_summary": "Search reviewed."})
+        self.assertEqual(CaseActivity.objects.filter(case=case, action="CONFLICT_CHECK_REVIEWED").count(), 1)
+        clear_at = timezone.now().isoformat()
+        first_clear = self.conflict_action(case, "MARK_CLEAR", reason="Clear.", data={"result_summary": "Search reviewed."}, effective_at=clear_at)
+        second_clear = self.conflict_action(case, "MARK_CLEAR", reason="Clear duplicate.", data={"result_summary": "Search reviewed."}, effective_at=clear_at)
         self.assertEqual(first_clear.status_code, 200, first_clear.data)
         self.assertEqual(second_clear.status_code, 200, second_clear.data)
         self.assertEqual(CaseTimeline.objects.filter(case=case, action="Conflict Cleared").count(), 1)
-        self.assertEqual(CaseActivity.objects.filter(case=case, action__icontains="Conflict check marked clear").count(), 1)
+        self.assertEqual(CaseActivity.objects.filter(case=case, action="CONFLICT_CHECK_CLEARED").count(), 1)
 
     def test_review_correction_cannot_silently_overwrite_original_audit(self):
         case = self.create_case()
@@ -539,7 +583,37 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.conflict_action(case, "REVIEW", reason="Reviewed.", data={"result_summary": "Original summary."})
         response = self.conflict_action(case, "REVIEW", reason="Overwrite attempt.", data={"result_summary": "Changed summary."})
         self.assertEqual(response.status_code, 400, response.data)
-        self.assertIn("already recorded", response.data["errors"]["action"])
+        self.assertIn("already been reviewed", str(response.data["errors"]["action"]))
+
+    def test_different_actor_cannot_be_treated_as_same_duplicate_review(self):
+        case = self.create_case()
+        other_user = User.objects.create_user(
+            email="review-lawyer@example.test",
+            password="strong-pass123",
+            first_name="Review",
+            last_name="Lawyer",
+            phone_number="+254722300099",
+            national_id_number="LCREVIEW001",
+            role=UserRole.STAFF,
+        )
+        other_lawyer = Lawyer.objects.create(
+            user=other_user,
+            law_firm=self.firm,
+            staff_number="LAW-REVIEW-001",
+            admission_number="ADV-REVIEW-001",
+            date_hired=date(2026, 1, 3),
+        )
+        case.assigned_lawyer = other_lawyer
+        case.save(update_fields=["assigned_lawyer", "updated_at"])
+        self.transition(case, CaseLifecycleTransition.Dimension.MATTER_STATUS, Case.MatterStatus.CONFLICT_CHECK_PENDING)
+        effective_at = timezone.now().isoformat()
+        self.api.force_authenticate(user=other_user)
+        first = self.conflict_action(case, "REVIEW", reason="Reviewed.", data={"result_summary": "Reviewed search."}, effective_at=effective_at)
+        self.assertEqual(first.status_code, 200, first.data)
+        self.api.force_authenticate(user=self.admin)
+        duplicate = self.conflict_action(case, "REVIEW", reason="Reviewed.", data={"result_summary": "Reviewed search."}, effective_at=effective_at)
+        self.assertEqual(duplicate.status_code, 400, duplicate.data)
+        self.assertIn("already been reviewed", duplicate.data["errors"]["action"])
 
     def test_admin_serializer_exposes_review_and_completion_audit_fields(self):
         case = self.create_case()
@@ -554,6 +628,75 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertIn("completed_by_name", check)
         self.assertIn("approved_by", check)
         self.assertIn("approved_by_name", check)
+        self.assertIn("available_actions", check)
+
+    def test_available_actions_follow_review_and_clear_state(self):
+        case = self.create_case()
+        self.transition(case, CaseLifecycleTransition.Dimension.MATTER_STATUS, Case.MatterStatus.CONFLICT_CHECK_PENDING)
+        before = self.api.get(reverse("case-detail", kwargs={"case_id": case.id})).data["data"]["conflict_check"]["available_actions"]
+        self.assertIn("REVIEW", before)
+        self.assertNotIn("MARK_CLEAR", before)
+        self.conflict_action(case, "REVIEW", reason="Reviewed.", data={"result_summary": "Reviewed search."})
+        after_review = self.api.get(reverse("case-detail", kwargs={"case_id": case.id})).data["data"]["conflict_check"]["available_actions"]
+        self.assertNotIn("REVIEW", after_review)
+        self.assertIn("MARK_CLEAR", after_review)
+        self.conflict_action(case, "MARK_CLEAR", reason="Clear.", data={"result_summary": "Reviewed search."})
+        after_clear = self.api.get(reverse("case-detail", kwargs={"case_id": case.id})).data["data"]["conflict_check"]["available_actions"]
+        self.assertEqual(after_clear, [])
+
+    def test_reviewer_and_clearer_may_be_different_authorized_users(self):
+        case = self.create_case()
+        other_user = User.objects.create_user(
+            email="clear-review-lawyer@example.test",
+            password="strong-pass123",
+            first_name="Clear",
+            last_name="Reviewer",
+            phone_number="+254722300098",
+            national_id_number="LCCLEAR001",
+            role=UserRole.STAFF,
+        )
+        other_lawyer = Lawyer.objects.create(
+            user=other_user,
+            law_firm=self.firm,
+            staff_number="LAW-CLEAR-001",
+            admission_number="ADV-CLEAR-001",
+            date_hired=date(2026, 1, 4),
+        )
+        case.assigned_lawyer = other_lawyer
+        case.save(update_fields=["assigned_lawyer", "updated_at"])
+        self.transition(case, CaseLifecycleTransition.Dimension.MATTER_STATUS, Case.MatterStatus.CONFLICT_CHECK_PENDING)
+        self.api.force_authenticate(user=other_user)
+        self.conflict_action(case, "REVIEW", reason="Reviewed by assigned lawyer.", data={"result_summary": "Reviewed search."})
+        self.api.force_authenticate(user=self.admin)
+        response = self.conflict_action(case, "MARK_CLEAR", reason="Cleared by owner.", data={"result_summary": "Reviewed search."})
+        self.assertEqual(response.status_code, 200, response.data)
+        check = CaseConflictCheck.objects.get(case=case)
+        self.assertEqual(check.reviewed_by, other_user)
+        self.assertEqual(check.completed_by, self.admin)
+
+    def test_unassigned_lawyer_cannot_review(self):
+        case = self.create_case()
+        lawyer_user = User.objects.create_user(
+            email="unassigned-reviewer@example.test",
+            password="strong-pass123",
+            first_name="Unassigned",
+            last_name="Lawyer",
+            phone_number="+254722300097",
+            national_id_number="LCUNASSIGNED001",
+            role=UserRole.STAFF,
+        )
+        Lawyer.objects.create(
+            user=lawyer_user,
+            law_firm=self.firm,
+            staff_number="LAW-UNASSIGNED-001",
+            admission_number="ADV-UNASSIGNED-001",
+            date_hired=date(2026, 1, 5),
+        )
+        self.transition(case, CaseLifecycleTransition.Dimension.MATTER_STATUS, Case.MatterStatus.CONFLICT_CHECK_PENDING)
+        self.api.force_authenticate(user=lawyer_user)
+        response = self.conflict_action(case, "REVIEW", reason="Unassigned attempt.", data={"result_summary": "Attempt."})
+        self.assertEqual(response.status_code, 404)
+        self.api.force_authenticate(user=self.admin)
 
     def test_existing_historical_clear_records_remain_valid(self):
         case = self.create_case()
@@ -795,12 +938,12 @@ class CaseLifecycleFrameworkTests(TestCase):
                 return case
         return case
 
-    def conflict_action(self, case, action, reason="Conflict action test.", data=None):
+    def conflict_action(self, case, action, reason="Conflict action test.", data=None, effective_at=None):
         return self.api.post(
             reverse("case-conflict-check-action", kwargs={"case_id": case.id}),
             {
                 "action": action,
-                "effective_at": timezone.now().isoformat(),
+                "effective_at": effective_at or timezone.now().isoformat(),
                 "reason": reason,
                 "data": data or {},
             },

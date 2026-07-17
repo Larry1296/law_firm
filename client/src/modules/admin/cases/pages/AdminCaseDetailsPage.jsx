@@ -57,6 +57,7 @@ const AdminCaseDetailsPage = () => {
     internal_notes: '',
     waiver_details: '',
   });
+  const [conflictErrors, setConflictErrors] = useState({});
 
   if (isLoading) {
     return (
@@ -152,7 +153,22 @@ const AdminCaseDetailsPage = () => {
     CANCELLED: [],
   };
 
-  const conflictActions = conflictActionsByStatus[conflictStatus] || [];
+  const conflictActionLabels = {
+    INITIATE: 'Initiate check',
+    REVIEW: 'Review Check',
+    MARK_CLEAR: 'Mark Clear',
+    POTENTIAL_CONFLICT: 'Record Potential Conflict',
+    CONFIRM_CONFLICT: 'Confirm Conflict',
+    REQUEST_WAIVER: 'Request Waiver',
+    RECORD_WAIVER: 'Record Waiver',
+    REJECT: 'Reject Instruction',
+    CANCEL: 'Cancel',
+  };
+  const backendActions = Array.isArray(conflictCheck?.available_actions)
+    ? conflictCheck.available_actions
+    : null;
+  const conflictActions = (backendActions || (conflictActionsByStatus[conflictStatus] || []).map((action) => action.value))
+    .map((action) => ({ value: action, label: conflictActionLabels[action] || friendly(action) }));
 
   const handleReassign = async () => {
     if (!selectedLawyer) return;
@@ -343,23 +359,24 @@ const AdminCaseDetailsPage = () => {
 
   const handleConflictAction = async (event) => {
     event.preventDefault();
+    if (isUpdatingConflictCheck) return;
+    setConflictErrors({});
     if (!conflictDraft.action || !conflictDraft.reason.trim()) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Missing conflict-check details',
-        text: 'Choose an action and provide a reason.',
+      setConflictErrors({
+        action: !conflictDraft.action ? 'Choose a conflict-check action.' : '',
+        reason: !conflictDraft.reason.trim() ? 'Reason is required.' : '',
       });
       return;
     }
     if (
-      conflictDraft.action === 'REVIEW' &&
-      (!conflictDraft.effective_at || !conflictDraft.result_summary.trim())
+      ['REVIEW', 'MARK_CLEAR'].includes(conflictDraft.action) &&
+      !conflictDraft.effective_at
     ) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Review details required',
-        text: 'Review requires an effective date/time and result summary.',
-      });
+      setConflictErrors({ effective_at: 'Effective date and time is required.' });
+      return;
+    }
+    if (conflictDraft.action === 'REVIEW' && !conflictDraft.result_summary.trim()) {
+      setConflictErrors({ result_summary: 'Review result summary is required.' });
       return;
     }
 
@@ -405,17 +422,20 @@ const AdminCaseDetailsPage = () => {
         showConfirmButton: false,
       });
     } catch (error) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Conflict action failed',
-        text:
-          error?.response?.data?.detail ||
-          error?.response?.data?.errors?.action ||
-          error?.response?.data?.errors?.data?.result_summary ||
-          error?.response?.data?.action ||
-          error?.response?.data?.conflict_check ||
-          'The conflict-check action could not be recorded.',
-      });
+      const backendErrors = error?.response?.data?.errors;
+      if (backendErrors) {
+        setConflictErrors(backendErrors);
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Conflict action failed',
+          text:
+            error?.response?.data?.detail ||
+            error?.response?.data?.action ||
+            error?.response?.data?.conflict_check ||
+            'The conflict-check action could not be recorded.',
+        });
+      }
     }
   };
 
@@ -641,42 +661,81 @@ const AdminCaseDetailsPage = () => {
 
         {conflictActions.length ? (
           <form onSubmit={handleConflictAction} className='mt-6 grid gap-4 lg:grid-cols-2'>
-            <select
-              value={conflictDraft.action}
-              onChange={(event) => setConflictDraft((current) => ({ ...current, action: event.target.value }))}
-              className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-            >
-              <option value=''>Choose conflict-check action</option>
-              {conflictActions.map((action) => (
-                <option key={action.value} value={action.value}>
-                  {action.label}
-                </option>
-              ))}
-            </select>
-            <input
-              type='datetime-local'
-              value={conflictDraft.effective_at}
-              onChange={(event) => setConflictDraft((current) => ({ ...current, effective_at: event.target.value }))}
-              className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-            />
-            <textarea
-              value={conflictDraft.reason}
-              onChange={(event) => setConflictDraft((current) => ({ ...current, reason: event.target.value }))}
-              placeholder='Reason or description'
-              className='min-h-24 rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark lg:col-span-2'
-            />
-            <textarea
-              value={conflictDraft.result_summary}
-              onChange={(event) => setConflictDraft((current) => ({ ...current, result_summary: event.target.value }))}
-              placeholder='Safe result summary'
-              className='min-h-24 rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-            />
-            <textarea
-              value={conflictDraft.internal_notes}
-              onChange={(event) => setConflictDraft((current) => ({ ...current, internal_notes: event.target.value }))}
-              placeholder='Internal notes — not visible to client'
-              className='min-h-24 rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-            />
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Conflict action
+              </label>
+              <select
+                value={conflictDraft.action}
+                onChange={(event) => setConflictDraft((current) => ({ ...current, action: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              >
+                <option value=''>Choose conflict-check action</option>
+                {conflictActions.map((action) => (
+                  <option key={action.value} value={action.value}>
+                    {action.label}
+                  </option>
+                ))}
+              </select>
+              {conflictErrors.action && <p className='mt-1 text-sm text-error'>{conflictErrors.action}</p>}
+            </div>
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Review date and time
+              </label>
+              <input
+                type='datetime-local'
+                value={conflictDraft.effective_at}
+                onChange={(event) => setConflictDraft((current) => ({ ...current, effective_at: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+              {conflictErrors.effective_at && <p className='mt-1 text-sm text-error'>{conflictErrors.effective_at}</p>}
+            </div>
+            {conflictDraft.action === 'MARK_CLEAR' && conflictCheck?.result_summary && (
+              <div className='rounded-xl border border-border-light bg-surface-light p-4 text-sm text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark lg:col-span-2'>
+                <p><strong>Reviewer:</strong> {safe(conflictCheck.reviewed_by_name)}</p>
+                <p><strong>Review date:</strong> {conflictCheck.reviewed_at ? formatDateTime(conflictCheck.reviewed_at) : 'Not reviewed'}</p>
+                <p className='mt-2'><strong>Review result:</strong> {conflictCheck.result_summary}</p>
+              </div>
+            )}
+            <div className='lg:col-span-2'>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Reason for review
+              </label>
+              <textarea
+                value={conflictDraft.reason}
+                onChange={(event) => setConflictDraft((current) => ({ ...current, reason: event.target.value }))}
+                placeholder='Reason or description'
+                className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+              {conflictErrors.reason && <p className='mt-1 text-sm text-error'>{conflictErrors.reason}</p>}
+            </div>
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Review result summary
+              </label>
+              <textarea
+                value={conflictDraft.result_summary}
+                onChange={(event) => setConflictDraft((current) => ({ ...current, result_summary: event.target.value }))}
+                placeholder='Safe result summary'
+                disabled={conflictDraft.action === 'MARK_CLEAR'}
+                className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light disabled:opacity-60 dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+              {conflictErrors.result_summary && <p className='mt-1 text-sm text-error'>{conflictErrors.result_summary}</p>}
+            </div>
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Internal notes — not visible to client
+              </label>
+              <textarea
+                value={conflictDraft.internal_notes}
+                onChange={(event) => setConflictDraft((current) => ({ ...current, internal_notes: event.target.value }))}
+                placeholder='Internal notes — not visible to client'
+                disabled={conflictDraft.action === 'MARK_CLEAR'}
+                className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light disabled:opacity-60 dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+              {conflictErrors.internal_notes && <p className='mt-1 text-sm text-error'>{conflictErrors.internal_notes}</p>}
+            </div>
             <textarea
               value={conflictDraft.waiver_details}
               onChange={(event) => setConflictDraft((current) => ({ ...current, waiver_details: event.target.value }))}

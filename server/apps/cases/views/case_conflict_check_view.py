@@ -37,7 +37,7 @@ class CaseConflictCheckView(APIView):
                 status=status.HTTP_200_OK,
             )
         return Response(
-            {"conflict_check": CaseConflictCheckSerializer(check).data if check else None},
+            {"conflict_check": CaseConflictCheckSerializer(check, context={"request": request}).data if check else None},
             status=status.HTTP_200_OK,
         )
 
@@ -47,7 +47,11 @@ class CaseConflictCheckActionView(APIView):
 
     def post(self, request, case_id):
         serializer = ConflictCheckActionSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return Response(
+                {"success": False, "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             case = CaseService.get_case(request.user, case_id)
         except ObjectDoesNotExist:
@@ -75,7 +79,7 @@ class CaseConflictCheckActionView(APIView):
         case.refresh_from_db()
         return Response(
             {
-                "conflict_check": CaseConflictCheckSerializer(check).data,
+                "conflict_check": CaseConflictCheckSerializer(check, context={"request": request}).data,
                 "data": CaseDetailSerializer(case, context={"request": request}).data,
             },
             status=status.HTTP_200_OK,

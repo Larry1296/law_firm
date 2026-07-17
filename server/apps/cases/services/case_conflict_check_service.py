@@ -18,6 +18,9 @@ from apps.notifications.services import NotificationService
 
 
 class CaseConflictCheckService:
+    REVIEW_ACTIVITY = "CONFLICT_CHECK_REVIEWED"
+    CLEAR_ACTIVITY = "CONFLICT_CHECK_CLEARED"
+
     ACTIONS = {
         "INITIATE",
         "REVIEW",
@@ -60,6 +63,33 @@ class CaseConflictCheckService:
         if action != "INITIATE" and cls.can_approve(user, case):
             return
         raise PermissionError("You do not have permission to perform this conflict-check action.")
+
+    @classmethod
+    def available_actions(cls, check, user=None):
+        if check is None:
+            return []
+        if user is not None:
+            can_initiate = cls.can_initiate(user, check.case)
+            can_approve = cls.can_approve(user, check.case)
+        else:
+            can_initiate = can_approve = True
+        if check.status == CaseConflictCheck.Status.NOT_STARTED:
+            return ["INITIATE"] if can_initiate else []
+        if check.status == CaseConflictCheck.Status.PENDING:
+            if not can_approve:
+                return []
+            if check.reviewed_at and check.reviewed_by_id:
+                return ["MARK_CLEAR", "POTENTIAL_CONFLICT", "CONFIRM_CONFLICT", "REQUEST_WAIVER", "CANCEL"]
+            return ["REVIEW", "POTENTIAL_CONFLICT", "CONFIRM_CONFLICT", "CANCEL"]
+        if check.status == CaseConflictCheck.Status.POTENTIAL_CONFLICT:
+            return ["CONFIRM_CONFLICT", "REQUEST_WAIVER", "CANCEL"] if can_approve else []
+        if check.status == CaseConflictCheck.Status.CONFLICT_CONFIRMED:
+            return ["REQUEST_WAIVER", "REJECT"] if can_approve else []
+        if check.status == CaseConflictCheck.Status.WAIVER_PENDING:
+            return ["RECORD_WAIVER", "CONFIRM_CONFLICT", "REJECT"] if can_approve else []
+        if check.status == CaseConflictCheck.Status.WAIVED:
+            return ["MARK_CLEAR"] if can_approve else []
+        return []
 
     @staticmethod
     def _next_reference(case):
@@ -215,6 +245,66 @@ class CaseConflictCheckService:
                 event_key=f"CONFLICT:{title}:{case.id}:{recipient.id}",
             )
 
+    @staticmethod
+    def timeline_exists(*, case, action, event_key):
+        return CaseTimeline.objects.filter(
+            case=case,
+            action=action,
+            description__contains=f"Event key: {event_key}",
+        ).exists()
+
+    @classmethod
+    def record_timeline_once(cls, *, case, action, description, actor, event_key):
+        if cls.timeline_exists(case=case, action=action, event_key=event_key):
+            return None
+        return CaseTimeline.objects.create(
+            case=case,
+            action=action,
+            description=f"{description}\nEvent key: {event_key}",
+            created_by=actor,
+        )
+
+    @staticmethod
+    def activity_exists(*, case, action, event_key):
+        return CaseActivity.objects.filter(
+            case=case,
+            action=action,
+            metadata__event_key=event_key,
+        ).exists()
+
+    @classmethod
+    def record_activity_once(cls, *, case, action, description, actor, metadata):
+        event_key = metadata["event_key"]
+        if cls.activity_exists(case=case, action=action, event_key=event_key):
+            return None
+        return CaseActivity.objects.create(
+            case=case,
+            action=action,
+            description=description,
+            actor=actor,
+            metadata=metadata,
+        )
+
+    @classmethod
+    def existing_review_reason(cls, *, case, check):
+        activity = (
+            CaseActivity.objects.filter(
+                case=case,
+                action=cls.REVIEW_ACTIVITY,
+                metadata__conflict_check_id=str(check.id),
+                metadata__event_type=cls.REVIEW_ACTIVITY,
+            )
+            .order_by("created_at")
+            .first()
+        )
+        return (activity.metadata or {}).get("reason") if activity else None
+
+    @staticmethod
+    def same_moment(left, right):
+        if not left or not right:
+            return False
+        return left == right
+
     @classmethod
     @transaction.atomic
     def perform_action(cls, *, case, actor, action, effective_at=None, reason="", data=None):
@@ -222,16 +312,26 @@ class CaseConflictCheckService:
         if action not in cls.ACTIONS:
             raise ValidationError({"action": "Unsupported conflict-check action."})
         cls.ensure_can_act(actor, case, action)
-        check = cls.get_or_create_check(case=case, actor=actor, data=data)
-        now = effective_at or timezone.now()
 
         if action == "INITIATE":
             return cls.initiate_check(case=case, actor=actor, reason=reason, data=data)
+
+        try:
+            check = (
+                CaseConflictCheck.objects.select_for_update(of=("self",))
+                .select_related("case", "firm")
+                .get(case=case)
+            )
+        except CaseConflictCheck.DoesNotExist:
+            raise ValidationError({"conflict_check": "Initiate the conflict check before recording an outcome."})
+        now = effective_at or timezone.now()
 
         if check.status in {CaseConflictCheck.Status.NOT_STARTED, CaseConflictCheck.Status.CANCELLED}:
             raise ValidationError({"conflict_check": "Initiate the conflict check before recording an outcome."})
 
         if action == "REVIEW":
+            if effective_at is None:
+                raise ValidationError({"effective_at": "An effective date and time is required when reviewing a conflict check."})
             if check.status not in {
                 CaseConflictCheck.Status.PENDING,
                 CaseConflictCheck.Status.POTENTIAL_CONFLICT,
@@ -242,13 +342,20 @@ class CaseConflictCheckService:
             result_summary = data.get("result_summary", check.result_summary)
             internal_notes = data.get("internal_notes", check.internal_notes)
             if check.reviewed_at and check.reviewed_by_id:
-                if result_summary == check.result_summary and internal_notes == check.internal_notes:
+                existing_reason = cls.existing_review_reason(case=case, check=check)
+                if (
+                    check.reviewed_by_id == actor.id
+                    and cls.same_moment(check.reviewed_at, now)
+                    and result_summary == check.result_summary
+                    and internal_notes == check.internal_notes
+                    and existing_reason == reason
+                ):
                     return check
                 raise ValidationError(
                     {
                         "action": (
-                            "Conflict review is already recorded. Use a controlled "
-                            "correction workflow to change review details."
+                            "This conflict check has already been reviewed. Use a controlled review "
+                            "correction workflow to change the recorded review."
                         )
                     }
                 )
@@ -265,54 +372,74 @@ class CaseConflictCheckService:
                     "updated_at",
                 ]
             )
-            CaseTimeline.objects.get_or_create(
+            event_key = f"CONFLICT_REVIEW:{check.id}:{check.reviewed_at.isoformat()}"
+            cls.record_timeline_once(
                 case=case,
                 action="Conflict Check Reviewed",
-                defaults={
-                    "description": "Conflict search results were reviewed before final acceptance of the instruction.",
-                    "created_by": actor,
-                },
+                description="Conflict search results were reviewed before final acceptance of the instruction.",
+                actor=actor,
+                event_key=event_key,
             )
-            CaseActivity.objects.get_or_create(
+            cls.record_activity_once(
                 case=case,
-                action=f"Conflict check reviewed by {actor.full_name}",
-                defaults={
-                    "description": reason,
-                    "actor": actor,
-                    "metadata": {"conflict_check_id": str(check.id)},
+                action=cls.REVIEW_ACTIVITY,
+                description=f"Conflict check reviewed by {actor.full_name}.",
+                actor=actor,
+                metadata={
+                    "conflict_check_id": str(check.id),
+                    "case_id": str(case.id),
+                    "actor_id": str(actor.id),
+                    "event_type": cls.REVIEW_ACTIVITY,
+                    "event_key": event_key,
+                    "reason": reason,
                 },
             )
 
         elif action == "MARK_CLEAR":
             if check.status == CaseConflictCheck.Status.CLEAR:
                 return check
+            if effective_at is None:
+                raise ValidationError({"effective_at": "An effective date and time is required when marking a conflict check clear."})
             if check.status not in {CaseConflictCheck.Status.PENDING, CaseConflictCheck.Status.WAIVED}:
                 raise ValidationError({"action": "Only pending or waived conflict checks can be marked clear."})
             if not check.reviewed_at or not check.reviewed_by_id:
                 raise ValidationError({"action": "The conflict check must be reviewed before it can be marked clear."})
             check.status = CaseConflictCheck.Status.CLEAR
-            check.result_summary = data.get("result_summary", check.result_summary)
-            check.internal_notes = data.get("internal_notes", check.internal_notes)
             check.completed_at = now
             check.completed_by = actor
+            # In the current workflow, final clearance is also the approval decision.
             check.approved_at = now
             check.approved_by = actor
-            check.save()
-            CaseTimeline.objects.get_or_create(
+            check.save(
+                update_fields=[
+                    "status",
+                    "completed_at",
+                    "completed_by",
+                    "approved_at",
+                    "approved_by",
+                    "updated_at",
+                ]
+            )
+            event_key = f"CONFLICT_CLEAR:{check.id}:{check.completed_at.isoformat()}"
+            cls.record_timeline_once(
                 case=case,
                 action="Conflict Cleared",
-                defaults={
-                    "description": "Conflict check completed and cleared after review.",
-                    "created_by": actor,
-                },
+                description="Conflict check completed and cleared after review.",
+                actor=actor,
+                event_key=event_key,
             )
-            CaseActivity.objects.get_or_create(
+            cls.record_activity_once(
                 case=case,
-                action=f"Conflict check marked clear by {actor.full_name}",
-                defaults={
-                    "description": reason,
-                    "actor": actor,
-                    "metadata": {"conflict_check_id": str(check.id)},
+                action=cls.CLEAR_ACTIVITY,
+                description=f"Conflict check marked clear by {actor.full_name}.",
+                actor=actor,
+                metadata={
+                    "conflict_check_id": str(check.id),
+                    "case_id": str(case.id),
+                    "actor_id": str(actor.id),
+                    "event_type": cls.CLEAR_ACTIVITY,
+                    "event_key": event_key,
+                    "reason": reason,
                 },
             )
             cls.close_conflict_task(case=case)
