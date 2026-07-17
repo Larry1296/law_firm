@@ -15,9 +15,12 @@ import {
   useThreadMessages,
 } from '@/modules/communications/hooks/useCommunications';
 
+import axiosInstance from '@/core/api/axios';
+
 import {
   useMyCase,
   useUpdateCaseStatus,
+  useUpdateLifecycleTransition,
 } from '@/modules/staff/lawyer/cases/hooks/useLawyerCases';
 import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
 import CaseCourtroomPanel from '@/modules/courtroom/components/CaseCourtroomPanel';
@@ -106,6 +109,7 @@ export default function LawyerCaseDetailsPage() {
   const lawyerMessagesQuery = useThreadMessages(lawyerThread?.id);
   const sendThreadMessage = useSendThreadMessage();
   const updateStatus = useUpdateCaseStatus(id);
+  const updateLifecycle = useUpdateLifecycleTransition(id);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
   const [nextEvent, setNextEvent] = useState({
@@ -120,10 +124,10 @@ export default function LawyerCaseDetailsPage() {
   });
 
   useEffect(() => {
-    if (data?.status) {
-      setSelectedStatus(data.status);
-    }
-  }, [data?.status]);
+    // Initialize from current lifecycle state if needed; dropdown starts empty
+    // and lawyer selects the next available transition from available_transitions.
+    setSelectedStatus('');
+  }, [data]);
 
   useEffect(() => {
     if (!selectedStatus || !data) return;
@@ -197,52 +201,61 @@ export default function LawyerCaseDetailsPage() {
   };
 
   const handleStatusUpdate = async () => {
-    const requiresNextEvent = !TERMINAL_STATUSES.has(selectedStatus);
-    if (!selectedStatus) return;
-    if (requiresNextEvent && !nextEvent.starts_at) {
+    if (!selectedStatus || selectedStatus === '') return;
+
+    // Parse lifecycle transition format: DIMENSION:TO_STATE
+    const [dimension, toState] = selectedStatus.split(':');
+    if (!dimension || !toState) {
       Swal.fire({
-        icon: 'warning',
-        title: 'Next Event Required',
-        text: 'Please provide the next event date before updating this active matter.',
+        icon: 'error',
+        title: 'Invalid Selection',
+        text: 'Please select a valid lifecycle transition from the dropdown.',
       });
       return;
     }
 
     try {
       const payload = {
-        status: selectedStatus,
-        note: statusNote,
+        dimension,
+        to_state: toState,
+        reason: statusNote || `Lifecycle transition to ${toState}`,
+        metadata: {},
       };
+      await updateLifecycle.mutateAsync(payload);
+
+      // Trigger event execution if event data was entered
       if (nextEvent.starts_at) {
-        payload.next_event = {
-          ...nextEvent,
+        const eventPayload = {
+          case_id: id,
+          event_type: nextEvent.event_type || 'OTHER',
+          title: nextEvent.title || `Next Event - ${data.case_number}`,
+          description: nextEvent.description || '',
           starts_at: toIsoDateTime(nextEvent.starts_at),
+          court_station: nextEvent.court_station || data.court_station || '',
+          courtroom: nextEvent.courtroom || data.courtroom || '',
+          judicial_officer: nextEvent.judicial_officer || data.judicial_officer || '',
+          is_client_visible: nextEvent.is_client_visible,
         };
+        try {
+          await axiosInstance.post(`/cases/${id}/events/`, eventPayload);
+        } catch (evtError) {
+          console.error('Event execution failed:', evtError);
+        }
       }
-      await updateStatus.mutateAsync(payload);
       setStatusNote('');
-      setNextEvent({
-        event_type: STATUS_EVENT_TYPE[selectedStatus] || 'OTHER',
-        title: '',
-        starts_at: '',
-        court_station: caseData.court_station || caseData.court_name || '',
-        courtroom: caseData.courtroom || '',
-        judicial_officer: caseData.judicial_officer || '',
-        description: '',
-        is_client_visible: true,
-      });
+      setSelectedStatus('');
       await Swal.fire({
         icon: 'success',
         title: 'Case Updated',
-        text: 'The lifecycle status and next event have been updated.',
+        text: 'The lifecycle transition has been applied and audit recorded.',
         timer: 1600,
         showConfirmButton: false,
       });
     } catch (error) {
       Swal.fire({
         icon: 'error',
-        title: 'Status Update Failed',
-        text: error?.response?.data?.detail || 'Could not update case status.',
+        title: 'Lifecycle Update Failed',
+        text: error?.response?.data?.detail || error?.message || 'Could not apply transition.',
       });
     }
   };
@@ -266,7 +279,7 @@ export default function LawyerCaseDetailsPage() {
               <strong>Title:</strong> {safe(caseData.title)}
             </p>
             <p>
-              <strong>Status:</strong> {friendly(caseData.status)}
+              <strong>Status:</strong> {friendly(caseData.matter_status)} ({friendly(caseData.court_stage)})
             </p>
             <p>
               <strong>Priority:</strong> {friendly(caseData.priority)}
@@ -413,11 +426,14 @@ export default function LawyerCaseDetailsPage() {
               onChange={(event) => setSelectedStatus(event.target.value)}
               className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
             >
-              {CASE_STATUS_OPTIONS.map((status) => (
-                <option key={status.value} value={status.value}>
-                  {status.label}
-                </option>
-              ))}
+              <option value=''>Select lifecycle transition...</option>
+              {(caseData?.available_transitions || [])
+                .filter((t) => t.dimension === 'MATTER_STATUS')
+                .map((t) => (
+                  <option key={`${t.dimension}:${t.to_state}`} value={`${t.dimension}:${t.to_state}`}>
+                    {t.label || `${t.dimension} → ${t.to_state}`}
+                  </option>
+                ))}
             </select>
           </div>
 
@@ -437,13 +453,13 @@ export default function LawyerCaseDetailsPage() {
             type='button'
             onClick={handleStatusUpdate}
             disabled={
-              updateStatus.isPending ||
+              updateLifecycle.isPending ||
               !selectedStatus ||
-              (selectedStatus === caseData.status && !nextEvent.starts_at)
+              selectedStatus === ''
             }
             className='rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
           >
-            {updateStatus.isPending ? 'Updating...' : 'Update Case'}
+            {updateLifecycle.isPending ? 'Updating...' : 'Apply Lifecycle Transition'}
           </button>
         </div>
 
@@ -555,6 +571,91 @@ export default function LawyerCaseDetailsPage() {
         </div>
       </Card>
 
+      <Card className='p-6'>
+        <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+          Conflict Check
+        </h3>
+        <div className='space-y-4'>
+          <div>
+            <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+              Conflict Action
+            </label>
+            <select
+              value={nextEvent.event_type}
+              onChange={(event) => setNextEvent((current) => ({ ...current, event_type: event.target.value }))}
+              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+            >
+              <option value=''>Select action...</option>
+              <option value='REVIEW'>Review</option>
+              <option value='MARK_CLEAR'>Mark Clear</option>
+              <option value='POTENTIAL_CONFLICT'>Potential Conflict</option>
+              <option value='CONFIRM_CONFLICT'>Confirm Conflict</option>
+              <option value='REQUEST_WAIVER'>Request Waiver</option>
+              <option value='RECORD_WAIVER'>Record Waiver</option>
+            </select>
+          </div>
+          <div>
+            <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+              Effective At
+            </label>
+            <input
+              type='datetime-local'
+              value={nextEvent.starts_at}
+              onChange={(event) => setNextEvent((current) => ({ ...current, starts_at: event.target.value }))}
+              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+            />
+          </div>
+          <div>
+            <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+              Reason
+            </label>
+            <input
+              value={statusNote}
+              onChange={(event) => setStatusNote(event.target.value)}
+              placeholder='Required reason for conflict action...'
+              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition placeholder:text-text-muted-light focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:placeholder:text-text-muted-dark'
+            />
+          </div>
+          <div>
+            <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+              Result Summary
+            </label>
+            <input
+              value={nextEvent.title || ''}
+              onChange={(event) => setNextEvent((current) => ({ ...current, title: event.target.value }))}
+              placeholder='Result summary (required for review/clear)...'
+              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition placeholder:text-text-muted-light focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:placeholder:text-text-muted-dark'
+            />
+          </div>
+          <button
+            type='button'
+            onClick={async () => {
+              const action = nextEvent.event_type;
+              if (!action || !statusNote || !nextEvent.starts_at) {
+                Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select action, reason, effective date, and result summary.' });
+                return;
+              }
+              try {
+                await axiosInstance.post(`/cases/${id}/conflict-check/actions/`, {
+                  action,
+                  effective_at: toIsoDateTime(nextEvent.starts_at),
+                  reason: statusNote,
+                  data: { result_summary: nextEvent.title || '' },
+                });
+                setStatusNote('');
+                setNextEvent({ ...nextEvent, event_type: '', starts_at: '', title: '' });
+                Swal.fire({ icon: 'success', title: 'Conflict Action Applied', timer: 1600, showConfirmButton: false });
+              } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Failed', text: err?.response?.data?.detail || err?.message || 'Could not apply conflict action.' });
+              }
+            }}
+            className='rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
+          >
+            Apply Conflict Action
+          </button>
+        </div>
+      </Card>
+
       <ChatWorkspace
         title='Secretary Coordination'
         subtitle='Case-attached internal chat with the assigned secretary.'
@@ -600,22 +701,6 @@ export default function LawyerCaseDetailsPage() {
         ) : (
           <p className='text-text-muted-light dark:text-text-muted-dark'>
             No timeline records.
-          </p>
-        )}
-      </Card>
-
-      <Card className='p-6'>
-        <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-          Events
-        </h3>
-
-        {events.length ? (
-          <pre className='text-sm text-text-primary-light dark:text-text-primary-dark whitespace-pre-wrap'>
-            {JSON.stringify(events, null, 2)}
-          </pre>
-        ) : (
-          <p className='text-text-muted-light dark:text-text-muted-dark'>
-            No events.
           </p>
         )}
       </Card>

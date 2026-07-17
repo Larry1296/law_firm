@@ -18,6 +18,18 @@ export const useMyCase = (caseId) => {
   });
 };
 
+export const useUpdateLifecycleTransition = (caseId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload) => lawyerCasesService.updateLifecycleTransition(caseId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lawyer-case', caseId] });
+      queryClient.invalidateQueries({ queryKey: ['lawyer-cases'] });
+    },
+  });
+};
+
 export const useUpdateCaseStatus = (caseId) => {
   const queryClient = useQueryClient();
 

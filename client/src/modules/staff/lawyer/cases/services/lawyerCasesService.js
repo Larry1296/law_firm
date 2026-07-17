@@ -5,14 +5,20 @@ const lawyerCasesService = {
     const { data } = await axiosInstance.get('/staff/lawyer/cases/', {
       params,
     });
-
     return data.cases || data.results || [];
   },
 
   async getMyCaseById(caseId) {
     const { data } = await axiosInstance.get(`/staff/lawyer/cases/${caseId}/`);
-
     return data.case || data;
+  },
+
+  async updateLifecycleTransition(caseId, payload) {
+    const { data } = await axiosInstance.post(
+      `/cases/${caseId}/transitions/`,  // <-- correct endpoint
+      payload,
+    );
+    return data.data || data;
   },
 
   async updateCaseStatus(caseId, payload) {
@@ -20,7 +26,6 @@ const lawyerCasesService = {
       `/cases/${caseId}/status/`,
       payload,
     );
-
     return data.data || data;
   },
 };
