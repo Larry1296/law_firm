@@ -83,29 +83,34 @@ class CaseLifecycleFrameworkTests(TestCase):
         )
         self.api.force_authenticate(user=self.admin)
 
-    def payload(self, case_number="CASE-00002"):
+    def payload(self, case_number=None):
+        case_number = case_number or f"ELC E{Case.objects.count() + 12:03d} of 2026"
         return {
             "client_id": str(self.client.id),
             "assigned_lawyer_membership_id": str(self.lawyer.id),
             "assigned_secretary_membership_id": str(self.secretary.id),
-            "case_number": case_number,
+            "official_court_case_number": case_number,
+            "filing_date": "2026-07-17",
+            "efiling_reference": f"EFILE-{case_number.replace(' ', '-').replace('/', '-')}",
+            "payment_reference": f"PAY-{case_number.replace(' ', '-').replace('/', '-')}",
             "title": "Lakeview Technologies Limited v Highland Distributors Limited",
             "description": "Debt recovery claim.",
             "case_type": Case.CaseType.DEBT_RECOVERY,
             "procedure_track": Case.ProcedureTrack.CIVIL_SUIT,
             "court_type": Case.CourtType.MAGISTRATE,
-            "court_station": "",
-            "registry": "",
+            "court_station": "Milimani",
+            "registry": "Civil Registry",
             "claim_amount": "1850000.00",
             "currency": "KES",
             "jurisdiction_notes": "The claim amount is recorded for jurisdiction assessment before filing.",
             "defendant": "Highland Distributors Limited",
         }
 
-    def create_case(self, case_number="CASE-00002"):
+    def create_case(self, case_number=None):
+        case_number = case_number or f"ELC E{Case.objects.count() + 12:03d} of 2026"
         response = self.api.post(reverse("case-create"), self.payload(case_number), format="json")
         self.assertEqual(response.status_code, 201, response.data)
-        return Case.objects.get(case_number=case_number)
+        return Case.objects.get(official_court_case_number=case_number)
 
     def transition(self, case, dimension, to_state, metadata=None, reason="Lifecycle test"):
         return self.api.post(
@@ -124,14 +129,15 @@ class CaseLifecycleFrameworkTests(TestCase):
         case = self.create_case()
         self.assertEqual(case.matter_status, Case.MatterStatus.INSTRUCTIONS_RECEIVED)
 
-    def test_new_civil_case_starts_not_filed(self):
+    def test_new_registered_litigation_case_starts_filed(self):
         case = self.create_case()
-        self.assertEqual(case.court_stage, Case.CourtStage.NOT_FILED)
+        self.assertEqual(case.court_stage, Case.CourtStage.FILED)
 
     def test_internal_number_is_not_official_court_number(self):
         case = self.create_case()
-        self.assertEqual(case.case_number, "CASE-00002")
-        self.assertEqual(case.official_court_case_number, "")
+        self.assertTrue(case.case_number.startswith("MAT-"))
+        self.assertEqual(case.official_court_case_number, "ELC E012 of 2026")
+        self.assertNotEqual(case.case_number, case.official_court_case_number)
 
     def test_first_case_changes_client_lifecycle_without_removing_portal_access(self):
         self.create_case()
@@ -147,7 +153,7 @@ class CaseLifecycleFrameworkTests(TestCase):
         response = self.transition(
             case,
             CaseLifecycleTransition.Dimension.COURT_STAGE,
-            Case.CourtStage.FILED,
+            Case.CourtStage.JUDGMENT_DELIVERED,
         )
         self.assertEqual(response.status_code, 400, response.data)
 
@@ -163,7 +169,7 @@ class CaseLifecycleFrameworkTests(TestCase):
         payload["jurisdiction_verified_by"] = str(self.admin.id)
         response = self.api.post(reverse("case-create"), payload, format="json")
         self.assertEqual(response.status_code, 400, response.data)
-        self.assertEqual(Case.objects.filter(case_number="CASE-JURIS-REJECT").count(), 0)
+        self.assertEqual(Case.objects.filter(official_court_case_number="CASE-JURIS-REJECT").count(), 0)
 
     def test_legacy_status_is_not_authoritative_for_lifecycle(self):
         case = self.create_case()
@@ -241,32 +247,25 @@ class CaseLifecycleFrameworkTests(TestCase):
         response = self.transition(case, CaseLifecycleTransition.Dimension.MATTER_STATUS, Case.MatterStatus.CANCELLED)
         self.assertEqual(response.status_code, 200, response.data)
 
-    def test_cannot_mark_filed_without_required_filing_data(self):
-        case = self.case_at_matter_status(Case.MatterStatus.MATTER_OPEN)
-        self.transition(case, CaseLifecycleTransition.Dimension.COURT_STAGE, Case.CourtStage.READY_FOR_FILING)
-        response = self.transition(case, CaseLifecycleTransition.Dimension.COURT_STAGE, Case.CourtStage.FILED)
+    def test_case_creation_requires_filed_case_data(self):
+        payload = self.payload("ELC E099 of 2026")
+        payload.pop("official_court_case_number")
+        payload.pop("filing_date")
+        payload.pop("efiling_reference")
+        response = self.api.post(reverse("case-create"), payload, format="json")
         self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("official_court_case_number", response.data["errors"])
+        self.assertIn("filing_date", response.data["errors"])
+        self.assertIn("efiling_reference", response.data["errors"])
 
-    def test_filed_transition_records_filing_date_and_references(self):
-        case = self.case_at_matter_status(Case.MatterStatus.MATTER_OPEN)
-        self.transition(case, CaseLifecycleTransition.Dimension.COURT_STAGE, Case.CourtStage.READY_FOR_FILING)
-        response = self.transition(
-            case,
-            CaseLifecycleTransition.Dimension.COURT_STAGE,
-            Case.CourtStage.FILED,
-            metadata={
-                "filing_date": "2026-07-20",
-                "official_court_case_number": "TEST CMCC E0001 OF 2026",
-                "efiling_reference": "TEST-EFILE-0001",
-                "payment_reference": "TEST-PAY-0001",
-                "court_station": "Milimani",
-                "registry": "Civil Registry",
-            },
-        )
-        self.assertEqual(response.status_code, 200, response.data)
+    def test_filed_case_creation_records_filing_date_and_references(self):
+        case = self.create_case("TEST CMCC E0001 OF 2026")
         case.refresh_from_db()
         self.assertEqual(case.court_stage, Case.CourtStage.FILED)
         self.assertEqual(case.official_court_case_number, "TEST CMCC E0001 OF 2026")
+        self.assertEqual(str(case.filing_date), "2026-07-17")
+        self.assertTrue(case.efiling_reference.startswith("EFILE-"))
+        self.assertTrue(case.payment_reference.startswith("PAY-"))
 
     def test_service_completion_requires_service_evidence(self):
         case = self.case_at_filed()
@@ -297,7 +296,7 @@ class CaseLifecycleFrameworkTests(TestCase):
             created_by=self.admin,
         )
         case.refresh_from_db()
-        self.assertEqual(case.court_stage, Case.CourtStage.NOT_FILED)
+        self.assertEqual(case.court_stage, Case.CourtStage.FILED)
 
     def test_pretrial_completion_may_make_case_ready_for_hearing(self):
         case = self.case_at_stage(Case.CourtStage.PRE_TRIAL)
@@ -753,7 +752,7 @@ class CaseLifecycleFrameworkTests(TestCase):
             format="json",
         )
         self.assertEqual(correction.status_code, 200, correction.data)
-        self.assertEqual(case.lifecycle_transitions.count(), 3)
+        self.assertEqual(case.lifecycle_transitions.count(), 4)
 
     @override_settings(DEFAULT_COURT_HEARING_MODE="VIRTUAL")
     def test_virtual_event_defaults_correctly(self):
@@ -794,7 +793,7 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.api.force_authenticate(user=self.client_user)
         response = self.api.get(reverse("case-detail", kwargs={"case_id": case.id}))
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data["data"]["court_stage"], Case.CourtStage.NOT_FILED)
+        self.assertEqual(response.data["data"]["court_stage"], Case.CourtStage.FILED)
         self.assertEqual(response.data["data"]["available_transitions"], [])
 
     def test_client_cannot_modify_lifecycle(self):
@@ -830,15 +829,16 @@ class CaseLifecycleFrameworkTests(TestCase):
 
     def test_timeline_and_activity_records_have_distinct_purposes(self):
         case = self.create_case()
-        self.assertTrue(CaseTimeline.objects.filter(case=case, action="Instructions Received").exists())
-        self.assertTrue(CaseActivity.objects.filter(case=case, action="Case Created").exists())
+        self.assertTrue(CaseTimeline.objects.filter(case=case, action="Filed Case Registered").exists())
+        self.assertTrue(CaseActivity.objects.filter(case=case, action="FILED_CASE_REGISTERED").exists())
 
     def test_existing_case_detail_api_remains_functional(self):
         case = self.create_case()
         response = self.api.get(reverse("case-detail", kwargs={"case_id": case.id}))
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn("data", response.data)
-        self.assertEqual(response.data["data"]["internal_case_number"], "CASE-00002")
+        self.assertTrue(response.data["data"]["internal_case_number"].startswith("MAT-"))
+        self.assertEqual(response.data["data"]["official_court_case_number"], case.official_court_case_number)
 
     def test_existing_assignments_and_parties_remain_intact(self):
         case = self.create_case()
@@ -854,27 +854,11 @@ class CaseLifecycleFrameworkTests(TestCase):
 
     def case_at_filed(self):
         case = self.case_at_matter_status(Case.MatterStatus.MATTER_OPEN)
-        self.transition(case, CaseLifecycleTransition.Dimension.COURT_STAGE, Case.CourtStage.READY_FOR_FILING)
-        self.transition(
-            case,
-            CaseLifecycleTransition.Dimension.COURT_STAGE,
-            Case.CourtStage.FILED,
-            metadata={
-                "filing_date": "2026-07-20",
-                "official_court_case_number": "TEST CMCC E0002 OF 2026",
-                "efiling_reference": "TEST-EFILE-0002",
-                "payment_reference": "TEST-PAY-0002",
-                "court_station": "Milimani",
-                "registry": "Civil Registry",
-            },
-        )
         case.refresh_from_db()
         return case
 
     def case_at_stage(self, stage):
         order = [
-            Case.CourtStage.READY_FOR_FILING,
-            Case.CourtStage.FILED,
             Case.CourtStage.AWAITING_SERVICE,
             Case.CourtStage.SERVICE_IN_PROGRESS,
             Case.CourtStage.AWAITING_RESPONSE,
@@ -889,16 +873,10 @@ class CaseLifecycleFrameworkTests(TestCase):
             Case.CourtStage.JUDGMENT_DELIVERED,
         ]
         case = self.case_at_matter_status(Case.MatterStatus.MATTER_OPEN)
+        if stage == Case.CourtStage.FILED:
+            return case
         for item in order:
             metadata = {}
-            if item == Case.CourtStage.FILED:
-                metadata = {
-                    "filing_date": "2026-07-20",
-                    "official_court_case_number": f"TEST CMCC E{Case.objects.count()} OF 2026",
-                    "efiling_reference": f"TEST-EFILE-{Case.objects.count()}",
-                    "court_station": "Milimani",
-                    "registry": "Civil Registry",
-                }
             if item == Case.CourtStage.AWAITING_RESPONSE:
                 metadata = {"service_successful": True}
             self.transition(case, CaseLifecycleTransition.Dimension.COURT_STAGE, item, metadata=metadata)

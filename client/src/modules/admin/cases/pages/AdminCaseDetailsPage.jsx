@@ -460,7 +460,7 @@ const AdminCaseDetailsPage = () => {
             </p>
 
             <p>
-              <strong>Official Court Number:</strong> {safe(caseData.official_court_case_number, 'Not filed')}
+              <strong>Official Court Case Number:</strong> {safe(caseData.official_court_case_number, 'Not recorded')}
             </p>
 
             <p>
@@ -486,7 +486,7 @@ const AdminCaseDetailsPage = () => {
             </p>
 
             <p>
-              <strong>Filing Date:</strong> {caseData.filing_date ? formatDate(caseData.filing_date) : 'Not Set'}
+              <strong>Filing Date:</strong> {caseData.filing_date ? formatDate(caseData.filing_date) : 'Not recorded'}
             </p>
 
             <p>
@@ -802,7 +802,7 @@ const AdminCaseDetailsPage = () => {
             <strong>eFiling Ref:</strong> {safe(caseData.efiling_reference, 'Not Set')}
           </p>
           <p>
-            <strong>CTS Ref:</strong> {safe(caseData.cts_reference, 'Not Set')}
+            <strong>CTS Ref:</strong> {safe(caseData.cts_reference, 'Pending verification')}
           </p>
           <p>
             <strong>Payment Ref:</strong> {safe(caseData.payment_reference, 'Not Set')}

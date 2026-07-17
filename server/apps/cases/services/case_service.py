@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 from django.db.models import Count, Q
 
 from apps.cases.models import Case, CaseActivity, CaseEvent, CaseParty, CaseTimeline
@@ -132,8 +133,21 @@ class CaseService:
 
     @staticmethod
     def generate_case_number(firm):
-        count = Case.objects.filter(firm=firm).count() + 1
-        return f"CASE-{count:05d}"
+        year = timezone.now().year
+        prefix = f"MAT-{year}-"
+        latest = (
+            Case.objects.select_for_update()
+            .filter(firm=firm, case_number__startswith=prefix)
+            .order_by("-case_number")
+            .first()
+        )
+        next_number = 1
+        if latest:
+            try:
+                next_number = int(latest.case_number.rsplit("-", 1)[1]) + 1
+            except (IndexError, ValueError):
+                next_number = Case.objects.filter(firm=firm, case_number__startswith=prefix).count() + 1
+        return f"{prefix}{next_number:05d}"
 
     @staticmethod
     def resolve_lawyer(firm, lawyer_id):
@@ -296,9 +310,10 @@ class CaseService:
             secretary_id=secretary_id,
         )
 
-        case_number = (validated_data.pop("case_number", "") or "").strip()
-        if not case_number:
-            case_number = CaseService.generate_case_number(firm)
+        # The user-supplied court number belongs in official_court_case_number.
+        # case_number is the firm's generated internal matter identifier.
+        validated_data.pop("case_number", None)
+        case_number = CaseService.generate_case_number(firm)
         plaintiff = validated_data.pop("plaintiff", "") or client.full_name
         client_party_role = validated_data.pop("client_party_role", "") or CaseParty.PartyRole.PLAINTIFF
         if client_party_role not in CaseParty.PartyRole.values:
@@ -312,6 +327,7 @@ class CaseService:
             client=client,
             created_by=user,
             case_number=case_number,
+            court_stage=Case.CourtStage.FILED,
             assigned_lawyer=assigned_lawyer,
             assigned_secretary=assigned_secretary,
             plaintiff=plaintiff,
@@ -354,15 +370,37 @@ class CaseService:
 
         CaseService.record_activity(
             case,
-            action="Case Created",
-            description=f"Case {case.case_number} was created for {client.full_name}.",
+            action="FILED_CASE_REGISTERED",
+            description=(
+                f"Existing court case {case.official_court_case_number} was registered "
+                f"in Sheria Master as {case.case_number}."
+            ),
             actor=user,
             metadata={
                 "client_id": str(client.id),
                 "internal_case_number": case.case_number,
+                "official_court_case_number": case.official_court_case_number,
+                "filing_date": case.filing_date.isoformat() if case.filing_date else None,
+                "efiling_reference": case.efiling_reference,
             },
         )
         CaseLifecycleService.record_initial_case_opening(case, user)
+        CaseTimeline.objects.create(
+            case=case,
+            action="Conflict Record Verification Required",
+            description=(
+                "This filed case was registered for ongoing management; the firm "
+                "must verify or record the historical conflict-check position."
+            ),
+            created_by=user,
+        )
+        CaseService.record_activity(
+            case,
+            action="CONFLICT_RECORD_VERIFICATION_REQUIRED",
+            description="Historical conflict-check status requires verification for this filed case.",
+            actor=user,
+            metadata={"source": "filed_case_registration"},
+        )
         CaseService.notify_case_assignments(case, actor=user)
 
         return case

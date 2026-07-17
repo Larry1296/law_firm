@@ -34,7 +34,10 @@ class SecretaryCasesView(SecretaryBaseView):
         try:
             SecretaryCaseService.ensure_can_manage_cases(request.user)
 
-            serializer = CaseCreateSerializer(data=request.data)
+            serializer = CaseCreateSerializer(
+                data=request.data,
+                context={"firm": CaseService.get_user_firm(request.user)},
+            )
             serializer.is_valid(raise_exception=True)
             case = CaseService.create_case(
                 user=request.user,

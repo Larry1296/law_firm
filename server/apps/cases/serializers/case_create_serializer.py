@@ -8,6 +8,13 @@ class CaseCreateSerializer(serializers.Serializer):
     assigned_lawyer_membership_id = serializers.UUIDField(required=False, allow_null=True)
     assigned_secretary_membership_id = serializers.UUIDField(required=False, allow_null=True)
     case_number = serializers.CharField(max_length=60, required=False, allow_blank=True)
+    official_court_case_number = serializers.CharField(max_length=120)
+    filing_date = serializers.DateField()
+    efiling_reference = serializers.CharField(max_length=120)
+    payment_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    assessment_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    court_fee_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True, min_value=0)
+    payment_date = serializers.DateField(required=False, allow_null=True)
     title = serializers.CharField(max_length=255)
     description = serializers.CharField(required=False, allow_blank=True)
     case_type = serializers.ChoiceField(choices=Case.CaseType.choices)
@@ -40,18 +47,16 @@ class CaseCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         unsafe_fields = {
             "status",
+            "matter_status",
+            "court_stage",
+            "outcome_status",
+            "enforcement_status",
+            "appeal_status",
             "jurisdiction_verified",
             "jurisdiction_verified_by",
             "jurisdiction_verified_at",
-            "official_court_case_number",
-            "filing_date",
             "filed_by",
-            "efiling_reference",
             "cts_reference",
-            "assessment_reference",
-            "court_fee_amount",
-            "payment_reference",
-            "payment_date",
         }
         supplied = [field for field in unsafe_fields if field in self.initial_data]
         if supplied:
@@ -63,6 +68,32 @@ class CaseCreateSerializer(serializers.Serializer):
                     )
                     for field in supplied
                 }
+            )
+        official_number = (attrs.get("official_court_case_number") or "").strip()
+        if not official_number:
+            raise serializers.ValidationError(
+                {"official_court_case_number": "Official court case number is required for filed-case registration."}
+            )
+        attrs["official_court_case_number"] = official_number
+        firm = self.context.get("firm")
+        if firm and Case.objects.filter(
+            firm=firm,
+            official_court_case_number__iexact=official_number,
+        ).exists():
+            raise serializers.ValidationError(
+                {"official_court_case_number": "A case with this official court case number already exists."}
+            )
+
+        efiling_reference = (attrs.get("efiling_reference") or "").strip()
+        if not efiling_reference:
+            raise serializers.ValidationError(
+                {"efiling_reference": "eFiling reference is required for filed-case registration."}
+            )
+        attrs["efiling_reference"] = efiling_reference
+
+        if not (attrs.get("court_station") or attrs.get("court_name")):
+            raise serializers.ValidationError(
+                {"court_station": "Court station or court identification is required for filed-case registration."}
             )
         attrs["currency"] = attrs.get("currency") or "KES"
         return attrs

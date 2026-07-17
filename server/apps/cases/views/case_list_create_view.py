@@ -44,7 +44,10 @@ class CaseListCreateView(APIView):
         )
 
     def post(self, request):
-        serializer = CaseCreateSerializer(data=request.data)
+        serializer = CaseCreateSerializer(
+            data=request.data,
+            context={"firm": CaseService.get_user_firm(request.user)},
+        )
         serializer.is_valid(raise_exception=True)
         try:
             case = CaseService.create_case(

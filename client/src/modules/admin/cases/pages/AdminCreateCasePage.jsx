@@ -11,6 +11,7 @@ import useAdminCreateCase from '@/modules/admin/cases/hooks/useAdminCreateCase';
 import useAdminClients from '@/modules/admin/clients/hooks/useAdminClients';
 import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
 import useFirmSecretaries from '@/modules/admin/cases/hooks/useFirmSecretaries';
+import { buildCaseCreatePayload } from '@/modules/admin/cases/utils/caseCreatePayload';
 
 const CASE_TYPES = [
   { value: 'CIVIL', label: 'Civil' },
@@ -130,7 +131,10 @@ export default function AdminCreateCasePage() {
   const [selectedSecretaryId, setSelectedSecretaryId] = useState('');
 
   const [formData, setFormData] = useState({
-    case_number: '',
+    official_court_case_number: '',
+    filing_date: '',
+    efiling_reference: '',
+    payment_reference: '',
     title: '',
     description: '',
     case_type: '',
@@ -138,16 +142,12 @@ export default function AdminCreateCasePage() {
     court_type: '',
     court_division: '',
     priority: 'MEDIUM',
-    filing_date: '',
     court_name: '',
     court_station: '',
     registry: '',
     courtroom: '',
     judicial_officer: '',
     court_location: '',
-    efiling_reference: '',
-    cts_reference: '',
-    payment_reference: '',
     next_court_date: '',
     next_action: '',
     client_party_role: 'PLAINTIFF',
@@ -197,13 +197,12 @@ export default function AdminCreateCasePage() {
     try {
       setIsSubmitting(true);
 
-      const payload = {
-        ...formData,
+      const payload = buildCaseCreatePayload(formData, {
         client_id: selectedClientId,
         plaintiff: selectedClient?.full_name || '',
         assigned_lawyer_membership_id: selectedLawyerId || null,
         assigned_secretary_membership_id: selectedSecretaryId || null,
-      };
+      });
 
       await createCase(payload);
 
@@ -466,11 +465,22 @@ export default function AdminCreateCasePage() {
 
           {/* CASE FIELDS */}
 
+          <div className='rounded-lg border border-dashed border-border-light bg-surface-light/70 p-4 text-sm text-text-secondary-light dark:border-border-dark dark:bg-surface-dark/70 dark:text-text-secondary-dark'>
+            <p className='font-medium text-text-primary-light dark:text-text-primary-dark'>
+              Internal Matter Number
+            </p>
+            <p className='mt-1'>
+              Generated automatically by Sheria Master when the filed court case
+              is registered.
+            </p>
+          </div>
+
           <FloatingInput
-            label='Case Number'
-            name='case_number'
-            value={formData.case_number}
+            label='Official Court Case Number'
+            name='official_court_case_number'
+            value={formData.official_court_case_number}
             onChange={handleChange}
+            placeholder='ELC E012 of 2026'
             required
           />
 
@@ -501,6 +511,21 @@ export default function AdminCreateCasePage() {
           />
 
           <FloatingInput
+            label='eFiling Reference'
+            name='efiling_reference'
+            value={formData.efiling_reference}
+            onChange={handleChange}
+            required
+          />
+
+          <FloatingInput
+            label='Court Payment Reference'
+            name='payment_reference'
+            value={formData.payment_reference}
+            onChange={handleChange}
+          />
+
+          <FloatingInput
             label='Court Name'
             name='court_name'
             value={formData.court_name}
@@ -513,6 +538,7 @@ export default function AdminCreateCasePage() {
             name='court_station'
             value={formData.court_station}
             onChange={handleChange}
+            required
           />
 
           <FloatingInput
@@ -544,26 +570,16 @@ export default function AdminCreateCasePage() {
             required
           />
 
-          <FloatingInput
-            label='eFiling Reference'
-            name='efiling_reference'
-            value={formData.efiling_reference}
-            onChange={handleChange}
-          />
-
-          <FloatingInput
-            label='CTS Reference'
-            name='cts_reference'
-            value={formData.cts_reference}
-            onChange={handleChange}
-          />
-
-          <FloatingInput
-            label='Court Payment Reference'
-            name='payment_reference'
-            value={formData.payment_reference}
-            onChange={handleChange}
-          />
+          <div className='rounded-lg border border-dashed border-border-light bg-surface-light/70 p-4 text-sm text-text-secondary-light dark:border-border-dark dark:bg-surface-dark/70 dark:text-text-secondary-dark'>
+            <p className='font-medium text-text-primary-light dark:text-text-primary-dark'>
+              CTS Reference
+            </p>
+            <p className='mt-1'>
+              Assigned through the jurisdiction verification or court-record
+              verification workflow. It is not submitted during case
+              registration.
+            </p>
+          </div>
 
           <FloatingInput
             label='Next Court Date'

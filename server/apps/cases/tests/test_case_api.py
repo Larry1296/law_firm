@@ -93,13 +93,17 @@ class CaseApiTests(TestCase):
             "client_id": str(self.client.id),
             "assigned_lawyer_membership_id": str(self.lawyer.id),
             "assigned_secretary_membership_id": str(self.secretary.id),
-            "case_number": "CASE-2026-001",
+            "official_court_case_number": "ELC E001 of 2026",
+            "filing_date": "2026-07-17",
+            "efiling_reference": "EFILE-2026-000001",
+            "payment_reference": "KES-PAY-2026-000001",
             "title": "Land Boundary Dispute",
             "description": "Boundary dispute between neighbours.",
             "case_type": Case.CaseType.LAND,
             "court_type": Case.CourtType.ENVIRONMENT_LAND,
             "priority": Case.Priority.HIGH,
             "court_name": "ELC Nairobi",
+            "court_station": "Nairobi",
             "court_location": "Nairobi",
             "defendant": "John Doe",
         }
@@ -112,8 +116,11 @@ class CaseApiTests(TestCase):
         self.assertEqual(response.data["data"]["plaintiff_name"], "Mary Wanjiku")
         self.assertEqual(response.data["data"]["case_owner"]["party_role"], "PLAINTIFF")
         self.assertEqual(response.data["data"]["case_owner"]["full_name"], "Mary Wanjiku")
-        created = Case.objects.get(case_number="CASE-2026-001")
+        created = Case.objects.get(id=response.data["data"]["id"])
         self.assertEqual(created.client, self.client)
+        self.assertTrue(created.case_number.startswith("MAT-"))
+        self.assertEqual(created.official_court_case_number, "ELC E001 of 2026")
+        self.assertEqual(created.court_stage, Case.CourtStage.FILED)
         self.assertEqual(created.assigned_lawyer, self.lawyer)
         self.assertEqual(created.assigned_secretary, self.secretary)
         self.assertEqual(created.priority, Case.Priority.HIGH)
@@ -193,14 +200,15 @@ class CaseApiTests(TestCase):
             date_hired=date(2026, 1, 1),
         )
         payload = self.payload()
-        payload["case_number"] = "CASE-2026-DEFAULTS"
+        payload["official_court_case_number"] = "ELC E002 of 2026"
+        payload["efiling_reference"] = "EFILE-2026-000002"
         payload["assigned_lawyer_membership_id"] = None
         payload["assigned_secretary_membership_id"] = None
 
         response = self.client_api.post(reverse("case-create"), payload, format="json")
 
         self.assertEqual(response.status_code, 201, response.data)
-        created = Case.objects.get(case_number="CASE-2026-DEFAULTS")
+        created = Case.objects.get(id=response.data["data"]["id"])
         self.assertEqual(created.assigned_lawyer, self.owner_lawyer)
         self.assertEqual(created.assigned_secretary, older_secretary)
 
@@ -222,7 +230,8 @@ class CaseApiTests(TestCase):
             is_active=True,
         )
         payload = self.payload()
-        payload["case_number"] = "CASE-2026-DELEGATED-ADMIN"
+        payload["official_court_case_number"] = "ELC E003 of 2026"
+        payload["efiling_reference"] = "EFILE-2026-000003"
         payload["assigned_lawyer_membership_id"] = None
 
         self.client_api.force_authenticate(user=delegated_admin)
@@ -233,7 +242,7 @@ class CaseApiTests(TestCase):
         response = self.client_api.post(reverse("case-create"), payload, format="json")
         self.assertEqual(response.status_code, 403, response.data)
         self.assertFalse(
-            Case.objects.filter(case_number="CASE-2026-DELEGATED-ADMIN").exists()
+            Case.objects.filter(official_court_case_number="ELC E003 of 2026").exists()
         )
 
     def test_secretary_case_creation_ignores_assignment_payload_and_defaults_to_owner_lawyer(self):
@@ -254,7 +263,8 @@ class CaseApiTests(TestCase):
             date_hired=date(2026, 8, 1),
         )
         payload = self.payload()
-        payload["case_number"] = "CASE-2026-SECRETARY"
+        payload["official_court_case_number"] = "ELC E004 of 2026"
+        payload["efiling_reference"] = "EFILE-2026-000004"
         payload["assigned_lawyer_membership_id"] = str(second_lawyer.id)
         payload["assigned_secretary_membership_id"] = str(self.secretary.id)
         payload["priority"] = Case.Priority.URGENT
@@ -263,7 +273,7 @@ class CaseApiTests(TestCase):
         response = self.client_api.post(reverse("secretary-cases"), payload, format="json")
 
         self.assertEqual(response.status_code, 201, response.data)
-        created = Case.objects.get(case_number="CASE-2026-SECRETARY")
+        created = Case.objects.get(id=response.data["case"]["id"])
         self.assertEqual(created.assigned_lawyer, self.owner_lawyer)
         self.assertEqual(created.assigned_secretary, self.secretary)
         self.assertEqual(created.priority, Case.Priority.MEDIUM)
@@ -308,7 +318,7 @@ class CaseApiTests(TestCase):
 
         response = self.client_api.post(reverse("case-create"), self.payload(), format="json")
         self.assertEqual(response.status_code, 201, response.data)
-        created = Case.objects.get(case_number="CASE-2026-001")
+        created = Case.objects.get(id=response.data["data"]["id"])
 
         self.client_api.force_authenticate(user=self.lawyer.user)
         next_event_at = timezone.now() + timedelta(days=14)
@@ -382,7 +392,7 @@ class CaseApiTests(TestCase):
     def test_reassigning_case_notifies_new_assignee(self):
         response = self.client_api.post(reverse("case-create"), self.payload(), format="json")
         self.assertEqual(response.status_code, 201, response.data)
-        created = Case.objects.get(case_number="CASE-2026-001")
+        created = Case.objects.get(id=response.data["data"]["id"])
 
         new_lawyer_user = User.objects.create_user(
             email="new-lawyer@example.com",

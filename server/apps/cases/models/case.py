@@ -301,7 +301,12 @@ class Case(TimestampedModel):
             models.UniqueConstraint(
                 fields=["firm", "case_number"],
                 name="unique_case_number_per_firm",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["firm", "official_court_case_number"],
+                condition=~models.Q(official_court_case_number=""),
+                name="unique_official_court_case_number_per_firm",
+            ),
         ]
         indexes = [
             models.Index(fields=["firm", "status"]),

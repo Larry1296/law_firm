@@ -1,4 +1,5 @@
 import axiosInstance from '@/core/api/axios';
+import { sanitizeCaseCreatePayload } from '@/modules/admin/cases/utils/caseCreatePayload';
 
 const adminCasesService = {
   async getCases(params = {}) {
@@ -12,7 +13,8 @@ const adminCasesService = {
   },
 
   async createCase(payload) {
-    const { data } = await axiosInstance.post('/cases/create/', payload);
+    const createPayload = sanitizeCaseCreatePayload(payload);
+    const { data } = await axiosInstance.post('/cases/create/', createPayload);
     return data;
   },
 

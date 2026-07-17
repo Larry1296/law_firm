@@ -1,3 +1,5 @@
+from datetime import datetime, time
+
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -515,6 +517,14 @@ class CaseLifecycleService:
     def record_initial_case_opening(cls, case, actor):
         if case.lifecycle_transitions.exists():
             return None
+        # Matter status tracks the firm's internal engagement workflow. Court
+        # stage is independent, so a registered litigation matter can be at
+        # instructions-received internally while already filed in court.
+        filing_effective_at = (
+            timezone.make_aware(datetime.combine(case.filing_date, time.min))
+            if case.filing_date
+            else case.created_at or timezone.now()
+        )
         transition = CaseLifecycleTransition.objects.create(
             case=case,
             dimension=CaseLifecycleTransition.Dimension.MATTER_STATUS,
@@ -527,8 +537,27 @@ class CaseLifecycleService:
         )
         CaseTimeline.objects.create(
             case=case,
-            action="Instructions Received",
-            description="Initial client instructions were recorded when the case was created.",
+            action="Filed Case Registered",
+            description=(
+                f"The existing court case {case.official_court_case_number} was registered "
+                "in Sheria Master for ongoing firm management."
+            ),
             created_by=actor,
+        )
+        CaseLifecycleTransition.objects.create(
+            case=case,
+            dimension=CaseLifecycleTransition.Dimension.COURT_STAGE,
+            from_state="",
+            to_state=case.court_stage,
+            effective_at=filing_effective_at,
+            actor=actor,
+            reason="Already-filed court case registered from eFiling details.",
+            metadata={
+                "source": "filed_case_registration",
+                "official_court_case_number": case.official_court_case_number,
+                "efiling_reference": case.efiling_reference,
+                "payment_reference": case.payment_reference,
+                "filing_date": case.filing_date.isoformat() if case.filing_date else None,
+            },
         )
         return transition
