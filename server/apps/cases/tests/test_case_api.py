@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.cases.models import Case, CaseEvent
+from apps.cases.models import Case, CaseActivity, CaseEvent
 from apps.clients.models import Client
 from apps.common.choices import UserRole
 from apps.common.choices import FirmRole
@@ -245,7 +245,7 @@ class CaseApiTests(TestCase):
             Case.objects.filter(official_court_case_number="ELC E003 of 2026").exists()
         )
 
-    def test_secretary_case_creation_ignores_assignment_payload_and_defaults_to_owner_lawyer(self):
+    def test_authorized_secretary_case_creation_uses_same_contract_and_assignment_payload(self):
         second_lawyer_user = User.objects.create_user(
             email="second-lawyer@example.com",
             password="strong-pass123",
@@ -274,9 +274,20 @@ class CaseApiTests(TestCase):
 
         self.assertEqual(response.status_code, 201, response.data)
         created = Case.objects.get(id=response.data["case"]["id"])
-        self.assertEqual(created.assigned_lawyer, self.owner_lawyer)
+        self.assertEqual(created.assigned_lawyer, second_lawyer)
         self.assertEqual(created.assigned_secretary, self.secretary)
-        self.assertEqual(created.priority, Case.Priority.MEDIUM)
+        self.assertEqual(created.priority, Case.Priority.URGENT)
+        self.assertTrue(created.case_number.startswith("MAT-"))
+        self.assertEqual(created.official_court_case_number, "ELC E004 of 2026")
+        self.assertEqual(created.court_stage, Case.CourtStage.FILED)
+        self.assertEqual(created.efiling_reference, "EFILE-2026-000004")
+        self.assertTrue(
+            CaseActivity.objects.filter(
+                case=created,
+                action="FILED_CASE_REGISTERED",
+                actor=self.secretary.user,
+            ).exists()
+        )
 
         priority_update = self.client_api.patch(
             reverse("case-detail", kwargs={"case_id": created.id}),
@@ -285,7 +296,123 @@ class CaseApiTests(TestCase):
         )
         self.assertEqual(priority_update.status_code, 403, priority_update.data)
         created.refresh_from_db()
-        self.assertEqual(created.priority, Case.Priority.MEDIUM)
+        self.assertEqual(created.priority, Case.Priority.URGENT)
+
+    def test_authorized_secretary_can_create_company_client_case(self):
+        company = Client.objects.create(
+            firm=self.firm,
+            created_by=self.admin,
+            full_name="Musau Building Construction LTD",
+            email="legal@musau.test",
+            phone_number="+254744000099",
+            client_type=Client.ClientType.COMPANY,
+            lifecycle_status=Client.LifecycleStatus.OFFICIAL_CLIENT,
+        )
+        payload = self.payload()
+        payload.update(
+            {
+                "client_id": str(company.id),
+                "official_court_case_number": "ELC E005 of 2026",
+                "efiling_reference": "EFILE-2026-000005",
+                "defendant": "Metro Data Systems Limited",
+            }
+        )
+
+        self.client_api.force_authenticate(user=self.secretary.user)
+        response = self.client_api.post(reverse("secretary-cases"), payload, format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        created = Case.objects.get(id=response.data["case"]["id"])
+        self.assertEqual(created.client, company)
+        self.assertEqual(created.court_stage, Case.CourtStage.FILED)
+        self.assertEqual(created.official_court_case_number, "ELC E005 of 2026")
+
+    def test_secretary_without_manage_cases_permission_receives_403(self):
+        user = User.objects.create_user(
+            email="no-case-secretary@example.com",
+            password="strong-pass123",
+            first_name="No",
+            last_name="Cases",
+            phone_number="+254744000020",
+            national_id_number="744000020",
+            role=UserRole.STAFF,
+        )
+        Secretary.objects.create(
+            user=user,
+            law_firm=self.firm,
+            staff_number="SEC-NO-CASES",
+            date_hired=date(2026, 1, 1),
+        )
+
+        self.client_api.force_authenticate(user=user)
+        response = self.client_api.post(reverse("secretary-cases"), self.payload(), format="json")
+
+        self.assertEqual(response.status_code, 403, response.data)
+
+    def test_secretary_cannot_create_case_for_another_firm_client(self):
+        other_admin = User.objects.create_user(
+            email="other-firm-owner@example.com",
+            password="strong-pass123",
+            first_name="Other",
+            last_name="Owner",
+            phone_number="+254744000021",
+            national_id_number="744000021",
+            role=UserRole.ADMIN,
+        )
+        other_firm = LawFirm.objects.create(name="Other Firm", registration_number="OTHER-FIRM-001", owner=other_admin)
+        other_client = Client.objects.create(
+            firm=other_firm,
+            created_by=other_admin,
+            full_name="Other Firm Client",
+            client_type=Client.ClientType.COMPANY,
+            lifecycle_status=Client.LifecycleStatus.OFFICIAL_CLIENT,
+        )
+        payload = self.payload()
+        payload["client_id"] = str(other_client.id)
+        payload["official_court_case_number"] = "ELC E006 of 2026"
+        payload["efiling_reference"] = "EFILE-2026-000006"
+
+        self.client_api.force_authenticate(user=self.secretary.user)
+        response = self.client_api.post(reverse("secretary-cases"), payload, format="json")
+
+        self.assertEqual(response.status_code, 400, response.data)
+
+    def test_secretary_cannot_assign_another_firm_staff(self):
+        other_admin = User.objects.create_user(
+            email="other-staff-owner@example.com",
+            password="strong-pass123",
+            first_name="Other",
+            last_name="StaffOwner",
+            phone_number="+254744000022",
+            national_id_number="744000022",
+            role=UserRole.ADMIN,
+        )
+        other_firm = LawFirm.objects.create(name="Other Staff Firm", registration_number="OTHER-FIRM-002", owner=other_admin)
+        other_lawyer_user = User.objects.create_user(
+            email="other-lawyer@example.com",
+            password="strong-pass123",
+            first_name="Other",
+            last_name="Lawyer",
+            phone_number="+254744000023",
+            national_id_number="744000023",
+            role=UserRole.STAFF,
+        )
+        other_lawyer = Lawyer.objects.create(
+            user=other_lawyer_user,
+            law_firm=other_firm,
+            staff_number="OTHER-LAW-001",
+            admission_number="OTHER-ADV-001",
+            date_hired=date(2026, 1, 1),
+        )
+        payload = self.payload()
+        payload["official_court_case_number"] = "ELC E007 of 2026"
+        payload["efiling_reference"] = "EFILE-2026-000007"
+        payload["assigned_lawyer_membership_id"] = str(other_lawyer.id)
+
+        self.client_api.force_authenticate(user=self.secretary.user)
+        response = self.client_api.post(reverse("secretary-cases"), payload, format="json")
+
+        self.assertEqual(response.status_code, 400, response.data)
 
     def test_lawyer_only_sees_assigned_cases(self):
         response = self.client_api.post(reverse("case-create"), self.payload(), format="json")

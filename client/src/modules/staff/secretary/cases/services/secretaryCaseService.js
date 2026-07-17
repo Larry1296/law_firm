@@ -1,4 +1,5 @@
 import axiosInstance from '@/core/api/axios';
+import { sanitizeCaseCreatePayload } from '@/modules/admin/cases/utils/caseCreatePayload';
 
 const secretaryCasesService = {
   // LIST
@@ -18,8 +19,14 @@ const secretaryCasesService = {
 
   // CREATE (NEW SECRETARY ENDPOINT)
   async createCase(payload) {
-    const { data } = await axiosInstance.post('/staff/secretary/cases/', payload);
+    const createPayload = sanitizeCaseCreatePayload(payload);
+    const { data } = await axiosInstance.post('/staff/secretary/cases/', createPayload);
 
+    return data;
+  },
+
+  async getCaseCreateOptions() {
+    const { data } = await axiosInstance.get('/staff/secretary/cases/create-options/');
     return data;
   },
 };

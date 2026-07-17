@@ -204,7 +204,17 @@ class CaseService:
 
         user_secretary = getattr(user, "secretary_profile", None)
         if user_secretary is not None and user_secretary.law_firm_id == firm.id:
-            return CaseService.get_default_lawyer(firm), CaseService.get_default_secretary(firm)
+            assigned_lawyer = (
+                CaseService.resolve_lawyer(firm, lawyer_id)
+                if lawyer_id
+                else CaseService.get_default_lawyer(firm)
+            )
+            assigned_secretary = (
+                CaseService.resolve_secretary(firm, secretary_id)
+                if secretary_id
+                else CaseService.get_default_secretary(firm)
+            )
+            return assigned_lawyer, assigned_secretary
 
         raise PermissionError("Only the firm owner or secretary can create cases.")
 
@@ -319,7 +329,8 @@ class CaseService:
         if client_party_role not in CaseParty.PartyRole.values:
             client_party_role = CaseParty.PartyRole.PLAINTIFF
         is_owner_admin = user.role == UserRole.ADMIN and firm.owner_id == user.id
-        if not is_owner_admin:
+        is_authorized_secretary = getattr(user, "secretary_profile", None) is not None
+        if not (is_owner_admin or is_authorized_secretary):
             validated_data.pop("priority", None)
 
         case = Case.objects.create(
@@ -373,7 +384,7 @@ class CaseService:
             action="FILED_CASE_REGISTERED",
             description=(
                 f"Existing court case {case.official_court_case_number} was registered "
-                f"in Sheria Master as {case.case_number}."
+                f"in Sheria Master as {case.case_number} by {user.full_name}."
             ),
             actor=user,
             metadata={

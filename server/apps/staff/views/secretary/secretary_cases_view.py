@@ -4,7 +4,9 @@ from rest_framework.response import Response
 
 from apps.cases.serializers import CaseCreateSerializer, CaseDetailSerializer
 from apps.cases.services import CaseService
+from apps.clients.models import Client
 from apps.staff.models import SecretaryPermission
+from apps.staff.models import Lawyer, Secretary
 from apps.staff.serializers.secretary import SecretaryCaseSerializer
 from apps.staff.services.secretary import SecretaryCaseService
 from apps.staff.views.secretary.secretary_base_view import SecretaryBaseView
@@ -54,4 +56,52 @@ class SecretaryCasesView(SecretaryBaseView):
         return Response(
             {"case": CaseDetailSerializer(case).data},
             status=status.HTTP_201_CREATED,
+        )
+
+
+class SecretaryCaseCreateOptionsView(SecretaryBaseView):
+    def get(self, request):
+        try:
+            secretary = SecretaryCaseService.ensure_can_manage_cases(request.user)
+        except (ValueError, PermissionError) as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+
+        firm = secretary.law_firm
+        clients = Client.objects.filter(firm=firm, is_active=True).order_by("full_name")
+        lawyers = Lawyer.objects.filter(law_firm=firm, is_active=True).select_related("user").order_by("user__first_name", "user__last_name")
+        secretaries = Secretary.objects.filter(law_firm=firm, is_active=True).select_related("user").order_by("user__first_name", "user__last_name")
+
+        return Response(
+            {
+                "clients": [
+                    {
+                        "id": str(client.id),
+                        "client_id": str(client.id),
+                        "full_name": client.full_name,
+                        "client_type": client.client_type,
+                        "national_id": client.national_id,
+                        "email": client.email,
+                    }
+                    for client in clients
+                ],
+                "lawyers": [
+                    {
+                        "id": str(lawyer.id),
+                        "membership_id": str(lawyer.id),
+                        "full_name": lawyer.user.full_name,
+                        "email": lawyer.user.email,
+                    }
+                    for lawyer in lawyers
+                ],
+                "secretaries": [
+                    {
+                        "id": str(item.id),
+                        "membership_id": str(item.id),
+                        "full_name": item.user.full_name,
+                        "email": item.user.email,
+                    }
+                    for item in secretaries
+                ],
+            },
+            status=status.HTTP_200_OK,
         )

@@ -10,6 +10,7 @@ from apps.staff.views.secretary import (
     SecretaryNotificationsView,
     SecretaryProfileView,
     SecretaryTasksView,
+    SecretaryCaseCreateOptionsView,
 )
 
 urlpatterns = [
@@ -22,6 +23,7 @@ urlpatterns = [
         name="secretary-client-create",
     ),
     path("cases/", SecretaryCasesView.as_view(), name="secretary-cases"),
+    path("cases/create-options/", SecretaryCaseCreateOptionsView.as_view(), name="secretary-case-create-options"),
     path("cases/<uuid:case_id>/", SecretaryCasesView.as_view(), name="secretary-case-detail"),
     path("documents/", SecretaryDocumentsView.as_view(), name="secretary-documents"),
     path("tasks/", SecretaryTasksView.as_view(), name="secretary-tasks"),

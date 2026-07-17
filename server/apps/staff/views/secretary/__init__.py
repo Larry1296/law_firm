@@ -1,6 +1,6 @@
 from .secretary_base_view import SecretaryBaseView
 from .secretary_calendar_view import SecretaryCalendarView
-from .secretary_cases_view import SecretaryCasesView
+from .secretary_cases_view import SecretaryCaseCreateOptionsView, SecretaryCasesView
 from .secretary_change_password_view import SecretaryChangePasswordView
 from .secretary_clients_view import SecretaryClientsView
 from .secretary_dashboard_view import SecretaryDashboardView
@@ -13,6 +13,7 @@ __all__ = [
     "SecretaryBaseView",
     "SecretaryCalendarView",
     "SecretaryCasesView",
+    "SecretaryCaseCreateOptionsView",
     "SecretaryChangePasswordView",
     "SecretaryClientsView",
     "SecretaryDashboardView",
