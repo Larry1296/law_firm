@@ -90,13 +90,19 @@ export default function ClientCaseDetailsPage() {
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
             <p>
-              <strong>Case Number:</strong> {safe(caseData.case_number)}
+              <strong>Internal Matter Number:</strong> {safe(caseData.internal_case_number || caseData.case_number)}
+            </p>
+            <p>
+              <strong>Official Court Case Number:</strong> {safe(caseData.official_court_case_number, 'Not recorded')}
             </p>
             <p>
               <strong>Title:</strong> {safe(caseData.title)}
             </p>
             <p>
-              <strong>Status:</strong> {friendly(caseData.status)}
+              <strong>Matter Status:</strong> {friendly(caseData.matter_status)}
+            </p>
+            <p>
+              <strong>Court Stage:</strong> {friendly(caseData.court_stage)}
             </p>
             <p>
               <strong>Priority:</strong> {friendly(caseData.priority)}
@@ -163,7 +169,7 @@ export default function ClientCaseDetailsPage() {
 
         <div className='mt-4 grid gap-6 md:grid-cols-2'>
           <p><strong>eFiling Ref:</strong> {safe(caseData.efiling_reference, 'Not Set')}</p>
-          <p><strong>CTS Ref:</strong> {safe(caseData.cts_reference, 'Not Set')}</p>
+          <p><strong>CTS Ref:</strong> {safe(caseData.cts_reference, 'Pending verification')}</p>
         </div>
       </Card>
 

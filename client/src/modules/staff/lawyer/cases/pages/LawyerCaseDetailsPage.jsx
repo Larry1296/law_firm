@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Swal from '@/core/utils/themedSwal';
 
@@ -19,7 +19,6 @@ import axiosInstance from '@/core/api/axios';
 
 import {
   useMyCase,
-  useUpdateCaseStatus,
   useUpdateLifecycleTransition,
 } from '@/modules/staff/lawyer/cases/hooks/useLawyerCases';
 import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
@@ -108,7 +107,6 @@ export default function LawyerCaseDetailsPage() {
   const lawyerThread = lawyerThreadQuery.data?.thread;
   const lawyerMessagesQuery = useThreadMessages(lawyerThread?.id);
   const sendThreadMessage = useSendThreadMessage();
-  const updateStatus = useUpdateCaseStatus(id);
   const updateLifecycle = useUpdateLifecycleTransition(id);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
@@ -123,16 +121,11 @@ export default function LawyerCaseDetailsPage() {
     is_client_visible: true,
   });
 
-  useEffect(() => {
-    // Initialize from current lifecycle state if needed; dropdown starts empty
-    // and lawyer selects the next available transition from available_transitions.
-    setSelectedStatus('');
-  }, [data]);
-
-  useEffect(() => {
-    if (!selectedStatus || !data) return;
-    const eventType = STATUS_EVENT_TYPE[selectedStatus] || 'OTHER';
-    const statusLabel = CASE_STATUS_OPTIONS.find((item) => item.value === selectedStatus)?.label || 'Next Event';
+  const handleTransitionSelect = (value) => {
+    setSelectedStatus(value);
+    if (!value || !data) return;
+    const eventType = STATUS_EVENT_TYPE[value] || 'OTHER';
+    const statusLabel = CASE_STATUS_OPTIONS.find((item) => item.value === value)?.label || 'Next Event';
     setNextEvent((current) => ({
       ...current,
       event_type: eventType,
@@ -141,7 +134,7 @@ export default function LawyerCaseDetailsPage() {
       courtroom: current.courtroom || data.courtroom || '',
       judicial_officer: current.judicial_officer || data.judicial_officer || '',
     }));
-  }, [data, selectedStatus]);
+  };
 
   if (isLoading) {
     return (
@@ -179,7 +172,6 @@ export default function LawyerCaseDetailsPage() {
 
   const analytics = caseData?.analytics ?? {};
   const timeline = caseData?.timeline ?? [];
-  const events = caseData?.events ?? [];
   const documents = caseData?.documents ?? [];
 
   const safe = (value, fallback = 'N/A') =>
@@ -273,7 +265,10 @@ export default function LawyerCaseDetailsPage() {
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
             <p>
-              <strong>Case Number:</strong> {safe(caseData.case_number)}
+              <strong>Internal Matter Number:</strong> {safe(caseData.internal_case_number || caseData.case_number)}
+            </p>
+            <p>
+              <strong>Official Court Case Number:</strong> {safe(caseData.official_court_case_number, 'Not recorded')}
             </p>
             <p>
               <strong>Title:</strong> {safe(caseData.title)}
@@ -348,7 +343,7 @@ export default function LawyerCaseDetailsPage() {
 
         <div className='mt-4 grid gap-6 md:grid-cols-3'>
           <p><strong>eFiling Ref:</strong> {safe(caseData.efiling_reference, 'Not Set')}</p>
-          <p><strong>CTS Ref:</strong> {safe(caseData.cts_reference, 'Not Set')}</p>
+          <p><strong>CTS Ref:</strong> {safe(caseData.cts_reference, 'Pending verification')}</p>
           <p><strong>Payment Ref:</strong> {safe(caseData.payment_reference, 'Not Set')}</p>
         </div>
       </Card>
@@ -423,7 +418,7 @@ export default function LawyerCaseDetailsPage() {
             </label>
             <select
               value={selectedStatus}
-              onChange={(event) => setSelectedStatus(event.target.value)}
+              onChange={(event) => handleTransitionSelect(event.target.value)}
               className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
             >
               <option value=''>Select lifecycle transition...</option>

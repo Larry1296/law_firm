@@ -16,8 +16,8 @@ export default function AdminCreateCasePage() {
   return (
     <div className='space-y-6 p-4 md:p-6'>
       <SectionHeading
-        title='Create Case'
-        subtitle='Register an already-filed court case for firm management'
+        title='Create Matter'
+        subtitle='Register a legal matter or an already-filed court proceeding'
       />
 
       <CaseCreateForm
