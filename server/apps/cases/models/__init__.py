@@ -10,8 +10,22 @@ from .case_note import CaseNote
 from .case_party import CaseParty
 from .case_task import CaseTask
 from .case_timeline import CaseTimeline
+from .matter_details import (
+    ArbitrationProceeding,
+    ConflictRecordAtRegistration,
+    CourtProceeding,
+    CriminalMatterDetails,
+    EmploymentMatterDetails,
+    InsuranceMatterDetails,
+    LandMatterDetails,
+    MonetaryRelief,
+    NonContentiousMatterDetails,
+    SuccessionMatterDetails,
+    TribunalProceeding,
+)
 
 __all__ = [
+    "ArbitrationProceeding",
     "Case",
     "CaseActivity",
     "CaseAttachment",
@@ -24,4 +38,14 @@ __all__ = [
     "CaseParty",
     "CaseTask",
     "CaseTimeline",
+    "ConflictRecordAtRegistration",
+    "CourtProceeding",
+    "CriminalMatterDetails",
+    "EmploymentMatterDetails",
+    "InsuranceMatterDetails",
+    "LandMatterDetails",
+    "MonetaryRelief",
+    "NonContentiousMatterDetails",
+    "SuccessionMatterDetails",
+    "TribunalProceeding",
 ]

@@ -52,6 +52,53 @@ class Case(TimestampedModel):
         ADR = "ADR", "Alternative Dispute Resolution"
         NON_CONTENTIOUS = "NON_CONTENTIOUS", "Non-Contentious Matter"
 
+    class EntryRoute(models.TextChoices):
+        NEW_INSTRUCTION = "NEW_INSTRUCTION", "New instruction - not yet filed"
+        EXISTING_FILED_COURT_CASE = "EXISTING_FILED_COURT_CASE", "Existing filed court case"
+        EXISTING_TRIBUNAL_MATTER = "EXISTING_TRIBUNAL_MATTER", "Existing tribunal matter"
+        EXISTING_ARBITRATION = "EXISTING_ARBITRATION", "Existing arbitration"
+        NON_CONTENTIOUS_MATTER = "NON_CONTENTIOUS_MATTER", "Non-contentious or advisory matter"
+
+    class PracticeArea(models.TextChoices):
+        CIVIL_COMMERCIAL_LITIGATION = "CIVIL_COMMERCIAL_LITIGATION", "Civil and Commercial Litigation"
+        LAND_ENVIRONMENT = "LAND_ENVIRONMENT", "Land and Environment"
+        EMPLOYMENT_LABOUR = "EMPLOYMENT_LABOUR", "Employment and Labour"
+        FAMILY_LAW = "FAMILY_LAW", "Family Law"
+        SUCCESSION_PROBATE = "SUCCESSION_PROBATE", "Succession and Probate"
+        CRIMINAL_LITIGATION = "CRIMINAL_LITIGATION", "Criminal Litigation"
+        CONSTITUTIONAL_HUMAN_RIGHTS = "CONSTITUTIONAL_HUMAN_RIGHTS", "Constitutional and Human Rights"
+        JUDICIAL_REVIEW = "JUDICIAL_REVIEW", "Judicial Review"
+        INSURANCE = "INSURANCE", "Insurance"
+        TAX = "TAX", "Tax"
+        INSOLVENCY = "INSOLVENCY", "Insolvency"
+        INTELLECTUAL_PROPERTY = "INTELLECTUAL_PROPERTY", "Intellectual Property"
+        PUBLIC_PROCUREMENT = "PUBLIC_PROCUREMENT", "Public Procurement"
+        CONVEYANCING = "CONVEYANCING", "Conveyancing"
+        CORPORATE_COMMERCIAL = "CORPORATE_COMMERCIAL", "Corporate and Commercial"
+        ARBITRATION_MEDIATION = "ARBITRATION_MEDIATION", "Arbitration and Mediation"
+        TRIBUNAL_PROCEEDINGS = "TRIBUNAL_PROCEEDINGS", "Tribunal Proceedings"
+        DEBT_RECOVERY = "DEBT_RECOVERY", "Debt Recovery"
+        REGULATORY_COMPLIANCE = "REGULATORY_COMPLIANCE", "Regulatory and Compliance"
+        ADVISORY = "ADVISORY", "Advisory"
+        LEGACY = "LEGACY", "Legacy / requires review"
+
+    class MatterNature(models.TextChoices):
+        CONTENTIOUS = "CONTENTIOUS", "Contentious"
+        NON_CONTENTIOUS = "NON_CONTENTIOUS", "Non-contentious"
+        ADVISORY = "ADVISORY", "Advisory"
+        TRANSACTIONAL = "TRANSACTIONAL", "Transactional"
+        REGULATORY = "REGULATORY", "Regulatory"
+        DEBT_RECOVERY = "DEBT_RECOVERY", "Debt recovery"
+        ALTERNATIVE_DISPUTE_RESOLUTION = "ALTERNATIVE_DISPUTE_RESOLUTION", "Alternative dispute resolution"
+
+    class Forum(models.TextChoices):
+        NO_FORMAL_FORUM = "NO_FORMAL_FORUM", "No formal forum"
+        COURT = "COURT", "Court"
+        TRIBUNAL = "TRIBUNAL", "Tribunal"
+        ARBITRATION = "ARBITRATION", "Arbitration"
+        MEDIATION = "MEDIATION", "Mediation"
+        ADMINISTRATIVE_BODY = "ADMINISTRATIVE_BODY", "Administrative body"
+
     class MatterStatus(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
         INSTRUCTIONS_RECEIVED = "INSTRUCTIONS_RECEIVED", "Instructions received"
@@ -61,6 +108,7 @@ class Case(TimestampedModel):
         ENGAGEMENT_PENDING = "ENGAGEMENT_PENDING", "Engagement pending"
         ENGAGEMENT_CONFIRMED = "ENGAGEMENT_CONFIRMED", "Engagement confirmed"
         MATTER_OPEN = "MATTER_OPEN", "Matter open"
+        ACTIVE = "ACTIVE", "Active"
         ON_HOLD = "ON_HOLD", "On hold"
         SETTLEMENT_IN_PROGRESS = "SETTLEMENT_IN_PROGRESS", "Settlement in progress"
         CLOSURE_PENDING = "CLOSURE_PENDING", "Closure pending"
@@ -69,6 +117,7 @@ class Case(TimestampedModel):
         CANCELLED = "CANCELLED", "Cancelled"
 
     class CourtStage(models.TextChoices):
+        NOT_APPLICABLE = "NOT_APPLICABLE", "Not applicable"
         NOT_FILED = "NOT_FILED", "Not filed"
         READY_FOR_FILING = "READY_FOR_FILING", "Ready for filing"
         FILED = "FILED", "Filed"
@@ -180,12 +229,43 @@ class Case(TimestampedModel):
     case_number = models.CharField(max_length=60)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
+    entry_route = models.CharField(
+        max_length=50,
+        choices=EntryRoute.choices,
+        default=EntryRoute.EXISTING_FILED_COURT_CASE,
+        db_index=True,
+    )
+    practice_area = models.CharField(
+        max_length=80,
+        choices=PracticeArea.choices,
+        default=PracticeArea.LEGACY,
+        db_index=True,
+    )
+    matter_nature = models.CharField(
+        max_length=60,
+        choices=MatterNature.choices,
+        default=MatterNature.CONTENTIOUS,
+        db_index=True,
+    )
+    forum = models.CharField(
+        max_length=40,
+        choices=Forum.choices,
+        default=Forum.COURT,
+        db_index=True,
+    )
     case_type = models.CharField(max_length=40, choices=CaseType.choices)
     procedure_track = models.CharField(
         max_length=60,
         choices=ProcedureTrack.choices,
         blank=True,
         default="",
+    )
+    procedure_type = models.CharField(
+        max_length=60,
+        choices=ProcedureTrack.choices,
+        blank=True,
+        default="",
+        db_index=True,
     )
     status = models.CharField(
         max_length=40,
@@ -228,7 +308,14 @@ class Case(TimestampedModel):
     )
     priority = models.CharField(max_length=20, choices=Priority.choices, default=Priority.MEDIUM)
 
-    court_type = models.CharField(max_length=40, choices=CourtType.choices)
+    date_instructions_received = models.DateField(null=True, blank=True)
+    urgency_level = models.CharField(max_length=30, blank=True, default="")
+    urgency_reason = models.TextField(blank=True, default="")
+    limitation_date = models.DateField(null=True, blank=True)
+    internal_deadline = models.DateField(null=True, blank=True)
+    conflict_status = models.CharField(max_length=40, blank=True, default="REQUIRES_VERIFICATION")
+
+    court_type = models.CharField(max_length=40, choices=CourtType.choices, blank=True, default="")
     court_division = models.CharField(
         max_length=60,
         choices=CourtDivision.choices,

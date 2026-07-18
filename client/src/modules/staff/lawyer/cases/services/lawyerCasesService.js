@@ -1,4 +1,5 @@
 import axiosInstance from '@/core/api/axios';
+import { sanitizeCaseCreatePayload } from '@/modules/admin/cases/utils/caseCreatePayload';
 
 const lawyerCasesService = {
   async getMyCases(params = {}) {
@@ -11,6 +12,17 @@ const lawyerCasesService = {
   async getMyCaseById(caseId) {
     const { data } = await axiosInstance.get(`/staff/lawyer/cases/${caseId}/`);
     return data.case || data;
+  },
+
+  async createCase(payload) {
+    const createPayload = sanitizeCaseCreatePayload(payload);
+    const { data } = await axiosInstance.post('/staff/lawyer/cases/', createPayload);
+    return data;
+  },
+
+  async getCaseCreateOptions() {
+    const { data } = await axiosInstance.get('/staff/lawyer/cases/create-options/');
+    return data;
   },
 
   async updateLifecycleTransition(caseId, payload) {

@@ -2,12 +2,29 @@ from django.db import transaction
 from django.utils import timezone
 from django.db.models import Count, Q
 
-from apps.cases.models import Case, CaseActivity, CaseEvent, CaseParty, CaseTimeline
+from apps.cases.models import (
+    ArbitrationProceeding,
+    Case,
+    CaseActivity,
+    CaseEvent,
+    CaseParty,
+    CaseTimeline,
+    ConflictRecordAtRegistration,
+    CourtProceeding,
+    CriminalMatterDetails,
+    EmploymentMatterDetails,
+    InsuranceMatterDetails,
+    LandMatterDetails,
+    MonetaryRelief,
+    NonContentiousMatterDetails,
+    SuccessionMatterDetails,
+    TribunalProceeding,
+)
 from apps.cases.services.case_lifecycle_service import CaseLifecycleService
 from apps.clients.models import Client
 from apps.common.choices import UserRole
 from apps.notifications.services import NotificationService
-from apps.staff.models import Lawyer, Secretary
+from apps.staff.models import Lawyer, LawyerPermission, Secretary, SecretaryPermission
 
 
 class CaseService:
@@ -216,6 +233,22 @@ class CaseService:
             )
             return assigned_lawyer, assigned_secretary
 
+        user_lawyer = getattr(user, "lawyer_profile", None)
+        if user_lawyer is not None and user_lawyer.law_firm_id == firm.id:
+            if not user_lawyer.has_permission(LawyerPermission.CREATE_CASES):
+                raise PermissionError("Lawyer permission is required to create matters.")
+            assigned_lawyer = (
+                CaseService.resolve_lawyer(firm, lawyer_id)
+                if lawyer_id
+                else user_lawyer
+            )
+            assigned_secretary = (
+                CaseService.resolve_secretary(firm, secretary_id)
+                if secretary_id
+                else CaseService.get_default_secretary(firm)
+            )
+            return assigned_lawyer, assigned_secretary
+
         raise PermissionError("Only the firm owner or secretary can create cases.")
 
     @staticmethod
@@ -320,54 +353,108 @@ class CaseService:
             secretary_id=secretary_id,
         )
 
-        # The user-supplied court number belongs in official_court_case_number.
-        # case_number is the firm's generated internal matter identifier.
-        validated_data.pop("case_number", None)
-        case_number = CaseService.generate_case_number(firm)
+        parties_data = validated_data.pop("parties", [])
+        court_data = validated_data.pop("court_proceeding", {}) or {}
+        tribunal_data = validated_data.pop("tribunal_proceeding", {}) or {}
+        arbitration_data = validated_data.pop("arbitration_proceeding", {}) or {}
+        non_contentious_data = validated_data.pop("non_contentious_details", {}) or {}
+        land_data = validated_data.pop("land_details", {}) or {}
+        succession_data = validated_data.pop("succession_details", {}) or {}
+        insurance_data = validated_data.pop("insurance_details", {}) or {}
+        employment_data = validated_data.pop("employment_details", {}) or {}
+        criminal_data = validated_data.pop("criminal_details", {}) or {}
+        monetary_data = validated_data.pop("monetary_relief", {}) or {}
+        conflict_record_data = validated_data.pop("conflict_record", {}) or {}
+
         plaintiff = validated_data.pop("plaintiff", "") or client.full_name
+        defendant = validated_data.pop("defendant", "")
         client_party_role = validated_data.pop("client_party_role", "") or CaseParty.PartyRole.PLAINTIFF
         if client_party_role not in CaseParty.PartyRole.values:
-            client_party_role = CaseParty.PartyRole.PLAINTIFF
-        is_owner_admin = user.role == UserRole.ADMIN and firm.owner_id == user.id
-        is_authorized_secretary = getattr(user, "secretary_profile", None) is not None
-        if not (is_owner_admin or is_authorized_secretary):
-            validated_data.pop("priority", None)
+            client_party_role = CaseParty.PartyRole.OTHER
+
+        entry_route = validated_data.get("entry_route")
+        entry_route_explicit = validated_data.pop("_entry_route_explicit", False)
+        forum = validated_data.get("forum")
+        has_filing_identity = bool(court_data.get("official_court_case_number") and court_data.get("filing_date"))
+        court_stage = Case.CourtStage.NOT_APPLICABLE
+        if forum == Case.Forum.COURT:
+            court_stage = (
+                Case.CourtStage.FILED
+                if entry_route == Case.EntryRoute.EXISTING_FILED_COURT_CASE or has_filing_identity
+                else Case.CourtStage.NOT_FILED
+            )
+        matter_status = (
+            Case.MatterStatus.ACTIVE
+            if entry_route_explicit and entry_route != Case.EntryRoute.NEW_INSTRUCTION
+            else Case.MatterStatus.INSTRUCTIONS_RECEIVED
+        )
+
+        court_to_case = {
+            "official_court_case_number": "official_court_case_number",
+            "filing_date": "filing_date",
+            "court_type": "court_type",
+            "court_level": "court_level",
+            "court_name": "court_name",
+            "court_station": "court_station",
+            "registry": "registry",
+            "division": "court_division",
+            "courtroom": "courtroom",
+            "judicial_officer": "judicial_officer",
+            "court_location": "court_location",
+            "efiling_reference": "efiling_reference",
+            "payment_reference": "payment_reference",
+            "jurisdiction_notes": "jurisdiction_notes",
+        }
+        for source, target in court_to_case.items():
+            if court_data.get(source) not in ("", None):
+                validated_data[target] = court_data[source]
+
+        case_number = CaseService.generate_case_number(firm)
+        case_fields = {
+            field.name
+            for field in Case._meta.fields
+            if field.name not in {"id", "firm", "client", "created_by", "case_number"}
+        }
+        case_payload = {key: value for key, value in validated_data.items() if key in case_fields}
+        case_payload.update(
+            {
+                "matter_status": matter_status,
+                "court_stage": court_stage,
+                "assigned_lawyer": assigned_lawyer,
+                "assigned_secretary": assigned_secretary,
+                "plaintiff": plaintiff,
+                "defendant": defendant,
+            }
+        )
 
         case = Case.objects.create(
             firm=firm,
             client=client,
             created_by=user,
             case_number=case_number,
-            court_stage=Case.CourtStage.FILED,
-            assigned_lawyer=assigned_lawyer,
-            assigned_secretary=assigned_secretary,
-            plaintiff=plaintiff,
-            **validated_data,
+            **case_payload,
         )
-        CaseParty.objects.create(
+
+        CaseService._create_related_matter_records(
             case=case,
             client=client,
-            name=plaintiff,
-            party_role=client_party_role,
-            party_type=CaseParty.PartyType.ORGANISATION
-            if client.client_type != Client.ClientType.INDIVIDUAL
-            else CaseParty.PartyType.INDIVIDUAL,
-            is_our_client=True,
-            party_order=1,
-            phone_number=client.phone_number or "",
-            email=client.email or "",
-            national_id=client.national_id or "",
-            kra_pin=client.kra_pin or "",
+            actor=user,
+            client_party_role=client_party_role,
+            plaintiff=plaintiff,
+            defendant=defendant,
+            parties_data=parties_data,
+            court_data=court_data,
+            tribunal_data=tribunal_data,
+            arbitration_data=arbitration_data,
+            non_contentious_data=non_contentious_data,
+            land_data=land_data,
+            succession_data=succession_data,
+            insurance_data=insurance_data,
+            employment_data=employment_data,
+            criminal_data=criminal_data,
+            monetary_data=monetary_data,
+            conflict_record_data=conflict_record_data,
         )
-        defendant = (case.defendant or "").strip()
-        if defendant:
-            CaseParty.objects.create(
-                case=case,
-                name=defendant,
-                party_role=CaseParty.PartyRole.DEFENDANT,
-                party_type=CaseParty.PartyType.OTHER,
-                party_order=2,
-            )
 
         if client.lifecycle_status == Client.LifecycleStatus.PROSPECT:
             client.lifecycle_status = Client.LifecycleStatus.OFFICIAL_CLIENT
@@ -379,17 +466,17 @@ class CaseService:
             client.save(update_fields=["is_verified", "updated_at"])
 
 
+        action, timeline_title, description = CaseService.creation_event_copy(case)
         CaseService.record_activity(
             case,
-            action="FILED_CASE_REGISTERED",
-            description=(
-                f"Existing court case {case.official_court_case_number} was registered "
-                f"in Sheria Master as {case.case_number} by {user.full_name}."
-            ),
+            action=action,
+            description=description,
             actor=user,
             metadata={
                 "client_id": str(client.id),
                 "internal_case_number": case.case_number,
+                "entry_route": case.entry_route,
+                "forum": case.forum,
                 "official_court_case_number": case.official_court_case_number,
                 "filing_date": case.filing_date.isoformat() if case.filing_date else None,
                 "efiling_reference": case.efiling_reference,
@@ -398,23 +485,290 @@ class CaseService:
         CaseLifecycleService.record_initial_case_opening(case, user)
         CaseTimeline.objects.create(
             case=case,
-            action="Conflict Record Verification Required",
-            description=(
-                "This filed case was registered for ongoing management; the firm "
-                "must verify or record the historical conflict-check position."
-            ),
+            action=timeline_title,
+            description=description,
             created_by=user,
         )
-        CaseService.record_activity(
-            case,
-            action="CONFLICT_RECORD_VERIFICATION_REQUIRED",
-            description="Historical conflict-check status requires verification for this filed case.",
-            actor=user,
-            metadata={"source": "filed_case_registration"},
-        )
+        try:
+            conflict_record = case.conflict_record
+        except ConflictRecordAtRegistration.DoesNotExist:
+            conflict_record = None
+        if conflict_record and conflict_record.status == ConflictRecordAtRegistration.Status.REQUIRES_VERIFICATION:
+            CaseService.record_activity(
+                case,
+                action="CONFLICT_RECORD_VERIFICATION_REQUIRED",
+                description="Conflict-check position requires verification for this matter.",
+                actor=user,
+                metadata={"source": "matter_registration", "entry_route": case.entry_route},
+            )
         CaseService.notify_case_assignments(case, actor=user)
 
         return case
+
+    @staticmethod
+    def _payload_for_model(model, data, aliases=None):
+        aliases = aliases or {}
+        normalized = {}
+        for key, value in (data or {}).items():
+            normalized[aliases.get(key, key)] = value
+        field_names = {
+            field.name
+            for field in model._meta.fields
+            if field.name not in {"id", "matter", "created_at", "updated_at"}
+        }
+        return {
+            key: value
+            for key, value in normalized.items()
+            if key in field_names and value not in ("", None)
+        }
+
+    @staticmethod
+    def _create_related_matter_records(
+        *,
+        case,
+        client,
+        actor,
+        client_party_role,
+        plaintiff,
+        defendant,
+        parties_data,
+        court_data,
+        tribunal_data,
+        arbitration_data,
+        non_contentious_data,
+        land_data,
+        succession_data,
+        insurance_data,
+        employment_data,
+        criminal_data,
+        monetary_data,
+        conflict_record_data,
+    ):
+        CaseService._create_case_parties(
+            case=case,
+            client=client,
+            client_party_role=client_party_role,
+            plaintiff=plaintiff,
+            defendant=defendant,
+            parties_data=parties_data,
+        )
+
+        if case.forum == Case.Forum.COURT or court_data:
+            court_payload = CaseService._payload_for_model(
+                CourtProceeding,
+                {
+                    **court_data,
+                    "court_stage": case.court_stage,
+                    "division": court_data.get("division") or case.court_division,
+                    "official_court_case_number": court_data.get("official_court_case_number") or case.official_court_case_number,
+                    "filing_date": court_data.get("filing_date") or case.filing_date,
+                    "court_type": court_data.get("court_type") or case.court_type,
+                    "court_name": court_data.get("court_name") or case.court_name,
+                    "court_station": court_data.get("court_station") or case.court_station,
+                    "registry": court_data.get("registry") or case.registry,
+                    "efiling_reference": court_data.get("efiling_reference") or case.efiling_reference,
+                    "payment_reference": court_data.get("payment_reference") or case.payment_reference,
+                    "jurisdiction_notes": court_data.get("jurisdiction_notes") or case.jurisdiction_notes,
+                },
+            )
+            CourtProceeding.objects.create(matter=case, **court_payload)
+
+        if tribunal_data:
+            TribunalProceeding.objects.create(
+                matter=case,
+                **CaseService._payload_for_model(TribunalProceeding, tribunal_data),
+            )
+        if arbitration_data:
+            ArbitrationProceeding.objects.create(
+                matter=case,
+                **CaseService._payload_for_model(
+                    ArbitrationProceeding,
+                    arbitration_data,
+                    aliases={"arbitration_institution": "institution", "arbitration_seat": "seat", "arbitration_rules": "rules"},
+                ),
+            )
+        if non_contentious_data:
+            NonContentiousMatterDetails.objects.create(
+                matter=case,
+                **CaseService._payload_for_model(NonContentiousMatterDetails, non_contentious_data),
+            )
+        if land_data:
+            LandMatterDetails.objects.create(
+                matter=case,
+                **CaseService._payload_for_model(
+                    LandMatterDetails,
+                    land_data,
+                    aliases={"property_county": "county", "property_value": "estimated_property_value"},
+                ),
+            )
+        if succession_data:
+            SuccessionMatterDetails.objects.create(
+                matter=case,
+                **CaseService._payload_for_model(
+                    SuccessionMatterDetails,
+                    succession_data,
+                    aliases={
+                        "estate_value": "estimated_gross_estate_value",
+                        "gross_estate_value": "estimated_gross_estate_value",
+                        "liabilities": "known_liabilities",
+                        "net_estate_value": "estimated_net_estate_value",
+                    },
+                ),
+            )
+        if insurance_data:
+            InsuranceMatterDetails.objects.create(
+                matter=case,
+                **CaseService._payload_for_model(
+                    InsuranceMatterDetails,
+                    insurance_data,
+                    aliases={"insurance_claim_number": "claim_number"},
+                ),
+            )
+        if employment_data:
+            EmploymentMatterDetails.objects.create(
+                matter=case,
+                **CaseService._payload_for_model(EmploymentMatterDetails, employment_data),
+            )
+        if criminal_data:
+            CriminalMatterDetails.objects.create(
+                matter=case,
+                **CaseService._payload_for_model(
+                    CriminalMatterDetails,
+                    criminal_data,
+                    aliases={"bond_bail_status": "bond_bail_status"},
+                ),
+            )
+
+        if monetary_data or case.claim_amount is not None:
+            payload = CaseService._payload_for_model(
+                MonetaryRelief,
+                monetary_data,
+                aliases={
+                    "monetary_relief_type": "relief_type",
+                    "claim_amount": "principal_amount",
+                    "amount_paid": "amount_already_paid",
+                },
+            )
+            if case.claim_amount is not None and "principal_amount" not in payload:
+                payload["principal_amount"] = case.claim_amount
+            if "currency" not in payload:
+                payload["currency"] = case.currency or "KES"
+            MonetaryRelief.objects.create(matter=case, **payload)
+
+        conflict_status = conflict_record_data.get("status") or conflict_record_data.get("conflict_record_status") or "REQUIRES_VERIFICATION"
+        ConflictRecordAtRegistration.objects.create(
+            matter=case,
+            status=conflict_status,
+            effective_date=conflict_record_data.get("effective_date"),
+            result_summary=conflict_record_data.get("result_summary", ""),
+            reason=conflict_record_data.get("reason", ""),
+            notes=conflict_record_data.get("notes", ""),
+            recorded_by=actor,
+            recorded_at=timezone.now(),
+        )
+
+    @staticmethod
+    def _create_case_parties(*, case, client, client_party_role, plaintiff, defendant, parties_data):
+        CaseParty.objects.create(
+            case=case,
+            client=client,
+            name=plaintiff,
+            individual_name=plaintiff if client.client_type == Client.ClientType.INDIVIDUAL else "",
+            organization_name="" if client.client_type == Client.ClientType.INDIVIDUAL else plaintiff,
+            party_role=client_party_role,
+            party_type=CaseParty.PartyType.INDIVIDUAL
+            if client.client_type == Client.ClientType.INDIVIDUAL
+            else CaseParty.PartyType.COMPANY,
+            is_our_client=True,
+            is_adverse=False,
+            party_order=1,
+            phone_number=client.phone_number or "",
+            email=client.email or "",
+            national_id=client.national_id or "",
+            kra_pin=client.kra_pin or "",
+        )
+        seen_names = {plaintiff.strip().lower()}
+        order = 2
+        for raw_party in parties_data or []:
+            name = (
+                raw_party.get("name")
+                or raw_party.get("individual_name")
+                or raw_party.get("organization_name")
+                or ""
+            ).strip()
+            if not name or name.lower() in seen_names:
+                continue
+            seen_names.add(name.lower())
+            party_type = raw_party.get("party_type") or CaseParty.PartyType.OTHER
+            if party_type not in CaseParty.PartyType.values:
+                party_type = CaseParty.PartyType.OTHER
+            role = raw_party.get("role") or raw_party.get("party_role") or CaseParty.PartyRole.OTHER
+            if role not in CaseParty.PartyRole.values:
+                role = CaseParty.PartyRole.OTHER
+            CaseParty.objects.create(
+                case=case,
+                name=name,
+                individual_name=raw_party.get("individual_name", ""),
+                organization_name=raw_party.get("organization_name", ""),
+                party_role=role,
+                party_type=party_type,
+                is_our_client=bool(raw_party.get("is_client", False)),
+                is_adverse=bool(raw_party.get("is_adverse", False)),
+                party_order=raw_party.get("display_order") or order,
+                identifier=raw_party.get("identifier", ""),
+                email=raw_party.get("email", ""),
+                phone_number=raw_party.get("phone", "") or raw_party.get("phone_number", ""),
+                address=raw_party.get("address", ""),
+                representation_status=raw_party.get("representation_status", ""),
+                advocate_on_record=raw_party.get("advocate_name", ""),
+                law_firm=raw_party.get("advocate_firm", ""),
+                notes=raw_party.get("notes", ""),
+            )
+            order += 1
+
+        if defendant and defendant.strip().lower() not in seen_names:
+            CaseParty.objects.create(
+                case=case,
+                name=defendant.strip(),
+                organization_name=defendant.strip(),
+                party_role=CaseParty.PartyRole.DEFENDANT,
+                party_type=CaseParty.PartyType.OTHER,
+                is_adverse=True,
+                party_order=order,
+            )
+
+    @staticmethod
+    def creation_event_copy(case):
+        actor_name = case.created_by.full_name if case.created_by else "an authorized user"
+        if case.entry_route == Case.EntryRoute.NEW_INSTRUCTION and case.court_stage != Case.CourtStage.FILED:
+            return (
+                "MATTER_OPENED",
+                "Matter Opened",
+                f"A new client instruction was opened in Sheria Master as {case.case_number} by {actor_name}.",
+            )
+        if case.entry_route == Case.EntryRoute.EXISTING_TRIBUNAL_MATTER:
+            return (
+                "TRIBUNAL_MATTER_REGISTERED",
+                "Tribunal Matter Registered",
+                f"The tribunal matter was registered in Sheria Master as {case.case_number} by {actor_name}.",
+            )
+        if case.entry_route == Case.EntryRoute.EXISTING_ARBITRATION:
+            return (
+                "ARBITRATION_REGISTERED",
+                "Arbitration Registered",
+                f"The arbitration was registered in Sheria Master as {case.case_number} by {actor_name}.",
+            )
+        if case.entry_route == Case.EntryRoute.NON_CONTENTIOUS_MATTER:
+            return (
+                "NON_CONTENTIOUS_MATTER_REGISTERED",
+                "Non-Contentious Matter Registered",
+                f"The non-contentious matter was registered in Sheria Master as {case.case_number} by {actor_name}.",
+            )
+        return (
+            "FILED_CASE_REGISTERED",
+            "Filed Case Registered",
+            f"{case.official_court_case_number} was registered in Sheria Master as {case.case_number} by {actor_name}.",
+        )
 
     @staticmethod
     @transaction.atomic

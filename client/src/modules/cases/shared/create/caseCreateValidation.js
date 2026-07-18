@@ -1,15 +1,10 @@
 import { ENTRY_ROUTES } from './caseCreateOptions.js';
 
-const SUPPORTED_BACKEND_ENTRY_ROUTES = ['EXISTING_FILED_COURT_CASE'];
-
 const isBlank = (value) => value === undefined || value === null || String(value).trim() === '';
 
 const addError = (errors, field, message) => {
   if (!errors[field]) errors[field] = message;
 };
-
-export const isBackendSupportedEntryRoute = (entryRoute) =>
-  SUPPORTED_BACKEND_ENTRY_ROUTES.includes(entryRoute);
 
 export const getEntryRouteLabel = (entryRoute) =>
   ENTRY_ROUTES.find((route) => route.value === entryRoute)?.label || entryRoute;
@@ -36,14 +31,6 @@ export const validateCaseCreateForm = (formData = {}, context = {}) => {
     addError(errors, 'client_party_role', 'Select the represented client role.');
   }
 
-  if (!isBackendSupportedEntryRoute(entryRoute)) {
-    addError(
-      errors,
-      'entry_route',
-      `${getEntryRouteLabel(entryRoute)} is available in the frontend workflow, but the current backend create endpoint only supports registering existing filed court cases.`,
-    );
-  }
-
   if (entryRoute === 'EXISTING_FILED_COURT_CASE') {
     if (isBlank(formData.official_court_case_number)) {
       addError(errors, 'official_court_case_number', 'Official court case number is required for an existing filed court case.');
@@ -62,6 +49,12 @@ export const validateCaseCreateForm = (formData = {}, context = {}) => {
     }
     if (isBlank(formData.defendant) && formData.matter_nature !== 'NON_CONTENTIOUS') {
       addError(errors, 'defendant', 'Record at least one adverse or opposing party for this proceeding.');
+    }
+  }
+
+  if (entryRoute === 'NEW_INSTRUCTION') {
+    if (formData.official_court_case_number || formData.filing_date || formData.efiling_reference) {
+      warnings.push('Court filing fields will be omitted because this is a new unfiled instruction.');
     }
   }
 

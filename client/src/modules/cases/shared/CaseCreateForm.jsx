@@ -58,13 +58,6 @@ const isTribunalRoute = (formData) =>
 const isArbitrationRoute = (formData) =>
   formData.forum === 'ARBITRATION' || formData.entry_route === 'EXISTING_ARBITRATION';
 
-const backendUnsupportedRoutes = new Set([
-  'NEW_INSTRUCTION',
-  'EXISTING_TRIBUNAL_MATTER',
-  'EXISTING_ARBITRATION',
-  'NON_CONTENTIOUS_MATTER',
-]);
-
 const Section = ({ title, children, description }) => (
   <div className='space-y-4 rounded-xl border border-border-light p-4 dark:border-border-dark'>
     <div>
@@ -179,6 +172,12 @@ export default function CaseCreateForm({
   const [warnings, setWarnings] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdResult, setCreatedResult] = useState(null);
+  const [partyDraft, setPartyDraft] = useState({
+    name: '',
+    role: 'DEFENDANT',
+    party_type: 'OTHER',
+    is_adverse: true,
+  });
 
   const steps = [
     'Entry Route',
@@ -228,6 +227,11 @@ export default function CaseCreateForm({
           next.forum = 'NO_FORMAL_FORUM';
           next.matter_nature = 'NON_CONTENTIOUS';
           next.procedure_track = 'NON_CONTENTIOUS';
+        } else if (value === 'NEW_INSTRUCTION') {
+          next.official_court_case_number = '';
+          next.filing_date = '';
+          next.efiling_reference = '';
+          next.payment_reference = '';
         }
       }
 
@@ -267,8 +271,8 @@ export default function CaseCreateForm({
   };
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
-    updateField(name, value);
+    const { name, type, checked, value } = event.target;
+    updateField(name, type === 'checkbox' ? checked : value);
   };
 
   const validationContext = { client_id: formData.client_id };
@@ -355,7 +359,26 @@ export default function CaseCreateForm({
     );
   }
 
-  const selectedEntryUnsupported = backendUnsupportedRoutes.has(formData.entry_route);
+  const addParty = () => {
+    const name = partyDraft.name.trim();
+    if (!name) return;
+    if (selectedClient && name.toLowerCase() === (selectedClient.full_name || selectedClient.company_name || '').toLowerCase()) {
+      setErrors((current) => ({ ...current, parties: 'The represented client cannot be duplicated as an adverse party.' }));
+      return;
+    }
+    setFormData((current) => ({
+      ...current,
+      parties: [...(current.parties || []), { ...partyDraft, name, organization_name: name }],
+    }));
+    setPartyDraft({ name: '', role: 'DEFENDANT', party_type: 'OTHER', is_adverse: true });
+  };
+
+  const removeParty = (index) => {
+    setFormData((current) => ({
+      ...current,
+      parties: (current.parties || []).filter((_, itemIndex) => itemIndex !== index),
+    }));
+  };
 
   return (
     <Card className='p-6'>
@@ -402,11 +425,6 @@ export default function CaseCreateForm({
                   }`}
                 >
                   <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>{route.label}</p>
-                  {backendUnsupportedRoutes.has(route.value) && (
-                    <p className='mt-2 text-xs text-yellow-700 dark:text-yellow-300'>
-                      Frontend route prepared; backend create support is not available yet.
-                    </p>
-                  )}
                 </button>
               ))}
             </div>
@@ -469,6 +487,40 @@ export default function CaseCreateForm({
               error={errors.defendant}
               required={formData.forum !== 'NO_FORMAL_FORUM'}
             />
+            <div className='rounded-xl border border-border-light p-4 dark:border-border-dark'>
+              <p className='mb-3 text-sm font-semibold text-text-primary-light dark:text-text-primary-dark'>Additional Parties</p>
+              <div className='grid gap-3 md:grid-cols-[1fr_180px_180px_auto] md:items-end'>
+                <FloatingInput label='Party Name' name='party_name' value={partyDraft.name} onChange={(event) => setPartyDraft((current) => ({ ...current, name: event.target.value }))} />
+                <SelectField label='Role' name='party_role' value={partyDraft.role} onChange={(event) => setPartyDraft((current) => ({ ...current, role: event.target.value }))} options={currentRoleOptions} />
+                <SelectField
+                  label='Party Type'
+                  name='party_type'
+                  value={partyDraft.party_type}
+                  onChange={(event) => setPartyDraft((current) => ({ ...current, party_type: event.target.value }))}
+                  options={[
+                    { value: 'INDIVIDUAL', label: 'Individual' },
+                    { value: 'COMPANY', label: 'Company' },
+                    { value: 'GOVERNMENT_ENTITY', label: 'Government Entity' },
+                    { value: 'ESTATE', label: 'Estate' },
+                    { value: 'TRUST', label: 'Trust' },
+                    { value: 'ASSOCIATION', label: 'Association' },
+                    { value: 'OTHER', label: 'Other' },
+                  ]}
+                />
+                <Button3D type='button' variant='outlineLight' onClick={addParty}>Add Party</Button3D>
+              </div>
+              {errors.parties && <p className='mt-1 text-sm text-red-500'>{errors.parties}</p>}
+              {(formData.parties || []).length > 0 && (
+                <div className='mt-3 space-y-2'>
+                  {formData.parties.map((party, index) => (
+                    <div key={`${party.name}:${index}`} className='flex items-center justify-between rounded-lg border border-border-light px-3 py-2 text-sm dark:border-border-dark'>
+                      <span>{party.name} - {party.role?.replaceAll('_', ' ')}</span>
+                      <button type='button' className='text-red-600' onClick={() => removeParty(index)}>Remove</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             {selectedClient && (
               <ReadOnlyNotice title='Represented Party'>
                 {selectedClient.full_name || selectedClient.company_name} is automatically recorded as the represented party and should not be duplicated as an adverse party.
@@ -511,27 +563,51 @@ export default function CaseCreateForm({
               <>
                 <FloatingInput label='Tribunal Name' name='tribunal_name' value={formData.tribunal_name} onChange={handleChange} error={errors.tribunal_name} />
                 <FloatingInput label='Tribunal Reference' name='tribunal_reference' value={formData.tribunal_reference} onChange={handleChange} />
+                <FloatingInput label='Registry or Location' name='registry_or_location' value={formData.registry_or_location} onChange={handleChange} />
+                <FloatingInput label='Panel or Adjudicator' name='panel_or_adjudicator' value={formData.panel_or_adjudicator} onChange={handleChange} />
               </>
             )}
             {isArbitrationRoute(formData) && (
               <>
                 <FloatingInput label='Arbitration Institution' name='arbitration_institution' value={formData.arbitration_institution} onChange={handleChange} error={errors.arbitration_institution} />
                 <FloatingInput label='Arbitration Reference' name='arbitration_reference' value={formData.arbitration_reference} onChange={handleChange} />
+                <FloatingInput label='Arbitration Agreement' name='arbitration_agreement' value={formData.arbitration_agreement} onChange={handleChange} />
                 <FloatingInput label='Seat' name='arbitration_seat' value={formData.arbitration_seat} onChange={handleChange} />
                 <FloatingInput label='Rules' name='arbitration_rules' value={formData.arbitration_rules} onChange={handleChange} />
+                <FloatingInput label='Arbitrator' name='arbitrator' value={formData.arbitrator} onChange={handleChange} />
+                <FloatingInput label='Commencement Date' name='commencement_date' type='date' value={formData.commencement_date} onChange={handleChange} noFloat />
+              </>
+            )}
+            {formData.forum === 'NO_FORMAL_FORUM' && (
+              <>
+                <FloatingInput label='Instruction Type' name='instruction_type' value={formData.instruction_type} onChange={handleChange} />
+                <FloatingInput label='Deliverable' name='deliverable' value={formData.deliverable} onChange={handleChange} />
+                <FloatingInput label='Target Completion Date' name='target_completion_date' type='date' value={formData.target_completion_date} onChange={handleChange} noFloat />
+                <FloatingInput label='Counterparty' name='counterparty' value={formData.counterparty} onChange={handleChange} />
+                <FloatingInput label='Transaction Value' name='transaction_value' type='number' value={formData.transaction_value} onChange={handleChange} />
+                <FloatingInput label='Scope of Work' name='scope_of_work' value={formData.scope_of_work} onChange={handleChange} />
               </>
             )}
           </Section>
         )}
 
         {step === 5 && (
-          <Section title='Matter-Specific Details' description='These fields shape the workflow. Dedicated backend storage is still required for several specialized categories.'>
+          <Section title='Matter-Specific Details'>
             {formData.practice_area === 'LAND_ENVIRONMENT' && (
               <>
                 <FloatingInput label='Property Description' name='property_description' value={formData.property_description} onChange={handleChange} />
                 <FloatingInput label='Title Number' name='title_number' value={formData.title_number} onChange={handleChange} />
                 <FloatingInput label='Parcel Number' name='parcel_number' value={formData.parcel_number} onChange={handleChange} />
                 <FloatingInput label='Land Reference Number' name='land_reference_number' value={formData.land_reference_number} onChange={handleChange} />
+                <FloatingInput label='County' name='property_county' value={formData.property_county} onChange={handleChange} />
+                <FloatingInput label='Location' name='location' value={formData.location} onChange={handleChange} />
+                <FloatingInput label='Registered Owner' name='registered_owner' value={formData.registered_owner} onChange={handleChange} />
+                <FloatingInput label='Estimated Property Value' name='property_value' type='number' value={formData.property_value} onChange={handleChange} />
+                <FloatingInput label='Nature of Land Interest' name='nature_of_land_interest' value={formData.nature_of_land_interest} onChange={handleChange} />
+                <FloatingInput label='Possession Status' name='possession_status' value={formData.possession_status} onChange={handleChange} />
+                <label className='flex items-center gap-2 text-sm'><input type='checkbox' name='boundary_dispute' checked={formData.boundary_dispute} onChange={handleChange} /> Boundary dispute</label>
+                <FloatingInput label='Environment Issue' name='environment_issue' value={formData.environment_issue} onChange={handleChange} />
+                <FloatingInput label='Orders Sought' name='orders_sought' value={formData.orders_sought} onChange={handleChange} />
               </>
             )}
             {formData.practice_area === 'SUCCESSION_PROBATE' && (
@@ -539,35 +615,57 @@ export default function CaseCreateForm({
                 <FloatingInput label='Deceased Full Name' name='deceased_full_name' value={formData.deceased_full_name} onChange={handleChange} />
                 <FloatingInput label='Date of Death' name='date_of_death' type='date' value={formData.date_of_death} onChange={handleChange} noFloat />
                 <FloatingInput label='Estimated Estate Value' name='estate_value' value={formData.estate_value} onChange={handleChange} />
+                <FloatingInput label='Place of Death' name='place_of_death' value={formData.place_of_death} onChange={handleChange} />
+                <FloatingInput label='Testate Status' name='testate_status' value={formData.testate_status} onChange={handleChange} />
+                <FloatingInput label='Will Date' name='will_date' type='date' value={formData.will_date} onChange={handleChange} noFloat />
+                <FloatingInput label='Known Liabilities' name='known_liabilities' type='number' value={formData.known_liabilities} onChange={handleChange} />
+                <FloatingInput label='Estimated Net Estate Value' name='estimated_net_estate_value' type='number' value={formData.estimated_net_estate_value} onChange={handleChange} />
+                <FloatingInput label='Grant Type' name='grant_type' value={formData.grant_type} onChange={handleChange} />
+                <FloatingInput label='Proposed Administrator' name='proposed_administrator' value={formData.proposed_administrator} onChange={handleChange} />
               </>
             )}
             {formData.practice_area === 'INSURANCE' && (
               <>
                 <FloatingInput label='Insurer' name='insurer' value={formData.insurer} onChange={handleChange} />
                 <FloatingInput label='Policy Number' name='policy_number' value={formData.policy_number} onChange={handleChange} />
+                <FloatingInput label='Policy Type' name='policy_type' value={formData.policy_type} onChange={handleChange} />
+                <FloatingInput label='Insured Party' name='insured_party' value={formData.insured_party} onChange={handleChange} />
                 <FloatingInput label='Insurance Claim Number' name='insurance_claim_number' value={formData.insurance_claim_number} onChange={handleChange} />
                 <FloatingInput label='Date of Loss' name='date_of_loss' type='date' value={formData.date_of_loss} onChange={handleChange} noFloat />
+                <FloatingInput label='Cause of Loss' name='cause_of_loss' value={formData.cause_of_loss} onChange={handleChange} />
+                <FloatingInput label='Policy Limit' name='policy_limit' type='number' value={formData.policy_limit} onChange={handleChange} />
+                <FloatingInput label='Repudiation Date' name='repudiation_date' type='date' value={formData.repudiation_date} onChange={handleChange} noFloat />
+                <FloatingInput label='Repudiation Reason' name='repudiation_reason' value={formData.repudiation_reason} onChange={handleChange} />
               </>
             )}
             {formData.practice_area === 'EMPLOYMENT_LABOUR' && (
               <>
                 <FloatingInput label='Employer' name='employer' value={formData.employer} onChange={handleChange} />
                 <FloatingInput label='Employee' name='employee' value={formData.employee} onChange={handleChange} />
+                <FloatingInput label='Employment Start Date' name='employment_start_date' type='date' value={formData.employment_start_date} onChange={handleChange} noFloat />
                 <FloatingInput label='Monthly Salary' name='monthly_salary' type='number' value={formData.monthly_salary} onChange={handleChange} />
                 <FloatingInput label='Termination Date' name='termination_date' type='date' value={formData.termination_date} onChange={handleChange} noFloat />
+                <FloatingInput label='Employment Status' name='employment_status' value={formData.employment_status} onChange={handleChange} />
+                <FloatingInput label='Nature of Complaint' name='nature_of_complaint' value={formData.nature_of_complaint} onChange={handleChange} />
+                <FloatingInput label='Dismissal Type' name='dismissal_type' value={formData.dismissal_type} onChange={handleChange} />
+                <FloatingInput label='Labour Officer Reference' name='labour_officer_reference' value={formData.labour_officer_reference} onChange={handleChange} />
               </>
             )}
             {formData.practice_area === 'CRIMINAL_LITIGATION' && (
               <>
+                <FloatingInput label='Accused Person' name='accused_person' value={formData.accused_person} onChange={handleChange} />
                 <FloatingInput label='Charge' name='charge' value={formData.charge} onChange={handleChange} />
+                <FloatingInput label='Statutory Provision' name='statutory_provision' value={formData.statutory_provision} onChange={handleChange} />
                 <FloatingInput label='Plea' name='plea' value={formData.plea} onChange={handleChange} />
+                <FloatingInput label='Arrest Date' name='arrest_date' type='date' value={formData.arrest_date} onChange={handleChange} noFloat />
                 <FloatingInput label='Police Station' name='police_station' value={formData.police_station} onChange={handleChange} />
                 <FloatingInput label='OB Number' name='ob_number' value={formData.ob_number} onChange={handleChange} />
+                <FloatingInput label='Bond or Bail Status' name='bond_bail_status' value={formData.bond_bail_status} onChange={handleChange} />
+                <FloatingInput label='Bond Amount' name='bond_amount' type='number' value={formData.bond_amount} onChange={handleChange} />
+                <FloatingInput label='Custody Status' name='custody_status' value={formData.custody_status} onChange={handleChange} />
+                <FloatingInput label='Prosecution Agency' name='prosecution_agency' value={formData.prosecution_agency} onChange={handleChange} />
               </>
             )}
-            <ReadOnlyNotice title='Specialized Data Storage'>
-              The current backend create endpoint stores common matter and court fields. Specialized practice-area fields are not submitted until backend models support them.
-            </ReadOnlyNotice>
           </Section>
         )}
 
@@ -642,11 +740,6 @@ export default function CaseCreateForm({
 
         {step === 8 && (
           <Section title='Review'>
-            {selectedEntryUnsupported && (
-              <div className='rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-900 dark:border-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-100'>
-                The current backend create endpoint does not yet support {optionLabel(ENTRY_ROUTES, formData.entry_route).toLowerCase()}. This route is available in the shared workflow UI but cannot be submitted until backend support is added.
-              </div>
-            )}
             <dl className='grid gap-3 text-sm md:grid-cols-2'>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Entry Route</dt><dd className='font-semibold'>{optionLabel(ENTRY_ROUTES, formData.entry_route)}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Client</dt><dd className='font-semibold'>{selectedClient?.full_name || selectedClient?.company_name || 'Not selected'}</dd></div>
@@ -669,7 +762,7 @@ export default function CaseCreateForm({
               Continue
             </Button3D>
           ) : (
-            <Button3D type='submit' variant='primary' disabled={isSubmitting || selectedEntryUnsupported}>
+            <Button3D type='submit' variant='primary' disabled={isSubmitting}>
               {isSubmitting ? 'Submitting...' : isFiledCourtRoute(formData) ? 'Register Filed Case' : 'Open Matter'}
             </Button3D>
           )}

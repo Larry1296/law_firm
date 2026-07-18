@@ -14,6 +14,19 @@ from apps.cases.serializers.case_conflict_check_serializer import (
 from apps.cases.serializers.case_lifecycle_transition_serializer import (
     CaseLifecycleTransitionSerializer,
 )
+from apps.cases.serializers.matter_detail_serializers import (
+    ArbitrationProceedingSerializer,
+    ConflictRecordAtRegistrationSerializer,
+    CourtProceedingSerializer,
+    CriminalMatterDetailsSerializer,
+    EmploymentMatterDetailsSerializer,
+    InsuranceMatterDetailsSerializer,
+    LandMatterDetailsSerializer,
+    MonetaryReliefSerializer,
+    NonContentiousMatterDetailsSerializer,
+    SuccessionMatterDetailsSerializer,
+    TribunalProceedingSerializer,
+)
 from apps.cases.services.case_conflict_check_service import CaseConflictCheckService
 from apps.cases.services.case_lifecycle_service import CaseLifecycleService
 from apps.events.serializers import EventSerializer
@@ -36,6 +49,11 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     activities = CaseActivitySerializer(many=True, read_only=True)
     lifecycle_transitions = CaseLifecycleTransitionSerializer(many=True, read_only=True)
     matter_status_label = serializers.CharField(source="get_matter_status_display", read_only=True)
+    entry_route_label = serializers.CharField(source="get_entry_route_display", read_only=True)
+    practice_area_label = serializers.CharField(source="get_practice_area_display", read_only=True)
+    matter_nature_label = serializers.CharField(source="get_matter_nature_display", read_only=True)
+    forum_label = serializers.CharField(source="get_forum_display", read_only=True)
+    procedure_type_label = serializers.CharField(source="get_procedure_type_display", read_only=True)
     court_stage_label = serializers.CharField(source="get_court_stage_display", read_only=True)
     outcome_status_label = serializers.CharField(source="get_outcome_status_display", read_only=True)
     enforcement_status_label = serializers.CharField(source="get_enforcement_status_display", read_only=True)
@@ -45,6 +63,17 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     jurisdiction_warnings = serializers.SerializerMethodField()
     conflict_check = serializers.SerializerMethodField()
     analytics = serializers.SerializerMethodField()
+    court_proceeding = serializers.SerializerMethodField()
+    tribunal_proceeding = serializers.SerializerMethodField()
+    arbitration_proceeding = serializers.SerializerMethodField()
+    non_contentious_details = serializers.SerializerMethodField()
+    land_details = serializers.SerializerMethodField()
+    succession_details = serializers.SerializerMethodField()
+    insurance_details = serializers.SerializerMethodField()
+    employment_details = serializers.SerializerMethodField()
+    criminal_details = serializers.SerializerMethodField()
+    monetary_relief = serializers.SerializerMethodField()
+    conflict_record = serializers.SerializerMethodField()
 
     def _client_visible_only(self):
         request = self.context.get("request")
@@ -178,8 +207,18 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "firm",
+            "entry_route",
+            "entry_route_label",
+            "practice_area",
+            "practice_area_label",
+            "matter_nature",
+            "matter_nature_label",
+            "forum",
+            "forum_label",
             "case_type",
             "procedure_track",
+            "procedure_type",
+            "procedure_type_label",
             "status",
             "matter_status",
             "matter_status_label",
@@ -192,6 +231,12 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "appeal_status",
             "appeal_status_label",
             "priority",
+            "date_instructions_received",
+            "urgency_level",
+            "urgency_reason",
+            "limitation_date",
+            "internal_deadline",
+            "conflict_status",
             "court_type",
             "court_division",
             "court_name",
@@ -241,6 +286,17 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "available_transitions",
             "jurisdiction_warnings",
             "conflict_check",
+            "conflict_record",
+            "court_proceeding",
+            "tribunal_proceeding",
+            "arbitration_proceeding",
+            "non_contentious_details",
+            "land_details",
+            "succession_details",
+            "insurance_details",
+            "employment_details",
+            "criminal_details",
+            "monetary_relief",
             "analytics",
         ]
         read_only_fields = fields
@@ -252,7 +308,9 @@ class CaseDetailSerializer(serializers.ModelSerializer):
 
     def get_jurisdiction_warnings(self, obj):
         warnings = []
-        if obj.claim_amount is None:
+        if obj.forum != obj.Forum.COURT:
+            return warnings
+        if obj.claim_amount is None and not hasattr(obj, "monetary_relief"):
             warnings.append("Claim amount has not been captured.")
         if not obj.court_station and not obj.court_name:
             warnings.append("Court station or court identification is missing.")
@@ -271,3 +329,45 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         if self._client_visible_only():
             return {"status": CaseConflictCheckService.client_safe_status(check)}
         return CaseConflictCheckSerializer(check, context=self.context).data if check else None
+
+    def _related(self, obj, attr, serializer_class):
+        try:
+            value = getattr(obj, attr)
+        except Exception:
+            return None
+        return serializer_class(value, context=self.context).data if value else None
+
+    def get_court_proceeding(self, obj):
+        return self._related(obj, "court_proceeding", CourtProceedingSerializer)
+
+    def get_tribunal_proceeding(self, obj):
+        return self._related(obj, "tribunal_proceeding", TribunalProceedingSerializer)
+
+    def get_arbitration_proceeding(self, obj):
+        return self._related(obj, "arbitration_proceeding", ArbitrationProceedingSerializer)
+
+    def get_non_contentious_details(self, obj):
+        return self._related(obj, "non_contentious_details", NonContentiousMatterDetailsSerializer)
+
+    def get_land_details(self, obj):
+        return self._related(obj, "land_details", LandMatterDetailsSerializer)
+
+    def get_succession_details(self, obj):
+        return self._related(obj, "succession_details", SuccessionMatterDetailsSerializer)
+
+    def get_insurance_details(self, obj):
+        return self._related(obj, "insurance_details", InsuranceMatterDetailsSerializer)
+
+    def get_employment_details(self, obj):
+        return self._related(obj, "employment_details", EmploymentMatterDetailsSerializer)
+
+    def get_criminal_details(self, obj):
+        return self._related(obj, "criminal_details", CriminalMatterDetailsSerializer)
+
+    def get_monetary_relief(self, obj):
+        return self._related(obj, "monetary_relief", MonetaryReliefSerializer)
+
+    def get_conflict_record(self, obj):
+        if self._client_visible_only():
+            return None
+        return self._related(obj, "conflict_record", ConflictRecordAtRegistrationSerializer)

@@ -50,15 +50,15 @@ const newInstruction = validateCaseCreateForm(
   },
   { client_id: 'client-1' },
 );
-assert.equal(newInstruction.isValid, false);
-assert.equal(Object.prototype.hasOwnProperty.call(newInstruction.errors, 'entry_route'), true);
+assert.equal(newInstruction.isValid, true);
+assert.equal(Object.prototype.hasOwnProperty.call(newInstruction.errors, 'entry_route'), false);
 assert.equal(Object.prototype.hasOwnProperty.call(newInstruction.errors, 'official_court_case_number'), false);
 
 const tribunal = validateCaseCreateForm(
   { ...filedCase, entry_route: 'EXISTING_TRIBUNAL_MATTER', forum: 'TRIBUNAL', tribunal_name: '' },
   { client_id: 'client-1' },
 );
-assert.equal(Object.prototype.hasOwnProperty.call(tribunal.errors, 'entry_route'), true);
+assert.equal(Object.prototype.hasOwnProperty.call(tribunal.errors, 'entry_route'), false);
 assert.equal(Object.prototype.hasOwnProperty.call(tribunal.errors, 'tribunal_name'), true);
 
 const badDate = validateCaseCreateForm(
