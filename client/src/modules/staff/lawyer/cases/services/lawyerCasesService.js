@@ -1,5 +1,5 @@
 import axiosInstance from '@/core/api/axios';
-import { sanitizeCaseCreatePayload } from '@/modules/admin/cases/utils/caseCreatePayload';
+import { sanitizeCaseCreatePayload } from '@/modules/cases/shared/create/caseCreatePayload';
 
 const lawyerCasesService = {
   async getMyCases(params = {}) {

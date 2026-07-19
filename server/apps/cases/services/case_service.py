@@ -235,13 +235,20 @@ class CaseService:
 
         user_lawyer = getattr(user, "lawyer_profile", None)
         if user_lawyer is not None and user_lawyer.law_firm_id == firm.id:
+            if not user_lawyer.is_active:
+                raise PermissionError("Only active lawyers can create matters.")
             if not user_lawyer.has_permission(LawyerPermission.CREATE_CASES):
                 raise PermissionError("Lawyer permission is required to create matters.")
-            assigned_lawyer = (
-                CaseService.resolve_lawyer(firm, lawyer_id)
-                if lawyer_id
-                else user_lawyer
-            )
+
+            if lawyer_id and str(lawyer_id) != str(user_lawyer.id):
+                if not user_lawyer.has_permission(LawyerPermission.ASSIGN_OTHER_LAWYER):
+                    raise PermissionError(
+                        "Lawyer permission is required to assign another responsible advocate."
+                    )
+                assigned_lawyer = CaseService.resolve_lawyer(firm, lawyer_id)
+            else:
+                assigned_lawyer = user_lawyer
+
             assigned_secretary = (
                 CaseService.resolve_secretary(firm, secretary_id)
                 if secretary_id
@@ -249,7 +256,7 @@ class CaseService:
             )
             return assigned_lawyer, assigned_secretary
 
-        raise PermissionError("Only the firm owner or secretary can create cases.")
+        raise PermissionError("Only the firm owner, authorized secretary, or authorized lawyer can create matters.")
 
     @staticmethod
     def record_activity(case, *, action, description="", actor=None, metadata=None):

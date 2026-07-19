@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import SectionHeading from '@/components/ui/SectionHeading';
 import CaseCreateForm from '@/modules/cases/shared/CaseCreateForm';
@@ -8,6 +9,7 @@ import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
 import useFirmSecretaries from '@/modules/admin/cases/hooks/useFirmSecretaries';
 
 export default function AdminCreateCasePage() {
+  const [searchParams] = useSearchParams();
   const { createCase } = useAdminCreateCase();
   const { clients = [], isLoading = false } = useAdminClients();
   const { lawyers = [] } = useFirmLawyers();
@@ -29,6 +31,7 @@ export default function AdminCreateCasePage() {
         cancelPath='/admin/cases'
         listPath='/admin/cases'
         detailsPath={(caseId) => `/admin/cases/${caseId}`}
+        initialClientId={searchParams.get('client_id') || ''}
       />
     </div>
   );

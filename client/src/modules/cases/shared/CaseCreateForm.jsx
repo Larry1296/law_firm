@@ -201,10 +201,16 @@ export default function CaseCreateForm({
   detailsPath,
   listPath,
   canCreate = true,
+  currentLawyer = null,
+  canAssignOtherLawyer = true,
+  initialClientId = '',
 }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
-  const [formData, setFormData] = useState(caseCreateInitialValues);
+  const [formData, setFormData] = useState({
+    ...caseCreateInitialValues,
+    client_id: initialClientId || caseCreateInitialValues.client_id,
+  });
   const [errors, setErrors] = useState({});
   const [warnings, setWarnings] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -822,15 +828,21 @@ export default function CaseCreateForm({
 
         {step === 7 && (
           <Section title='Assignments and Dates'>
-            <SelectField
-              label='Responsible Lawyer'
-              name='assigned_lawyer_membership_id'
-              value={formData.assigned_lawyer_membership_id}
-              onChange={handleChange}
-              options={selectableLawyers.map((lawyer) => ({ value: normalizeId(lawyer), label: lawyer.full_name }))}
-            >
-              <option value=''>Firm default lawyer</option>
-            </SelectField>
+            {currentLawyer && !canAssignOtherLawyer ? (
+              <ReadOnlyNotice title='Responsible Advocate'>
+                {currentLawyer.full_name || 'Logged-in advocate'} is recorded as the responsible advocate. Reassigning the responsible advocate requires separate permission.
+              </ReadOnlyNotice>
+            ) : (
+              <SelectField
+                label='Responsible Advocate'
+                name='assigned_lawyer_membership_id'
+                value={formData.assigned_lawyer_membership_id}
+                onChange={handleChange}
+                options={selectableLawyers.map((lawyer) => ({ value: normalizeId(lawyer), label: lawyer.full_name }))}
+              >
+                <option value=''>{currentLawyer ? 'Logged-in advocate' : 'Firm default lawyer'}</option>
+              </SelectField>
+            )}
             <SelectField
               label='Assigned Secretary'
               name='assigned_secretary_membership_id'

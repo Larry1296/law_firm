@@ -87,6 +87,10 @@ class LawyerCasesView(LawyerBaseView):
             case = CaseService.create_case(user=request.user, validated_data=serializer.validated_data)
         except PermissionError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except Client.DoesNotExist:
+            return Response({"detail": "Client not found."}, status=status.HTTP_404_NOT_FOUND)
+        except (Lawyer.DoesNotExist, Secretary.DoesNotExist):
+            return Response({"detail": "Selected assignment is not available for this firm."}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"case": CaseDetailSerializer(case).data}, status=status.HTTP_201_CREATED)
 
@@ -101,21 +105,29 @@ class LawyerCaseCreateOptionsView(LawyerBaseView):
 
         firm = lawyer.law_firm
         clients = Client.objects.filter(firm=firm, is_active=True).order_by("full_name")
-        lawyers = Lawyer.objects.filter(law_firm=firm, is_active=True).select_related("user").order_by("user__first_name", "user__last_name")
+        can_assign_other_lawyer = lawyer.has_permission(LawyerPermission.ASSIGN_OTHER_LAWYER)
+        lawyers_queryset = Lawyer.objects.filter(law_firm=firm, is_active=True).select_related("user")
+        if not can_assign_other_lawyer:
+            lawyers_queryset = lawyers_queryset.filter(id=lawyer.id)
+        lawyers = lawyers_queryset.order_by("user__first_name", "user__last_name")
         secretaries = Secretary.objects.filter(law_firm=firm, is_active=True).select_related("user").order_by("user__first_name", "user__last_name")
+        permission_codes = list(lawyer.permissions.filter(is_active=True).values_list("code", flat=True))
+
+        lawyer_options = [
+            {
+                "id": str(item.id),
+                "membership_id": str(item.id),
+                "full_name": item.user.full_name,
+                "email": item.user.email,
+                "is_current_user": item.id == lawyer.id,
+            }
+            for item in lawyers
+        ]
 
         return Response(
             {
                 "clients": [_client_option(client) for client in clients],
-                "lawyers": [
-                    {
-                        "id": str(item.id),
-                        "membership_id": str(item.id),
-                        "full_name": item.user.full_name,
-                        "email": item.user.email,
-                    }
-                    for item in lawyers
-                ],
+                "lawyers": lawyer_options,
                 "secretaries": [
                     {
                         "id": str(item.id),
@@ -125,6 +137,15 @@ class LawyerCaseCreateOptionsView(LawyerBaseView):
                     }
                     for item in secretaries
                 ],
+                "permissions": permission_codes,
+                "can_create_matter": True,
+                "can_assign_other_lawyer": can_assign_other_lawyer,
+                "current_lawyer": {
+                    "id": str(lawyer.id),
+                    "membership_id": str(lawyer.id),
+                    "full_name": lawyer.user.full_name,
+                    "email": lawyer.user.email,
+                },
             },
             status=status.HTTP_200_OK,
         )

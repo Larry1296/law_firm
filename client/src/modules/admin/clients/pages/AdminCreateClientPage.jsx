@@ -10,6 +10,10 @@ import Select3D from '@/components/ui/Select3D';
 
 import adminClientsService from '@/modules/admin/clients/services/adminClientsService';
 import secretaryClientsService from '@/modules/staff/secretary/clients/services/secretaryClientServices';
+import {
+  buildIndividualClientPayload,
+  validateIndividualClientForm,
+} from '@/modules/admin/clients/utils/individualClientPayload';
 
 export default function AdminCreateClientPage() {
   const navigate = useNavigate();
@@ -52,7 +56,7 @@ export default function AdminCreateClientPage() {
   const clientMode = searchParams.get('mode'); // prospect | assisted | null
   const isIndividualClientType = clientType === 'INDIVIDUAL';
   const [selectedClientMode, setSelectedClientMode] = useState(
-    isIndividualClientType && clientMode === 'assisted' ? 'assisted' : 'prospect',
+    isIndividualClientType && clientMode === 'assisted' ? 'assisted' : 'portal',
   );
   const [selectedCompanyAccessType, setSelectedCompanyAccessType] = useState('PROSPECT');
   const partnershipAgreementTypes = [
@@ -100,11 +104,32 @@ export default function AdminCreateClientPage() {
     phone_number: '',
 
     full_name: '',
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    preferred_name: '',
     national_id: '',
     passport_number: '',
+    date_of_birth: '',
     gender: '',
     occupation: '',
+    employer: '',
     marital_status: '',
+    nationality: 'Kenyan',
+    citizenship: 'Kenya',
+    county_of_residence: '',
+    physical_address: '',
+    postal_address: '',
+    preferred_language: 'English',
+    preferred_contact_channel: 'PHONE',
+    disability_or_accessibility_notes: '',
+    next_of_kin_name: '',
+    next_of_kin_relationship: '',
+    next_of_kin_phone: '',
+    next_of_kin_email: '',
+    next_of_kin_national_id: '',
+    next_of_kin_physical_address: '',
+    notes: '',
 
     company_name: '',
     trading_name: '',
@@ -197,7 +222,13 @@ export default function AdminCreateClientPage() {
     const { name, value, type, checked } = e.target;
     const nextValue = type === 'checkbox' ? checked : value;
     setFormData((prev) => ({ ...prev, [name]: nextValue }));
-    setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+    setFieldErrors((prev) => ({
+      ...prev,
+      [name]: undefined,
+      ...(name === 'national_id' || name === 'passport_number'
+        ? { identification: undefined }
+        : {}),
+    }));
     setGeneralError('');
   };
 
@@ -269,9 +300,13 @@ export default function AdminCreateClientPage() {
 
   const buildPayload = () => {
     const isCompanyClient = clientType === 'COMPANY';
+    if (clientType === 'INDIVIDUAL') {
+      return buildIndividualClientPayload(formData, selectedClientMode);
+    }
+
     const isProspect = isCompanyClient
       ? selectedCompanyAccessType === 'PROSPECT'
-      : clientType !== 'INDIVIDUAL' || selectedClientMode === 'prospect';
+      : clientType !== 'INDIVIDUAL' || selectedClientMode === 'portal';
     const clean = (payload) =>
       Object.fromEntries(
         Object.entries(payload).filter(([, value]) => value !== '' && value !== null),
@@ -417,20 +452,7 @@ export default function AdminCreateClientPage() {
       });
     }
 
-    return clean({
-      ...base,
-      full_name: formData.full_name,
-      national_id: formData.national_id,
-      passport_number: formData.passport_number,
-      gender: formData.gender,
-      occupation: formData.occupation,
-      marital_status: formData.marital_status,
-      contact_full_name: formData.contact_full_name,
-      contact_email: formData.contact_email,
-      contact_phone_number: formData.contact_phone_number,
-      contact_national_id_number: formData.contact_national_id_number,
-      contact_role_or_designation: formData.contact_role_or_designation,
-    });
+    return clean(base);
   };
 
   const handleSubmit = async (e) => {
@@ -440,6 +462,15 @@ export default function AdminCreateClientPage() {
     if (clientType === 'COMPANY' && !validateCompanyForm()) {
       setGeneralError('Please fix the highlighted company details.');
       return;
+    }
+
+    if (clientType === 'INDIVIDUAL') {
+      const validation = validateIndividualClientForm(formData, selectedClientMode);
+      if (!validation.isValid) {
+        setFieldErrors(validation.errors);
+        setGeneralError('Please correct the highlighted individual details.');
+        return;
+      }
     }
 
     try {
@@ -452,7 +483,7 @@ export default function AdminCreateClientPage() {
         ? await secretaryClientsService.createClient(payload, clientType)
         : await adminClientsService.createClient(payload, clientType);
 
-      if (clientType === 'COMPANY') {
+      if (clientType === 'COMPANY' || clientType === 'INDIVIDUAL') {
         setSuccessData(response);
         return;
       }
@@ -481,7 +512,7 @@ export default function AdminCreateClientPage() {
       const data = error?.response?.data;
       const backendErrors = data?.errors || data || {};
 
-      if (clientType === 'COMPANY') {
+      if (clientType === 'COMPANY' || clientType === 'INDIVIDUAL') {
         const nextFieldErrors = {};
         Object.entries(backendErrors).forEach(([field, errors]) => {
           if (['detail', 'message', 'non_field_errors'].includes(field)) return;
@@ -492,7 +523,7 @@ export default function AdminCreateClientPage() {
           backendErrors.non_field_errors?.join?.(', ') ||
             data?.detail ||
             data?.message ||
-            'Unable to create company client.',
+            `Unable to create ${clientType === 'COMPANY' ? 'company' : 'individual'} client.`,
         );
         return;
       }
@@ -528,12 +559,17 @@ export default function AdminCreateClientPage() {
   const isGovernment = governmentLikeClientTypes.includes(clientType);
   const isProspect = isCompanyClient
     ? selectedCompanyAccessType === 'PROSPECT'
-    : !isIndividual || selectedClientMode === 'prospect';
+    : !isIndividual || selectedClientMode === 'portal';
   const isAssistedIndividual = isIndividual && !isProspect;
   const createdClient = successData?.client;
   const createdProfile = successData?.profile;
   const createdPortalUser = successData?.portal_user;
   const createdTempPassword = successData?.temp_password;
+  const createdClientId = createdClient?.id;
+  const clientsPath = isSecretaryCreate ? '/secretary/clients' : '/admin/clients';
+  const createMatterPath = isSecretaryCreate
+    ? `/secretary/cases/create${createdClientId ? `?client_id=${createdClientId}` : ''}`
+    : `/admin/cases/create${createdClientId ? `?client_id=${createdClientId}` : ''}`;
 
   const resetCompanyForm = () => {
     setSuccessData(null);
@@ -565,6 +601,51 @@ export default function AdminCreateClientPage() {
       contact_phone_number: '',
       contact_national_id_number: '',
       contact_role_or_designation: '',
+      country: 'Kenya',
+      county: '',
+      city: '',
+      street: '',
+      postal_code: '',
+      full_address: '',
+    }));
+  };
+
+  const resetIndividualForm = () => {
+    setSuccessData(null);
+    setFieldErrors({});
+    setGeneralError('');
+    setSelectedClientMode('portal');
+    setFormData((prev) => ({
+      ...prev,
+      email: '',
+      phone_number: '',
+      full_name: '',
+      first_name: '',
+      middle_name: '',
+      last_name: '',
+      preferred_name: '',
+      national_id: '',
+      passport_number: '',
+      date_of_birth: '',
+      gender: '',
+      occupation: '',
+      employer: '',
+      marital_status: '',
+      nationality: 'Kenyan',
+      citizenship: 'Kenya',
+      county_of_residence: '',
+      physical_address: '',
+      postal_address: '',
+      preferred_language: 'English',
+      preferred_contact_channel: 'PHONE',
+      disability_or_accessibility_notes: '',
+      next_of_kin_name: '',
+      next_of_kin_relationship: '',
+      next_of_kin_phone: '',
+      next_of_kin_email: '',
+      next_of_kin_national_id: '',
+      next_of_kin_physical_address: '',
+      notes: '',
       country: 'Kenya',
       county: '',
       city: '',
@@ -614,28 +695,90 @@ export default function AdminCreateClientPage() {
             </div>
           )}
           <div className='mt-5 flex flex-wrap gap-3'>
-            <Button3D
-              type='button'
-              variant='primary'
-              onClick={() => navigate(`/admin/clients/${createdClient?.id}`)}
-            >
-              View company client
-            </Button3D>
+	            <Button3D
+	              type='button'
+	              variant='primary'
+	              onClick={() => navigate(`${isSecretaryCreate ? '/secretary' : '/admin'}/clients/${createdClient?.id}`)}
+	            >
+	              View company client
+	            </Button3D>
             <Button3D type='button' variant='outlineLight' onClick={resetCompanyForm}>
               Create another client
             </Button3D>
             <Button3D
-              type='button'
-              variant='success'
-              onClick={() => navigate('/admin/cases/create')}
-            >
-              Continue to create a case
-            </Button3D>
+	              type='button'
+	              variant='success'
+	              onClick={() => navigate(createMatterPath)}
+	            >
+	              Continue to create a matter
+	            </Button3D>
           </div>
         </div>
-      )}
+	      )}
 
-      {!(isCompanyClient && successData) && (
+	      {isIndividual && successData && (
+	        <div className='rounded-xl border border-green-200 bg-green-50 p-6 text-green-950'>
+	          <h2 className='text-xl font-semibold'>Individual client created successfully</h2>
+	          <p className='mt-1 text-sm'>
+	            {createdTempPassword
+	              ? 'A portal login was created. The temporary password is shown once.'
+	              : 'This client is staff-assisted and has no portal login.'}
+	          </p>
+	          <div className='mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm'>
+	            <div><strong>Client name:</strong> {createdClient?.full_name}</div>
+	            <div><strong>Client ID:</strong> {createdClient?.id}</div>
+	            <div><strong>Access type:</strong> {createdClient?.access_type}</div>
+	            <div><strong>Lifecycle status:</strong> {createdClient?.lifecycle_status}</div>
+	            <div><strong>National ID:</strong> {createdClient?.national_id || 'Not recorded'}</div>
+	            <div><strong>Passport:</strong> {createdClient?.passport_number || 'Not recorded'}</div>
+	            <div><strong>Phone:</strong> {createdClient?.phone_number || 'Not recorded'}</div>
+	            <div><strong>Email:</strong> {createdClient?.email || 'Not recorded'}</div>
+	            <div><strong>Portal access:</strong> {createdClient?.portal_access_exists ? 'Created' : 'Not created'}</div>
+	            <div><strong>Portal login email:</strong> {createdClient?.portal_login_email || 'N/A'}</div>
+	          </div>
+	          {createdTempPassword && (
+	            <div className='mt-4 rounded-lg border border-green-300 bg-white p-4'>
+	              <div className='text-sm font-semibold'>Temporary password</div>
+	              <div className='mt-2 flex flex-col gap-3 sm:flex-row sm:items-center'>
+	                <code className='rounded bg-slate-100 px-3 py-2 text-slate-950'>
+	                  {createdTempPassword}
+	                </code>
+	                <Button3D type='button' variant='outlineLight' size='sm' onClick={copyTempPassword}>
+	                  Copy password
+	                </Button3D>
+	              </div>
+	              <p className='mt-2 text-sm'>
+	                This password cannot be retrieved later. The client must change it after first login.
+	              </p>
+	            </div>
+	          )}
+	          {!createdTempPassword && (
+	            <div className='mt-4 rounded-lg border border-green-300 bg-white p-4 text-sm'>
+	              Portal Access: Not created. This client is managed by firm staff.
+	            </div>
+	          )}
+	          <div className='mt-5 flex flex-wrap gap-3'>
+	            <Button3D
+	              type='button'
+	              variant='primary'
+	              onClick={() => navigate(`${isSecretaryCreate ? '/secretary' : '/admin'}/clients/${createdClient?.id}`)}
+	            >
+	              View individual client
+	            </Button3D>
+	            <Button3D type='button' variant='success' onClick={() => navigate(createMatterPath)}>
+	              Continue to create a matter
+	            </Button3D>
+	            <Button3D type='button' variant='outlineLight' onClick={resetIndividualForm}>
+	              Create another client
+	            </Button3D>
+	            <Button3D type='button' variant='secondary' onClick={() => navigate(clientsPath)}>
+	              Return to clients
+	            </Button3D>
+	          </div>
+	        </div>
+	      )}
+
+	      {!((isCompanyClient || isIndividual) && successData) && (
       <Card className='p-6'>
         <form onSubmit={handleSubmit} className='space-y-6'>
           {generalError && (
@@ -643,22 +786,55 @@ export default function AdminCreateClientPage() {
               {generalError}
             </div>
           )}
-          {isIndividual && (
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-              <Select3D
-                label='Client Access'
-                name='client_access'
-                value={selectedClientMode}
-                onChange={(event) => setSelectedClientMode(event.target.value)}
-                options={[
-                  { value: 'prospect', label: 'Prospect' },
-                  { value: 'assisted', label: 'Assisted Client' },
-                ]}
-              />
-            </div>
-          )}
+	          {isIndividual && (
+	            <section className='space-y-4'>
+	              <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+	                Access type
+	              </h3>
+	              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+	                {[
+	                  {
+	                    value: 'portal',
+	                    title: 'Portal Client',
+	                    description: 'Creates login credentials for the client.',
+	                  },
+	                  {
+	                    value: 'assisted',
+	                    title: 'Assisted Client',
+	                    description: 'No login account is created. Firm staff manage the client record.',
+	                  },
+	                ].map((option) => (
+	                  <button
+	                    key={option.value}
+	                    type='button'
+	                    onClick={() => {
+	                      setSelectedClientMode(option.value);
+	                      setGeneralError('');
+	                    }}
+	                    className={`rounded-xl border p-4 text-left transition ${
+	                      selectedClientMode === option.value
+	                        ? 'border-blue-600 bg-blue-50 text-blue-950'
+	                        : 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-primary)]'
+	                    }`}
+	                  >
+	                    <span className='block font-semibold'>{option.title}</span>
+	                    <span className='mt-1 block text-sm'>{option.description}</span>
+	                  </button>
+	                ))}
+	              </div>
+	              {isProspect ? (
+	                <div className='rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950'>
+	                  A portal login will be created using this client email address. A temporary password will be shown once after creation.
+	                </div>
+	              ) : (
+	                <div className='rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800'>
+	                  No portal account or login credentials will be created. Portal access can be added later through a controlled action.
+	                </div>
+	              )}
+	            </section>
+	          )}
 
-          {!isCompanyClient && !isAssistedIndividual && (
+	          {!isCompanyClient && !isIndividual && !isAssistedIndividual && (
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <FloatingInput
                 label={isProspect ? 'Login Email' : 'Email'}
@@ -1217,105 +1393,254 @@ export default function AdminCreateClientPage() {
             </div>
           )}
 
-          {isIndividual && (
-            <>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                <FloatingInput
-                  label='Full Name'
-                  name='full_name'
-                  value={formData.full_name}
-                  onChange={handleChange}
-                  required
-                />
+	          {isIndividual && (
+	            <>
+	              <section className='space-y-4'>
+	                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+	                  Personal identity
+	                </h3>
+	                {fieldErrors.identification && (
+	                  <div className='rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700'>
+	                    {fieldErrors.identification}
+	                  </div>
+	                )}
+	                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+	                  <FloatingInput
+	                    label='Full Legal Name'
+	                    name='full_name'
+	                    value={formData.full_name}
+	                    onChange={handleChange}
+	                    error={fieldErrors.full_name}
+	                    required
+	                  />
+	                  <FloatingInput
+	                    label='Preferred Name'
+	                    name='preferred_name'
+	                    value={formData.preferred_name}
+	                    onChange={handleChange}
+	                    error={fieldErrors.preferred_name}
+	                  />
+	                  <FloatingInput
+	                    label='First Name'
+	                    name='first_name'
+	                    value={formData.first_name}
+	                    onChange={handleChange}
+	                    error={fieldErrors.first_name}
+	                  />
+	                  <FloatingInput
+	                    label='Middle Name'
+	                    name='middle_name'
+	                    value={formData.middle_name}
+	                    onChange={handleChange}
+	                    error={fieldErrors.middle_name}
+	                  />
+	                  <FloatingInput
+	                    label='Last Name'
+	                    name='last_name'
+	                    value={formData.last_name}
+	                    onChange={handleChange}
+	                    error={fieldErrors.last_name}
+	                  />
+	                  <FloatingInput
+	                    label='National ID'
+	                    name='national_id'
+	                    value={formData.national_id}
+	                    onChange={handleChange}
+	                    error={fieldErrors.national_id}
+	                  />
+	                  <FloatingInput
+	                    label='Passport Number'
+	                    name='passport_number'
+	                    value={formData.passport_number}
+	                    onChange={handleChange}
+	                    error={fieldErrors.passport_number}
+	                  />
+	                  <FloatingInput
+	                    label='KRA PIN'
+	                    name='kra_pin'
+	                    value={formData.kra_pin}
+	                    onChange={handleChange}
+	                    error={fieldErrors.kra_pin}
+	                  />
+	                  <FloatingInput
+	                    label='Date of Birth'
+	                    name='date_of_birth'
+	                    type='date'
+	                    value={formData.date_of_birth}
+	                    onChange={handleChange}
+	                    error={fieldErrors.date_of_birth}
+	                  />
+	                </div>
+	              </section>
 
-                <FloatingInput
-                  label='National ID'
-                  name='national_id'
-                  value={formData.national_id}
-                  onChange={handleChange}
-                />
+	              <section className='space-y-4'>
+	                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+	                  Contact information
+	                </h3>
+	                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+	                  <FloatingInput
+	                    label={isProspect ? 'Portal Login Email' : 'Email'}
+	                    name='email'
+	                    value={formData.email}
+	                    onChange={handleChange}
+	                    error={fieldErrors.email}
+	                    required={isProspect}
+	                  />
+	                  <FloatingInput
+	                    label='Phone Number'
+	                    name='phone_number'
+	                    value={formData.phone_number}
+	                    onChange={handleChange}
+	                    error={fieldErrors.phone_number}
+	                    required={isProspect}
+	                  />
+	                  <Select3D
+	                    label='Preferred Communication Channel'
+	                    name='preferred_contact_channel'
+	                    value={formData.preferred_contact_channel}
+	                    onChange={handleChange}
+	                    options={[
+	                      { value: 'PHONE', label: 'Phone' },
+	                      { value: 'EMAIL', label: 'Email' },
+	                      { value: 'SMS', label: 'SMS' },
+	                      { value: 'WHATSAPP', label: 'WhatsApp' },
+	                      { value: 'OTHER', label: 'Other' },
+	                    ]}
+	                  />
+	                  <FloatingInput
+	                    label='Preferred Language'
+	                    name='preferred_language'
+	                    value={formData.preferred_language}
+	                    onChange={handleChange}
+	                    error={fieldErrors.preferred_language}
+	                  />
+	                </div>
+	              </section>
 
-                <FloatingInput
-                  label='Passport Number'
-                  name='passport_number'
-                  value={formData.passport_number}
-                  onChange={handleChange}
-                />
+	              <section className='space-y-4'>
+	                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+	                  Employment and personal details
+	                </h3>
+	                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+	                  <Select3D
+	                    label='Gender'
+	                    name='gender'
+	                    value={formData.gender}
+	                    onChange={handleChange}
+	                    options={[
+	                      { value: 'MALE', label: 'Male' },
+	                      { value: 'FEMALE', label: 'Female' },
+	                      { value: 'OTHER', label: 'Other' },
+	                    ]}
+	                  />
+	                  <Select3D
+	                    label='Marital Status'
+	                    name='marital_status'
+	                    value={formData.marital_status}
+	                    onChange={handleChange}
+	                    options={[
+	                      { value: 'SINGLE', label: 'Single' },
+	                      { value: 'MARRIED', label: 'Married' },
+	                      { value: 'DIVORCED', label: 'Divorced' },
+	                      { value: 'WIDOWED', label: 'Widowed' },
+	                    ]}
+	                  />
+	                  <FloatingInput
+	                    label='Occupation'
+	                    name='occupation'
+	                    value={formData.occupation}
+	                    onChange={handleChange}
+	                    error={fieldErrors.occupation}
+	                  />
+	                  <FloatingInput
+	                    label='Employer'
+	                    name='employer'
+	                    value={formData.employer}
+	                    onChange={handleChange}
+	                    error={fieldErrors.employer}
+	                  />
+	                  <FloatingInput
+	                    label='Nationality'
+	                    name='nationality'
+	                    value={formData.nationality}
+	                    onChange={handleChange}
+	                    error={fieldErrors.nationality}
+	                  />
+	                  <FloatingInput
+	                    label='Citizenship'
+	                    name='citizenship'
+	                    value={formData.citizenship}
+	                    onChange={handleChange}
+	                    error={fieldErrors.citizenship}
+	                  />
+	                  <FloatingInput
+	                    label='Accessibility Notes'
+	                    name='disability_or_accessibility_notes'
+	                    value={formData.disability_or_accessibility_notes}
+	                    onChange={handleChange}
+	                    error={fieldErrors.disability_or_accessibility_notes}
+	                  />
+	                  <FloatingInput
+	                    label='Internal Notes'
+	                    name='notes'
+	                    value={formData.notes}
+	                    onChange={handleChange}
+	                    error={fieldErrors.notes}
+	                  />
+	                </div>
+	              </section>
 
-                <Select3D
-                  label='Gender'
-                  name='gender'
-                  value={formData.gender}
-                  onChange={handleChange}
-                  options={[
-                    { value: 'MALE', label: 'Male' },
-                    { value: 'FEMALE', label: 'Female' },
-                  ]}
-                />
-
-                <FloatingInput
-                  label='Occupation'
-                  name='occupation'
-                  value={formData.occupation}
-                  onChange={handleChange}
-                />
-
-                <Select3D
-                  label='Marital Status'
-                  name='marital_status'
-                  value={formData.marital_status}
-                  onChange={handleChange}
-                  options={[
-                    { value: 'SINGLE', label: 'Single' },
-                    { value: 'MARRIED', label: 'Married' },
-                    { value: 'DIVORCED', label: 'Divorced' },
-                    { value: 'WIDOWED', label: 'Widowed' },
-                  ]}
-                />
-              </div>
-
-              {isAssistedIndividual && (
-                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                  <FloatingInput
-                    label='Companion Full Name'
-                    name='contact_full_name'
-                    value={formData.contact_full_name}
-                    onChange={handleChange}
-                    required
-                  />
-
-                  <FloatingInput
-                    label='Companion Phone'
-                    name='contact_phone_number'
-                    value={formData.contact_phone_number}
-                    onChange={handleChange}
-                    required
-                  />
-
-                  <FloatingInput
-                    label='Companion Email'
-                    name='contact_email'
-                    value={formData.contact_email}
-                    onChange={handleChange}
-                  />
-
-                  <FloatingInput
-                    label='Companion National ID'
-                    name='contact_national_id_number'
-                    value={formData.contact_national_id_number}
-                    onChange={handleChange}
-                  />
-
-                  <FloatingInput
-                    label='Relationship / Role'
-                    name='contact_role_or_designation'
-                    value={formData.contact_role_or_designation}
-                    onChange={handleChange}
-                  />
-                </div>
-              )}
-            </>
-          )}
+	              <section className='space-y-4'>
+	                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+	                  Next of kin / alternate contact
+	                </h3>
+	                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+	                  <FloatingInput
+	                    label='Full Name'
+	                    name='next_of_kin_name'
+	                    value={formData.next_of_kin_name}
+	                    onChange={handleChange}
+	                    error={fieldErrors.next_of_kin_name}
+	                  />
+	                  <FloatingInput
+	                    label='Relationship'
+	                    name='next_of_kin_relationship'
+	                    value={formData.next_of_kin_relationship}
+	                    onChange={handleChange}
+	                    error={fieldErrors.next_of_kin_relationship}
+	                  />
+	                  <FloatingInput
+	                    label='Phone'
+	                    name='next_of_kin_phone'
+	                    value={formData.next_of_kin_phone}
+	                    onChange={handleChange}
+	                    error={fieldErrors.next_of_kin_phone}
+	                  />
+	                  <FloatingInput
+	                    label='Email'
+	                    name='next_of_kin_email'
+	                    value={formData.next_of_kin_email}
+	                    onChange={handleChange}
+	                    error={fieldErrors.next_of_kin_email}
+	                  />
+	                  <FloatingInput
+	                    label='National ID'
+	                    name='next_of_kin_national_id'
+	                    value={formData.next_of_kin_national_id}
+	                    onChange={handleChange}
+	                    error={fieldErrors.next_of_kin_national_id}
+	                  />
+	                  <FloatingInput
+	                    label='Physical Address'
+	                    name='next_of_kin_physical_address'
+	                    value={formData.next_of_kin_physical_address}
+	                    onChange={handleChange}
+	                    error={fieldErrors.next_of_kin_physical_address}
+	                  />
+	                </div>
+	              </section>
+	            </>
+	          )}
 
           {isCompanyClient && (
             <>
@@ -1572,11 +1897,17 @@ export default function AdminCreateClientPage() {
             </>
           )}
 
-          {isCompanyClient && (
-            <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-              Registered office
-            </h3>
-          )}
+	          {isCompanyClient && (
+	            <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+	              Registered office
+	            </h3>
+	          )}
+
+	          {isIndividual && (
+	            <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+	              Residential address
+	            </h3>
+	          )}
 
           <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
             <FloatingInput
@@ -1620,13 +1951,13 @@ export default function AdminCreateClientPage() {
             />
 
             <FloatingInput
-              label='Full Address'
+	              label='Full Address'
               name='full_address'
               value={formData.full_address}
               onChange={handleChange}
               error={fieldErrors.full_address}
-              required={!isAssistedIndividual}
-            />
+	              required={isCompanyClient || isProspect}
+	            />
           </div>
 
           <div className='flex gap-3 pt-4'>

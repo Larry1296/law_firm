@@ -9,7 +9,8 @@ from apps.common.models.timestamped_model import TimestampedModel
 
 class LawyerPermission(models.TextChoices):
     MANAGE_ASSIGNED_CASES = "MANAGE_ASSIGNED_CASES", "Manage Assigned Cases"
-    CREATE_CASES = "CREATE_CASES", "Create Cases"
+    CREATE_CASES = "CREATE_CASES", "Create legal matters"
+    ASSIGN_OTHER_LAWYER = "ASSIGN_OTHER_LAWYER", "Assign another responsible advocate"
     MANAGE_CASE_DOCUMENTS = "MANAGE_CASE_DOCUMENTS", "Manage Case Documents"
     SCHEDULE_HEARINGS = "SCHEDULE_HEARINGS", "Schedule Hearings"
     MANAGE_CLIENT_COMMUNICATIONS = (

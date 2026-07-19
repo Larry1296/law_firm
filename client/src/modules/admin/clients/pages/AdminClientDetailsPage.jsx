@@ -108,6 +108,10 @@ export default function AdminClientDetailsPage() {
       value: formatDateTime(client.created_at),
     },
     {
+      label: 'Created By',
+      value: client.created_by_name,
+    },
+    {
       label: 'Updated',
       value: formatDateTime(client.updated_at),
     },
@@ -172,6 +176,34 @@ export default function AdminClientDetailsPage() {
           ))}
         </div>
       </Card>
+
+      {client.client_type === 'INDIVIDUAL' && (
+        <Card className='p-6'>
+          <h3 className='text-lg font-semibold mb-4'>Portal Access</h3>
+          {client.portal_access_exists ? (
+            <div className='grid md:grid-cols-2 gap-4'>
+              <div>
+                <strong>Portal login email</strong>
+                <p>{client.portal_login_email}</p>
+              </div>
+              <div>
+                <strong>Account status</strong>
+                <p>Created</p>
+              </div>
+              <div>
+                <strong>Access type</strong>
+                <p>{enumLabel(client.access_type)}</p>
+              </div>
+              <div>
+                <strong>Lifecycle</strong>
+                <p>{enumLabel(client.lifecycle_status)}</p>
+              </div>
+            </div>
+          ) : (
+            <p>No portal account has been created.</p>
+          )}
+        </Card>
+      )}
 
       {profileFields.length > 0 && (
         <Card className='p-6'>

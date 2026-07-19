@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { useContext } from 'react';
 import AuthContext from '@/core/store/AuthContext';
+import useLawyerDashboard from '@/modules/staff/lawyer/dashboard/hooks/useLawyerDashboard';
 
 import LogoutButton from '@/components/ui/LogoutButton';
 import SidebarNavLink from '@/components/ui/SidebarNavlink';
@@ -22,6 +23,7 @@ import {
   User,
   Shield,
   FolderOpen,
+  PlusCircle,
 } from 'lucide-react';
 
 //* ================= LAWYER NAVIGATION ================= */
@@ -31,6 +33,13 @@ const links = [
     path: '/lawyer/cases',
     icon: Briefcase,
     section: 'Cases',
+  },
+  {
+    name: 'Create Matter',
+    path: '/lawyer/cases/create',
+    icon: PlusCircle,
+    section: 'Cases',
+    permission: 'CREATE_CASES',
   },
 
   {
@@ -144,9 +153,12 @@ export default function LawyerSidebar({ onClose }) {
   const { user } = useContext(AuthContext);
   const displayName = user?.full_name || user?.profile?.full_name || user?.email || 'User';
   const systemRole = user?.role || 'User';
+  const { data: dashboardData } = useLawyerDashboard();
+  const permissions = (dashboardData?.permissions || []).map((item) => String(item).toUpperCase());
+  const visibleLinks = links.filter((link) => !link.permission || permissions.includes(link.permission));
 
   const bgSidebar = 'shell-surface';
-  const sidebarGroups = groupLinks(links);
+  const sidebarGroups = groupLinks(visibleLinks);
 
   return (
     <aside className={`w-64 h-full ${bgSidebar} flex flex-col`}>

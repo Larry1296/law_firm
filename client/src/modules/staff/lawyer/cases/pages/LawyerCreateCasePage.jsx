@@ -5,9 +5,15 @@ import CaseCreateForm from '@/modules/cases/shared/CaseCreateForm';
 import lawyerCasesService from '@/modules/staff/lawyer/cases/services/lawyerCasesService';
 
 export default function LawyerCreateCasePage() {
-  const [options, setOptions] = useState({ clients: [], lawyers: [], secretaries: [] });
+  const [options, setOptions] = useState({
+    clients: [],
+    lawyers: [],
+    secretaries: [],
+    currentLawyer: null,
+    canAssignOtherLawyer: false,
+  });
   const [loading, setLoading] = useState(true);
-  const [canCreate, setCanCreate] = useState(true);
+  const [canCreate, setCanCreate] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -21,12 +27,14 @@ export default function LawyerCreateCasePage() {
           clients: data.clients || [],
           lawyers: data.lawyers || [],
           secretaries: data.secretaries || [],
+          currentLawyer: data.current_lawyer || null,
+          canAssignOtherLawyer: Boolean(data.can_assign_other_lawyer),
         });
-        setCanCreate(true);
+        setCanCreate(Boolean(data.can_create_matter));
       } catch {
         if (mounted) {
           setCanCreate(false);
-          setOptions({ clients: [], lawyers: [], secretaries: [] });
+          setOptions({ clients: [], lawyers: [], secretaries: [], currentLawyer: null, canAssignOtherLawyer: false });
         }
       } finally {
         if (mounted) setLoading(false);
@@ -55,7 +63,9 @@ export default function LawyerCreateCasePage() {
         cancelPath='/lawyer/cases'
         listPath='/lawyer/cases'
         detailsPath={(caseId) => `/lawyer/cases/${caseId}`}
-        canCreate={canCreate}
+        canCreate={loading || canCreate}
+        currentLawyer={options.currentLawyer}
+        canAssignOtherLawyer={options.canAssignOtherLawyer}
       />
     </div>
   );

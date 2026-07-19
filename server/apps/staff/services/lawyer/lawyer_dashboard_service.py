@@ -20,6 +20,7 @@ class LawyerDashboardService:
                 "full_name": lawyer.user.full_name,
                 "staff_number": lawyer.staff_number,
             },
+            "permissions": list(lawyer.permissions.filter(is_active=True).values_list("code", flat=True)),
             "summary": {
                 "total_cases": cases.count(),
                 "active_cases": active_cases.count(),

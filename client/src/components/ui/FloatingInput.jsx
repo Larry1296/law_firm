@@ -28,8 +28,13 @@ export default function FloatingInput({
 
   const inputType = isPassword && showPassword ? 'text' : type;
   const isNumber = type === 'number';
+  const hasValue = String(value ?? '').length > 0;
 
   const shouldFloat = !noFloat && !isDate;
+  const showTopLabel = label && (!shouldFloat || focused || hasValue);
+  const inputPlaceholder = shouldFloat && !focused && !hasValue
+    ? label
+    : placeholder;
   const supportsWritingAssist = ![
     'password',
     'number',
@@ -45,15 +50,16 @@ export default function FloatingInput({
 
   return (
     <div className={`w-full mb-8 ${className}`}>
-      {/* FIXED LABEL (always on top for noFloat OR date) */}
-      {label && (noFloat || isDate) && (
-        <label
-          htmlFor={name}
-          className='block mb-2 text-sm font-medium text-[color:var(--text-muted)] dark:text-slate-200'
-        >
-          {label}
-        </label>
-      )}
+      <div className='min-h-[1.75rem]'>
+        {showTopLabel && (
+          <label
+            htmlFor={name}
+            className='block pb-2 text-sm font-semibold text-[color:var(--text-primary)] dark:text-slate-100'
+          >
+            {label}{props.required ? ' *' : ''}
+          </label>
+        )}
+      </div>
 
       {/* INPUT WRAPPER */}
       <div
@@ -72,7 +78,7 @@ export default function FloatingInput({
           type={inputType}
           value={value}
           onChange={onChange}
-          placeholder={shouldFloat ? ' ' : placeholder}
+          placeholder={inputPlaceholder}
           disabled={disabled}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -95,34 +101,12 @@ export default function FloatingInput({
           step={isNumber ? props.step ?? 'any' : props.step}
           {...props}
           className={`
-            floating-input-field w-full rounded-xl bg-transparent px-4 pb-3 pt-6 outline-none
-            text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)]
+            floating-input-field w-full rounded-xl bg-transparent px-4 py-4 outline-none
+            text-[color:var(--text-primary)] placeholder:font-normal placeholder:text-[color:var(--text-muted)] placeholder:opacity-70
             dark:text-slate-100 dark:placeholder:text-slate-400 dark:[color-scheme:dark]
             disabled:cursor-not-allowed
           `}
         />
-
-        {/* FLOATING LABEL */}
-        {label && shouldFloat && (
-          <label
-            htmlFor={name}
-            className={`
-              absolute left-4 transition-all duration-200 pointer-events-none
-              ${
-                focused || value
-                  ? 'top-2 text-xs font-semibold'
-                  : 'top-1/2 -translate-y-1/2 text-base'
-              }
-              ${
-                focused || value
-                  ? 'text-[color:var(--brand-primary)] dark:text-sky-300'
-                  : 'text-[color:var(--text-muted)] dark:text-slate-300'
-              }
-            `}
-          >
-            {label}
-          </label>
-        )}
 
         {/* PASSWORD TOGGLE */}
         {isPassword && (

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import SectionHeading from '@/components/ui/SectionHeading';
 import CaseCreateForm from '@/modules/cases/shared/CaseCreateForm';
@@ -10,6 +11,7 @@ const hasPermission = (permissions, permission) =>
   permissions.map((item) => String(item).toUpperCase()).includes(permission);
 
 export default function SecretaryCreateCasePage() {
+  const [searchParams] = useSearchParams();
   const { createCase } = useSecretaryCreateCase();
   const { data: dashboardData, isLoading: dashboardLoading } = useSecretaryDashboard();
   const [options, setOptions] = useState({ clients: [], lawyers: [], secretaries: [] });
@@ -72,6 +74,7 @@ export default function SecretaryCreateCasePage() {
         listPath='/secretary/cases'
         detailsPath={(caseId) => `/secretary/cases/${caseId}`}
         canCreate={canManageCases}
+        initialClientId={searchParams.get('client_id') || ''}
       />
     </div>
   );

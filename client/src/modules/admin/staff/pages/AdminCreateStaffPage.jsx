@@ -23,7 +23,8 @@ const STAFF_ROLE_OPTIONS = [
 const ROLE_PERMISSION_OPTIONS = {
   LAWYER: [
     ['MANAGE_ASSIGNED_CASES', 'Manage Assigned Cases'],
-    ['CREATE_CASES', 'Create Cases'],
+    ['CREATE_CASES', 'Create legal matters'],
+    ['ASSIGN_OTHER_LAWYER', 'Assign another responsible advocate'],
     ['MANAGE_CASE_DOCUMENTS', 'Manage Case Documents'],
     ['SCHEDULE_HEARINGS', 'Schedule Hearings'],
     ['MANAGE_CLIENT_COMMUNICATIONS', 'Manage Client Communications'],

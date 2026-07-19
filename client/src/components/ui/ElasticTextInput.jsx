@@ -22,6 +22,8 @@ export default function ElasticTextInput({
   const [focused, setFocused] = useState(false);
   const textareaRef = useRef(null);
   const hasValue = String(value ?? '').length > 0;
+  const showTopLabel = label && (focused || hasValue);
+  const textareaPlaceholder = label && !focused && !hasValue ? label : placeholder;
 
   useLayoutEffect(() => {
     const textarea = textareaRef.current;
@@ -33,6 +35,17 @@ export default function ElasticTextInput({
 
   return (
     <div className={`w-full mb-8 ${className}`}>
+      <div className='min-h-[1.75rem]'>
+        {showTopLabel && (
+          <label
+            htmlFor={name}
+            className='block pb-2 text-sm font-semibold text-[color:var(--text-primary)] dark:text-slate-100'
+          >
+            {label}{required ? ' *' : ''}
+          </label>
+        )}
+      </div>
+
       <div
         className={`
           relative w-full rounded-xl border transition-all duration-200
@@ -48,7 +61,7 @@ export default function ElasticTextInput({
           name={name}
           value={value ?? ''}
           onChange={onChange}
-          placeholder={label ? ' ' : placeholder}
+          placeholder={textareaPlaceholder}
           disabled={disabled}
           rows={minRows}
           required={required}
@@ -60,25 +73,12 @@ export default function ElasticTextInput({
           spellCheck={spellCheck ?? supportsWritingAssist}
           {...props}
           className={`
-            floating-input-field block w-full resize-none overflow-hidden rounded-xl bg-transparent px-4 pb-3 pt-6 leading-6 outline-none
-            text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)]
+            floating-input-field block w-full resize-none overflow-hidden rounded-xl bg-transparent px-4 py-4 leading-6 outline-none
+            text-[color:var(--text-primary)] placeholder:font-normal placeholder:text-[color:var(--text-muted)] placeholder:opacity-70
             dark:text-slate-100 dark:placeholder:text-slate-400 dark:[color-scheme:dark]
             disabled:cursor-not-allowed
           `}
         />
-
-        {label && (
-          <label
-            htmlFor={name}
-            className={`
-              absolute left-4 transition-all duration-200 pointer-events-none
-              ${focused || hasValue ? 'top-2 text-xs font-semibold' : 'top-1/2 -translate-y-1/2 text-base'}
-              ${focused || hasValue ? 'text-[color:var(--brand-primary)] dark:text-sky-300' : 'text-[color:var(--text-muted)] dark:text-slate-300'}
-            `}
-          >
-            {label}{required ? ' *' : ''}
-          </label>
-        )}
       </div>
 
       {error && <p className='mt-2 text-sm text-red-500'>{error}</p>}

@@ -7,6 +7,7 @@ from apps.clients.models import (
     ClientAddress,
     ClientContact,
     CompanyClient,
+    CommunicationChannel,
     ContactType,
     EstateClient,
     GovernmentClient,
@@ -56,6 +57,39 @@ class ClientAdminCreateService:
         "contact_email",
         "contact_phone_number",
         "contact_national_id_number",
+    }
+    INDIVIDUAL_PROFILE_FIELDS = {
+        "first_name",
+        "middle_name",
+        "last_name",
+        "preferred_name",
+        "gender",
+        "occupation",
+        "marital_status",
+        "employer",
+        "nationality",
+        "citizenship",
+        "county_of_residence",
+        "physical_address",
+        "postal_address",
+        "preferred_language",
+        "preferred_contact_channel",
+        "disability_or_accessibility_notes",
+        "next_of_kin_name",
+        "next_of_kin_relationship",
+        "next_of_kin_phone",
+        "next_of_kin_email",
+        "next_of_kin_national_id",
+        "next_of_kin_physical_address",
+        "notes",
+    }
+    NEXT_OF_KIN_FIELDS = {
+        "next_of_kin_name",
+        "next_of_kin_relationship",
+        "next_of_kin_phone",
+        "next_of_kin_email",
+        "next_of_kin_national_id",
+        "next_of_kin_physical_address",
     }
 
     @staticmethod
@@ -113,6 +147,28 @@ class ClientAdminCreateService:
         )
 
     @staticmethod
+    def _create_next_of_kin_contact(client, individual_data):
+        full_name = individual_data.get("next_of_kin_name", "")
+        phone_number = individual_data.get("next_of_kin_phone", "")
+        email = individual_data.get("next_of_kin_email", "") or ""
+
+        if not full_name and not phone_number and not email:
+            return None
+
+        return ClientContact.objects.create(
+            client=client,
+            contact_type=ContactType.EMERGENCY,
+            full_name=full_name,
+            role_or_designation=individual_data.get("next_of_kin_relationship", ""),
+            national_id_number=individual_data.get("next_of_kin_national_id", ""),
+            email=email,
+            phone_number=phone_number or client.phone_number,
+            preferred_channel=CommunicationChannel.PHONE,
+            is_primary=False,
+            notes=individual_data.get("next_of_kin_physical_address", ""),
+        )
+
+    @staticmethod
     def _split_name(full_name):
         parts = (full_name or "").strip().split()
         first_name = parts[0] if parts else "Client"
@@ -129,12 +185,14 @@ class ClientAdminCreateService:
                 {"email": "A user account with this email already exists."}
             )
 
-        full_name = contact_data.get("contact_full_name") or client.full_name
+        full_name = client.full_name
+        if client.client_type != Client.ClientType.INDIVIDUAL:
+            full_name = contact_data.get("contact_full_name") or client.full_name
         first_name, last_name = ClientAdminCreateService._split_name(full_name)
         national_id_number = (
-            contact_data.get("contact_national_id_number")
-            or base_data.get("national_id")
+            base_data.get("national_id")
             or base_data.get("passport_number")
+            or contact_data.get("contact_national_id_number")
             or f"CLIENT-{str(client.id)[:13]}"
         )
 
@@ -142,8 +200,7 @@ class ClientAdminCreateService:
             email=client.email,
             first_name=first_name,
             last_name=last_name,
-            phone_number=base_data.get("phone_number")
-            or contact_data.get("contact_phone_number"),
+            phone_number=base_data.get("phone_number") or contact_data.get("contact_phone_number"),
             national_id_number=national_id_number[:20],
             role=UserRole.PROSPECT,
         )
@@ -160,8 +217,17 @@ class ClientAdminCreateService:
         base_data = ClientAdminCreateService._pop_fields(data, ClientAdminCreateService.BASE_FIELDS)
         address_data = ClientAdminCreateService._pop_fields(data, ClientAdminCreateService.ADDRESS_FIELDS)
         contact_data = ClientAdminCreateService._pop_fields(data, ClientAdminCreateService.CONTACT_FIELDS)
+        individual_data = {}
+        if client_type == Client.ClientType.INDIVIDUAL:
+            individual_data = ClientAdminCreateService._pop_fields(
+                data,
+                ClientAdminCreateService.INDIVIDUAL_PROFILE_FIELDS,
+            )
 
-        full_name = ClientAdminCreateService._display_name(client_type, {**base_data, **data})
+        full_name = ClientAdminCreateService._display_name(
+            client_type,
+            {**base_data, **data, **individual_data},
+        )
 
         client = Client.objects.create(
             firm=firm,
@@ -179,7 +245,11 @@ class ClientAdminCreateService:
             is_verified=True,
         )
 
-        profile = ClientAdminCreateService._create_profile(client, client_type, data)
+        profile = ClientAdminCreateService._create_profile(
+            client,
+            client_type,
+            {**data, **individual_data},
+        )
         registered_address = ClientAdminCreateService._create_address(
             client,
             address_data,
@@ -194,6 +264,11 @@ class ClientAdminCreateService:
             fallback_email=client.email,
             fallback_phone=client.phone_number,
         )
+        next_of_kin = (
+            ClientAdminCreateService._create_next_of_kin_contact(client, individual_data)
+            if client_type == Client.ClientType.INDIVIDUAL
+            else None
+        )
         user, temp_password = ClientAdminCreateService._create_portal_user(
             client,
             base_data,
@@ -205,6 +280,7 @@ class ClientAdminCreateService:
             "profile": profile,
             "primary_contact": primary_contact,
             "registered_address": registered_address,
+            "next_of_kin": next_of_kin,
             "user": user,
             "temp_password": temp_password,
         }
@@ -212,11 +288,47 @@ class ClientAdminCreateService:
     @staticmethod
     def _create_profile(client, client_type, data):
         if client_type == Client.ClientType.INDIVIDUAL:
+            first_name = data.get("first_name", "")
+            middle_name = data.get("middle_name", "")
+            last_name = data.get("last_name", "")
+            if not first_name or not last_name:
+                derived_first, derived_last = ClientAdminCreateService._split_name(
+                    client.full_name
+                )
+                first_name = first_name or derived_first
+                last_name = last_name or derived_last
+
             return IndividualClient.objects.create(
                 client=client,
+                first_name=first_name,
+                middle_name=middle_name,
+                last_name=last_name,
+                preferred_name=data.get("preferred_name", ""),
                 gender=data.get("gender"),
                 occupation=data.get("occupation"),
                 marital_status=data.get("marital_status"),
+                employer=data.get("employer", ""),
+                nationality=data.get("nationality", "Kenyan"),
+                citizenship=data.get("citizenship", "Kenya"),
+                county_of_residence=data.get("county_of_residence", ""),
+                physical_address=data.get("physical_address", ""),
+                postal_address=data.get("postal_address", ""),
+                preferred_language=data.get("preferred_language", ""),
+                preferred_contact_channel=data.get("preferred_contact_channel", ""),
+                disability_or_accessibility_notes=data.get(
+                    "disability_or_accessibility_notes",
+                    "",
+                ),
+                next_of_kin_name=data.get("next_of_kin_name", ""),
+                next_of_kin_relationship=data.get("next_of_kin_relationship", ""),
+                next_of_kin_phone=data.get("next_of_kin_phone", ""),
+                next_of_kin_email=data.get("next_of_kin_email", "") or "",
+                next_of_kin_national_id=data.get("next_of_kin_national_id", ""),
+                next_of_kin_physical_address=data.get(
+                    "next_of_kin_physical_address",
+                    "",
+                ),
+                notes=data.get("notes", ""),
             )
 
         if client_type in ClientAdminCreateService.COMPANY_PROFILE_TYPES:
