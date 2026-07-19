@@ -40,8 +40,10 @@ class ChatMessageSerializer(serializers.ModelSerializer):
                 "full_name": firm.name,
                 "email": firm.email,
                 "role": "FIRM",
+                "role_label": "Firm",
+                "display_name": firm.name,
             }
-        return serialize_user(obj.sender)
+        return serialize_user(obj.sender, firm=obj.thread.firm)
 
     def get_is_forwarded(self, obj):
         if self._viewer_is_client():
@@ -58,7 +60,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             return None
         return {
             "id": str(obj.forwarded_from_id),
-            "sender": serialize_user(obj.forwarded_from.sender),
+            "sender": serialize_user(obj.forwarded_from.sender, firm=obj.thread.firm),
             "created_at": obj.forwarded_from.created_at,
         }
 

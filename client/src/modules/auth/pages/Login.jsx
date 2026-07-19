@@ -16,6 +16,7 @@ import FloatingInput from '@/components/ui/FloatingInput';
 import Swal from '@/core/utils/themedSwal';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { persistThemeForUser } from '@/core/utils/themeIdentity';
+import { getClientDashboardPath, getEffectiveRole } from '@/core/utils/effectiveRole';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -30,31 +31,25 @@ export default function Login() {
   const navigate = useNavigate();
 
   const navigateByRole = (sessionUser) => {
-  const role = sessionUser.role;
-  const sessionFirmRole = sessionUser.firm_role;
+    const effectiveRole = getEffectiveRole(sessionUser, sessionUser.firm_role);
 
-  console.log('User role from server:', role); // ← For debugging
-
-  if (role === 'ADMIN') {
+    if (effectiveRole === 'ADMIN') {
       return navigate('/admin/dashboard', { replace: true });
     }
 
-    if (role === 'OFFICIAL_CLIENT') {
-      return navigate('/client/dashboard', { replace: true });
+    if (effectiveRole === 'OFFICIAL_CLIENT') {
+      return navigate(getClientDashboardPath(sessionUser), { replace: true });
     }
 
-    if (role === 'PROSPECT') {
+    if (effectiveRole === 'PROSPECT') {
       return navigate('/portal/dashboard', { replace: true });
     }
 
-    if (role === 'STAFF') {
-      if (sessionFirmRole === 'LAWYER') return navigate('/lawyer/dashboard', { replace: true });
-      if (sessionFirmRole === 'SECRETARY') return navigate('/secretary/dashboard', { replace: true });
-      if (sessionFirmRole === 'ACCOUNTANT') return navigate('/accountant/dashboard', { replace: true });
-      if (sessionFirmRole === 'HR') return navigate('/hr/dashboard', { replace: true });
-      if (sessionFirmRole === 'IT') return navigate('/it/dashboard', { replace: true });
-      return navigate('/', { replace: true });
-    }
+    if (effectiveRole === 'LAWYER') return navigate('/lawyer/dashboard', { replace: true });
+    if (effectiveRole === 'SECRETARY') return navigate('/secretary/dashboard', { replace: true });
+    if (effectiveRole === 'ACCOUNTANT') return navigate('/accountant/dashboard', { replace: true });
+    if (effectiveRole === 'HR') return navigate('/hr/dashboard', { replace: true });
+    if (effectiveRole === 'IT') return navigate('/it/dashboard', { replace: true });
 
     return navigate('/', { replace: true });
   };

@@ -339,7 +339,22 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         check = CaseConflictCheckService.existing_check(obj)
         if self._client_visible_only():
             return {"status": CaseConflictCheckService.client_safe_status(check)}
-        return CaseConflictCheckSerializer(check, context=self.context).data if check else None
+        if check:
+            return CaseConflictCheckSerializer(check, context=self.context).data
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        available_actions = (
+            ["INITIATE"]
+            if user and CaseConflictCheckService.can_initiate(user, obj)
+            else []
+        )
+        return {
+            "exists": False,
+            "status": "NOT_STARTED",
+            "status_label": "Not started",
+            "available_actions": available_actions,
+        }
 
     def _related(self, obj, attr, serializer_class):
         try:

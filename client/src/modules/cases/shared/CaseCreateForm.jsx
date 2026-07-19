@@ -244,8 +244,22 @@ export default function CaseCreateForm({
 
   const filteredProcedures = useMemo(() => {
     const forum = formData.forum === 'COURT' ? 'COURT' : formData.forum;
-    return PROCEDURE_TRACKS.filter((item) => !item.forums || item.forums.includes(forum));
-  }, [formData.forum]);
+    return PROCEDURE_TRACKS.filter((item) => {
+      const forumMatches = !item.forums || item.forums.includes(forum);
+      const practiceMatches = !item.practiceAreas || item.practiceAreas.includes(formData.practice_area);
+      return forumMatches && practiceMatches;
+    });
+  }, [formData.forum, formData.practice_area]);
+
+  const filteredCourtTypes = useMemo(
+    () =>
+      COURT_TYPES.filter(
+        (item) =>
+          !item.practiceAreas?.length ||
+          item.practiceAreas.includes(formData.practice_area),
+      ),
+    [formData.practice_area],
+  );
 
   const currentRoleOptions = roleOptionsForProcedure(formData.procedure_track);
 
@@ -281,26 +295,58 @@ export default function CaseCreateForm({
         if (value === 'LAND_ENVIRONMENT') {
           next.case_type = 'LAND';
           next.court_type = 'ENVIRONMENT_LAND';
+          next.court_level = COURT_LEVEL_BY_TYPE.ENVIRONMENT_LAND;
           next.court_division = 'ELC';
+          next.procedure_track = 'ELC_SUIT';
         } else if (value === 'EMPLOYMENT_LABOUR') {
           next.case_type = 'EMPLOYMENT';
           next.court_type = 'EMPLOYMENT_LABOUR';
+          next.court_level = COURT_LEVEL_BY_TYPE.EMPLOYMENT_LABOUR;
           next.court_division = 'ELRC';
+          next.procedure_track = 'EMPLOYMENT_CLAIM';
         } else if (value === 'SUCCESSION_PROBATE') {
           next.case_type = 'SUCCESSION';
+          next.court_type = 'HIGH_COURT';
+          next.court_level = COURT_LEVEL_BY_TYPE.HIGH_COURT;
+          next.court_division = 'FAMILY';
           next.procedure_track = 'SUCCESSION_CAUSE';
         } else if (value === 'CRIMINAL_LITIGATION') {
           next.case_type = 'CRIMINAL';
+          next.court_type = 'MAGISTRATE';
+          next.court_level = COURT_LEVEL_BY_TYPE.MAGISTRATE;
+          next.court_division = 'CRIMINAL';
+          next.procedure_track = 'CRIMINAL_CASE';
           next.monetary_relief_type = 'NO_MONETARY_RELIEF';
           next.claim_amount = '';
         } else if (value === 'INSURANCE') {
           next.case_type = 'CIVIL';
+          next.court_type = 'MAGISTRATE';
+          next.court_level = COURT_LEVEL_BY_TYPE.MAGISTRATE;
+          next.court_division = 'CIVIL';
+          next.procedure_track = 'CIVIL_SUIT';
         } else if (value === 'CIVIL_COMMERCIAL_LITIGATION') {
           next.case_type = 'COMMERCIAL';
           next.procedure_track = 'CIVIL_SUIT';
           next.court_type = 'HIGH_COURT';
+          next.court_level = COURT_LEVEL_BY_TYPE.HIGH_COURT;
           next.court_division = 'COMMERCIAL_TAX';
+        } else if (value === 'JUDICIAL_REVIEW') {
+          next.case_type = 'JUDICIAL_REVIEW';
+          next.procedure_track = 'JUDICIAL_REVIEW';
+          next.court_type = 'HIGH_COURT';
+          next.court_level = COURT_LEVEL_BY_TYPE.HIGH_COURT;
+          next.court_division = 'JUDICIAL_REVIEW';
+        } else if (value === 'CONSTITUTIONAL_HUMAN_RIGHTS') {
+          next.case_type = 'CONSTITUTIONAL';
+          next.procedure_track = 'CONSTITUTIONAL_PETITION';
+          next.court_type = 'HIGH_COURT';
+          next.court_level = COURT_LEVEL_BY_TYPE.HIGH_COURT;
+          next.court_division = 'CONSTITUTIONAL_HUMAN_RIGHTS';
         }
+      }
+
+      if (name === 'court_type') {
+        next.court_level = COURT_LEVEL_BY_TYPE[value] || '';
       }
 
       return next;
@@ -587,15 +633,15 @@ export default function CaseCreateForm({
                     <ReadOnlyNotice title='Internal Matter Number Preview'>
                       {formData.official_court_case_number || 'Enter the official court case number above.'}
                     </ReadOnlyNotice>
-                    <MatterTextInput label='Date Filed' name='filing_date' type='date' value={formData.filing_date} onChange={handleChange} noFloat error={errors.filing_date} required />
+                    <MatterTextInput label='Date Filed in eFiling / Court' name='filing_date' type='date' value={formData.filing_date} onChange={handleChange} noFloat error={errors.filing_date} required />
                     <MatterTextInput label='eFiling Reference' name='efiling_reference' value={formData.efiling_reference} onChange={handleChange} error={errors.efiling_reference} required />
                     <MatterTextInput label='Court Payment Reference' name='payment_reference' value={formData.payment_reference} onChange={handleChange} />
                   </>
                 )}
-                <SelectField label='Court Type' name='court_type' value={formData.court_type} onChange={handleChange} options={COURT_TYPES} error={errors.court_type} required />
-                <SelectField label='Court Level' name='court_level' value={formData.court_level} onChange={handleChange} options={COURT_LEVELS}>
-                  <option value=''>Select court level</option>
-                </SelectField>
+                <SelectField label='Court Type' name='court_type' value={formData.court_type} onChange={handleChange} options={filteredCourtTypes} error={errors.court_type} required />
+                <ReadOnlyNotice title='Court Level'>
+                  {optionLabel(COURT_LEVELS, formData.court_level) || 'Select a court type to derive the Kenyan court level.'}
+                </ReadOnlyNotice>
                 <MatterTextInput label='Court Name' name='court_name' value={formData.court_name} onChange={handleChange} />
                 <MatterTextInput label='Court Station' name='court_station' value={formData.court_station} onChange={handleChange} error={errors.court_station} />
                 <SelectField label='Division / Registry' name='court_division' value={formData.court_division} onChange={handleChange} options={COURT_DIVISIONS} />

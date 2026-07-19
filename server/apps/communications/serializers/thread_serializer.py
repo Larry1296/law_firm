@@ -43,7 +43,7 @@ class ChatThreadParticipantSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
 
     def get_user(self, obj):
-        return serialize_user(obj.user)
+        return serialize_user(obj.user, firm=obj.thread.firm)
 
     class Meta:
         model = ChatThreadParticipant
@@ -124,8 +124,10 @@ class ChatThreadSerializer(serializers.ModelSerializer):
                 "full_name": obj.firm.name,
                 "email": obj.firm.email,
                 "role": "FIRM",
+                "role_label": "Firm",
+                "display_name": obj.firm.name,
             }
-        return serialize_user(obj.created_by)
+        return serialize_user(obj.created_by, firm=obj.firm)
 
     def get_last_message(self, obj):
         last_message = obj.messages.select_related("sender").order_by("-created_at").first()

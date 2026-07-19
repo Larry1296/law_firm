@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Bell,
@@ -17,6 +17,7 @@ import {
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { formatDateTime } from '@/core/utils/dateFormatter';
+import { displayEnum } from '@/core/utils/textFormatter';
 import { useEvents, useUpdateEventAwareness } from '@/modules/events/hooks/useEvents';
 
 const awarenessStatuses = [
@@ -48,6 +49,9 @@ const sameMonth = (date, cursor) =>
 
 const monthLabel = (date) =>
   new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(date);
+
+const shortMonthLabel = (date) =>
+  new Intl.DateTimeFormat(undefined, { month: 'short' }).format(date);
 
 const timeLabel = (value) => {
   const date = new Date(value);
@@ -105,22 +109,47 @@ function EventRow({ event, caseBasePath, highlighted, secretaryMode, onAwareness
                 </span>
               </div>
 
-              <p className='mt-1 text-sm text-slate-500 dark:text-slate-300'>
-                {formatDateTime(event.starts_at)} · {event.event_type_label}
-              </p>
+              <div className='mt-2 grid gap-2 text-sm text-slate-600 dark:text-slate-300 md:grid-cols-2'>
+                <p>
+                  <span className='font-semibold text-slate-800 dark:text-slate-100'>When:</span>{' '}
+                  {formatDateTime(event.starts_at)}
+                </p>
+                <p>
+                  <span className='font-semibold text-slate-800 dark:text-slate-100'>Event type:</span>{' '}
+                  {event.event_type_label || displayEnum(event.event_type)}
+                </p>
+                {event.event_subtype && (
+                  <p>
+                    <span className='font-semibold text-slate-800 dark:text-slate-100'>Purpose:</span>{' '}
+                    {event.event_subtype}
+                  </p>
+                )}
+                <p>
+                  <span className='font-semibold text-slate-800 dark:text-slate-100'>Matter:</span>{' '}
+                  {event.case?.title || event.case?.case_number || 'Matter not set'}
+                </p>
+                <p>
+                  <span className='font-semibold text-slate-800 dark:text-slate-100'>Internal no.:</span>{' '}
+                  {event.case?.internal_matter_number || event.case?.case_number || 'Not set'}
+                </p>
+                <p>
+                  <span className='font-semibold text-slate-800 dark:text-slate-100'>Official court no.:</span>{' '}
+                  {event.case?.official_court_case_number || 'Not recorded'}
+                </p>
+              </div>
 
               <div className='mt-3 flex flex-wrap gap-3 text-xs font-medium text-slate-500 dark:text-slate-300'>
                 <span className='inline-flex items-center gap-1'>
+                  <Users size={14} />
+                  Client: {event.case?.client?.full_name || 'Client not set'}
+                </span>
+                <span className='inline-flex items-center gap-1'>
                   <Gavel size={14} />
-                  {event.case?.case_number || 'Case not set'}
+                  Lawyer: {event.case?.assigned_lawyer?.full_name || 'Not assigned'}
                 </span>
                 <span className='inline-flex items-center gap-1'>
                   <MapPin size={14} />
-                  {event.court_station || 'Court not set'} · {event.courtroom || 'Room not set'}
-                </span>
-                <span className='inline-flex items-center gap-1'>
-                  <Users size={14} />
-                  {event.case?.client?.full_name || 'Client not set'}
+                  {event.court || event.court_station || 'Court not set'} · {event.courtroom || event.physical_venue || 'Room not set'}
                 </span>
               </div>
 
@@ -206,18 +235,34 @@ export default function EventsWorkspace({
   }, [events]);
 
   const selectedEvents = eventsByDate[selectedDate] || [];
+  const sortedEvents = useMemo(
+    () => [...events].sort((left, right) => new Date(left.starts_at) - new Date(right.starts_at)),
+    [events],
+  );
+  const visibleYear = cursor.getFullYear();
+  const monthTabs = useMemo(
+    () => Array.from({ length: 12 }, (_, month) => new Date(visibleYear, month, 1)),
+    [visibleYear],
+  );
+  const eventCountsByMonth = useMemo(() => {
+    return events.reduce((acc, event) => {
+      const date = new Date(event.starts_at);
+      if (Number.isNaN(date.getTime()) || date.getFullYear() !== visibleYear) return acc;
+      acc[date.getMonth()] = (acc[date.getMonth()] || 0) + 1;
+      return acc;
+    }, {});
+  }, [events, visibleYear]);
   const monthEvents = events.filter((event) => sameMonth(new Date(event.starts_at), cursor));
   const upcomingCount = events.filter((event) => new Date(event.starts_at) >= new Date()).length;
   const courtroomReadyCount = events.filter((event) => event.virtual_courtroom_is_available).length;
-
-  useEffect(() => {
-    if (!highlightedEventId || events.length === 0) return;
-    const highlighted = events.find((event) => event.id === highlightedEventId);
-    if (!highlighted) return;
-    const nextDate = new Date(highlighted.starts_at);
-    setSelectedDate(dateKey(nextDate));
-    setCursor(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
-  }, [events, highlightedEventId]);
+  const showAgenda = scope === 'upcoming' || Boolean(highlightedEventId);
+  const displayedEvents = showAgenda ? sortedEvents : selectedEvents;
+  const selectedDayLabel = new Intl.DateTimeFormat(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(`${selectedDate}T00:00:00`));
 
   const handleAwareness = async (eventId, status) => {
     await updateAwareness.mutateAsync({
@@ -229,8 +274,26 @@ export default function EventsWorkspace({
     });
   };
 
+  const setVisibleMonth = (year, month) => {
+    const nextDate = new Date(year, month, 1);
+    setCursor(nextDate);
+    setSelectedDate(dateKey(nextDate));
+  };
+
   const moveMonth = (amount) => {
-    setCursor((current) => new Date(current.getFullYear(), current.getMonth() + amount, 1));
+    setCursor((current) => {
+      const nextDate = new Date(current.getFullYear(), current.getMonth() + amount, 1);
+      setSelectedDate(dateKey(nextDate));
+      return nextDate;
+    });
+  };
+
+  const moveYear = (amount) => {
+    setCursor((current) => {
+      const nextDate = new Date(current.getFullYear() + amount, current.getMonth(), 1);
+      setSelectedDate(dateKey(nextDate));
+      return nextDate;
+    });
   };
 
   const goToday = () => {
@@ -258,7 +321,7 @@ export default function EventsWorkspace({
         </Card>
       </div>
 
-      <Card className='p-4'>
+      <Card className='space-y-4 p-4'>
         <div className='flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between'>
           <div className='flex flex-wrap items-center gap-2'>
             {scopeOptions.map(([value, label]) => (
@@ -310,6 +373,58 @@ export default function EventsWorkspace({
               <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} />
               Refresh
             </button>
+          </div>
+        </div>
+
+        <div className='border-t border-border-light pt-4 dark:border-border-dark'>
+          <div className='mb-3 flex flex-wrap items-center justify-between gap-3'>
+            <p className='text-sm font-semibold text-slate-700 dark:text-slate-100'>
+              Calendar year {visibleYear}
+            </p>
+            <div className='flex items-center gap-2'>
+              <button
+                type='button'
+                onClick={() => moveYear(-1)}
+                className='inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border-light text-slate-700 dark:border-border-dark dark:text-slate-100'
+                aria-label='Previous year'
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                type='button'
+                onClick={() => moveYear(1)}
+                className='inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border-light text-slate-700 dark:border-border-dark dark:text-slate-100'
+                aria-label='Next year'
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div className='grid gap-2 sm:grid-cols-6 xl:grid-cols-12'>
+            {monthTabs.map((monthDate) => {
+              const monthIndex = monthDate.getMonth();
+              const active = monthIndex === cursor.getMonth();
+              const count = eventCountsByMonth[monthIndex] || 0;
+
+              return (
+                <button
+                  key={monthIndex}
+                  type='button'
+                  onClick={() => setVisibleMonth(visibleYear, monthIndex)}
+                  className={`rounded-lg border px-3 py-2 text-left transition ${
+                    active
+                      ? 'border-blue-600 bg-blue-600 text-white shadow-sm'
+                      : 'border-border-light text-slate-700 hover:bg-slate-50 dark:border-border-dark dark:text-slate-100 dark:hover:bg-slate-900'
+                  }`}
+                >
+                  <span className='block text-sm font-bold'>{shortMonthLabel(monthDate)}</span>
+                  <span className={`mt-1 block text-xs ${active ? 'text-blue-100' : 'text-slate-400'}`}>
+                    {count} {count === 1 ? 'event' : 'events'}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </Card>
@@ -366,9 +481,9 @@ export default function EventsWorkspace({
                       <div
                         key={event.id}
                         className={`truncate rounded-md border-l-4 px-2 py-1 text-[11px] font-semibold ${eventTone(event)}`}
-                        title={`${timeLabel(event.starts_at)} ${event.title}`}
+                        title={`${timeLabel(event.starts_at)} ${event.event_type_label || displayEnum(event.event_type)} - ${event.case?.client?.full_name || 'Client not set'} - ${event.case?.title || event.title}`}
                       >
-                        {timeLabel(event.starts_at)} {event.title}
+                        {timeLabel(event.starts_at)} {event.event_type_label || displayEnum(event.event_type)} · {event.case?.client?.full_name || event.title}
                       </div>
                     ))}
                     {dayEvents.length > 3 && (
@@ -385,15 +500,17 @@ export default function EventsWorkspace({
 
         <div className='space-y-4'>
           <Card className='p-4'>
-            <p className='text-xs font-semibold uppercase text-slate-400'>Selected day</p>
-            <p className='mt-1 text-lg font-bold text-slate-900 dark:text-white'>
-              {new Intl.DateTimeFormat(undefined, {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-              }).format(new Date(`${selectedDate}T00:00:00`))}
+            <p className='text-xs font-semibold uppercase text-slate-400'>
+              {showAgenda ? 'Event agenda' : 'Selected day'}
             </p>
+            <p className='mt-1 text-lg font-bold text-slate-900 dark:text-white'>
+              {showAgenda ? 'Upcoming and linked events' : selectedDayLabel}
+            </p>
+            {showAgenda && (
+              <p className='mt-1 text-sm text-slate-500 dark:text-slate-300'>
+                Showing the full event list returned by your current calendar filter, ordered by date.
+              </p>
+            )}
           </Card>
 
           {isLoading && (
@@ -402,13 +519,15 @@ export default function EventsWorkspace({
             </Card>
           )}
 
-          {!isLoading && !error && selectedEvents.length === 0 && (
+          {!isLoading && !error && displayedEvents.length === 0 && (
             <Card className='p-5'>
-              <p className='text-sm text-slate-500 dark:text-slate-300'>No events scheduled for this day.</p>
+              <p className='text-sm text-slate-500 dark:text-slate-300'>
+                {showAgenda ? 'No events found for this filter.' : 'No events scheduled for this day.'}
+              </p>
             </Card>
           )}
 
-          {selectedEvents.map((event) => (
+          {displayedEvents.map((event) => (
             <EventRow
               key={event.id}
               event={event}

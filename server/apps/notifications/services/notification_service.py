@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from apps.common.choices import UserRole
 from apps.communications.choices import ChatThreadType
+from apps.communications.utils.user_display import get_user_display_name
 from apps.notifications.models import Notification
 
 
@@ -135,7 +136,7 @@ class NotificationService:
             and sender_id != recipient.id
         ):
             return message.thread.firm.name
-        return sender.full_name or sender.email or "Someone"
+        return get_user_display_name(sender, firm=message.thread.firm)
 
     @staticmethod
     @transaction.atomic

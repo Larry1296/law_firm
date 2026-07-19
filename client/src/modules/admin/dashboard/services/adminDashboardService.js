@@ -1,6 +1,5 @@
 import axiosInstance from '@/core/api/axios';
 import adminCasesService from '@/modules/admin/cases/services/adminCasesService';
-import adminClientsService from '@/modules/admin/clients/services/adminClientsService';
 import adminStaffService from '@/modules/admin/staff/services/adminStaffService';
 
 const safeRequest = async (request, fallback) => {
@@ -25,7 +24,7 @@ const countRecentActivity = (cases = []) =>
 
 const adminDashboardService = {
   async getDashboard() {
-    const [clientDashboard, casesPayload, staffPayload, announcementsPayload, threadsPayload] =
+    const [clientDashboard, casesPayload, staffPayload, announcementsPayload, threadsPayload, eventsPayload] =
       await Promise.all([
         safeRequest(async () => {
           const { data } = await axiosInstance.get('/admin/clients/dashboard/');
@@ -41,6 +40,10 @@ const adminDashboardService = {
           const { data } = await axiosInstance.get('/admin/communications/threads/');
           return data;
         }, {}),
+        safeRequest(async () => {
+          const { data } = await axiosInstance.get('/events/', { params: { scope: 'upcoming' } });
+          return data;
+        }, {}),
       ]);
 
     const caseSummary = casesPayload.summary || casesPayload.data?.summary || {};
@@ -48,6 +51,7 @@ const adminDashboardService = {
     const staffSummary = staffPayload.data?.summary || {};
     const announcements = announcementsPayload.announcements || [];
     const threads = threadsPayload.threads || [];
+    const upcomingEvents = (eventsPayload.events || []).slice(0, 5);
 
     return {
       clients: clientDashboard,
@@ -61,6 +65,7 @@ const adminDashboardService = {
         announcements: announcements.length,
         threads: threads.length,
       },
+      upcomingEvents,
     };
   },
 };

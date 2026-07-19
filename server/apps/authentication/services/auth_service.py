@@ -46,6 +46,17 @@ class AuthService:
         firm_role = membership.role if membership else None
         is_firm_owner = bool(owned_firm and firm and owned_firm.id == firm.id)
 
+        client_payload = None
+        if client_profile is not None:
+            client_payload = {
+                "id": str(client_profile.id),
+                "full_name": client_profile.full_name,
+                "client_type": client_profile.client_type,
+                "access_type": client_profile.access_type,
+                "lifecycle_status": client_profile.lifecycle_status,
+                "portal_access_exists": bool(client_profile.user_id),
+            }
+
         return {
             "user": {
                 "id": user.id,
@@ -55,6 +66,7 @@ class AuthService:
                 "firm_role": firm_role,
                 "is_firm_owner": is_firm_owner,
                 "must_change_password": must_change_password,
+                "client": client_payload,
             },
             "firm": {
                 "id": firm.id if firm else None,

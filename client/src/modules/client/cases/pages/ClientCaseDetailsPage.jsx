@@ -60,8 +60,12 @@ export default function ClientCaseDetailsPage() {
   const firstValue = (...values) =>
     values.find((value) => value !== null && value !== undefined && value !== '') || '';
   const pageTitle = safe(caseData.title, safe(caseData.case_number, 'Case Details'));
-  const courtName = firstValue(caseData.court_name, caseData.court_station, caseData.registry);
-  const courtLocation = firstValue(caseData.court_location, caseData.court_station, caseData.registry);
+  const courtProceeding = caseData.court_proceeding || {};
+  const officialCourtNumber = firstValue(caseData.official_court_case_number, courtProceeding.official_court_case_number);
+  const courtStage = firstValue(caseData.court_stage_label, caseData.court_stage, courtProceeding.court_stage);
+  const matterStatus = firstValue(caseData.matter_status_label, caseData.matter_status);
+  const courtName = firstValue(caseData.court_name, courtProceeding.court_name, caseData.court_station, courtProceeding.court_station, caseData.registry, courtProceeding.registry);
+  const courtLocation = firstValue(caseData.court_location, courtProceeding.court_location, caseData.court_station, courtProceeding.court_station, caseData.registry, courtProceeding.registry);
   const caseThread = caseThreadQuery.data?.thread;
   const caseThreads = caseThread ? [caseThread] : [];
 
@@ -93,22 +97,22 @@ export default function ClientCaseDetailsPage() {
               <strong>Internal Matter Number:</strong> {safe(caseData.internal_case_number || caseData.case_number)}
             </p>
             <p>
-              <strong>Official Court Case Number:</strong> {safe(caseData.official_court_case_number, 'Not recorded')}
+              <strong>Official Court Case Number:</strong> {safe(officialCourtNumber, 'Not recorded')}
             </p>
             <p>
               <strong>Title:</strong> {safe(caseData.title)}
             </p>
             <p>
-              <strong>Matter Status:</strong> {friendly(caseData.matter_status)}
+              <strong>Matter Status:</strong> {safe(matterStatus, 'Not recorded')}
             </p>
             <p>
-              <strong>Court Stage:</strong> {friendly(caseData.court_stage)}
+              <strong>Court Stage:</strong> {safe(courtStage, 'Not recorded')}
             </p>
             <p>
               <strong>Priority:</strong> {friendly(caseData.priority)}
             </p>
             <p>
-              <strong>Type:</strong> {friendly(caseData.case_type)}
+              <strong>Practice Area:</strong> {safe(caseData.practice_area_label || friendly(caseData.practice_area), friendly(caseData.case_type))}
             </p>
             <p>
               <strong>Court:</strong> {safe(courtName, 'Not Set')}
@@ -120,7 +124,7 @@ export default function ClientCaseDetailsPage() {
               <strong>Court Location:</strong> {safe(courtLocation, 'Not Set')}
             </p>
             <p>
-              <strong>Filing Date:</strong> {caseData.filing_date ? formatDate(caseData.filing_date) : 'Not Set'}
+              <strong>Filing Date:</strong> {firstValue(caseData.filing_date, courtProceeding.filing_date) ? formatDate(firstValue(caseData.filing_date, courtProceeding.filing_date)) : 'Not Set'}
             </p>
             <p>
               <strong>Firm:</strong> {safe(caseData.firm?.name, 'Not Set')}
@@ -154,22 +158,23 @@ export default function ClientCaseDetailsPage() {
 
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p><strong>Procedure:</strong> {friendly(caseData.procedure_track, 'Not Set')}</p>
-            <p><strong>Court Division:</strong> {friendly(caseData.court_division, 'Not Set')}</p>
-            <p><strong>Court Station:</strong> {safe(caseData.court_station, 'Not Set')}</p>
-            <p><strong>Registry:</strong> {safe(caseData.registry, 'Not Set')}</p>
+            <p><strong>Procedure:</strong> {safe(caseData.procedure_type_label || friendly(caseData.procedure_type || caseData.procedure_track), 'Not Set')}</p>
+            <p><strong>Court Division:</strong> {friendly(firstValue(caseData.court_division, courtProceeding.division), 'Not Set')}</p>
+            <p><strong>Court Station:</strong> {safe(firstValue(caseData.court_station, courtProceeding.court_station), 'Not Set')}</p>
+            <p><strong>Registry:</strong> {safe(firstValue(caseData.registry, courtProceeding.registry), 'Not Set')}</p>
           </div>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p><strong>Courtroom:</strong> {safe(caseData.courtroom, 'Not Set')}</p>
-            <p><strong>Judicial Officer:</strong> {safe(caseData.judicial_officer, 'Not Set')}</p>
+            <p><strong>Courtroom:</strong> {safe(firstValue(caseData.courtroom, courtProceeding.courtroom), 'Not Set')}</p>
+            <p><strong>Judicial Officer:</strong> {safe(firstValue(caseData.judicial_officer, courtProceeding.judicial_officer), 'Not Set')}</p>
             <p><strong>Next Court Date:</strong> {caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not Set'}</p>
             <p><strong>Next Action:</strong> {safe(caseData.next_action, 'Not Set')}</p>
           </div>
         </div>
 
         <div className='mt-4 grid gap-6 md:grid-cols-2'>
-          <p><strong>eFiling Ref:</strong> {safe(caseData.efiling_reference, 'Not Set')}</p>
-          <p><strong>CTS Ref:</strong> {safe(caseData.cts_reference, 'Pending verification')}</p>
+          <p><strong>eFiling Ref:</strong> {safe(firstValue(caseData.efiling_reference, courtProceeding.efiling_reference), 'Not Set')}</p>
+          <p><strong>Payment Ref:</strong> {safe(firstValue(caseData.payment_reference, courtProceeding.payment_reference), 'Not Set')}</p>
+          <p><strong>CTS Ref:</strong> {safe(firstValue(caseData.cts_reference, courtProceeding.cts_reference), 'Pending verification')}</p>
         </div>
       </Card>
 
@@ -185,7 +190,7 @@ export default function ClientCaseDetailsPage() {
                 <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>{safe(party.name)}</p>
                 <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
                   {party.role_label || friendly(party.party_role)}
-                  {party.is_our_client ? ' • Your Party' : ''}
+                  {party.is_our_client ? ' • Your Party' : party.is_adverse ? ' • Other Party' : ''}
                 </p>
               </div>
             ))}
@@ -204,8 +209,8 @@ export default function ClientCaseDetailsPage() {
       />
 
       <div className='grid gap-4 sm:grid-cols-3'>
-        <StatsCard title='Case Progress' value={caseData.stage_progress || 0} />
-        <StatsCard title='Status' value={friendly(caseData.status)} />
+        <StatsCard title='Events' value={caseData.analytics?.events_count || 0} />
+        <StatsCard title='Status' value={safe(matterStatus, friendly(caseData.status))} />
         <StatsCard title='Priority' value={friendly(caseData.priority)} />
       </div>
 

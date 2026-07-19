@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import useAuth from "@/core/hooks/useAuth";
+import { getEffectiveRole } from "@/core/utils/effectiveRole";
 
 const RoleRoute = ({ allowedRoles, children }) => {
   const { user, isAuthenticated, firmRole } = useAuth();
@@ -8,9 +9,7 @@ const RoleRoute = ({ allowedRoles, children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  const role = user?.role;
-
-  const effectiveRole = role === "STAFF" ? firmRole : role;
+  const effectiveRole = getEffectiveRole(user, firmRole);
 
   if (!allowedRoles.includes(effectiveRole)) {
     return <Navigate to="/unauthorized" replace />;

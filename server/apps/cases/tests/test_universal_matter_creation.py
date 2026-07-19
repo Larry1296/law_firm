@@ -7,7 +7,9 @@ from rest_framework.test import APIClient
 from apps.cases.models import (
     ArbitrationProceeding,
     Case,
+    CaseActivity,
     CaseParty,
+    CaseTimeline,
     CourtProceeding,
     LandMatterDetails,
     MonetaryRelief,
@@ -177,6 +179,56 @@ class UniversalMatterCreationTests(TestCase):
         self.assertTrue(ArbitrationProceeding.objects.filter(matter=arbitration, institution="NCIA").exists())
         self.assertTrue(NonContentiousMatterDetails.objects.filter(matter=advisory, instruction_type="Contract Review").exists())
         self.assertEqual(advisory.court_stage, Case.CourtStage.NOT_APPLICABLE)
+
+
+    def test_cts_reference_is_verified_through_controlled_action(self):
+        case = self.post(self.base_payload(
+            entry_route=Case.EntryRoute.EXISTING_FILED_COURT_CASE,
+            official_court_case_number="HCCOMM E014 of 2026",
+            filing_date="2026-07-17",
+            efiling_reference="EFILE-2026-00045872",
+            payment_reference="KES-PAY-2026-781246",
+            court_type=Case.CourtType.HIGH_COURT,
+            court_station="Nairobi",
+        ))
+
+        response = self.api.post(
+            reverse("case-jurisdiction-action", kwargs={"case_id": case.id}),
+            {
+                "action": "VERIFY_CTS",
+                "cts_reference": " cts-hccomm-2026-001248 ",
+                "verification_source": "Judiciary eFiling portal and Milimani Commercial Registry record",
+                "reason": "CTS reference confirmed against the filed court record.",
+                "jurisdiction_notes": "Court record metadata matched the eFiling record.",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        case.refresh_from_db()
+        self.assertEqual(case.cts_reference, "CTS-HCCOMM-2026-001248")
+        self.assertEqual(case.court_proceeding.cts_reference, "CTS-HCCOMM-2026-001248")
+        self.assertTrue(CaseActivity.objects.filter(case=case, action="CTS_REFERENCE_VERIFIED").exists())
+        self.assertTrue(CaseTimeline.objects.filter(case=case, action="Court Record Verified").exists())
+
+    def test_cts_verification_requires_reference_source_and_reason(self):
+        case = self.post(self.base_payload(
+            entry_route=Case.EntryRoute.EXISTING_FILED_COURT_CASE,
+            official_court_case_number="HCCOMM E015 of 2026",
+            filing_date="2026-07-17",
+            efiling_reference="EFILE-2026-00045873",
+            court_type=Case.CourtType.HIGH_COURT,
+            court_station="Nairobi",
+        ))
+
+        response = self.api.post(
+            reverse("case-jurisdiction-action", kwargs={"case_id": case.id}),
+            {"action": "VERIFY_CTS", "cts_reference": "", "verification_source": "", "reason": ""},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("cts_reference", response.data["errors"])
+        self.assertIn("verification_source", response.data["errors"])
+        self.assertIn("reason", response.data["errors"])
 
     def test_controlled_create_fields_are_rejected(self):
         payload = self.base_payload(entry_route=Case.EntryRoute.NEW_INSTRUCTION, cts_reference="CTS-001")

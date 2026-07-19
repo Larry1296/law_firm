@@ -2,17 +2,11 @@ from rest_framework import serializers
 
 from apps.communications.choices import AnnouncementAudience
 from apps.communications.models import Announcement, AnnouncementRecipient
+from apps.communications.utils.user_display import serialize_communication_user
 
 
-def serialize_user(user):
-    if user is None:
-        return None
-    return {
-        "id": str(user.id),
-        "full_name": user.full_name,
-        "email": user.email,
-        "role": user.role,
-    }
+def serialize_user(user, firm=None):
+    return serialize_communication_user(user, firm=firm)
 
 
 class AnnouncementCreateSerializer(serializers.Serializer):

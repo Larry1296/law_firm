@@ -1,4 +1,4 @@
-import { ENTRY_ROUTES } from './caseCreateOptions.js';
+import { COURT_TYPES, ENTRY_ROUTES, PROCEDURE_TRACKS } from './caseCreateOptions.js';
 
 const isBlank = (value) => value === undefined || value === null || String(value).trim() === '';
 
@@ -44,6 +44,13 @@ export const validateCaseCreateForm = (formData = {}, context = {}) => {
     if (isBlank(formData.court_type)) {
       addError(errors, 'court_type', 'Court type is required for a court proceeding.');
     }
+    const courtType = COURT_TYPES.find((item) => item.value === formData.court_type);
+    if (
+      courtType?.practiceAreas?.length &&
+      !courtType.practiceAreas.includes(formData.practice_area)
+    ) {
+      addError(errors, 'court_type', 'Select a court type that fits the selected Kenyan practice area.');
+    }
     if (isBlank(formData.court_station) && isBlank(formData.court_name)) {
       addError(errors, 'court_station', 'Court station or court identification is required.');
     }
@@ -60,6 +67,15 @@ export const validateCaseCreateForm = (formData = {}, context = {}) => {
 
   if (forum === 'COURT' && isBlank(formData.court_type)) {
     addError(errors, 'court_type', 'Court type is required when the forum is court.');
+  }
+  const procedure = PROCEDURE_TRACKS.find((item) => item.value === formData.procedure_track);
+  if (procedure) {
+    const forumMatches = !procedure.forums || procedure.forums.includes(forum);
+    const practiceMatches =
+      !procedure.practiceAreas || procedure.practiceAreas.includes(formData.practice_area);
+    if (!forumMatches || !practiceMatches) {
+      addError(errors, 'procedure_track', 'Select a procedure that fits the selected forum and Kenyan practice area.');
+    }
   }
   if (forum === 'TRIBUNAL' && isBlank(formData.tribunal_name)) {
     addError(errors, 'tribunal_name', 'Tribunal name is required for a tribunal matter.');

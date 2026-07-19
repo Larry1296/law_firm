@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROLE_DASHBOARD } from "@/core/config/redirects";
 import useAuth from "@/core/hooks/useAuth";
+import { getEffectiveRole } from "@/core/utils/effectiveRole";
 
 const useRedirectByRole = () => {
   const { user, role, firmRole, isAuthenticated } = useAuth();
@@ -10,12 +11,8 @@ const useRedirectByRole = () => {
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
-    let path = ROLE_DASHBOARD[role];
-
-    // staff override
-    if (role === "STAFF") {
-      path = ROLE_DASHBOARD[firmRole];
-    }
+    const effectiveRole = getEffectiveRole(user, firmRole);
+    const path = ROLE_DASHBOARD[effectiveRole];
 
     if (path) {
       navigate(path, { replace: true });

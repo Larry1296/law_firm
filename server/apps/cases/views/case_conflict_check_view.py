@@ -36,10 +36,20 @@ class CaseConflictCheckView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-        return Response(
-            {"conflict_check": CaseConflictCheckSerializer(check, context={"request": request}).data if check else None},
-            status=status.HTTP_200_OK,
-        )
+        if check:
+            conflict_check = CaseConflictCheckSerializer(check, context={"request": request}).data
+        else:
+            conflict_check = {
+                "exists": False,
+                "status": "NOT_STARTED",
+                "status_label": "Not started",
+                "available_actions": (
+                    ["INITIATE"]
+                    if CaseConflictCheckService.can_initiate(request.user, case)
+                    else []
+                ),
+            }
+        return Response({"conflict_check": conflict_check}, status=status.HTTP_200_OK)
 
 
 class CaseConflictCheckActionView(APIView):

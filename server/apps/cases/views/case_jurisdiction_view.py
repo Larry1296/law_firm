@@ -24,8 +24,15 @@ class CaseJurisdictionVerificationView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
 
         try:
-            if serializer.validated_data["action"] == "VERIFY":
+            action = serializer.validated_data["action"]
+            if action == "VERIFY":
                 case = CaseJurisdictionService.verify(
+                    case=case,
+                    actor=request.user,
+                    data=serializer.validated_data,
+                )
+            elif action == "VERIFY_CTS":
+                case = CaseJurisdictionService.verify_cts_reference(
                     case=case,
                     actor=request.user,
                     data=serializer.validated_data,

@@ -24,7 +24,7 @@ const getThreadSubtitle = (thread) => {
   }
   return thread.participants
     ?.map(
-      (participant) => participant.user?.full_name || participant.user?.email,
+      (participant) => participant.user?.display_name || participant.user?.full_name || participant.user?.email,
     )
     .filter(Boolean)
     .join(', ');
@@ -269,7 +269,8 @@ export default function ChatWorkspace({
                         >
                           <div className='mb-1 flex flex-wrap items-center gap-2 text-xs opacity-80'>
                             <span className='font-semibold'>
-                              {message.sender?.full_name ||
+                              {message.sender?.display_name ||
+                                message.sender?.full_name ||
                                 message.sender?.email ||
                                 'System'}
                             </span>

@@ -2,7 +2,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from apps.cases.models import CaseActivity
+from apps.cases.models import CaseActivity, CaseTimeline
 from apps.common.choices import UserRole
 
 
@@ -80,6 +80,55 @@ class CaseJurisdictionService:
                 "currency": case.currency,
                 "court_level": case.court_level,
             },
+        )
+        return case
+
+
+    @classmethod
+    @transaction.atomic
+    def verify_cts_reference(cls, *, case, actor, data):
+        cls.ensure_can_verify(actor, case)
+        cts_reference = (data.get("cts_reference") or "").strip().upper()
+        verification_source = (data.get("verification_source") or "").strip()
+        reason = (data.get("reason") or "").strip()
+        notes = (data.get("jurisdiction_notes") or "").strip()
+        if not cts_reference:
+            raise ValidationError({"cts_reference": "CTS reference is required."})
+        if not verification_source:
+            raise ValidationError({"verification_source": "Verification source is required."})
+        if not reason:
+            raise ValidationError({"reason": "A reason is required to verify the CTS reference."})
+
+        previous_reference = case.cts_reference
+        case.cts_reference = cts_reference
+        case.save(update_fields=["cts_reference", "updated_at"])
+
+        court_proceeding = getattr(case, "court_proceeding", None)
+        if court_proceeding is not None:
+            court_proceeding.cts_reference = cts_reference
+            court_proceeding.save(update_fields=["cts_reference", "updated_at"])
+
+        metadata = {
+            "cts_reference": cts_reference,
+            "previous_cts_reference": previous_reference,
+            "verification_source": verification_source,
+            "reason": reason,
+        }
+        if notes:
+            metadata["notes"] = notes
+
+        CaseActivity.objects.create(
+            case=case,
+            action="CTS_REFERENCE_VERIFIED",
+            description=f"CTS reference verified from {verification_source}.",
+            actor=actor,
+            metadata=metadata,
+        )
+        CaseTimeline.objects.create(
+            case=case,
+            action="Court Record Verified",
+            description="The CTS reference was verified against the court or eFiling record.",
+            created_by=actor,
         )
         return case
 

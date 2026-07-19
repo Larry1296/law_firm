@@ -123,6 +123,21 @@ export default function useCaseDetails(caseId) {
     },
   });
 
+  const createCaseEventMutation = useMutation({
+    mutationFn: ({ caseId, payload }) =>
+      adminCasesService.createCaseEvent(caseId, payload),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['admin-case', caseId],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ['admin-cases'],
+      });
+    },
+  });
+
   return {
     caseData,
 
@@ -147,5 +162,7 @@ export default function useCaseDetails(caseId) {
     isUpdatingConflictCheck: conflictCheckActionMutation.isPending,
     verifyJurisdiction: verifyJurisdictionMutation.mutateAsync,
     isVerifyingJurisdiction: verifyJurisdictionMutation.isPending,
+    createCaseEvent: createCaseEventMutation.mutateAsync,
+    isCreatingCaseEvent: createCaseEventMutation.isPending,
   };
 }

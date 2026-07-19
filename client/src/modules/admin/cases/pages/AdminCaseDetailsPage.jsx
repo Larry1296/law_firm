@@ -20,6 +20,43 @@ const PRIORITIES = [
   { value: 'URGENT', label: 'Urgent' },
 ];
 
+const COURT_EVENT_TYPES = [
+  { value: 'CASE_MANAGEMENT', label: 'Case management mention' },
+  { value: 'MENTION', label: 'Mention' },
+  { value: 'DIRECTIONS', label: 'Directions' },
+  { value: 'PRE_TRIAL', label: 'Pre-trial conference' },
+  { value: 'HEARING', label: 'Hearing' },
+  { value: 'SUBMISSIONS', label: 'Submissions' },
+  { value: 'RULING', label: 'Ruling delivery' },
+  { value: 'JUDGMENT', label: 'Judgment delivery' },
+  { value: 'TAXATION', label: 'Taxation' },
+  { value: 'EXECUTION', label: 'Execution mention/application' },
+  { value: 'SERVICE', label: 'Service/proof of service' },
+  { value: 'FILING', label: 'Registry or filing follow-up' },
+];
+
+const HEARING_MODES = [
+  { value: 'VIRTUAL', label: 'Virtual' },
+  { value: 'PHYSICAL', label: 'Physical' },
+  { value: 'HYBRID', label: 'Hybrid' },
+  { value: 'NOT_APPLICABLE', label: 'Not applicable' },
+];
+
+const EVENT_SUBTYPE_HINTS = {
+  CASE_MANAGEMENT: 'Order 11 compliance / case management mention',
+  MENTION: 'Mention for directions',
+  DIRECTIONS: 'Directions on pleadings, service or compliance',
+  PRE_TRIAL: 'Pre-trial conference / certify ready for hearing',
+  HEARING: 'Hearing date / evidence taking',
+  SUBMISSIONS: 'Written or oral submissions',
+  RULING: 'Ruling delivery',
+  JUDGMENT: 'Judgment delivery',
+  TAXATION: 'Bill of costs taxation',
+  EXECUTION: 'Execution or decree enforcement step',
+  SERVICE: 'Service attempt / affidavit of service',
+  FILING: 'Registry follow-up / filing confirmation',
+};
+
 const panelClass =
   'rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark';
 
@@ -66,6 +103,10 @@ const AdminCaseDetailsPage = () => {
     isTransitioning,
     conflictCheckAction,
     isUpdatingConflictCheck,
+    verifyJurisdiction,
+    isVerifyingJurisdiction,
+    createCaseEvent,
+    isCreatingCaseEvent,
   } = useCaseDetails(id);
 
   const [selectedLawyer, setSelectedLawyer] = useState('');
@@ -86,6 +127,51 @@ const AdminCaseDetailsPage = () => {
     waiver_details: '',
   });
   const [conflictErrors, setConflictErrors] = useState({});
+  const [jurisdictionDraft, setJurisdictionDraft] = useState({
+    action: 'VERIFY',
+    reason: '',
+    claim_amount: '',
+    currency: 'KES',
+    court_level: '',
+    court_type: '',
+    court_station: '',
+    judicial_officer_rank: '',
+    jurisdiction_notes: '',
+  });
+  const [jurisdictionErrors, setJurisdictionErrors] = useState({});
+  const [ctsDraft, setCtsDraft] = useState({
+    cts_reference: '',
+    verification_source: '',
+    reason: '',
+    jurisdiction_notes: '',
+  });
+  const [ctsErrors, setCtsErrors] = useState({});
+
+  const [eventDraft, setEventDraft] = useState({
+    event_type: 'CASE_MANAGEMENT',
+    event_subtype: EVENT_SUBTYPE_HINTS.CASE_MANAGEMENT,
+    title: 'Case management mention',
+    description: 'For directions on pleadings, documents, witness statements, issues for determination and further case-management timelines.',
+    starts_at: '',
+    ends_at: '',
+    hearing_mode: 'VIRTUAL',
+    court: '',
+    court_station: '',
+    courtroom: '',
+    judicial_officer: '',
+    virtual_meeting_url: '',
+    virtual_access_instructions: '',
+    physical_venue: '',
+    orders_directions: '',
+    next_action: 'Prepare case management bundle and confirm service, pleadings and compliance status.',
+    next_date: '',
+    is_client_visible: true,
+  });
+  const [eventErrors, setEventErrors] = useState({});
+  const [isEventFormOpen, setIsEventFormOpen] = useState(false);
+
+  const hasVerifiedJurisdiction = Boolean(caseData?.jurisdiction_verified);
+  const hasVerifiedCts = Boolean(caseData?.cts_reference || caseData?.court_proceeding?.cts_reference);
 
   if (isLoading) {
     return (
@@ -143,7 +229,8 @@ const AdminCaseDetailsPage = () => {
   const otherParties = (caseData.parties || []).filter((party) => !party.is_our_client && !party.is_adverse);
   const courtName = firstValue(caseData.court_name, caseData.court_station, caseData.registry);
   const courtLocation = firstValue(caseData.court_location, caseData.court_station, caseData.registry);
-  const conflictCheck = caseData.conflict_check;
+  const conflictCheckEnvelope = caseData.conflict_check;
+  const conflictCheck = conflictCheckEnvelope?.id ? conflictCheckEnvelope : null;
   const conflictRecord = caseData.conflict_record;
   const conflictStatus = conflictCheck?.status || conflictRecord?.status || 'NOT_STARTED';
   const conflictReviewed = Boolean(conflictCheck?.reviewed_at && conflictCheck?.reviewed_by);
@@ -213,11 +300,37 @@ const AdminCaseDetailsPage = () => {
     REJECT: 'Reject Instruction',
     CANCEL: 'Cancel',
   };
-  const backendActions = Array.isArray(conflictCheck?.available_actions)
-    ? conflictCheck.available_actions
+  const backendActions = Array.isArray(conflictCheckEnvelope?.available_actions)
+    ? conflictCheckEnvelope.available_actions
     : null;
   const conflictActions = (backendActions || (conflictActionsByStatus[conflictStatus] || []).map((action) => action.value))
     .map((action) => ({ value: action, label: conflictActionLabels[action] || friendly(action) }));
+
+  const jurisdictionAction = hasVerifiedJurisdiction && jurisdictionDraft.action === 'VERIFY' ? 'REVOKE' : jurisdictionDraft.action;
+  const shouldPrefillJurisdiction = !hasVerifiedJurisdiction && jurisdictionAction === 'VERIFY';
+  const jurisdictionValues = {
+    action: jurisdictionAction,
+    reason: jurisdictionDraft.reason,
+    claim_amount:
+      jurisdictionDraft.claim_amount ||
+      (shouldPrefillJurisdiction ? caseData.claim_amount || monetaryRelief?.principal_amount : '') ||
+      '',
+    currency:
+      jurisdictionDraft.currency ||
+      (shouldPrefillJurisdiction ? caseData.currency || monetaryRelief?.currency : '') ||
+      'KES',
+    court_level: jurisdictionDraft.court_level || (shouldPrefillJurisdiction ? caseData.court_level : '') || '',
+    court_type: jurisdictionDraft.court_type || (shouldPrefillJurisdiction ? caseData.court_type : '') || '',
+    court_station: jurisdictionDraft.court_station || (shouldPrefillJurisdiction ? caseData.court_station : '') || '',
+    judicial_officer_rank:
+      jurisdictionDraft.judicial_officer_rank ||
+      (shouldPrefillJurisdiction ? caseData.judicial_officer_rank : '') ||
+      '',
+    jurisdiction_notes:
+      jurisdictionDraft.jurisdiction_notes ||
+      (shouldPrefillJurisdiction ? caseData.jurisdiction_notes : '') ||
+      '',
+  };
 
   const handleReassign = async () => {
     if (!selectedLawyer) return;
@@ -410,10 +523,10 @@ const AdminCaseDetailsPage = () => {
     event.preventDefault();
     if (isUpdatingConflictCheck) return;
     setConflictErrors({});
-    if (!conflictDraft.action || !conflictDraft.reason.trim()) {
+    if (!conflictDraft.action || (conflictDraft.action !== 'INITIATE' && !conflictDraft.reason.trim())) {
       setConflictErrors({
         action: !conflictDraft.action ? 'Choose a conflict-check action.' : '',
-        reason: !conflictDraft.reason.trim() ? 'Reason is required.' : '',
+        reason: conflictDraft.action !== 'INITIATE' && !conflictDraft.reason.trim() ? 'Reason is required.' : '',
       });
       return;
     }
@@ -485,6 +598,235 @@ const AdminCaseDetailsPage = () => {
             'The conflict-check action could not be recorded.',
         });
       }
+    }
+  };
+
+
+  const toIsoDateTime = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toISOString();
+  };
+
+  const normalizeBackendErrors = (backendErrors = {}) =>
+    Object.fromEntries(
+      Object.entries(backendErrors).map(([key, value]) => [
+        key,
+        Array.isArray(value) ? value.join(' ') : String(value),
+      ]),
+    );
+
+  const handleEventTypeChange = (eventType) => {
+    setEventDraft((current) => ({
+      ...current,
+      event_type: eventType,
+      event_subtype: EVENT_SUBTYPE_HINTS[eventType] || '',
+      title: COURT_EVENT_TYPES.find((option) => option.value === eventType)?.label || current.title,
+      hearing_mode: ['HEARING', 'MENTION', 'CASE_MANAGEMENT', 'PRE_TRIAL', 'RULING', 'JUDGMENT'].includes(eventType)
+        ? current.hearing_mode || 'VIRTUAL'
+        : current.hearing_mode,
+    }));
+  };
+
+  const handleCaseEventSubmit = async (event) => {
+    event.preventDefault();
+    if (isCreatingCaseEvent) return;
+
+    const errors = {};
+    if (!eventDraft.event_type) errors.event_type = 'Select the court event type.';
+    if (!eventDraft.title.trim()) errors.title = 'Enter the event title.';
+    if (!eventDraft.starts_at) errors.starts_at = 'Enter the court event date and time.';
+    if (!eventDraft.description.trim()) errors.description = 'Enter the agenda or purpose of the event.';
+
+    if (eventDraft.ends_at && eventDraft.starts_at && new Date(eventDraft.ends_at) <= new Date(eventDraft.starts_at)) {
+      errors.ends_at = 'End time must be after the start time.';
+    }
+
+    if (Object.keys(errors).length) {
+      setEventErrors(errors);
+      return;
+    }
+
+    setEventErrors({});
+
+    const payload = {
+      event_type: eventDraft.event_type,
+      event_subtype: eventDraft.event_subtype.trim(),
+      title: eventDraft.title.trim(),
+      description: eventDraft.description.trim(),
+      starts_at: toIsoDateTime(eventDraft.starts_at),
+      ends_at: eventDraft.ends_at ? toIsoDateTime(eventDraft.ends_at) : null,
+      hearing_mode: eventDraft.hearing_mode,
+      court: eventDraft.court.trim() || courtName || '',
+      court_station: eventDraft.court_station.trim() || caseData.court_station || '',
+      courtroom: eventDraft.courtroom.trim(),
+      judicial_officer: eventDraft.judicial_officer.trim(),
+      virtual_meeting_url: eventDraft.virtual_meeting_url.trim(),
+      virtual_access_instructions: eventDraft.virtual_access_instructions.trim(),
+      physical_venue: eventDraft.physical_venue.trim(),
+      orders_directions: eventDraft.orders_directions.trim(),
+      next_action: eventDraft.next_action.trim(),
+      next_date: eventDraft.next_date ? toIsoDateTime(eventDraft.next_date) : null,
+      is_client_visible: eventDraft.is_client_visible,
+    };
+
+    try {
+      await createCaseEvent({ caseId: id, payload });
+      setIsEventFormOpen(false);
+      setEventDraft({
+        event_type: 'CASE_MANAGEMENT',
+        event_subtype: EVENT_SUBTYPE_HINTS.CASE_MANAGEMENT,
+        title: 'Case management mention',
+        description: 'For directions on pleadings, documents, witness statements, issues for determination and further case-management timelines.',
+        starts_at: '',
+        ends_at: '',
+        hearing_mode: 'VIRTUAL',
+        court: '',
+        court_station: '',
+        courtroom: '',
+        judicial_officer: '',
+        virtual_meeting_url: '',
+        virtual_access_instructions: '',
+        physical_venue: '',
+        orders_directions: '',
+        next_action: 'Prepare case management bundle and confirm service, pleadings and compliance status.',
+        next_date: '',
+        is_client_visible: true,
+      });
+      Swal.fire({
+        icon: 'success',
+        title: 'Court event recorded',
+        text: 'The court diary entry has been added to this matter.',
+        timer: 1800,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      const backendErrors = error?.response?.data || {};
+      setEventErrors(normalizeBackendErrors(backendErrors));
+      Swal.fire({
+        icon: 'error',
+        title: 'Court event failed',
+        text: backendErrors.detail || 'The court event could not be recorded.',
+      });
+    }
+  };
+
+
+  const handleCtsSubmit = async (event) => {
+    event.preventDefault();
+    if (isVerifyingJurisdiction) return;
+    setCtsErrors({});
+    const payload = {
+      action: 'VERIFY_CTS',
+      cts_reference: ctsDraft.cts_reference.trim(),
+      verification_source: ctsDraft.verification_source.trim(),
+      reason: ctsDraft.reason.trim(),
+      jurisdiction_notes: ctsDraft.jurisdiction_notes.trim(),
+    };
+    const errors = {};
+    if (!payload.cts_reference) errors.cts_reference = 'CTS reference is required.';
+    if (!payload.verification_source) errors.verification_source = 'Verification source is required.';
+    if (!payload.reason) errors.reason = 'Reason is required.';
+    if (Object.keys(errors).length) {
+      setCtsErrors(errors);
+      return;
+    }
+
+    try {
+      await verifyJurisdiction({ caseId: id, payload });
+      setCtsDraft({
+        cts_reference: '',
+        verification_source: '',
+        reason: '',
+        jurisdiction_notes: '',
+      });
+      Swal.fire({
+        icon: 'success',
+        title: 'CTS reference verified',
+        text: 'The court-record verification was recorded.',
+        timer: 1800,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      const backendErrors = error?.response?.data || {};
+      setCtsErrors(
+        Object.fromEntries(
+          Object.entries(backendErrors).map(([key, value]) => [
+            key,
+            Array.isArray(value) ? value.join(' ') : String(value),
+          ]),
+        ),
+      );
+      Swal.fire({
+        icon: 'error',
+        title: 'CTS verification failed',
+        text:
+          error?.response?.data?.detail ||
+          error?.response?.data?.cts_reference ||
+          'The CTS reference could not be verified.',
+      });
+    }
+  };
+
+  const handleJurisdictionSubmit = async (event) => {
+    event.preventDefault();
+    if (isVerifyingJurisdiction) return;
+    setJurisdictionErrors({});
+
+    const payload = { ...jurisdictionValues };
+    if (payload.action === 'REVOKE' && !payload.reason.trim()) {
+      setJurisdictionErrors({ reason: 'A reason is required to revoke jurisdiction verification.' });
+      return;
+    }
+    if (payload.action === 'VERIFY') {
+      const errors = {};
+      if (!payload.claim_amount) errors.claim_amount = 'Claim amount is required.';
+      if (!payload.court_level) errors.court_level = 'Court level is required.';
+      if (!payload.jurisdiction_notes.trim()) errors.jurisdiction_notes = 'Jurisdiction assessment notes are required.';
+      if (Object.keys(errors).length) {
+        setJurisdictionErrors(errors);
+        return;
+      }
+    }
+
+    try {
+      await verifyJurisdiction({ caseId: id, payload });
+      setJurisdictionDraft({
+        action: payload.action === 'VERIFY' ? 'REVOKE' : 'VERIFY',
+        reason: '',
+        claim_amount: '',
+        currency: 'KES',
+        court_level: '',
+        court_type: '',
+        court_station: '',
+        judicial_officer_rank: '',
+        jurisdiction_notes: '',
+      });
+      Swal.fire({
+        icon: 'success',
+        title: payload.action === 'VERIFY' ? 'Jurisdiction verified' : 'Jurisdiction verification revoked',
+        text: 'The jurisdiction workflow was updated.',
+        timer: 1800,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      const backendErrors = error?.response?.data || {};
+      setJurisdictionErrors(
+        Object.fromEntries(
+          Object.entries(backendErrors).map(([key, value]) => [
+            key,
+            Array.isArray(value) ? value.join(' ') : String(value),
+          ]),
+        ),
+      );
+      Swal.fire({
+        icon: 'error',
+        title: 'Jurisdiction action failed',
+        text:
+          error?.response?.data?.detail ||
+          error?.response?.data?.jurisdiction ||
+          'The jurisdiction action could not be recorded.',
+      });
     }
   };
 
@@ -775,18 +1117,20 @@ const AdminCaseDetailsPage = () => {
               </select>
               {conflictErrors.action && <p className='mt-1 text-sm text-error'>{conflictErrors.action}</p>}
             </div>
-            <div>
-              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                Review date and time
-              </label>
-              <input
-                type='datetime-local'
-                value={conflictDraft.effective_at}
-                onChange={(event) => setConflictDraft((current) => ({ ...current, effective_at: event.target.value }))}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-              />
-              {conflictErrors.effective_at && <p className='mt-1 text-sm text-error'>{conflictErrors.effective_at}</p>}
-            </div>
+            {conflictDraft.action !== 'INITIATE' && (
+              <div>
+                <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                  Effective date and time
+                </label>
+                <input
+                  type='datetime-local'
+                  value={conflictDraft.effective_at}
+                  onChange={(event) => setConflictDraft((current) => ({ ...current, effective_at: event.target.value }))}
+                  className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                />
+                {conflictErrors.effective_at && <p className='mt-1 text-sm text-error'>{conflictErrors.effective_at}</p>}
+              </div>
+            )}
             {conflictDraft.action === 'MARK_CLEAR' && conflictCheck?.result_summary && (
               <div className='rounded-xl border border-border-light bg-surface-light p-4 text-sm text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark lg:col-span-2'>
                 <p><strong>Reviewer:</strong> {safe(conflictCheck.reviewed_by_name)}</p>
@@ -796,52 +1140,70 @@ const AdminCaseDetailsPage = () => {
             )}
             <div className='lg:col-span-2'>
               <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                Reason for review
+                {conflictDraft.action === 'INITIATE' ? 'Reason or search scope' : 'Reason for action'}
               </label>
               <textarea
                 value={conflictDraft.reason}
                 onChange={(event) => setConflictDraft((current) => ({ ...current, reason: event.target.value }))}
-                placeholder='Reason or description'
+                placeholder={conflictDraft.action === 'INITIATE' ? 'Example: Firm-wide search before engagement confirmation' : 'Reason or description'}
                 className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
               />
               {conflictErrors.reason && <p className='mt-1 text-sm text-error'>{conflictErrors.reason}</p>}
             </div>
-            <div>
-              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                Review result summary
-              </label>
+            {conflictDraft.action && !['INITIATE', 'MARK_CLEAR', 'REVIEW'].includes(conflictDraft.action) && (
+              <>
+                <div>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Result summary
+                  </label>
+                  <textarea
+                    value={conflictDraft.result_summary}
+                    onChange={(event) => setConflictDraft((current) => ({ ...current, result_summary: event.target.value }))}
+                    placeholder='Safe result summary'
+                    className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                  {conflictErrors.result_summary && <p className='mt-1 text-sm text-error'>{conflictErrors.result_summary}</p>}
+                </div>
+                <div>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Internal notes — not visible to client
+                  </label>
+                  <textarea
+                    value={conflictDraft.internal_notes}
+                    onChange={(event) => setConflictDraft((current) => ({ ...current, internal_notes: event.target.value }))}
+                    placeholder='Internal notes — not visible to client'
+                    className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                  {conflictErrors.internal_notes && <p className='mt-1 text-sm text-error'>{conflictErrors.internal_notes}</p>}
+                </div>
+              </>
+            )}
+            {conflictDraft.action === 'REVIEW' && (
+              <div>
+                <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                  Review result summary
+                </label>
+                <textarea
+                  value={conflictDraft.result_summary}
+                  onChange={(event) => setConflictDraft((current) => ({ ...current, result_summary: event.target.value }))}
+                  placeholder='Safe result summary'
+                  className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                />
+                {conflictErrors.result_summary && <p className='mt-1 text-sm text-error'>{conflictErrors.result_summary}</p>}
+              </div>
+            )}
+            {['REQUEST_WAIVER', 'RECORD_WAIVER'].includes(conflictDraft.action) && (
               <textarea
-                value={conflictDraft.result_summary}
-                onChange={(event) => setConflictDraft((current) => ({ ...current, result_summary: event.target.value }))}
-                placeholder='Safe result summary'
-                disabled={conflictDraft.action === 'MARK_CLEAR'}
-                className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light disabled:opacity-60 dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                value={conflictDraft.waiver_details}
+                onChange={(event) => setConflictDraft((current) => ({ ...current, waiver_details: event.target.value }))}
+                placeholder='Waiver details, when applicable'
+                className='min-h-24 rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark lg:col-span-2'
               />
-              {conflictErrors.result_summary && <p className='mt-1 text-sm text-error'>{conflictErrors.result_summary}</p>}
-            </div>
-            <div>
-              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                Internal notes — not visible to client
-              </label>
-              <textarea
-                value={conflictDraft.internal_notes}
-                onChange={(event) => setConflictDraft((current) => ({ ...current, internal_notes: event.target.value }))}
-                placeholder='Internal notes — not visible to client'
-                disabled={conflictDraft.action === 'MARK_CLEAR'}
-                className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light disabled:opacity-60 dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-              />
-              {conflictErrors.internal_notes && <p className='mt-1 text-sm text-error'>{conflictErrors.internal_notes}</p>}
-            </div>
-            <textarea
-              value={conflictDraft.waiver_details}
-              onChange={(event) => setConflictDraft((current) => ({ ...current, waiver_details: event.target.value }))}
-              placeholder='Waiver details, when applicable'
-              className='min-h-24 rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark lg:col-span-2'
-            />
+            )}
             <button
               type='submit'
               disabled={isUpdatingConflictCheck}
-              className='rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
+              className='w-fit rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
             >
               {isUpdatingConflictCheck ? 'Recording...' : 'Record Conflict Action'}
             </button>
@@ -921,6 +1283,227 @@ const AdminCaseDetailsPage = () => {
               </p>
             </SectionNote>
           </div>
+
+
+          {hasVerifiedCts ? (
+            <SectionNote tone='info'>
+              <p className='font-semibold'>CTS reference verified</p>
+              <p className='mt-1'>
+                {safe(caseData.cts_reference || courtProceeding.cts_reference)} has been recorded from the court or eFiling record.
+              </p>
+              <p className='mt-1'>
+                Further changes should be made through a separate audited correction workflow.
+              </p>
+            </SectionNote>
+          ) : (
+            <form onSubmit={handleCtsSubmit} className='mt-5 rounded-xl border border-border-light bg-surface-light p-5 dark:border-border-dark dark:bg-surface-dark'>
+              <div className='mb-4'>
+                <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
+                  CTS / Court Record Verification
+                </h4>
+                <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                  Record the CTS reference only after checking the Judiciary eFiling record, registry record, cause list, or stamped court documents.
+                </p>
+              </div>
+
+              <div className='grid gap-4 md:grid-cols-2'>
+                <div>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    CTS reference
+                  </label>
+                  <input
+                    value={ctsDraft.cts_reference}
+                    onChange={(event) => setCtsDraft((current) => ({ ...current, cts_reference: event.target.value.toUpperCase() }))}
+                    placeholder='e.g. CTS-HCCOMM-2026-001248'
+                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                  {ctsErrors.cts_reference && <p className='mt-1 text-sm text-error'>{ctsErrors.cts_reference}</p>}
+                </div>
+                <div>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Verification source
+                  </label>
+                  <input
+                    value={ctsDraft.verification_source}
+                    onChange={(event) => setCtsDraft((current) => ({ ...current, verification_source: event.target.value }))}
+                    placeholder='Judiciary eFiling portal, court registry, cause list, stamped pleading'
+                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                  {ctsErrors.verification_source && <p className='mt-1 text-sm text-error'>{ctsErrors.verification_source}</p>}
+                </div>
+                <div className='md:col-span-2'>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Reason for verification
+                  </label>
+                  <textarea
+                    value={ctsDraft.reason}
+                    onChange={(event) => setCtsDraft((current) => ({ ...current, reason: event.target.value }))}
+                    placeholder='CTS reference confirmed against the filed court record.'
+                    className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                  {ctsErrors.reason && <p className='mt-1 text-sm text-error'>{ctsErrors.reason}</p>}
+                </div>
+                <div className='md:col-span-2'>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Verification notes
+                  </label>
+                  <textarea
+                    value={ctsDraft.jurisdiction_notes}
+                    onChange={(event) => setCtsDraft((current) => ({ ...current, jurisdiction_notes: event.target.value }))}
+                    placeholder='Optional internal note on the court-record check.'
+                    className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                </div>
+              </div>
+
+              <button
+                type='submit'
+                disabled={isVerifyingJurisdiction}
+                className='mt-4 w-fit rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
+              >
+                {isVerifyingJurisdiction ? 'Recording...' : 'Verify CTS Reference'}
+              </button>
+            </form>
+          )}
+
+          <form onSubmit={handleJurisdictionSubmit} className='mt-5 rounded-xl border border-border-light bg-surface-light p-5 dark:border-border-dark dark:bg-surface-dark'>
+            <div className='mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
+              <div>
+                <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
+                  Jurisdiction Verification
+                </h4>
+                <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                  Verify the court, level, station and claim value through the controlled jurisdiction workflow.
+                </p>
+              </div>
+              <select
+                value={jurisdictionValues.action}
+                onChange={(event) => setJurisdictionDraft((current) => ({ ...current, action: event.target.value }))}
+                className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              >
+                <option value='VERIFY'>Verify jurisdiction</option>
+                <option value='REVOKE'>Revoke verification</option>
+              </select>
+            </div>
+
+            {jurisdictionValues.action === 'VERIFY' ? (
+              <div className='grid gap-4 md:grid-cols-2'>
+                <div>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Claim amount reviewed
+                  </label>
+                  <input
+                    type='number'
+                    value={jurisdictionValues.claim_amount}
+                    onChange={(event) => setJurisdictionDraft((current) => ({ ...current, claim_amount: event.target.value }))}
+                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                  {jurisdictionErrors.claim_amount && <p className='mt-1 text-sm text-error'>{jurisdictionErrors.claim_amount}</p>}
+                </div>
+                <div>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Currency
+                  </label>
+                  <input
+                    value={jurisdictionValues.currency}
+                    onChange={(event) => setJurisdictionDraft((current) => ({ ...current, currency: event.target.value.toUpperCase() }))}
+                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                </div>
+                <div>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Court type
+                  </label>
+                  <select
+                    value={jurisdictionValues.court_type}
+                    onChange={(event) => setJurisdictionDraft((current) => ({ ...current, court_type: event.target.value }))}
+                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  >
+                    <option value=''>Select court type</option>
+                    {COURT_TYPES.map((court) => (
+                      <option key={court.value} value={court.value}>{court.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Court level
+                  </label>
+                  <select
+                    value={jurisdictionValues.court_level}
+                    onChange={(event) => setJurisdictionDraft((current) => ({ ...current, court_level: event.target.value }))}
+                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  >
+                    <option value=''>Select court level</option>
+                    {COURT_LEVELS.map((level) => (
+                      <option key={level.value} value={level.value}>{level.label}</option>
+                    ))}
+                  </select>
+                  {jurisdictionErrors.court_level && <p className='mt-1 text-sm text-error'>{jurisdictionErrors.court_level}</p>}
+                </div>
+                <div>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Court station
+                  </label>
+                  <input
+                    value={jurisdictionValues.court_station}
+                    onChange={(event) => setJurisdictionDraft((current) => ({ ...current, court_station: event.target.value }))}
+                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                </div>
+                <div>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Judicial officer rank, where relevant
+                  </label>
+                  <input
+                    value={jurisdictionValues.judicial_officer_rank}
+                    onChange={(event) => setJurisdictionDraft((current) => ({ ...current, judicial_officer_rank: event.target.value }))}
+                    placeholder='Judge, magistrate, chairperson, or leave blank'
+                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                </div>
+                <div className='md:col-span-2'>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Jurisdiction assessment notes
+                  </label>
+                  <textarea
+                    value={jurisdictionValues.jurisdiction_notes}
+                    onChange={(event) => setJurisdictionDraft((current) => ({ ...current, jurisdiction_notes: event.target.value }))}
+                    className='min-h-28 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                  {jurisdictionErrors.jurisdiction_notes && <p className='mt-1 text-sm text-error'>{jurisdictionErrors.jurisdiction_notes}</p>}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                  Reason for revocation
+                </label>
+                <textarea
+                  value={jurisdictionDraft.reason}
+                  onChange={(event) => setJurisdictionDraft((current) => ({ ...current, reason: event.target.value }))}
+                  className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                />
+                {jurisdictionErrors.reason && <p className='mt-1 text-sm text-error'>{jurisdictionErrors.reason}</p>}
+              </div>
+            )}
+
+            {jurisdictionErrors.jurisdiction && (
+              <p className='mt-3 text-sm text-error'>{jurisdictionErrors.jurisdiction}</p>
+            )}
+
+            <button
+              type='submit'
+              disabled={isVerifyingJurisdiction}
+              className='mt-4 w-fit rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
+            >
+              {isVerifyingJurisdiction
+                ? 'Recording...'
+                : jurisdictionValues.action === 'VERIFY'
+                  ? 'Verify Jurisdiction'
+                  : 'Revoke Verification'}
+            </button>
+          </form>
 
           {caseData.next_action && (
             <div className='mt-5'>
@@ -1253,6 +1836,295 @@ const AdminCaseDetailsPage = () => {
         <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
           Court Events
         </h3>
+
+        {!isEventFormOpen && (
+          <button
+            type='button'
+            onClick={() => setIsEventFormOpen(true)}
+            className='mb-6 w-fit rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90'
+          >
+            Add Court Event
+          </button>
+        )}
+
+        {isEventFormOpen && (
+        <form
+          onSubmit={handleCaseEventSubmit}
+          className='mb-6 rounded-xl border border-border-light bg-surface-light p-5 dark:border-border-dark dark:bg-surface-dark'
+        >
+          <div className='mb-4'>
+            <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
+              Create Court Event / Court Diary Entry
+            </h4>
+            <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
+              Record mentions, directions, pre-trial conferences, hearings, rulings, judgment delivery, service steps and registry follow-ups as separate events.
+            </p>
+          </div>
+
+          <div className='grid gap-4 md:grid-cols-2'>
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Event type
+              </label>
+              <select
+                value={eventDraft.event_type}
+                onChange={(event) => handleEventTypeChange(event.target.value)}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              >
+                {COURT_EVENT_TYPES.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              {eventErrors.event_type && <p className='mt-1 text-sm text-error'>{eventErrors.event_type}</p>}
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Event subtype / Kenyan court purpose
+              </label>
+              <input
+                value={eventDraft.event_subtype}
+                onChange={(event) => setEventDraft((current) => ({ ...current, event_subtype: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Event title
+              </label>
+              <input
+                value={eventDraft.title}
+                onChange={(event) => setEventDraft((current) => ({ ...current, title: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+              {eventErrors.title && <p className='mt-1 text-sm text-error'>{eventErrors.title}</p>}
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Event status
+              </label>
+              <input
+                value='Scheduled'
+                readOnly
+                className='w-full rounded-xl border border-border-light bg-background-light px-4 py-3 text-text-muted-light dark:border-border-dark dark:bg-background-dark dark:text-text-muted-dark'
+              />
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Date and time
+              </label>
+              <input
+                type='datetime-local'
+                value={eventDraft.starts_at}
+                onChange={(event) => setEventDraft((current) => ({ ...current, starts_at: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+              {eventErrors.starts_at && <p className='mt-1 text-sm text-error'>{eventErrors.starts_at}</p>}
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                End time, if allocated
+              </label>
+              <input
+                type='datetime-local'
+                value={eventDraft.ends_at}
+                onChange={(event) => setEventDraft((current) => ({ ...current, ends_at: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+              {eventErrors.ends_at && <p className='mt-1 text-sm text-error'>{eventErrors.ends_at}</p>}
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Hearing mode
+              </label>
+              <select
+                value={eventDraft.hearing_mode}
+                onChange={(event) => setEventDraft((current) => ({ ...current, hearing_mode: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              >
+                {HEARING_MODES.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Court / tribunal
+              </label>
+              <input
+                value={eventDraft.court}
+                onChange={(event) => setEventDraft((current) => ({ ...current, court: event.target.value }))}
+                placeholder={courtName || 'High Court of Kenya'}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Court station
+              </label>
+              <input
+                value={eventDraft.court_station}
+                onChange={(event) => setEventDraft((current) => ({ ...current, court_station: event.target.value }))}
+                placeholder={caseData.court_station || 'Nairobi'}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Courtroom / virtual courtroom label
+              </label>
+              <input
+                value={eventDraft.courtroom}
+                onChange={(event) => setEventDraft((current) => ({ ...current, courtroom: event.target.value }))}
+                placeholder='Leave blank if not allocated'
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Judicial officer
+              </label>
+              <input
+                value={eventDraft.judicial_officer}
+                onChange={(event) => setEventDraft((current) => ({ ...current, judicial_officer: event.target.value }))}
+                placeholder='Judge, deputy registrar, magistrate, chairperson, or leave blank'
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+            </div>
+
+            {eventDraft.hearing_mode !== 'PHYSICAL' && eventDraft.hearing_mode !== 'NOT_APPLICABLE' && (
+              <>
+                <div>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Virtual link, if supplied by court
+                  </label>
+                  <input
+                    value={eventDraft.virtual_meeting_url}
+                    onChange={(event) => setEventDraft((current) => ({ ...current, virtual_meeting_url: event.target.value }))}
+                    placeholder='Do not enter public links unless authorized'
+                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                </div>
+                <div>
+                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                    Virtual access instructions
+                  </label>
+                  <input
+                    value={eventDraft.virtual_access_instructions}
+                    onChange={(event) => setEventDraft((current) => ({ ...current, virtual_access_instructions: event.target.value }))}
+                    placeholder='Meeting ID, cause list note, or access instruction'
+                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  />
+                </div>
+              </>
+            )}
+
+            {eventDraft.hearing_mode !== 'VIRTUAL' && eventDraft.hearing_mode !== 'NOT_APPLICABLE' && (
+              <div className='md:col-span-2'>
+                <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                  Physical venue
+                </label>
+                <input
+                  value={eventDraft.physical_venue}
+                  onChange={(event) => setEventDraft((current) => ({ ...current, physical_venue: event.target.value }))}
+                  placeholder={courtLocation || 'Milimani Law Courts, Nairobi'}
+                  className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                />
+              </div>
+            )}
+
+            <div className='md:col-span-2'>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Agenda / purpose
+              </label>
+              <textarea
+                value={eventDraft.description}
+                onChange={(event) => setEventDraft((current) => ({ ...current, description: event.target.value }))}
+                className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+              {eventErrors.description && <p className='mt-1 text-sm text-error'>{eventErrors.description}</p>}
+            </div>
+
+            <div className='md:col-span-2'>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Orders, directions or notes after event
+              </label>
+              <textarea
+                value={eventDraft.orders_directions}
+                onChange={(event) => setEventDraft((current) => ({ ...current, orders_directions: event.target.value }))}
+                placeholder='Leave blank until the event has happened or directions are known'
+                className='min-h-20 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Next action
+              </label>
+              <input
+                value={eventDraft.next_action}
+                onChange={(event) => setEventDraft((current) => ({ ...current, next_action: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+            </div>
+
+            <div>
+              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                Next event date, if given
+              </label>
+              <input
+                type='datetime-local'
+                value={eventDraft.next_date}
+                onChange={(event) => setEventDraft((current) => ({ ...current, next_date: event.target.value }))}
+                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              />
+            </div>
+          </div>
+
+          <label className='mt-4 flex items-center gap-3 text-sm text-text-primary-light dark:text-text-primary-dark'>
+            <input
+              type='checkbox'
+              checked={eventDraft.is_client_visible}
+              onChange={(event) => setEventDraft((current) => ({ ...current, is_client_visible: event.target.checked }))}
+              className='h-4 w-4 rounded border-border-light text-brand-primary focus:ring-brand-primary dark:border-border-dark'
+            />
+            Visible to client portal where permitted
+          </label>
+
+          {eventErrors.non_field_errors && <p className='mt-3 text-sm text-error'>{eventErrors.non_field_errors}</p>}
+          {eventErrors.detail && <p className='mt-3 text-sm text-error'>{eventErrors.detail}</p>}
+
+          <div className='mt-5 flex flex-wrap gap-3'>
+            <button
+              type='submit'
+              disabled={isCreatingCaseEvent}
+              className='w-fit rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
+            >
+              {isCreatingCaseEvent ? 'Recording...' : 'Create Court Event'}
+            </button>
+            <button
+              type='button'
+              disabled={isCreatingCaseEvent}
+              onClick={() => {
+                setEventErrors({});
+                setIsEventFormOpen(false);
+              }}
+              className='w-fit rounded-xl border border-border-light px-5 py-3 font-medium text-text-primary-light transition hover:bg-background-light disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark dark:text-text-primary-dark dark:hover:bg-background-dark'
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+        )}
 
         {events.length === 0 ? (
           <p className='text-text-muted-light dark:text-text-muted-dark'>

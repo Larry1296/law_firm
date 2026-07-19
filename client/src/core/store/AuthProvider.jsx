@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { jwtDecode } from 'jwt-decode';
 
 import AuthContext from '@/core/store/AuthContext';
+import { getEffectiveRole } from '@/core/utils/effectiveRole';
 import authService from '@/modules/auth/service/authService';
 import {
   clearAuthSession,
@@ -252,10 +253,11 @@ const AuthProvider = ({ children }) => {
   // =========================
   const role = user?.role;
   const firmRole = user?.firm_role;
+  const effectiveRole = getEffectiveRole(user, firmRole);
 
-  const isAdmin = role === 'ADMIN';
-  const isOfficialClient = role === 'OFFICIAL_CLIENT';
-  const isProspect = role === 'PROSPECT';
+  const isAdmin = effectiveRole === 'ADMIN';
+  const isOfficialClient = effectiveRole === 'OFFICIAL_CLIENT';
+  const isProspect = effectiveRole === 'PROSPECT';
   const isClient = isOfficialClient || isProspect;
   const isStaff = role === 'STAFF';
 
@@ -278,6 +280,7 @@ const AuthProvider = ({ children }) => {
     // roles
     role,
     firmRole,
+    effectiveRole,
 
     // helpers
     isAdmin,

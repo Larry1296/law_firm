@@ -206,6 +206,83 @@ class CommunicationApiTests(TestCase):
         )
         self.assertEqual(forbidden.status_code, 404)
 
+
+    def test_staff_message_sender_display_name_includes_firm_role(self):
+        self.api.force_authenticate(user=self.admin)
+        response = self.api.post(
+            reverse("admin-staff-thread-list"),
+            {
+                "staff_user_id": str(self.secretary_user.id),
+                "subject": "Role labels",
+                "message": "Please confirm filing bundles.",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        thread_id = response.data["thread"]["id"]
+
+        self.api.force_authenticate(user=self.secretary_user)
+        reply = self.api.post(
+            reverse("communication-thread-messages", kwargs={"thread_id": thread_id}),
+            {"body": "Confirmed."},
+            format="json",
+        )
+        self.assertEqual(reply.status_code, 201, reply.data)
+        self.assertEqual(reply.data["message"]["sender"]["role"], UserRole.STAFF)
+        self.assertEqual(reply.data["message"]["sender"]["firm_role"], FirmRole.SECRETARY)
+        self.assertEqual(
+            reply.data["message"]["sender"]["display_name"],
+            "Sarah Secretary (Secretary)",
+        )
+
+        self.api.force_authenticate(user=self.admin)
+        messages = self.api.get(
+            reverse("communication-thread-messages", kwargs={"thread_id": thread_id}),
+        )
+        self.assertEqual(messages.status_code, 200, messages.data)
+        self.assertEqual(
+            messages.data["messages"][-1]["sender"]["display_name"],
+            "Sarah Secretary (Secretary)",
+        )
+        notification = Notification.objects.filter(recipient=self.admin).order_by("-created_at").first()
+        self.assertIn("Sarah Secretary (Secretary)", notification.title)
+
+    def test_delegated_admin_message_sender_display_name_uses_admin_role(self):
+        self.secretary_user.role = UserRole.ADMIN
+        self.secretary_user.is_staff = True
+        self.secretary_user.save(update_fields=["role", "is_staff", "updated_at"])
+
+        self.api.force_authenticate(user=self.secretary_user)
+        response = self.api.post(
+            reverse("admin-staff-thread-list"),
+            {
+                "staff_user_id": str(self.lawyer_user.id),
+                "subject": "Delegated admin instruction",
+                "message": "Please prepare a registry update.",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        last_message = response.data["thread"]["last_message"]
+        self.assertEqual(last_message["sender"]["role"], UserRole.ADMIN)
+        self.assertEqual(last_message["sender"]["firm_role"], FirmRole.SECRETARY)
+        self.assertEqual(
+            last_message["sender"]["display_name"],
+            "Sarah Secretary (Admin)",
+        )
+
+        self.api.force_authenticate(user=self.lawyer_user)
+        messages = self.api.get(
+            reverse("communication-thread-messages", kwargs={"thread_id": response.data["thread"]["id"]}),
+        )
+        self.assertEqual(messages.status_code, 200, messages.data)
+        self.assertEqual(
+            messages.data["messages"][0]["sender"]["display_name"],
+            "Sarah Secretary (Admin)",
+        )
+        notification = Notification.objects.filter(recipient=self.lawyer_user).order_by("-created_at").first()
+        self.assertIn("Sarah Secretary (Admin)", notification.title)
+
     def test_admin_bulk_staff_message_fans_out_to_private_lawyer_threads(self):
         self.api.force_authenticate(user=self.admin)
         response = self.api.post(

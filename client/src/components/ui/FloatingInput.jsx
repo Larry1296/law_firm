@@ -16,6 +16,8 @@ export default function FloatingInput({
   autoCorrect,
   autoCapitalize,
   spellCheck,
+  onWheel,
+  onKeyDown,
   ...props
 }) {
   const [focused, setFocused] = useState(false);
@@ -25,6 +27,7 @@ export default function FloatingInput({
   const isDate = type === 'date';
 
   const inputType = isPassword && showPassword ? 'text' : type;
+  const isNumber = type === 'number';
 
   const shouldFloat = !noFloat && !isDate;
   const supportsWritingAssist = ![
@@ -73,10 +76,23 @@ export default function FloatingInput({
           disabled={disabled}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
+          onWheel={(event) => {
+            if (isNumber) {
+              event.currentTarget.blur();
+            }
+            onWheel?.(event);
+          }}
+          onKeyDown={(event) => {
+            if (isNumber && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
+              event.preventDefault();
+            }
+            onKeyDown?.(event);
+          }}
           autoComplete={autoComplete ?? (isPassword ? 'current-password' : 'on')}
           autoCorrect={autoCorrect ?? (supportsWritingAssist ? 'on' : 'off')}
           autoCapitalize={autoCapitalize ?? (supportsWritingAssist ? 'sentences' : 'none')}
           spellCheck={spellCheck ?? supportsWritingAssist}
+          step={isNumber ? props.step ?? 'any' : props.step}
           {...props}
           className={`
             floating-input-field w-full rounded-xl bg-transparent px-4 pb-3 pt-6 outline-none
