@@ -11,6 +11,7 @@ import { displayEnum } from '@/core/utils/textFormatter';
 
 import useCaseDetails from '@/modules/admin/cases/hooks/useAdminCaseDetails';
 import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
+import { COURT_LEVELS, COURT_TYPES } from '@/modules/cases/shared/create/caseCreateOptions';
 
 const PRIORITIES = [
   { value: 'LOW', label: 'Low' },
@@ -18,6 +19,33 @@ const PRIORITIES = [
   { value: 'HIGH', label: 'High' },
   { value: 'URGENT', label: 'Urgent' },
 ];
+
+const panelClass =
+  'rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark';
+
+const InfoRow = ({ label, value }) => (
+  <div className='space-y-1'>
+    <p className='text-xs font-semibold uppercase tracking-wide text-text-muted-light dark:text-text-muted-dark'>
+      {label}
+    </p>
+    <p className='text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+      {value}
+    </p>
+  </div>
+);
+
+const SectionNote = ({ children, tone = 'info' }) => {
+  const toneClass =
+    tone === 'warning'
+      ? 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100'
+      : 'border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-100';
+
+  return (
+    <div className={`rounded-xl border p-4 text-sm ${toneClass}`}>
+      {children}
+    </div>
+  );
+};
 
 const AdminCaseDetailsPage = () => {
   const { id } = useParams();
@@ -95,14 +123,35 @@ const AdminCaseDetailsPage = () => {
     value !== null && value !== undefined && value !== ''
       ? displayEnum(value)
       : fallback;
+  const optionLabel = (options, value, fallback = 'Not recorded') =>
+    options.find((option) => option.value === value)?.label || friendly(value, fallback);
+  const formatMoney = (value, currency = caseData.currency || 'KES') =>
+    value !== null && value !== undefined && value !== ''
+      ? `${currency} ${Number(value).toLocaleString('en-KE', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`
+      : 'Not recorded';
   const firstValue = (...values) =>
     values.find((value) => value !== null && value !== undefined && value !== '') || '';
   const pageTitle = safe(caseData.title, safe(caseData.case_number, 'Case Details'));
+  const isCourtMatter = caseData.forum === 'COURT' || Boolean(caseData.court_proceeding);
+  const courtProceeding = caseData.court_proceeding || {};
+  const monetaryRelief = caseData.monetary_relief;
+  const representedParties = (caseData.parties || []).filter((party) => party.is_our_client);
+  const adverseParties = (caseData.parties || []).filter((party) => party.is_adverse);
+  const otherParties = (caseData.parties || []).filter((party) => !party.is_our_client && !party.is_adverse);
   const courtName = firstValue(caseData.court_name, caseData.court_station, caseData.registry);
   const courtLocation = firstValue(caseData.court_location, caseData.court_station, caseData.registry);
   const conflictCheck = caseData.conflict_check;
-  const conflictStatus = conflictCheck?.status || 'NOT_STARTED';
+  const conflictRecord = caseData.conflict_record;
+  const conflictStatus = conflictCheck?.status || conflictRecord?.status || 'NOT_STARTED';
   const conflictReviewed = Boolean(conflictCheck?.reviewed_at && conflictCheck?.reviewed_by);
+  const conflictDisplayTitle = conflictCheck
+    ? 'Conflict Check'
+    : caseData.entry_route === 'EXISTING_FILED_COURT_CASE'
+      ? 'Conflict Record Verification'
+      : 'Conflict Check';
 
   const currentLawyerId = caseData?.assigned_lawyer?.membership_id || '';
   const currentSecretaryId = caseData?.assigned_secretary?.membership_id || '';
@@ -445,63 +494,66 @@ const AdminCaseDetailsPage = () => {
 
       <SectionHeading
         title={pageTitle}
-        subtitle='Case details and activity'
+        subtitle='Matter record, court proceeding, parties and activity'
       />
 
       <Card className='p-6'>
-        <div className='grid gap-6 md:grid-cols-2'>
-          <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p>
-              <strong>Internal Matter Number:</strong> {safe(caseData.internal_case_number || caseData.case_number)}
+        <div className='mb-5 flex flex-col gap-3 border-b border-border-light pb-5 dark:border-border-dark md:flex-row md:items-start md:justify-between'>
+          <div>
+            <p className='text-sm font-semibold uppercase tracking-wide text-text-muted-light dark:text-text-muted-dark'>
+              Legal Matter
             </p>
-
-            <p>
-              <strong>Title:</strong> {safe(caseData.title)}
-            </p>
-
-            <p>
-              <strong>Official Court Case Number:</strong> {safe(caseData.official_court_case_number, 'Not recorded')}
-            </p>
-
-            <p>
-              <strong>Priority:</strong> {friendly(caseData.priority)}
-            </p>
-
-            <p>
-              <strong>Case Type:</strong> {friendly(caseData.case_type)}
-            </p>
-
-            <p>
-              <strong>Court Type:</strong> {friendly(caseData.court_type)}
-            </p>
+            <h2 className='mt-1 text-2xl font-semibold text-text-primary-light dark:text-text-primary-dark'>
+              {safe(caseData.title)}
+            </h2>
           </div>
-
-          <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p>
-              <strong>Court Name:</strong> {safe(courtName, 'Not Set')}
-            </p>
-
-            <p>
-              <strong>Court Location:</strong> {safe(courtLocation, 'Not Set')}
-            </p>
-
-            <p>
-              <strong>Filing Date:</strong> {caseData.filing_date ? formatDate(caseData.filing_date) : 'Not recorded'}
-            </p>
-
-            <p>
-              <strong>Created:</strong> {formatDateTime(caseData.created_at)}
-            </p>
-
-            <p>
-              <strong>Updated:</strong> {formatDateTime(caseData.updated_at)}
-            </p>
+          <div className='rounded-xl bg-brand-primary/10 px-4 py-3 text-sm font-semibold text-brand-primary'>
+            {caseData.matter_status_label || friendly(caseData.matter_status)}
           </div>
+        </div>
+
+        <div className='grid gap-5 md:grid-cols-2 xl:grid-cols-4'>
+          <InfoRow
+            label='Internal Matter Number'
+            value={safe(caseData.internal_case_number || caseData.case_number)}
+          />
+          <InfoRow
+            label='Official Court Case Number'
+            value={isCourtMatter ? safe(caseData.official_court_case_number, 'Not recorded') : 'Not applicable'}
+          />
+          <InfoRow
+            label='Entry Route'
+            value={caseData.entry_route_label || friendly(caseData.entry_route)}
+          />
+          <InfoRow label='Priority' value={friendly(caseData.priority)} />
+          <InfoRow
+            label='Practice Area'
+            value={caseData.practice_area_label || friendly(caseData.practice_area)}
+          />
+          <InfoRow
+            label='Matter Nature'
+            value={caseData.matter_nature_label || friendly(caseData.matter_nature)}
+          />
+          <InfoRow
+            label='Forum'
+            value={caseData.forum_label || friendly(caseData.forum)}
+          />
+          <InfoRow
+            label='Procedure'
+            value={caseData.procedure_type_label || friendly(caseData.procedure_type || caseData.procedure_track)}
+          />
+          <InfoRow
+            label='Instructions Received'
+            value={caseData.date_instructions_received ? formatDate(caseData.date_instructions_received) : 'Not recorded'}
+          />
+          <InfoRow label='Created in Sheria Master' value={formatDateTime(caseData.created_at)} />
+          <InfoRow label='Last Updated' value={formatDateTime(caseData.updated_at)} />
+          <InfoRow label='Created By' value={safe(caseData.created_by_name || caseData.created_by?.full_name)} />
         </div>
 
         <div className='mt-6'>
           <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
-            Description
+            Matter Summary
           </p>
 
           <p className='mt-2 text-text-muted-light dark:text-text-muted-dark'>
@@ -513,25 +565,56 @@ const AdminCaseDetailsPage = () => {
       <div className='grid gap-4 lg:grid-cols-2'>
         <Card className='p-6'>
           <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-            Internal Lifecycle
+            Firm Matter Lifecycle
           </h3>
-          <div className='space-y-3 text-text-primary-light dark:text-text-primary-dark'>
-            <p><strong>Matter status:</strong> {caseData.matter_status_label || friendly(caseData.matter_status)}</p>
-            <p><strong>Client lifecycle:</strong> {friendly(caseData.client?.lifecycle_status)}</p>
-            <p><strong>Portal access:</strong> {friendly(caseData.client?.access_type)}</p>
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <InfoRow
+              label='Matter Status'
+              value={caseData.matter_status_label || friendly(caseData.matter_status)}
+            />
+            <InfoRow
+              label='Client Lifecycle'
+              value={friendly(caseData.client?.lifecycle_status)}
+            />
+            <InfoRow
+              label='Portal Access'
+              value={friendly(caseData.client?.access_type)}
+            />
+            <InfoRow
+              label='Conflict Position'
+              value={friendly(conflictStatus)}
+            />
           </div>
+          <p className='mt-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+            This section tracks the firm-client instruction and acceptance workflow. It is separate from the court proceeding stage.
+          </p>
         </Card>
 
         <Card className='p-6'>
           <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-            Court Stage
+            Proceeding Lifecycle
           </h3>
-          <div className='space-y-3 text-text-primary-light dark:text-text-primary-dark'>
-            <p><strong>Court stage:</strong> {caseData.court_stage_label || friendly(caseData.court_stage)}</p>
-            <p><strong>Outcome:</strong> {caseData.outcome_status_label || friendly(caseData.outcome_status)}</p>
-            <p><strong>Enforcement:</strong> {caseData.enforcement_status_label || friendly(caseData.enforcement_status)}</p>
-            <p><strong>Appeal/review:</strong> {caseData.appeal_status_label || friendly(caseData.appeal_status)}</p>
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <InfoRow
+              label='Court Stage'
+              value={isCourtMatter ? caseData.court_stage_label || friendly(caseData.court_stage) : 'Not applicable'}
+            />
+            <InfoRow
+              label='Outcome'
+              value={caseData.outcome_status_label || friendly(caseData.outcome_status)}
+            />
+            <InfoRow
+              label='Enforcement'
+              value={caseData.enforcement_status_label || friendly(caseData.enforcement_status)}
+            />
+            <InfoRow
+              label='Appeal / Review'
+              value={caseData.appeal_status_label || friendly(caseData.appeal_status)}
+            />
           </div>
+          <p className='mt-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+            Court stage tracks the formal court record. Judgment, enforcement and appeal are independent legal dimensions.
+          </p>
         </Card>
       </div>
 
@@ -592,30 +675,43 @@ const AdminCaseDetailsPage = () => {
       <Card className='p-6'>
         <div className='mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
           <h3 className='text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-            Conflict Check
+            {conflictDisplayTitle}
           </h3>
           <span className='text-sm font-medium text-text-muted-light dark:text-text-muted-dark'>
             {friendly(conflictStatus)}
           </span>
         </div>
 
+        {!conflictCheck && conflictRecord && (
+          <SectionNote tone={conflictRecord.status === 'REQUIRES_VERIFICATION' ? 'warning' : 'info'}>
+            <p className='font-semibold'>
+              {conflictRecord.status === 'REQUIRES_VERIFICATION'
+                ? 'Conflict record requires verification'
+                : 'Historical conflict position recorded'}
+            </p>
+            <p className='mt-1'>
+              This filed matter was registered with a conflict-record position. It should be verified through the conflict workflow before the firm treats acceptance as fully cleared.
+            </p>
+          </SectionNote>
+        )}
+
         <div className='grid gap-4 lg:grid-cols-3'>
-          <div className='space-y-2 rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
+          <div className={`space-y-2 ${panelClass}`}>
             <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
-              Initiated
+              Record
             </h4>
             <p className='text-text-primary-light dark:text-text-primary-dark'>
-              <strong>Reference:</strong> {safe(conflictCheck?.reference_number, 'Not initiated')}
+              <strong>Reference:</strong> {safe(conflictCheck?.reference_number, conflictRecord ? 'Registration record' : 'Not initiated')}
             </p>
             <p className='text-text-primary-light dark:text-text-primary-dark'>
-              <strong>By:</strong> {safe(conflictCheck?.initiated_by_name)}
+              <strong>Recorded by:</strong> {safe(conflictCheck?.initiated_by_name || conflictRecord?.recorded_by_name)}
             </p>
             <p className='text-text-primary-light dark:text-text-primary-dark'>
-              <strong>Date:</strong> {conflictCheck?.initiated_at ? formatDateTime(conflictCheck.initiated_at) : 'Not initiated'}
+              <strong>Date:</strong> {conflictCheck?.initiated_at ? formatDateTime(conflictCheck.initiated_at) : conflictRecord?.recorded_at ? formatDateTime(conflictRecord.recorded_at) : 'Not recorded'}
             </p>
           </div>
 
-          <div className='space-y-2 rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
+          <div className={`space-y-2 ${panelClass}`}>
             <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
               Reviewed
             </h4>
@@ -627,7 +723,7 @@ const AdminCaseDetailsPage = () => {
             </p>
           </div>
 
-          <div className='space-y-2 rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
+          <div className={`space-y-2 ${panelClass}`}>
             <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
               Final Result
             </h4>
@@ -646,9 +742,9 @@ const AdminCaseDetailsPage = () => {
           </div>
         </div>
 
-        {conflictCheck?.result_summary && (
+        {(conflictCheck?.result_summary || conflictRecord?.result_summary) && (
           <p className='mt-4 text-text-primary-light dark:text-text-primary-dark'>
-            <strong>Safe result summary:</strong> {conflictCheck.result_summary}
+            <strong>Safe result summary:</strong> {conflictCheck?.result_summary || conflictRecord?.result_summary}
           </p>
         )}
 
@@ -757,65 +853,96 @@ const AdminCaseDetailsPage = () => {
         )}
       </Card>
 
-      <Card className='p-6'>
-        <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-          Filing and Service
-        </h3>
-
-        <div className='grid gap-6 md:grid-cols-2'>
-          <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p>
-              <strong>Procedure Track:</strong> {friendly(caseData.procedure_track, 'Not Set')}
-            </p>
-            <p>
-              <strong>Court Stage:</strong> {caseData.court_stage_label || friendly(caseData.court_stage)}
-            </p>
-            <p>
-              <strong>Court Division:</strong> {friendly(caseData.court_division, 'Not Set')}
-            </p>
-            <p>
-              <strong>Court Station:</strong> {safe(caseData.court_station, 'Not Set')}
-            </p>
-            <p>
-              <strong>Registry:</strong> {safe(caseData.registry, 'Not Set')}
-            </p>
+      {isCourtMatter && (
+        <Card className='p-6'>
+          <div className='mb-5 flex flex-col gap-2 md:flex-row md:items-start md:justify-between'>
+            <div>
+              <h3 className='text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+                Court Proceeding Record
+              </h3>
+              <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                Court details recorded from the filed matter are separate from jurisdiction verification and later service steps.
+              </p>
+            </div>
+            <span className='rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-500/15 dark:text-blue-200'>
+              {caseData.court_stage_label || friendly(caseData.court_stage)}
+            </span>
           </div>
 
-          <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p>
-              <strong>Courtroom:</strong> {safe(caseData.courtroom, 'Not Set')}
-            </p>
-            <p>
-              <strong>Judicial Officer:</strong> {safe(caseData.judicial_officer, 'Not Set')}
-            </p>
-            <p>
-              <strong>Next Court Date:</strong> {caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not Set'}
-            </p>
-            <p>
-              <strong>Next Action:</strong> {safe(caseData.next_action, 'Not Set')}
-            </p>
+          <div className='grid gap-5 md:grid-cols-2 xl:grid-cols-4'>
+            <InfoRow
+              label='Official Court Case Number'
+              value={safe(caseData.official_court_case_number || courtProceeding.official_court_case_number, 'Not recorded')}
+            />
+            <InfoRow
+              label='Date Filed in eFiling / Court'
+              value={caseData.filing_date ? formatDate(caseData.filing_date) : 'Not recorded'}
+            />
+            <InfoRow
+              label='Court Type'
+              value={optionLabel(COURT_TYPES, caseData.court_type || courtProceeding.court_type)}
+            />
+            <InfoRow
+              label='Court Level'
+              value={optionLabel(COURT_LEVELS, caseData.court_level || courtProceeding.court_level)}
+            />
+            <InfoRow label='Court Name' value={safe(courtName, 'Not recorded')} />
+            <InfoRow label='Court Station' value={safe(caseData.court_station, 'Not recorded')} />
+            <InfoRow label='Registry' value={safe(caseData.registry, 'Not recorded')} />
+            <InfoRow label='Division' value={friendly(caseData.court_division, 'Not recorded')} />
+            <InfoRow label='Court Location' value={safe(courtLocation, 'Not recorded')} />
+            <InfoRow label='Courtroom' value={safe(caseData.courtroom, 'Not allocated')} />
+            <InfoRow label='Judicial Officer' value={safe(caseData.judicial_officer, 'Not allocated')} />
+            <InfoRow
+              label='Next Court Date'
+              value={caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not scheduled'}
+            />
+            <InfoRow label='eFiling Reference' value={safe(caseData.efiling_reference, 'Not recorded')} />
+            <InfoRow label='Court Payment Reference' value={safe(caseData.payment_reference, 'Not recorded')} />
+            <InfoRow label='Assessment Reference' value={safe(caseData.assessment_reference, 'Not recorded')} />
+            <InfoRow label='CTS Reference' value={safe(caseData.cts_reference, 'Pending verification')} />
           </div>
-        </div>
 
-        <div className='mt-4 grid gap-6 md:grid-cols-3'>
-          <p>
-            <strong>eFiling Ref:</strong> {safe(caseData.efiling_reference, 'Not Set')}
-          </p>
-          <p>
-            <strong>CTS Ref:</strong> {safe(caseData.cts_reference, 'Pending verification')}
-          </p>
-          <p>
-            <strong>Payment Ref:</strong> {safe(caseData.payment_reference, 'Not Set')}
-          </p>
-        </div>
-        {(caseData.jurisdiction_warnings || []).length > 0 && (
-          <div className='mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900'>
-            {(caseData.jurisdiction_warnings || []).map((warning) => (
-              <p key={warning}>{warning}</p>
-            ))}
+          <div className='mt-5 grid gap-4 lg:grid-cols-2'>
+            <SectionNote>
+              <p className='font-semibold'>Court details: recorded</p>
+              <p className='mt-1'>
+                These are the external court or eFiling facts supplied when the matter was registered in Sheria Master.
+              </p>
+            </SectionNote>
+            <SectionNote tone={caseData.jurisdiction_verified ? 'info' : 'warning'}>
+              <p className='font-semibold'>
+                Jurisdiction verification: {caseData.jurisdiction_verified ? 'Verified' : 'Pending'}
+              </p>
+              <p className='mt-1'>
+                {caseData.jurisdiction_verified
+                  ? `Verified ${caseData.jurisdiction_verified_at ? `on ${formatDateTime(caseData.jurisdiction_verified_at)}` : ''}.`
+                  : 'Court details have been captured, but professional jurisdiction verification has not been completed.'}
+              </p>
+            </SectionNote>
           </div>
-        )}
-      </Card>
+
+          {caseData.next_action && (
+            <div className='mt-5'>
+              <p className='text-xs font-semibold uppercase tracking-wide text-text-muted-light dark:text-text-muted-dark'>
+                Next Action
+              </p>
+              <p className='mt-1 text-sm text-text-primary-light dark:text-text-primary-dark'>
+                {caseData.next_action}
+              </p>
+            </div>
+          )}
+
+          {(caseData.jurisdiction_warnings || []).length > 0 && (
+            <div className='mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100'>
+              <p className='mb-2 font-semibold'>Jurisdiction and filing checks</p>
+              {(caseData.jurisdiction_warnings || []).map((warning) => (
+                <p key={warning}>{warning}</p>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card className='p-6'>
         <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
@@ -823,28 +950,84 @@ const AdminCaseDetailsPage = () => {
         </h3>
 
         {caseData.parties?.length ? (
-          <div className='grid gap-4 md:grid-cols-2'>
-            {caseData.parties.map((party) => (
-              <div
-                key={party.id}
-                className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'
-              >
-                <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
-                  {safe(party.name)}
-                </p>
-                <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
-                  {party.role_label || friendly(party.party_role)}
-                  {party.is_our_client ? ' • Firm Client' : ''}
-                </p>
-                <p className='mt-2 text-sm text-text-muted-light dark:text-text-muted-dark'>
-                  {safe(party.email)} {party.phone_number ? `• ${party.phone_number}` : ''}
-                </p>
+          <div className='grid gap-5 lg:grid-cols-3'>
+            {[
+              ['Represented Client', representedParties, 'Firm Client'],
+              ['Adverse Parties', adverseParties, 'Adverse Party'],
+              ['Other Parties', otherParties, 'Other Party'],
+            ].map(([title, parties, fallbackRole]) => (
+              <div key={title} className={panelClass}>
+                <h4 className='mb-3 font-semibold text-text-primary-light dark:text-text-primary-dark'>
+                  {title}
+                </h4>
+                {parties.length ? (
+                  <div className='space-y-3'>
+                    {parties.map((party) => (
+                      <div key={party.id} className='border-b border-border-light pb-3 last:border-b-0 last:pb-0 dark:border-border-dark'>
+                        <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
+                          {safe(party.name)}
+                        </p>
+                        <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                          {party.role_label || friendly(party.party_role, fallbackRole)}
+                        </p>
+                        <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                          {[party.email, party.phone_number].filter(Boolean).join(' • ') || 'Contact details not recorded'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
+                    None recorded.
+                  </p>
+                )}
               </div>
             ))}
           </div>
         ) : (
           <p className='text-text-muted-light dark:text-text-muted-dark'>
             No structured party records yet.
+          </p>
+        )}
+      </Card>
+
+      <Card className='p-6'>
+        <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+          Monetary Relief
+        </h3>
+
+        {monetaryRelief ? (
+          <div className='grid gap-5 md:grid-cols-2 xl:grid-cols-4'>
+            <InfoRow label='Relief Type' value={friendly(monetaryRelief.relief_type)} />
+            <InfoRow label='Currency' value={safe(monetaryRelief.currency || caseData.currency, 'KES')} />
+            <InfoRow
+              label='Principal Claim'
+              value={formatMoney(monetaryRelief.principal_amount, monetaryRelief.currency)}
+            />
+            <InfoRow
+              label='Amount Already Paid'
+              value={formatMoney(monetaryRelief.amount_already_paid, monetaryRelief.currency)}
+            />
+            <InfoRow
+              label='Outstanding Amount'
+              value={formatMoney(monetaryRelief.outstanding_amount, monetaryRelief.currency)}
+            />
+            <InfoRow
+              label='Estimated Matter Value'
+              value={formatMoney(monetaryRelief.estimated_matter_value, monetaryRelief.currency)}
+            />
+            <InfoRow
+              label='Interest Claimed'
+              value={monetaryRelief.interest_claimed ? 'Yes' : 'No'}
+            />
+            <InfoRow
+              label='Amount To Be Assessed'
+              value={monetaryRelief.amount_to_be_assessed ? 'Yes' : 'No'}
+            />
+          </div>
+        ) : (
+          <p className='text-text-muted-light dark:text-text-muted-dark'>
+            No monetary relief record has been captured for this matter.
           </p>
         )}
       </Card>

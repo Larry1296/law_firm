@@ -178,7 +178,7 @@ export default function SecretaryCaseDetailsPage() {
               <strong>Priority:</strong> {friendly(caseData.priority)}
             </p>
             <p>
-              <strong>Type:</strong> {friendly(caseData.case_type)}
+              <strong>Matter Category:</strong> {friendly(caseData.case_type)}
             </p>
             <p>
               <strong>Court:</strong> {safe(courtName, 'Not Set')}

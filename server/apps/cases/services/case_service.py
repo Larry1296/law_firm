@@ -409,7 +409,11 @@ class CaseService:
             if court_data.get(source) not in ("", None):
                 validated_data[target] = court_data[source]
 
-        case_number = CaseService.generate_case_number(firm)
+        case_number = (
+            court_data.get("official_court_case_number")
+            if has_filing_identity and court_data.get("official_court_case_number")
+            else CaseService.generate_case_number(firm)
+        )
         case_fields = {
             field.name
             for field in Case._meta.fields
@@ -475,6 +479,7 @@ class CaseService:
             metadata={
                 "client_id": str(client.id),
                 "internal_case_number": case.case_number,
+                "internal_number_source": "official_court_case_number" if case.entry_route == Case.EntryRoute.EXISTING_FILED_COURT_CASE else "generated",
                 "entry_route": case.entry_route,
                 "forum": case.forum,
                 "official_court_case_number": case.official_court_case_number,

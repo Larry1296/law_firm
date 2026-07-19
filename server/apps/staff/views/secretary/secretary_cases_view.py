@@ -12,6 +12,40 @@ from apps.staff.services.secretary import SecretaryCaseService
 from apps.staff.views.secretary.secretary_base_view import SecretaryBaseView
 
 
+def _primary_contact_payload(client):
+    contact = client.contacts.filter(is_primary=True).order_by("-created_at").first()
+    if not contact:
+        return None
+    return {
+        "id": str(contact.id),
+        "full_name": contact.full_name,
+        "phone_number": contact.phone_number,
+        "email": contact.email,
+        "role_or_designation": contact.role_or_designation,
+        "contact_type": contact.contact_type,
+        "preferred_channel": contact.preferred_channel,
+        "is_primary": contact.is_primary,
+        "is_verified": contact.is_verified,
+    }
+
+
+def _client_option(client):
+    primary_contact = _primary_contact_payload(client)
+    return {
+        "id": str(client.id),
+        "client_id": str(client.id),
+        "full_name": client.full_name,
+        "client_type": client.client_type,
+        "lifecycle_status": client.lifecycle_status,
+        "access_type": client.access_type,
+        "portal_access_exists": bool(client.user_id),
+        "email": client.email,
+        "national_id": client.national_id,
+        "primary_contact": primary_contact,
+        "primary_contact_name": primary_contact["full_name"] if primary_contact else "",
+    }
+
+
 class SecretaryCasesView(SecretaryBaseView):
     def get(self, request, case_id=None):
         try:
@@ -73,17 +107,7 @@ class SecretaryCaseCreateOptionsView(SecretaryBaseView):
 
         return Response(
             {
-                "clients": [
-                    {
-                        "id": str(client.id),
-                        "client_id": str(client.id),
-                        "full_name": client.full_name,
-                        "client_type": client.client_type,
-                        "national_id": client.national_id,
-                        "email": client.email,
-                    }
-                    for client in clients
-                ],
+                "clients": [_client_option(client) for client in clients],
                 "lawyers": [
                     {
                         "id": str(lawyer.id),

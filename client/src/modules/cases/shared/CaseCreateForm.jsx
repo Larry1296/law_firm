@@ -4,6 +4,7 @@ import Swal from '@/core/utils/themedSwal';
 
 import Card from '@/components/ui/Card';
 import Button3D from '@/components/ui/Button3D';
+import ElasticTextInput from '@/components/ui/ElasticTextInput';
 import FloatingInput from '@/components/ui/FloatingInput';
 
 import { caseCreateInitialValues } from './create/caseCreateInitialValues';
@@ -12,6 +13,8 @@ import { validateCaseCreateForm } from './create/caseCreateValidation';
 import {
   CASE_TYPES,
   COURT_DIVISIONS,
+  COURT_LEVEL_BY_TYPE,
+  COURT_LEVELS,
   COURT_TYPES,
   ENTRY_ROUTES,
   FORUMS,
@@ -24,7 +27,7 @@ import {
 } from './create/caseCreateOptions';
 
 const fieldClass = `
-  w-full px-4 py-3 rounded-xl border
+  w-full rounded-xl border px-4 py-4
   bg-surface-light dark:bg-surface-dark
   text-text-primary-light dark:text-text-primary-dark
   border-border-light dark:border-border-dark
@@ -32,9 +35,33 @@ const fieldClass = `
   transition
 `;
 
-const textAreaClass = `${fieldClass} min-h-28 resize-y`;
 
 const normalizeId = (item) => item?.client_id || item?.membership_id || item?.id || '';
+
+const getPrimaryContact = (client) => {
+  if (!client) return null;
+  if (client.primary_contact) return client.primary_contact;
+  if (Array.isArray(client.contacts)) {
+    return client.contacts.find((contact) => contact.is_primary) || client.contacts[0] || null;
+  }
+  if (client.primary_contact_name || client.contact_full_name) {
+    return {
+      full_name: client.primary_contact_name || client.contact_full_name,
+      phone_number: client.primary_contact_phone || client.contact_phone_number,
+      email: client.primary_contact_email || client.contact_email,
+      role_or_designation: client.primary_contact_role || client.contact_role_or_designation,
+    };
+  }
+  return null;
+};
+
+const formatPrimaryContact = (client) => {
+  const contact = getPrimaryContact(client);
+  if (!contact?.full_name) return 'Not recorded';
+  const details = [contact.role_or_designation, contact.phone_number, contact.email].filter(Boolean);
+  return details.length ? `${contact.full_name} (${details.join(' · ')})` : contact.full_name;
+};
+
 
 const responseCase = (result) => result?.data || result?.case || result || {};
 
@@ -52,6 +79,16 @@ const isCourtRoute = (formData) =>
 
 const isFiledCourtRoute = (formData) => formData.entry_route === 'EXISTING_FILED_COURT_CASE';
 
+const ELASTIC_TEXT_TYPES = new Set(['', 'text', 'email', 'tel', 'url', 'search']);
+
+const MatterTextInput = ({ type = 'text', noFloat = false, ...props }) => {
+  if (!noFloat && ELASTIC_TEXT_TYPES.has(type)) {
+    return <ElasticTextInput {...props} />;
+  }
+
+  return <FloatingInput type={type} noFloat={noFloat} {...props} />;
+};
+
 const isTribunalRoute = (formData) =>
   formData.forum === 'TRIBUNAL' || formData.entry_route === 'EXISTING_TRIBUNAL_MATTER';
 
@@ -59,7 +96,7 @@ const isArbitrationRoute = (formData) =>
   formData.forum === 'ARBITRATION' || formData.entry_route === 'EXISTING_ARBITRATION';
 
 const Section = ({ title, children, description }) => (
-  <div className='space-y-4 rounded-xl border border-border-light p-4 dark:border-border-dark'>
+  <div className='space-y-6 rounded-xl border border-border-light bg-surface-light/70 p-6 dark:border-border-dark dark:bg-surface-dark/70'>
     <div>
       <h3 className='text-base font-semibold text-text-primary-light dark:text-text-primary-dark'>{title}</h3>
       {description && (
@@ -71,7 +108,7 @@ const Section = ({ title, children, description }) => (
 );
 
 const SelectField = ({ label, name, value, onChange, options, error, required = false, children }) => (
-  <div>
+  <div className='w-full mb-8'>
     <label className='block mb-2 text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
       {label}{required ? ' *' : ''}
     </label>
@@ -81,7 +118,7 @@ const SelectField = ({ label, name, value, onChange, options, error, required = 
         <option key={item.value} value={item.value}>{item.label}</option>
       ))}
     </select>
-    {error && <p className='mt-1 text-sm text-red-500'>{error}</p>}
+    {error && <p className='mt-2 text-sm text-red-500'>{error}</p>}
   </div>
 );
 
@@ -258,6 +295,11 @@ export default function CaseCreateForm({
           next.claim_amount = '';
         } else if (value === 'INSURANCE') {
           next.case_type = 'CIVIL';
+        } else if (value === 'CIVIL_COMMERCIAL_LITIGATION') {
+          next.case_type = 'COMMERCIAL';
+          next.procedure_track = 'CIVIL_SUIT';
+          next.court_type = 'HIGH_COURT';
+          next.court_division = 'COMMERCIAL_TAX';
         }
       }
 
@@ -381,15 +423,15 @@ export default function CaseCreateForm({
   };
 
   return (
-    <Card className='p-6'>
-      <form onSubmit={handleSubmit} className='space-y-6'>
-        <div className='flex flex-wrap gap-2'>
+    <Card className='p-8'>
+      <form onSubmit={handleSubmit} className='space-y-8'>
+        <div className='flex flex-wrap gap-3'>
           {steps.map((label, index) => (
             <button
               key={label}
               type='button'
               onClick={() => setStep(index)}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium ${
+              className={`rounded-lg border px-4 py-2.5 text-sm font-medium ${
                 step === index
                   ? 'border-brand-primary bg-brand-primary text-white'
                   : 'border-border-light text-text-secondary-light dark:border-border-dark dark:text-text-secondary-dark'
@@ -412,7 +454,7 @@ export default function CaseCreateForm({
             title='How is this matter entering the firm?'
             description='The route controls whether court filing fields are required or hidden.'
           >
-            <div className='grid gap-3 md:grid-cols-2'>
+            <div className='grid gap-5 md:grid-cols-2'>
               {ENTRY_ROUTES.map((route) => (
                 <button
                   key={route.value}
@@ -449,21 +491,22 @@ export default function CaseCreateForm({
               <option value=''>{clientsLoading ? 'Loading clients...' : 'Select client / party'}</option>
             </SelectField>
             {selectedClient && (
-              <div className='grid gap-3 rounded-xl border border-border-light p-4 text-sm dark:border-border-dark md:grid-cols-2'>
+              <div className='grid gap-4 rounded-xl border border-border-light bg-surface-light/60 p-5 text-sm dark:border-border-dark dark:bg-surface-dark/60 md:grid-cols-2'>
                 <p><strong>Client type:</strong> {selectedClient.client_type || 'Not recorded'}</p>
                 <p><strong>Lifecycle:</strong> {selectedClient.lifecycle_status || 'Not recorded'}</p>
                 <p><strong>Portal access:</strong> {selectedClient.portal_access_exists ? 'Exists' : selectedClient.access_type || 'Not recorded'}</p>
-                <p><strong>Primary contact:</strong> {selectedClient.primary_contact_name || selectedClient.contact_full_name || 'Not recorded'}</p>
+                <p><strong>Primary contact:</strong> {formatPrimaryContact(selectedClient)}</p>
               </div>
             )}
-            <FloatingInput label='Matter Title' name='title' value={formData.title} onChange={handleChange} error={errors.title} required />
-            <div>
-              <label className='block mb-2 text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                Matter Summary / Description
-              </label>
-              <textarea name='description' value={formData.description} onChange={handleChange} className={textAreaClass} />
-              {errors.description && <p className='mt-1 text-sm text-red-500'>{errors.description}</p>}
-            </div>
+            <MatterTextInput label='Matter Title' name='title' value={formData.title} onChange={handleChange} error={errors.title} required />
+            <MatterTextInput
+              label='Matter Summary / Description'
+              name='description'
+              value={formData.description}
+              onChange={handleChange}
+              error={errors.description}
+              minRows={3}
+            />
           </Section>
         )}
 
@@ -472,14 +515,15 @@ export default function CaseCreateForm({
             <SelectField label='Practice Area' name='practice_area' value={formData.practice_area} onChange={handleChange} options={PRACTICE_AREAS} />
             <SelectField label='Matter Nature' name='matter_nature' value={formData.matter_nature} onChange={handleChange} options={MATTER_NATURES} />
             <SelectField label='Forum' name='forum' value={formData.forum} onChange={handleChange} options={FORUMS} />
-            <SelectField label='Backend Matter Category' name='case_type' value={formData.case_type} onChange={handleChange} options={CASE_TYPES} error={errors.case_type} required />
+            <SelectField label='Matter Category' name='case_type' value={formData.case_type} onChange={handleChange} options={CASE_TYPES} error={errors.case_type} required />
+            <SelectField label='Priority' name='priority' value={formData.priority} onChange={handleChange} options={PRIORITIES} error={errors.priority} required />
           </Section>
         )}
 
         {step === 3 && (
           <Section title='Parties'>
             <SelectField label='Client Role' name='client_party_role' value={formData.client_party_role} onChange={handleChange} options={currentRoleOptions} error={errors.client_party_role} required />
-            <FloatingInput
+            <MatterTextInput
               label={formData.forum === 'NO_FORMAL_FORUM' ? 'Other Parties / Counterparties' : 'Adverse or Opposing Parties'}
               name='defendant'
               value={formData.defendant}
@@ -489,8 +533,8 @@ export default function CaseCreateForm({
             />
             <div className='rounded-xl border border-border-light p-4 dark:border-border-dark'>
               <p className='mb-3 text-sm font-semibold text-text-primary-light dark:text-text-primary-dark'>Additional Parties</p>
-              <div className='grid gap-3 md:grid-cols-[1fr_180px_180px_auto] md:items-end'>
-                <FloatingInput label='Party Name' name='party_name' value={partyDraft.name} onChange={(event) => setPartyDraft((current) => ({ ...current, name: event.target.value }))} />
+              <div className='grid gap-5 md:grid-cols-[1fr_180px_180px_auto] md:items-start'>
+                <MatterTextInput label='Party Name' name='party_name' value={partyDraft.name} onChange={(event) => setPartyDraft((current) => ({ ...current, name: event.target.value }))} />
                 <SelectField label='Role' name='party_role' value={partyDraft.role} onChange={(event) => setPartyDraft((current) => ({ ...current, role: event.target.value }))} options={currentRoleOptions} />
                 <SelectField
                   label='Party Type'
@@ -511,7 +555,7 @@ export default function CaseCreateForm({
               </div>
               {errors.parties && <p className='mt-1 text-sm text-red-500'>{errors.parties}</p>}
               {(formData.parties || []).length > 0 && (
-                <div className='mt-3 space-y-2'>
+                <div className='mt-5 space-y-3'>
                   {formData.parties.map((party, index) => (
                     <div key={`${party.name}:${index}`} className='flex items-center justify-between rounded-lg border border-border-light px-3 py-2 text-sm dark:border-border-dark'>
                       <span>{party.name} - {party.role?.replaceAll('_', ' ')}</span>
@@ -531,29 +575,34 @@ export default function CaseCreateForm({
 
         {step === 4 && (
           <Section title='Forum and Procedure'>
-            <SelectField label='Procedure Type' name='procedure_track' value={formData.procedure_track} onChange={handleChange} options={filteredProcedures} />
+            <SelectField label='Procedure / Filing Type' name='procedure_track' value={formData.procedure_track} onChange={handleChange} options={filteredProcedures} />
             <ReadOnlyNotice title='Internal Matter Number'>
-              Generated automatically by Sheria Master. Do not enter the court-issued number here.
+              For an already-filed court case, Sheria Master uses the official court case number as the internal matter number. For unfiled or non-court matters, Sheria Master generates one automatically.
             </ReadOnlyNotice>
             {isCourtRoute(formData) && (
               <>
                 {isFiledCourtRoute(formData) && (
                   <>
-                    <FloatingInput label='Official Court Case Number' name='official_court_case_number' value={formData.official_court_case_number} onChange={handleChange} placeholder='ELC E012 of 2026' error={errors.official_court_case_number} required />
-                    <FloatingInput label='Date Filed' name='filing_date' type='date' value={formData.filing_date} onChange={handleChange} noFloat error={errors.filing_date} required />
-                    <FloatingInput label='eFiling Reference' name='efiling_reference' value={formData.efiling_reference} onChange={handleChange} error={errors.efiling_reference} required />
-                    <FloatingInput label='Court Payment Reference' name='payment_reference' value={formData.payment_reference} onChange={handleChange} />
+                    <MatterTextInput label='Official Court Case Number' name='official_court_case_number' value={formData.official_court_case_number} onChange={handleChange} placeholder='ELC E012 of 2026' error={errors.official_court_case_number} required />
+                    <ReadOnlyNotice title='Internal Matter Number Preview'>
+                      {formData.official_court_case_number || 'Enter the official court case number above.'}
+                    </ReadOnlyNotice>
+                    <MatterTextInput label='Date Filed' name='filing_date' type='date' value={formData.filing_date} onChange={handleChange} noFloat error={errors.filing_date} required />
+                    <MatterTextInput label='eFiling Reference' name='efiling_reference' value={formData.efiling_reference} onChange={handleChange} error={errors.efiling_reference} required />
+                    <MatterTextInput label='Court Payment Reference' name='payment_reference' value={formData.payment_reference} onChange={handleChange} />
                   </>
                 )}
                 <SelectField label='Court Type' name='court_type' value={formData.court_type} onChange={handleChange} options={COURT_TYPES} error={errors.court_type} required />
-                <FloatingInput label='Court Level' name='court_level' value={formData.court_level} onChange={handleChange} />
-                <FloatingInput label='Court Name' name='court_name' value={formData.court_name} onChange={handleChange} />
-                <FloatingInput label='Court Station' name='court_station' value={formData.court_station} onChange={handleChange} error={errors.court_station} />
+                <SelectField label='Court Level' name='court_level' value={formData.court_level} onChange={handleChange} options={COURT_LEVELS}>
+                  <option value=''>Select court level</option>
+                </SelectField>
+                <MatterTextInput label='Court Name' name='court_name' value={formData.court_name} onChange={handleChange} />
+                <MatterTextInput label='Court Station' name='court_station' value={formData.court_station} onChange={handleChange} error={errors.court_station} />
                 <SelectField label='Division / Registry' name='court_division' value={formData.court_division} onChange={handleChange} options={COURT_DIVISIONS} />
-                <FloatingInput label='Registry' name='registry' value={formData.registry} onChange={handleChange} />
-                <FloatingInput label='Courtroom' name='courtroom' value={formData.courtroom} onChange={handleChange} />
-                <FloatingInput label='Judicial Officer' name='judicial_officer' value={formData.judicial_officer} onChange={handleChange} />
-                <FloatingInput label='Court Location' name='court_location' value={formData.court_location} onChange={handleChange} />
+                <MatterTextInput label='Registry' name='registry' value={formData.registry} onChange={handleChange} />
+                <MatterTextInput label='Courtroom' name='courtroom' value={formData.courtroom} onChange={handleChange} />
+                <MatterTextInput label='Judicial Officer' name='judicial_officer' value={formData.judicial_officer} onChange={handleChange} />
+                <MatterTextInput label='Court Location' name='court_location' value={formData.court_location} onChange={handleChange} />
                 <ReadOnlyNotice title='CTS Reference'>
                   Assigned through court-record, jurisdiction-verification or lifecycle workflow. It is never submitted during initial matter creation.
                 </ReadOnlyNotice>
@@ -561,109 +610,118 @@ export default function CaseCreateForm({
             )}
             {isTribunalRoute(formData) && (
               <>
-                <FloatingInput label='Tribunal Name' name='tribunal_name' value={formData.tribunal_name} onChange={handleChange} error={errors.tribunal_name} />
-                <FloatingInput label='Tribunal Reference' name='tribunal_reference' value={formData.tribunal_reference} onChange={handleChange} />
-                <FloatingInput label='Registry or Location' name='registry_or_location' value={formData.registry_or_location} onChange={handleChange} />
-                <FloatingInput label='Panel or Adjudicator' name='panel_or_adjudicator' value={formData.panel_or_adjudicator} onChange={handleChange} />
+                <MatterTextInput label='Tribunal Name' name='tribunal_name' value={formData.tribunal_name} onChange={handleChange} error={errors.tribunal_name} />
+                <MatterTextInput label='Tribunal Reference' name='tribunal_reference' value={formData.tribunal_reference} onChange={handleChange} />
+                <MatterTextInput label='Registry or Location' name='registry_or_location' value={formData.registry_or_location} onChange={handleChange} />
+                <MatterTextInput label='Panel or Adjudicator' name='panel_or_adjudicator' value={formData.panel_or_adjudicator} onChange={handleChange} />
               </>
             )}
             {isArbitrationRoute(formData) && (
               <>
-                <FloatingInput label='Arbitration Institution' name='arbitration_institution' value={formData.arbitration_institution} onChange={handleChange} error={errors.arbitration_institution} />
-                <FloatingInput label='Arbitration Reference' name='arbitration_reference' value={formData.arbitration_reference} onChange={handleChange} />
-                <FloatingInput label='Arbitration Agreement' name='arbitration_agreement' value={formData.arbitration_agreement} onChange={handleChange} />
-                <FloatingInput label='Seat' name='arbitration_seat' value={formData.arbitration_seat} onChange={handleChange} />
-                <FloatingInput label='Rules' name='arbitration_rules' value={formData.arbitration_rules} onChange={handleChange} />
-                <FloatingInput label='Arbitrator' name='arbitrator' value={formData.arbitrator} onChange={handleChange} />
-                <FloatingInput label='Commencement Date' name='commencement_date' type='date' value={formData.commencement_date} onChange={handleChange} noFloat />
+                <MatterTextInput label='Arbitration Institution' name='arbitration_institution' value={formData.arbitration_institution} onChange={handleChange} error={errors.arbitration_institution} />
+                <MatterTextInput label='Arbitration Reference' name='arbitration_reference' value={formData.arbitration_reference} onChange={handleChange} />
+                <MatterTextInput label='Arbitration Agreement' name='arbitration_agreement' value={formData.arbitration_agreement} onChange={handleChange} />
+                <MatterTextInput label='Seat' name='arbitration_seat' value={formData.arbitration_seat} onChange={handleChange} />
+                <MatterTextInput label='Rules' name='arbitration_rules' value={formData.arbitration_rules} onChange={handleChange} />
+                <MatterTextInput label='Arbitrator' name='arbitrator' value={formData.arbitrator} onChange={handleChange} />
+                <MatterTextInput label='Commencement Date' name='commencement_date' type='date' value={formData.commencement_date} onChange={handleChange} noFloat />
               </>
             )}
             {formData.forum === 'NO_FORMAL_FORUM' && (
               <>
-                <FloatingInput label='Instruction Type' name='instruction_type' value={formData.instruction_type} onChange={handleChange} />
-                <FloatingInput label='Deliverable' name='deliverable' value={formData.deliverable} onChange={handleChange} />
-                <FloatingInput label='Target Completion Date' name='target_completion_date' type='date' value={formData.target_completion_date} onChange={handleChange} noFloat />
-                <FloatingInput label='Counterparty' name='counterparty' value={formData.counterparty} onChange={handleChange} />
-                <FloatingInput label='Transaction Value' name='transaction_value' type='number' value={formData.transaction_value} onChange={handleChange} />
-                <FloatingInput label='Scope of Work' name='scope_of_work' value={formData.scope_of_work} onChange={handleChange} />
+                <MatterTextInput label='Instruction Type' name='instruction_type' value={formData.instruction_type} onChange={handleChange} />
+                <MatterTextInput label='Deliverable' name='deliverable' value={formData.deliverable} onChange={handleChange} />
+                <MatterTextInput label='Target Completion Date' name='target_completion_date' type='date' value={formData.target_completion_date} onChange={handleChange} noFloat />
+                <MatterTextInput label='Counterparty' name='counterparty' value={formData.counterparty} onChange={handleChange} />
+                <MatterTextInput label='Transaction Value' name='transaction_value' type='number' value={formData.transaction_value} onChange={handleChange} />
+                <MatterTextInput label='Scope of Work' name='scope_of_work' value={formData.scope_of_work} onChange={handleChange} />
               </>
             )}
           </Section>
         )}
 
         {step === 5 && (
-          <Section title='Matter-Specific Details'>
+          <Section
+            title='Matter-Specific Details'
+            description='Complete this section only where the selected practice area requires specialist information.'
+          >
+
+            {!['LAND_ENVIRONMENT', 'SUCCESSION_PROBATE', 'INSURANCE', 'EMPLOYMENT_LABOUR', 'CRIMINAL_LITIGATION'].includes(formData.practice_area) && (
+              <ReadOnlyNotice title='No specialist details required'>
+                This matter category does not require a separate specialist detail section at registration. Continue to monetary relief and record the claim value, interest, costs, and outstanding amount there.
+              </ReadOnlyNotice>
+            )}
             {formData.practice_area === 'LAND_ENVIRONMENT' && (
               <>
-                <FloatingInput label='Property Description' name='property_description' value={formData.property_description} onChange={handleChange} />
-                <FloatingInput label='Title Number' name='title_number' value={formData.title_number} onChange={handleChange} />
-                <FloatingInput label='Parcel Number' name='parcel_number' value={formData.parcel_number} onChange={handleChange} />
-                <FloatingInput label='Land Reference Number' name='land_reference_number' value={formData.land_reference_number} onChange={handleChange} />
-                <FloatingInput label='County' name='property_county' value={formData.property_county} onChange={handleChange} />
-                <FloatingInput label='Location' name='location' value={formData.location} onChange={handleChange} />
-                <FloatingInput label='Registered Owner' name='registered_owner' value={formData.registered_owner} onChange={handleChange} />
-                <FloatingInput label='Estimated Property Value' name='property_value' type='number' value={formData.property_value} onChange={handleChange} />
-                <FloatingInput label='Nature of Land Interest' name='nature_of_land_interest' value={formData.nature_of_land_interest} onChange={handleChange} />
-                <FloatingInput label='Possession Status' name='possession_status' value={formData.possession_status} onChange={handleChange} />
+                <MatterTextInput label='Property Description' name='property_description' value={formData.property_description} onChange={handleChange} />
+                <MatterTextInput label='Title Number' name='title_number' value={formData.title_number} onChange={handleChange} />
+                <MatterTextInput label='Parcel Number' name='parcel_number' value={formData.parcel_number} onChange={handleChange} />
+                <MatterTextInput label='Land Reference Number' name='land_reference_number' value={formData.land_reference_number} onChange={handleChange} />
+                <MatterTextInput label='County' name='property_county' value={formData.property_county} onChange={handleChange} />
+                <MatterTextInput label='Location' name='location' value={formData.location} onChange={handleChange} />
+                <MatterTextInput label='Registered Owner' name='registered_owner' value={formData.registered_owner} onChange={handleChange} />
+                <MatterTextInput label='Estimated Property Value' name='property_value' type='number' value={formData.property_value} onChange={handleChange} />
+                <MatterTextInput label='Nature of Land Interest' name='nature_of_land_interest' value={formData.nature_of_land_interest} onChange={handleChange} />
+                <MatterTextInput label='Possession Status' name='possession_status' value={formData.possession_status} onChange={handleChange} />
                 <label className='flex items-center gap-2 text-sm'><input type='checkbox' name='boundary_dispute' checked={formData.boundary_dispute} onChange={handleChange} /> Boundary dispute</label>
-                <FloatingInput label='Environment Issue' name='environment_issue' value={formData.environment_issue} onChange={handleChange} />
-                <FloatingInput label='Orders Sought' name='orders_sought' value={formData.orders_sought} onChange={handleChange} />
+                <MatterTextInput label='Environment Issue' name='environment_issue' value={formData.environment_issue} onChange={handleChange} />
+                <MatterTextInput label='Orders Sought' name='orders_sought' value={formData.orders_sought} onChange={handleChange} />
               </>
             )}
             {formData.practice_area === 'SUCCESSION_PROBATE' && (
               <>
-                <FloatingInput label='Deceased Full Name' name='deceased_full_name' value={formData.deceased_full_name} onChange={handleChange} />
-                <FloatingInput label='Date of Death' name='date_of_death' type='date' value={formData.date_of_death} onChange={handleChange} noFloat />
-                <FloatingInput label='Estimated Estate Value' name='estate_value' value={formData.estate_value} onChange={handleChange} />
-                <FloatingInput label='Place of Death' name='place_of_death' value={formData.place_of_death} onChange={handleChange} />
-                <FloatingInput label='Testate Status' name='testate_status' value={formData.testate_status} onChange={handleChange} />
-                <FloatingInput label='Will Date' name='will_date' type='date' value={formData.will_date} onChange={handleChange} noFloat />
-                <FloatingInput label='Known Liabilities' name='known_liabilities' type='number' value={formData.known_liabilities} onChange={handleChange} />
-                <FloatingInput label='Estimated Net Estate Value' name='estimated_net_estate_value' type='number' value={formData.estimated_net_estate_value} onChange={handleChange} />
-                <FloatingInput label='Grant Type' name='grant_type' value={formData.grant_type} onChange={handleChange} />
-                <FloatingInput label='Proposed Administrator' name='proposed_administrator' value={formData.proposed_administrator} onChange={handleChange} />
+                <MatterTextInput label='Deceased Full Name' name='deceased_full_name' value={formData.deceased_full_name} onChange={handleChange} />
+                <MatterTextInput label='Date of Death' name='date_of_death' type='date' value={formData.date_of_death} onChange={handleChange} noFloat />
+                <MatterTextInput label='Estimated Estate Value' name='estate_value' value={formData.estate_value} onChange={handleChange} />
+                <MatterTextInput label='Place of Death' name='place_of_death' value={formData.place_of_death} onChange={handleChange} />
+                <MatterTextInput label='Testate Status' name='testate_status' value={formData.testate_status} onChange={handleChange} />
+                <MatterTextInput label='Will Date' name='will_date' type='date' value={formData.will_date} onChange={handleChange} noFloat />
+                <MatterTextInput label='Known Liabilities' name='known_liabilities' type='number' value={formData.known_liabilities} onChange={handleChange} />
+                <MatterTextInput label='Estimated Net Estate Value' name='estimated_net_estate_value' type='number' value={formData.estimated_net_estate_value} onChange={handleChange} />
+                <MatterTextInput label='Grant Type' name='grant_type' value={formData.grant_type} onChange={handleChange} />
+                <MatterTextInput label='Proposed Administrator' name='proposed_administrator' value={formData.proposed_administrator} onChange={handleChange} />
               </>
             )}
             {formData.practice_area === 'INSURANCE' && (
               <>
-                <FloatingInput label='Insurer' name='insurer' value={formData.insurer} onChange={handleChange} />
-                <FloatingInput label='Policy Number' name='policy_number' value={formData.policy_number} onChange={handleChange} />
-                <FloatingInput label='Policy Type' name='policy_type' value={formData.policy_type} onChange={handleChange} />
-                <FloatingInput label='Insured Party' name='insured_party' value={formData.insured_party} onChange={handleChange} />
-                <FloatingInput label='Insurance Claim Number' name='insurance_claim_number' value={formData.insurance_claim_number} onChange={handleChange} />
-                <FloatingInput label='Date of Loss' name='date_of_loss' type='date' value={formData.date_of_loss} onChange={handleChange} noFloat />
-                <FloatingInput label='Cause of Loss' name='cause_of_loss' value={formData.cause_of_loss} onChange={handleChange} />
-                <FloatingInput label='Policy Limit' name='policy_limit' type='number' value={formData.policy_limit} onChange={handleChange} />
-                <FloatingInput label='Repudiation Date' name='repudiation_date' type='date' value={formData.repudiation_date} onChange={handleChange} noFloat />
-                <FloatingInput label='Repudiation Reason' name='repudiation_reason' value={formData.repudiation_reason} onChange={handleChange} />
+                <MatterTextInput label='Insurer' name='insurer' value={formData.insurer} onChange={handleChange} />
+                <MatterTextInput label='Policy Number' name='policy_number' value={formData.policy_number} onChange={handleChange} />
+                <MatterTextInput label='Policy Type' name='policy_type' value={formData.policy_type} onChange={handleChange} />
+                <MatterTextInput label='Insured Party' name='insured_party' value={formData.insured_party} onChange={handleChange} />
+                <MatterTextInput label='Insurance Claim Number' name='insurance_claim_number' value={formData.insurance_claim_number} onChange={handleChange} />
+                <MatterTextInput label='Date of Loss' name='date_of_loss' type='date' value={formData.date_of_loss} onChange={handleChange} noFloat />
+                <MatterTextInput label='Cause of Loss' name='cause_of_loss' value={formData.cause_of_loss} onChange={handleChange} />
+                <MatterTextInput label='Policy Limit' name='policy_limit' type='number' value={formData.policy_limit} onChange={handleChange} />
+                <MatterTextInput label='Repudiation Date' name='repudiation_date' type='date' value={formData.repudiation_date} onChange={handleChange} noFloat />
+                <MatterTextInput label='Repudiation Reason' name='repudiation_reason' value={formData.repudiation_reason} onChange={handleChange} />
               </>
             )}
             {formData.practice_area === 'EMPLOYMENT_LABOUR' && (
               <>
-                <FloatingInput label='Employer' name='employer' value={formData.employer} onChange={handleChange} />
-                <FloatingInput label='Employee' name='employee' value={formData.employee} onChange={handleChange} />
-                <FloatingInput label='Employment Start Date' name='employment_start_date' type='date' value={formData.employment_start_date} onChange={handleChange} noFloat />
-                <FloatingInput label='Monthly Salary' name='monthly_salary' type='number' value={formData.monthly_salary} onChange={handleChange} />
-                <FloatingInput label='Termination Date' name='termination_date' type='date' value={formData.termination_date} onChange={handleChange} noFloat />
-                <FloatingInput label='Employment Status' name='employment_status' value={formData.employment_status} onChange={handleChange} />
-                <FloatingInput label='Nature of Complaint' name='nature_of_complaint' value={formData.nature_of_complaint} onChange={handleChange} />
-                <FloatingInput label='Dismissal Type' name='dismissal_type' value={formData.dismissal_type} onChange={handleChange} />
-                <FloatingInput label='Labour Officer Reference' name='labour_officer_reference' value={formData.labour_officer_reference} onChange={handleChange} />
+                <MatterTextInput label='Employer' name='employer' value={formData.employer} onChange={handleChange} />
+                <MatterTextInput label='Employee' name='employee' value={formData.employee} onChange={handleChange} />
+                <MatterTextInput label='Employment Start Date' name='employment_start_date' type='date' value={formData.employment_start_date} onChange={handleChange} noFloat />
+                <MatterTextInput label='Monthly Salary' name='monthly_salary' type='number' value={formData.monthly_salary} onChange={handleChange} />
+                <MatterTextInput label='Termination Date' name='termination_date' type='date' value={formData.termination_date} onChange={handleChange} noFloat />
+                <MatterTextInput label='Employment Status' name='employment_status' value={formData.employment_status} onChange={handleChange} />
+                <MatterTextInput label='Nature of Complaint' name='nature_of_complaint' value={formData.nature_of_complaint} onChange={handleChange} />
+                <MatterTextInput label='Dismissal Type' name='dismissal_type' value={formData.dismissal_type} onChange={handleChange} />
+                <MatterTextInput label='Labour Officer Reference' name='labour_officer_reference' value={formData.labour_officer_reference} onChange={handleChange} />
               </>
             )}
             {formData.practice_area === 'CRIMINAL_LITIGATION' && (
               <>
-                <FloatingInput label='Accused Person' name='accused_person' value={formData.accused_person} onChange={handleChange} />
-                <FloatingInput label='Charge' name='charge' value={formData.charge} onChange={handleChange} />
-                <FloatingInput label='Statutory Provision' name='statutory_provision' value={formData.statutory_provision} onChange={handleChange} />
-                <FloatingInput label='Plea' name='plea' value={formData.plea} onChange={handleChange} />
-                <FloatingInput label='Arrest Date' name='arrest_date' type='date' value={formData.arrest_date} onChange={handleChange} noFloat />
-                <FloatingInput label='Police Station' name='police_station' value={formData.police_station} onChange={handleChange} />
-                <FloatingInput label='OB Number' name='ob_number' value={formData.ob_number} onChange={handleChange} />
-                <FloatingInput label='Bond or Bail Status' name='bond_bail_status' value={formData.bond_bail_status} onChange={handleChange} />
-                <FloatingInput label='Bond Amount' name='bond_amount' type='number' value={formData.bond_amount} onChange={handleChange} />
-                <FloatingInput label='Custody Status' name='custody_status' value={formData.custody_status} onChange={handleChange} />
-                <FloatingInput label='Prosecution Agency' name='prosecution_agency' value={formData.prosecution_agency} onChange={handleChange} />
+                <MatterTextInput label='Accused Person' name='accused_person' value={formData.accused_person} onChange={handleChange} />
+                <MatterTextInput label='Charge' name='charge' value={formData.charge} onChange={handleChange} />
+                <MatterTextInput label='Statutory Provision' name='statutory_provision' value={formData.statutory_provision} onChange={handleChange} />
+                <MatterTextInput label='Plea' name='plea' value={formData.plea} onChange={handleChange} />
+                <MatterTextInput label='Arrest Date' name='arrest_date' type='date' value={formData.arrest_date} onChange={handleChange} noFloat />
+                <MatterTextInput label='Police Station' name='police_station' value={formData.police_station} onChange={handleChange} />
+                <MatterTextInput label='OB Number' name='ob_number' value={formData.ob_number} onChange={handleChange} />
+                <MatterTextInput label='Bond or Bail Status' name='bond_bail_status' value={formData.bond_bail_status} onChange={handleChange} />
+                <MatterTextInput label='Bond Amount' name='bond_amount' type='number' value={formData.bond_amount} onChange={handleChange} />
+                <MatterTextInput label='Custody Status' name='custody_status' value={formData.custody_status} onChange={handleChange} />
+                <MatterTextInput label='Prosecution Agency' name='prosecution_agency' value={formData.prosecution_agency} onChange={handleChange} />
               </>
             )}
           </Section>
@@ -675,12 +733,37 @@ export default function CaseCreateForm({
             {formData.practice_area !== 'CRIMINAL_LITIGATION' && formData.monetary_relief_type !== 'NO_MONETARY_RELIEF' && (
               <>
                 {formData.monetary_relief_type === 'QUANTIFIED' && (
-                  <FloatingInput label='Principal / Claim Amount' name='claim_amount' type='number' value={formData.claim_amount} onChange={handleChange} error={errors.claim_amount} />
+                  <MatterTextInput label='Principal / Claim Amount' name='claim_amount' type='number' value={formData.claim_amount} onChange={handleChange} error={errors.claim_amount} />
                 )}
-                <FloatingInput label='Currency' name='currency' value={formData.currency} onChange={handleChange} />
-                <FloatingInput label='Interest Claimed' name='interest_claimed' value={formData.interest_claimed} onChange={handleChange} />
-                <FloatingInput label='Outstanding Amount' name='outstanding_amount' value={formData.outstanding_amount} onChange={handleChange} />
-                <FloatingInput label='Estimated Matter Value' name='estimated_matter_value' value={formData.estimated_matter_value} onChange={handleChange} />
+                <MatterTextInput label='Currency' name='currency' value={formData.currency} onChange={handleChange} />
+                <SelectField
+                  label='Interest Claimed'
+                  name='interest_claimed'
+                  value={formData.interest_claimed === true ? 'true' : formData.interest_claimed === false ? 'false' : formData.interest_claimed}
+                  onChange={(event) => setFormData((current) => ({ ...current, interest_claimed: event.target.value === 'true' }))}
+                  options={[
+                    { value: 'true', label: 'Yes' },
+                    { value: 'false', label: 'No' },
+                  ]}
+                >
+                  <option value=''>Select</option>
+                </SelectField>
+                {formData.interest_claimed === true && (
+                  <>
+                    <MatterTextInput label='Interest Rate, if pleaded or contractual' name='interest_rate' type='number' value={formData.interest_rate} onChange={handleChange} />
+                    <MatterTextInput label='Interest Basis' name='interest_basis' value={formData.interest_basis} onChange={handleChange} placeholder='Court rates, contractual rate, or as pleaded' />
+                  </>
+                )}
+                <MatterTextInput label='Costs Claimed' name='costs_claimed' type='number' value={formData.costs_claimed} onChange={handleChange} />
+                <MatterTextInput label='Amount Already Paid' name='amount_already_paid' type='number' value={formData.amount_already_paid} onChange={handleChange} />
+                <MatterTextInput label='Outstanding Amount' name='outstanding_amount' type='number' value={formData.outstanding_amount} onChange={handleChange} />
+                <MatterTextInput label='Estimated Matter Value' name='estimated_matter_value' type='number' value={formData.estimated_matter_value} onChange={handleChange} />
+                {formData.monetary_relief_type === 'TO_BE_ASSESSED' && (
+                  <label className='flex items-center gap-2 text-sm'>
+                    <input type='checkbox' name='amount_to_be_assessed' checked={formData.amount_to_be_assessed} onChange={handleChange} />
+                    Relief amount to be assessed by the court
+                  </label>
+                )}
               </>
             )}
             {formData.practice_area === 'CRIMINAL_LITIGATION' && (
@@ -711,16 +794,15 @@ export default function CaseCreateForm({
             >
               <option value=''>Firm default secretary</option>
             </SelectField>
-            <SelectField label='Priority' name='priority' value={formData.priority} onChange={handleChange} options={PRIORITIES} error={errors.priority} required />
-            <FloatingInput label='Date Instructions Received' name='date_instructions_received' type='date' value={formData.date_instructions_received} onChange={handleChange} noFloat />
-            <FloatingInput label='Limitation Date' name='limitation_date' type='date' value={formData.limitation_date} onChange={handleChange} noFloat />
+            <MatterTextInput label='Date Instructions Received' name='date_instructions_received' type='date' value={formData.date_instructions_received} onChange={handleChange} noFloat />
+            <MatterTextInput label='Limitation Date' name='limitation_date' type='date' value={formData.limitation_date} onChange={handleChange} noFloat />
             {isCourtRoute(formData) && (
               <>
-                <FloatingInput label='Next Court Date' name='next_court_date' type='datetime-local' value={formData.next_court_date} onChange={handleChange} noFloat error={errors.next_court_date} />
-                <FloatingInput label='Next Action' name='next_action' value={formData.next_action} onChange={handleChange} />
+                <MatterTextInput label='Next Court Date' name='next_court_date' type='datetime-local' value={formData.next_court_date} onChange={handleChange} noFloat error={errors.next_court_date} />
+                <MatterTextInput label='Next Action' name='next_action' value={formData.next_action} onChange={handleChange} />
               </>
             )}
-            <FloatingInput label='Jurisdiction Notes' name='jurisdiction_notes' value={formData.jurisdiction_notes} onChange={handleChange} />
+            <MatterTextInput label='Jurisdiction Notes' name='jurisdiction_notes' value={formData.jurisdiction_notes} onChange={handleChange} />
             {isFiledCourtRoute(formData) && (
               <SelectField
                 label='Conflict-check record at registration'
@@ -740,12 +822,12 @@ export default function CaseCreateForm({
 
         {step === 8 && (
           <Section title='Review'>
-            <dl className='grid gap-3 text-sm md:grid-cols-2'>
+            <dl className='grid gap-5 text-sm md:grid-cols-2'>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Entry Route</dt><dd className='font-semibold'>{optionLabel(ENTRY_ROUTES, formData.entry_route)}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Client</dt><dd className='font-semibold'>{selectedClient?.full_name || selectedClient?.company_name || 'Not selected'}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Practice Area</dt><dd className='font-semibold'>{optionLabel(PRACTICE_AREAS, formData.practice_area)}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Forum</dt><dd className='font-semibold'>{optionLabel(FORUMS, formData.forum)}</dd></div>
-              <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Internal Matter Number</dt><dd className='font-semibold'>Generated automatically</dd></div>
+              <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Internal Matter Number</dt><dd className='font-semibold'>{isFiledCourtRoute(formData) ? (formData.official_court_case_number || 'Enter official court number') : 'Generated automatically'}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Official Court Case Number</dt><dd className='font-semibold'>{formData.official_court_case_number || 'Not applicable'}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Court Stage</dt><dd className='font-semibold'>{isFiledCourtRoute(formData) ? 'Filed' : 'Not yet filed / not applicable'}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>CTS Reference</dt><dd className='font-semibold'>Pending controlled verification</dd></div>

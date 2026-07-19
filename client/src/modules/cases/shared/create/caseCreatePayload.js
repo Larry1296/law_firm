@@ -34,6 +34,8 @@ const UNIVERSAL_FIELDS = [
   'urgency_reason',
   'limitation_date',
   'internal_deadline',
+  'next_court_date',
+  'next_action',
   'client_party_role',
   'assigned_lawyer_membership_id',
   'assigned_secretary_membership_id',
@@ -54,6 +56,8 @@ const COURT_FIELDS = [
   'efiling_reference',
   'payment_reference',
   'jurisdiction_notes',
+  'next_court_date',
+  'next_action',
 ];
 
 const COURT_ALIASES = {
@@ -397,20 +401,26 @@ export const buildCaseCreatePayload = (formData = {}, context = {}) => {
   const conflictRecord = pickSection(data, CONFLICT_FIELDS, CONFLICT_ALIASES);
   if (Object.keys(conflictRecord).length) payload.conflict_record = conflictRecord;
 
-  if (Array.isArray(data.parties)) {
-    const parties = data.parties.map(normalizeParty).filter((party) => Object.keys(party).length);
-    if (parties.length) payload.parties = parties;
-  } else if (data.defendant) {
-    payload.parties = [
-      {
-        party_type: 'OTHER',
-        role: 'DEFENDANT',
-        organization_name: trimSpaces(data.defendant),
-        name: trimSpaces(data.defendant),
-        is_adverse: true,
-      },
-    ];
+  const parties = Array.isArray(data.parties)
+    ? data.parties.map(normalizeParty).filter((party) => Object.keys(party).length)
+    : [];
+  const defendantName = data.defendant ? trimSpaces(data.defendant) : '';
+  const hasDefendantParty = defendantName && parties.some((party) =>
+    [party.name, party.organization_name, party.individual_name]
+      .filter(Boolean)
+      .some((name) => trimSpaces(name).toLowerCase() === defendantName.toLowerCase()),
+  );
+
+  if (defendantName && !hasDefendantParty) {
+    parties.push({
+      party_type: 'COMPANY',
+      role: 'DEFENDANT',
+      organization_name: defendantName,
+      name: defendantName,
+      is_adverse: true,
+    });
   }
+  if (parties.length) payload.parties = parties;
 
   return removeControlled(payload);
 };

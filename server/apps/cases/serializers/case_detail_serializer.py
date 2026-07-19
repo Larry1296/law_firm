@@ -35,6 +35,7 @@ from apps.events.serializers import EventSerializer
 class CaseDetailSerializer(serializers.ModelSerializer):
     firm = serializers.SerializerMethodField()
     client = serializers.SerializerMethodField()
+    created_by = serializers.SerializerMethodField()
     plaintiff_name = serializers.SerializerMethodField()
     case_owner = serializers.SerializerMethodField()
     assigned_lawyer = serializers.SerializerMethodField()
@@ -91,6 +92,15 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "client_type": client.client_type,
             "access_type": client.access_type,
             "lifecycle_status": client.lifecycle_status,
+        }
+
+    def get_created_by(self, obj):
+        if not obj.created_by:
+            return None
+        return {
+            "id": str(obj.created_by.id),
+            "full_name": obj.created_by.full_name,
+            "email": obj.created_by.email,
         }
 
     def get_firm(self, obj):
@@ -207,6 +217,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "firm",
+            "created_by",
             "entry_route",
             "entry_route_label",
             "practice_area",

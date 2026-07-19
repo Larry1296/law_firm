@@ -21,6 +21,8 @@ class ClientAdminListSerializer(serializers.ModelSerializer):
     compliance_notes = serializers.SerializerMethodField()
     portal_access_exists = serializers.SerializerMethodField()
     portal_login_email = serializers.SerializerMethodField()
+    primary_contact = serializers.SerializerMethodField()
+    primary_contact_name = serializers.SerializerMethodField()
     has_cases = serializers.BooleanField(read_only=True)
     can_hard_delete = serializers.BooleanField(read_only=True)
     can_archive = serializers.BooleanField(read_only=True)
@@ -55,6 +57,8 @@ class ClientAdminListSerializer(serializers.ModelSerializer):
             "compliance_notes",
             "portal_access_exists",
             "portal_login_email",
+            "primary_contact",
+            "primary_contact_name",
             "is_verified",
             "is_active",
             "has_cases",
@@ -123,3 +127,26 @@ class ClientAdminListSerializer(serializers.ModelSerializer):
 
     def get_portal_login_email(self, obj):
         return obj.user.email if obj.user_id else None
+
+    def _primary_contact(self, obj):
+        return obj.contacts.filter(is_primary=True).order_by("-created_at").first()
+
+    def get_primary_contact(self, obj):
+        contact = self._primary_contact(obj)
+        if not contact:
+            return None
+        return {
+            "id": str(contact.id),
+            "full_name": contact.full_name,
+            "phone_number": contact.phone_number,
+            "email": contact.email,
+            "role_or_designation": contact.role_or_designation,
+            "contact_type": contact.contact_type,
+            "preferred_channel": contact.preferred_channel,
+            "is_primary": contact.is_primary,
+            "is_verified": contact.is_verified,
+        }
+
+    def get_primary_contact_name(self, obj):
+        contact = self._primary_contact(obj)
+        return contact.full_name if contact else ""

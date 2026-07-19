@@ -22,7 +22,7 @@ export const validateCaseCreateForm = (formData = {}, context = {}) => {
     addError(errors, 'title', 'Matter title is required.');
   }
   if (isBlank(formData.case_type)) {
-    addError(errors, 'case_type', 'Select the matter category supported by the backend.');
+    addError(errors, 'case_type', 'Select the matter category.');
   }
   if (isBlank(formData.priority)) {
     addError(errors, 'priority', 'Select the matter priority.');

@@ -1,3 +1,4 @@
+from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import serializers
 
 from apps.cases.models import Case
@@ -127,6 +128,25 @@ class CaseCreateSerializer(serializers.Serializer):
                 court[target] = attrs.get(source)
         return court
 
+
+    def _coerce_date(self, value, field_name, errors):
+        if value in (None, '') or hasattr(value, 'isoformat'):
+            return value
+        parsed = parse_date(str(value))
+        if parsed is None:
+            errors[field_name] = 'Enter a valid date.'
+            return value
+        return parsed
+
+    def _coerce_datetime(self, value, field_name, errors):
+        if value in (None, '') or hasattr(value, 'isoformat'):
+            return value
+        parsed = parse_datetime(str(value))
+        if parsed is None:
+            errors[field_name] = 'Enter a valid date and time.'
+            return value
+        return parsed
+
     def validate_currency(self, value):
         value = (value or "KES").strip().upper()
         if len(value) != 3 or not value.isalpha():
@@ -155,6 +175,13 @@ class CaseCreateSerializer(serializers.Serializer):
         forum = attrs["forum"]
         court = self._court_data(attrs)
         errors = {}
+
+        if court.get("filing_date") not in (None, ""):
+            court["filing_date"] = self._coerce_date(court.get("filing_date"), "filing_date", errors)
+        if court.get("payment_date") not in (None, ""):
+            court["payment_date"] = self._coerce_date(court.get("payment_date"), "payment_date", errors)
+        if court.get("next_date") not in (None, ""):
+            court["next_date"] = self._coerce_datetime(court.get("next_date"), "next_court_date", errors)
 
         filed_case_intent = (
             route == Case.EntryRoute.EXISTING_FILED_COURT_CASE
@@ -196,15 +223,27 @@ class CaseCreateSerializer(serializers.Serializer):
 
         if forum == Case.Forum.TRIBUNAL:
             tribunal = attrs.get("tribunal_proceeding") or {}
+            if tribunal.get("filing_date") not in (None, ""):
+                tribunal["filing_date"] = self._coerce_date(tribunal.get("filing_date"), "tribunal_proceeding.filing_date", errors)
+            if tribunal.get("next_date") not in (None, ""):
+                tribunal["next_date"] = self._coerce_datetime(tribunal.get("next_date"), "tribunal_proceeding.next_date", errors)
             if route == Case.EntryRoute.EXISTING_TRIBUNAL_MATTER and not tribunal.get("tribunal_name"):
                 errors["tribunal_proceeding.tribunal_name"] = "Tribunal name is required."
 
         if forum == Case.Forum.ARBITRATION:
             arbitration = attrs.get("arbitration_proceeding") or {}
+            if arbitration.get("commencement_date") not in (None, ""):
+                arbitration["commencement_date"] = self._coerce_date(arbitration.get("commencement_date"), "arbitration_proceeding.commencement_date", errors)
+            if arbitration.get("next_date") not in (None, ""):
+                arbitration["next_date"] = self._coerce_datetime(arbitration.get("next_date"), "arbitration_proceeding.next_date", errors)
             if route == Case.EntryRoute.EXISTING_ARBITRATION and not (
                 arbitration.get("institution") or arbitration.get("arbitration_institution")
             ):
                 errors["arbitration_proceeding.institution"] = "Arbitration institution or administering body is required."
+
+        non_contentious = attrs.get("non_contentious_details") or {}
+        if non_contentious.get("target_completion_date") not in (None, ""):
+            non_contentious["target_completion_date"] = self._coerce_date(non_contentious.get("target_completion_date"), "non_contentious_details.target_completion_date", errors)
 
         monetary = attrs.get("monetary_relief") or {}
         relief_type = monetary.get("relief_type") or monetary.get("monetary_relief_type")

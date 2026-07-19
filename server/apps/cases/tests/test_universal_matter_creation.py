@@ -109,7 +109,7 @@ class UniversalMatterCreationTests(TestCase):
             land_details={"title_number": "NAIROBI/BLOCK/1", "property_description": "Commercial property"},
             monetary_relief={"relief_type": MonetaryRelief.ReliefType.QUANTIFIED, "currency": "KES", "principal_amount": "7500000.00"},
         ))
-        self.assertTrue(case.case_number.startswith("MAT-"))
+        self.assertEqual(case.case_number, "ELC E012 of 2026")
         self.assertEqual(case.official_court_case_number, "ELC E012 of 2026")
         self.assertEqual(case.court_stage, Case.CourtStage.FILED)
         self.assertEqual(case.matter_status, Case.MatterStatus.ACTIVE)
@@ -117,6 +117,28 @@ class UniversalMatterCreationTests(TestCase):
         self.assertEqual(case.land_details.title_number, "NAIROBI/BLOCK/1")
         self.assertEqual(str(case.monetary_relief.principal_amount), "7500000.00")
         self.assertEqual(case.parties.filter(is_adverse=True).count(), 1)
+
+    def test_existing_filed_court_case_accepts_nested_court_date_strings(self):
+        case = self.post(self.base_payload(
+            entry_route=Case.EntryRoute.EXISTING_FILED_COURT_CASE,
+            court_proceeding={
+                "official_court_case_number": "HCCOMM E014 of 2026",
+                "filing_date": "2026-07-17",
+                "efiling_reference": "EFILE-2026-00045872",
+                "payment_reference": "KES-PAY-2026-781246",
+                "court_type": Case.CourtType.HIGH_COURT,
+                "court_level": "SUPERIOR_COURT",
+                "court_name": "High Court of Kenya",
+                "court_station": "Nairobi",
+                "division": Case.CourtDivision.COMMERCIAL_TAX,
+                "registry": "Milimani Commercial and Tax Division Registry",
+            },
+        ))
+        self.assertEqual(case.case_number, "HCCOMM E014 of 2026")
+        self.assertEqual(case.official_court_case_number, "HCCOMM E014 of 2026")
+        self.assertEqual(case.filing_date, date(2026, 7, 17))
+        self.assertEqual(case.court_stage, Case.CourtStage.FILED)
+        self.assertEqual(case.court_proceeding.filing_date, date(2026, 7, 17))
 
     def test_new_instruction_creates_unfiled_matter_without_court_filing_facts(self):
         case = self.post(self.base_payload(entry_route=Case.EntryRoute.NEW_INSTRUCTION))

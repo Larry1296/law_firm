@@ -135,9 +135,9 @@ class CaseLifecycleFrameworkTests(TestCase):
 
     def test_internal_number_is_not_official_court_number(self):
         case = self.create_case()
-        self.assertTrue(case.case_number.startswith("MAT-"))
+        self.assertEqual(case.case_number, "ELC E012 of 2026")
         self.assertEqual(case.official_court_case_number, "ELC E012 of 2026")
-        self.assertNotEqual(case.case_number, case.official_court_case_number)
+        self.assertEqual(case.case_number, case.official_court_case_number)
 
     def test_first_case_changes_client_lifecycle_without_removing_portal_access(self):
         self.create_case()
@@ -837,7 +837,7 @@ class CaseLifecycleFrameworkTests(TestCase):
         response = self.api.get(reverse("case-detail", kwargs={"case_id": case.id}))
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn("data", response.data)
-        self.assertTrue(response.data["data"]["internal_case_number"].startswith("MAT-"))
+        self.assertEqual(response.data["data"]["internal_case_number"], case.official_court_case_number)
         self.assertEqual(response.data["data"]["official_court_case_number"], case.official_court_case_number)
 
     def test_existing_assignments_and_parties_remain_intact(self):

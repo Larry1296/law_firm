@@ -60,6 +60,12 @@ def backfill_universal_matter_data(apps, schema_editor):
         case.procedure_type = case.procedure_track or ""
         if case.entry_route == "EXISTING_FILED_COURT_CASE" and case.court_stage == "NOT_FILED" and has_court_reference:
             case.court_stage = "FILED"
+        if (
+            case.entry_route == "EXISTING_FILED_COURT_CASE"
+            and case.official_court_case_number
+            and not Case.objects.filter(firm_id=case.firm_id, case_number=case.official_court_case_number).exclude(id=case.id).exists()
+        ):
+            case.case_number = case.official_court_case_number
         case.conflict_status = "REQUIRES_VERIFICATION"
         case.save(
             update_fields=[
@@ -70,6 +76,7 @@ def backfill_universal_matter_data(apps, schema_editor):
                 "procedure_type",
                 "court_stage",
                 "conflict_status",
+                "case_number",
             ]
         )
 

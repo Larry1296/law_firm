@@ -88,6 +88,24 @@ export const COURT_TYPES = [
   { value: 'OTHER', label: 'Other' },
 ];
 
+
+export const COURT_LEVELS = [
+  { value: 'SUPERIOR_COURT', label: 'Superior Court' },
+  { value: 'SUBORDINATE_COURT', label: 'Subordinate Court' },
+];
+
+export const COURT_LEVEL_BY_TYPE = {
+  SUPREME_COURT: 'SUPERIOR_COURT',
+  COURT_OF_APPEAL: 'SUPERIOR_COURT',
+  HIGH_COURT: 'SUPERIOR_COURT',
+  ENVIRONMENT_LAND: 'SUPERIOR_COURT',
+  EMPLOYMENT_LABOUR: 'SUPERIOR_COURT',
+  MAGISTRATE: 'SUBORDINATE_COURT',
+  KADHI: 'SUBORDINATE_COURT',
+  SMALL_CLAIMS: 'SUBORDINATE_COURT',
+  TRIBUNAL: 'SUBORDINATE_COURT',
+};
+
 export const COURT_DIVISIONS = [
   { value: 'CIVIL', label: 'Civil Division' },
   { value: 'COMMERCIAL_TAX', label: 'Commercial and Tax Division' },
