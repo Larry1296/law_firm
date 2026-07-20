@@ -1507,12 +1507,16 @@ export default function AdminCreateClientPage() {
 	                      { value: 'OTHER', label: 'Other' },
 	                    ]}
 	                  />
-	                  <FloatingInput
+	                  <Select3D
 	                    label='Preferred Language'
 	                    name='preferred_language'
 	                    value={formData.preferred_language}
 	                    onChange={handleChange}
 	                    error={fieldErrors.preferred_language}
+	                    options={[
+	                      { value: 'English', label: 'English' },
+	                      { value: 'Kiswahili', label: 'Kiswahili / Swahili' },
+	                    ]}
 	                  />
 	                </div>
 	              </section>

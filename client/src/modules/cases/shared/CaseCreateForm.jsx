@@ -6,6 +6,7 @@ import Card from '@/components/ui/Card';
 import Button3D from '@/components/ui/Button3D';
 import ElasticTextInput from '@/components/ui/ElasticTextInput';
 import FloatingInput from '@/components/ui/FloatingInput';
+import Select3D from '@/components/ui/Select3D';
 
 import { caseCreateInitialValues } from './create/caseCreateInitialValues';
 import { buildCaseCreatePayload } from './create/caseCreatePayload';
@@ -25,16 +26,6 @@ import {
   PRIORITIES,
   PROCEDURE_TRACKS,
 } from './create/caseCreateOptions';
-
-const fieldClass = `
-  w-full rounded-xl border px-4 py-4
-  bg-surface-light dark:bg-surface-dark
-  text-text-primary-light dark:text-text-primary-dark
-  border-border-light dark:border-border-dark
-  focus:outline-none focus:ring-2 focus:ring-brand-primary
-  transition
-`;
-
 
 const normalizeId = (item) => item?.client_id || item?.membership_id || item?.id || '';
 
@@ -107,19 +98,31 @@ const Section = ({ title, children, description }) => (
   </div>
 );
 
-const SelectField = ({ label, name, value, onChange, options, error, required = false, children }) => (
-  <div className='w-full mb-8'>
-    <label className='block mb-2 text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-      {label}{required ? ' *' : ''}
-    </label>
-    <select name={name} value={value || ''} onChange={onChange} className={fieldClass} required={required}>
-      {children || <option value=''>Select</option>}
-      {options.map((item) => (
-        <option key={item.value} value={item.value}>{item.label}</option>
-      ))}
-    </select>
-    {error && <p className='mt-2 text-sm text-red-500'>{error}</p>}
-  </div>
+const SelectField = ({
+  label,
+  name,
+  value,
+  onChange,
+  options,
+  error,
+  required = false,
+  children,
+  placeholder = 'Select',
+  disabled = false,
+}) => (
+  <Select3D
+    label={label}
+    name={name}
+    value={value || ''}
+    onChange={onChange}
+    options={options}
+    error={error}
+    required={required}
+    placeholder={placeholder}
+    disabled={disabled}
+  >
+    {children}
+  </Select3D>
 );
 
 const ReadOnlyNotice = ({ title, children }) => (
@@ -250,11 +253,14 @@ export default function CaseCreateForm({
 
   const filteredProcedures = useMemo(() => {
     const forum = formData.forum === 'COURT' ? 'COURT' : formData.forum;
-    return PROCEDURE_TRACKS.filter((item) => {
+    const forumProcedures = PROCEDURE_TRACKS.filter((item) => !item.forums || item.forums.includes(forum));
+    const practiceProcedures = forumProcedures.filter((item) => {
       const forumMatches = !item.forums || item.forums.includes(forum);
       const practiceMatches = !item.practiceAreas || item.practiceAreas.includes(formData.practice_area);
       return forumMatches && practiceMatches;
     });
+
+    return practiceProcedures.length > 0 ? practiceProcedures : forumProcedures;
   }, [formData.forum, formData.practice_area]);
 
   const filteredCourtTypes = useMemo(
