@@ -8,10 +8,26 @@ class Client(models.Model):
 
     class ClientType(models.TextChoices):
         INDIVIDUAL = "INDIVIDUAL", "Individual"
+        SOLE_PROPRIETORSHIP = "SOLE_PROPRIETORSHIP", "Sole Proprietorship"
         COMPANY = "COMPANY", "Company"
         PARTNERSHIP = "PARTNERSHIP", "Partnership"
-        NGO = "NGO", "NGO"
+        LIMITED_LIABILITY_PARTNERSHIP = (
+            "LIMITED_LIABILITY_PARTNERSHIP",
+            "Limited Liability Partnership",
+        )
+        COOPERATIVE = "COOPERATIVE", "Cooperative"
+        SOCIETY_OR_ASSOCIATION = "SOCIETY_OR_ASSOCIATION", "Society or Association"
+        NON_PROFIT_ORGANIZATION = "NON_PROFIT_ORGANIZATION", "Non-Profit Organization"
         TRUST = "TRUST", "Trust"
+        ESTATE = "ESTATE", "Estate"
+        PUBLIC_ENTITY = "PUBLIC_ENTITY", "Public Entity"
+        INTERNATIONAL_ORGANIZATION = (
+            "INTERNATIONAL_ORGANIZATION",
+            "International Organization",
+        )
+
+        # Legacy values retained temporarily for data migrations/API compatibility.
+        NGO = "NGO", "NGO"
         GOVERNMENT = "GOVERNMENT", "Government"
         BUSINESS_ENTITY = "BUSINESS_ENTITY", "Business Entity"
         GOVERNMENT_BODY = "GOVERNMENT_BODY", "Government Body"
@@ -19,9 +35,7 @@ class Client(models.Model):
         NGO_ASSOCIATION = "NGO_ASSOCIATION", "NGO / Association"
         RELIGIOUS_ORGANIZATION = "RELIGIOUS_ORGANIZATION", "Religious Organization"
         EDUCATIONAL_INSTITUTION = "EDUCATIONAL_INSTITUTION", "Educational Institution"
-        ESTATE = "ESTATE", "Estate"
         REPRESENTATIVE = "REPRESENTATIVE", "Representative"
-        COOPERATIVE = "COOPERATIVE", "Cooperative"
         SACCO = "SACCO", "SACCO"
         INTERNATIONAL_ENTITY = "INTERNATIONAL_ENTITY", "International Entity"
 
@@ -33,6 +47,11 @@ class Client(models.Model):
         PROSPECT = "PROSPECT", "Prospect"
         OFFICIAL_CLIENT = "OFFICIAL_CLIENT", "Official Client"
         ARCHIVED = "ARCHIVED", "Archived"
+
+    class ClassificationReviewStatus(models.TextChoices):
+        NOT_REQUIRED = "NOT_REQUIRED", "Not Required"
+        REQUIRES_REVIEW = "REQUIRES_REVIEW", "Requires Review"
+        REVIEWED = "REVIEWED", "Reviewed"
 
     id = models.UUIDField(
         primary_key=True,
@@ -84,6 +103,19 @@ class Client(models.Model):
     client_type = models.CharField(
         max_length=50,
         choices=ClientType.choices,
+    )
+
+    legacy_client_type = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="Original client_type preserved during legal-capacity classification migration.",
+    )
+
+    classification_review_status = models.CharField(
+        max_length=30,
+        choices=ClassificationReviewStatus.choices,
+        default=ClassificationReviewStatus.NOT_REQUIRED,
     )
 
     access_type = models.CharField(

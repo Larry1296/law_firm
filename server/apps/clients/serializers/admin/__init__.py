@@ -8,6 +8,7 @@ from .individual_admin_create_client_serializer import IndividualAdminCreateClie
 from .ngo_admin_create_client_serializer import NGOAdminCreateClientSerializer
 from .partnership_admin_create_client_serializer import PartnershipAdminCreateClientSerializer
 from .trust_admin_create_client_serializer import TrustAdminCreateClientSerializer
+from .legal_entity_admin_create_client_serializer import LegalEntityAdminCreateClientSerializer
 
 __all__ = [
     "ClientAdminListSerializer",
@@ -20,4 +21,5 @@ __all__ = [
     "NGOAdminCreateClientSerializer",
     "PartnershipAdminCreateClientSerializer",
     "TrustAdminCreateClientSerializer",
+    "LegalEntityAdminCreateClientSerializer",
 ]

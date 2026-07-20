@@ -4,6 +4,7 @@ from apps.clients.models import Client
 from apps.clients.serializers.client_detail_serializer import (
     ClientAddressSerializer,
     ClientContactSerializer,
+    ClientRepresentativeSerializer,
 )
 from apps.clients.serializers.client.client_type_profile_serializer import (
     serialize_client_type_profile,
@@ -22,6 +23,7 @@ class SecretaryClientSerializer(serializers.ModelSerializer):
     next_of_kin = serializers.SerializerMethodField()
     portal_access_exists = serializers.SerializerMethodField()
     portal_login_email = serializers.SerializerMethodField()
+    representatives = ClientRepresentativeSerializer(many=True, read_only=True)
 
     class Meta:
         model = Client
@@ -47,6 +49,7 @@ class SecretaryClientSerializer(serializers.ModelSerializer):
             "next_of_kin",
             "portal_access_exists",
             "portal_login_email",
+            "representatives",
             "created_at",
             "last_updated",
         ]

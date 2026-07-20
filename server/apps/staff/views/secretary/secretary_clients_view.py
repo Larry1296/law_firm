@@ -10,12 +10,16 @@ from apps.clients.serializers.client_detail_serializer import (
     ClientContactSerializer,
     ClientDetailSerializer,
 )
+from apps.clients.views.admin.legal_entity_admin_create_client_view import (
+    build_legal_entity_create_response,
+)
 from apps.clients.serializers.admin import (
     ClientAdminDetailSerializer,
     CompanyAdminCreateClientSerializer,
     EstateAdminCreateClientSerializer,
     GovernmentAdminCreateClientSerializer,
     IndividualAdminCreateClientSerializer,
+    LegalEntityAdminCreateClientSerializer,
     NGOAdminCreateClientSerializer,
     PartnershipAdminCreateClientSerializer,
     TrustAdminCreateClientSerializer,
@@ -41,6 +45,7 @@ CLIENT_CREATE_CONFIG = {
     "estates": (Client.ClientType.ESTATE, EstateAdminCreateClientSerializer),
     "government": (Client.ClientType.GOVERNMENT, GovernmentAdminCreateClientSerializer),
     "educational-institutions": (Client.ClientType.EDUCATIONAL_INSTITUTION, GovernmentAdminCreateClientSerializer),
+    "legal-entities": (None, LegalEntityAdminCreateClientSerializer),
 }
 
 
@@ -72,12 +77,20 @@ class SecretaryClientsView(SecretaryBaseView):
             )
             serializer.is_valid(raise_exception=True)
 
-            result = ClientAdminCreateService.create_client(
-                firm=secretary.law_firm,
-                created_by=request.user,
-                client_type=model_client_type,
-                validated_data=serializer.validated_data,
-            )
+            if serializer_class is LegalEntityAdminCreateClientSerializer:
+                model_client_type = serializer.validated_data["client_type"]
+                result = ClientAdminCreateService.create_legal_entity_client(
+                    firm=secretary.law_firm,
+                    created_by=request.user,
+                    validated_data=serializer.validated_data,
+                )
+            else:
+                result = ClientAdminCreateService.create_client(
+                    firm=secretary.law_firm,
+                    created_by=request.user,
+                    client_type=model_client_type,
+                    validated_data=serializer.validated_data,
+                )
         except (ValueError, PermissionError) as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
 
@@ -117,6 +130,8 @@ class SecretaryClientsView(SecretaryBaseView):
                 ),
                 "temp_password": result.get("temp_password"),
             }
+        elif serializer_class is LegalEntityAdminCreateClientSerializer:
+            response = build_legal_entity_create_response(result)
         else:
             response = {"client": ClientAdminDetailSerializer(result["client"]).data}
             if result.get("temp_password"):

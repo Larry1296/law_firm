@@ -14,6 +14,10 @@ import {
   buildIndividualClientPayload,
   validateIndividualClientForm,
 } from '@/modules/admin/clients/utils/individualClientPayload';
+import {
+  buildLegalEntityClientPayload,
+  canonicalLegalEntityTypes,
+} from '@/modules/admin/clients/utils/legalEntityClientPayload';
 
 export default function AdminCreateClientPage() {
   const navigate = useNavigate();
@@ -27,21 +31,23 @@ export default function AdminCreateClientPage() {
   ).toUpperCase();
 
   const clientTypeMap = {
-    SACCO: 'SACCO',
+    SACCO: 'COOPERATIVE',
     COOPERATIVE: 'COOPERATIVE',
-    ASSOCIATION: 'NGO_ASSOCIATION',
-    RELIGIOUS: 'RELIGIOUS_ORGANIZATION',
-    SCHOOL: 'EDUCATIONAL_INSTITUTION',
+    ASSOCIATION: 'SOCIETY_OR_ASSOCIATION',
+    NGO_ASSOCIATION: 'SOCIETY_OR_ASSOCIATION',
+    NGO: 'NON_PROFIT_ORGANIZATION',
+    RELIGIOUS: 'NON_PROFIT_ORGANIZATION',
+    RELIGIOUS_ORGANIZATION: 'NON_PROFIT_ORGANIZATION',
+    GOVERNMENT: 'PUBLIC_ENTITY',
+    GOVERNMENT_BODY: 'PUBLIC_ENTITY',
+    SCHOOL: 'PUBLIC_ENTITY',
+    EDUCATIONAL_INSTITUTION: 'PUBLIC_ENTITY',
+    INTERNATIONAL_ENTITY: 'INTERNATIONAL_ORGANIZATION',
   };
 
   const clientType = clientTypeMap[requestedClientType] || requestedClientType;
   const companyLikeClientTypes = [
     'COMPANY',
-    'SACCO',
-    'COOPERATIVE',
-    'BUSINESS_ENTITY',
-    'FINANCIAL_INSTITUTION',
-    'INTERNATIONAL_ENTITY',
   ];
   const ngoLikeClientTypes = [
     'NGO',
@@ -53,12 +59,15 @@ export default function AdminCreateClientPage() {
     'GOVERNMENT_BODY',
     'EDUCATIONAL_INSTITUTION',
   ];
+  const canonicalEntityTypes = canonicalLegalEntityTypes;
   const clientMode = searchParams.get('mode'); // prospect | assisted | null
   const isIndividualClientType = clientType === 'INDIVIDUAL';
   const [selectedClientMode, setSelectedClientMode] = useState(
     isIndividualClientType && clientMode === 'assisted' ? 'assisted' : 'portal',
   );
-  const [selectedCompanyAccessType, setSelectedCompanyAccessType] = useState('PROSPECT');
+  const [selectedEntityAccessType, setSelectedEntityAccessType] = useState(
+    clientMode === 'assisted' ? 'ASSISTED_CLIENT' : 'PROSPECT',
+  );
   const partnershipAgreementTypes = [
     {
       value: 'GENERAL_PARTNERSHIP',
@@ -204,6 +213,65 @@ export default function AdminCreateClientPage() {
     legal_department_head: '',
     legal_department_contact: '',
 
+    legal_name: '',
+    registered_business_name: '',
+    business_registration_number: '',
+    proprietor_name: '',
+    proprietor_identifier: '',
+    proprietor_kra_pin: '',
+    business_kra_pin: '',
+    subtype: 'GENERAL_PARTNERSHIP',
+    registered_name: '',
+    llp_registration_number: '',
+    registered_office: '',
+    principal_business_address: '',
+    principal_place_of_business: '',
+    partnership_agreement_reference: '',
+    partner_one_name: '',
+    partner_two_name: '',
+    designated_partner_name: '',
+    trustee_name: '',
+    personal_representative_name: '',
+    cooperative_subtype: 'PRIMARY_COOPERATIVE',
+    area_of_operation: '',
+    activity_sector: '',
+    regulator_name: '',
+    license_number: '',
+    license_status: '',
+    common_name: '',
+    registration_status: 'UNKNOWN',
+    constitution_reference: '',
+    objectives: '',
+    principal_office: '',
+    litigation_authority_reference: '',
+    nonprofit_form: 'PUBLIC_BENEFIT_ORGANIZATION',
+    canonical_legal_form: '',
+    pbo_or_ngo_status: '',
+    operational_scope: '',
+    funding_compliance_notes: '',
+    trust_deed_date: '',
+    purpose: '',
+    principal_address: '',
+    settlor_details: '',
+    deceased_last_address: '',
+    grant_type: '',
+    grant_issue_date: '',
+    grant_confirmation_date: '',
+    grant_status: 'UNKNOWN',
+    official_name: '',
+    public_entity_subtype: 'OTHER_STATUTORY_BODY',
+    enabling_instrument: '',
+    parent_ministry_or_county: '',
+    legal_capacity_notes: '',
+    official_address: '',
+    statutory_representative: '',
+    organization_type: 'INTERGOVERNMENTAL',
+    founding_instrument: '',
+    headquarters_country: '',
+    kenya_recognition_details: '',
+    privileges_immunities_status: '',
+    kenya_office_address: '',
+
     contact_full_name: '',
     contact_email: '',
     contact_phone_number: '',
@@ -282,7 +350,7 @@ export default function AdminCreateClientPage() {
       errors.website = 'Enter a valid http or https URL.';
     }
 
-    if (selectedCompanyAccessType === 'PROSPECT') {
+    if (selectedEntityAccessType === 'PROSPECT') {
       if (!formData.email.trim()) {
         errors.email = 'Company email is required for client portal access.';
       }
@@ -299,14 +367,14 @@ export default function AdminCreateClientPage() {
   };
 
   const buildPayload = () => {
-    const isCompanyClient = clientType === 'COMPANY';
     if (clientType === 'INDIVIDUAL') {
       return buildIndividualClientPayload(formData, selectedClientMode);
     }
 
-    const isProspect = isCompanyClient
-      ? selectedCompanyAccessType === 'PROSPECT'
-      : clientType !== 'INDIVIDUAL' || selectedClientMode === 'portal';
+    const isProspect =
+      clientType === 'INDIVIDUAL'
+        ? selectedClientMode === 'portal'
+        : selectedEntityAccessType === 'PROSPECT';
     const clean = (payload) =>
       Object.fromEntries(
         Object.entries(payload).filter(([, value]) => value !== '' && value !== null),
@@ -335,6 +403,15 @@ export default function AdminCreateClientPage() {
       postal_code: formData.postal_code,
       full_address: formData.full_address,
     };
+
+    if (canonicalEntityTypes.includes(clientType)) {
+      return buildLegalEntityClientPayload(formData, {
+        client_type: clientType,
+        clientType,
+        requestedClientType,
+        accessType: isProspect ? 'PROSPECT' : 'ASSISTED_CLIENT',
+      });
+    }
 
     if (companyLikeClientTypes.includes(clientType)) {
       return clean({
@@ -552,14 +629,16 @@ export default function AdminCreateClientPage() {
   const isIndividual = clientType === 'INDIVIDUAL';
   const isCompanyClient = clientType === 'COMPANY';
   const isCompany = companyLikeClientTypes.includes(clientType);
-  const isPartnership = clientType === 'PARTNERSHIP';
-  const isNGO = ngoLikeClientTypes.includes(clientType);
-  const isTrust = clientType === 'TRUST';
-  const isEstate = clientType === 'ESTATE';
-  const isGovernment = governmentLikeClientTypes.includes(clientType);
-  const isProspect = isCompanyClient
-    ? selectedCompanyAccessType === 'PROSPECT'
-    : !isIndividual || selectedClientMode === 'portal';
+  const usesCanonicalEntityForm = canonicalEntityTypes.includes(clientType);
+  const isPartnership = !usesCanonicalEntityForm && clientType === 'PARTNERSHIP';
+  const isNGO = !usesCanonicalEntityForm && ngoLikeClientTypes.includes(clientType);
+  const isTrust = !usesCanonicalEntityForm && clientType === 'TRUST';
+  const isEstate = !usesCanonicalEntityForm && clientType === 'ESTATE';
+  const isGovernment = !usesCanonicalEntityForm && governmentLikeClientTypes.includes(clientType);
+  const isProspect =
+    clientType === 'INDIVIDUAL'
+      ? selectedClientMode === 'portal'
+      : selectedEntityAccessType === 'PROSPECT';
   const isAssistedIndividual = isIndividual && !isProspect;
   const createdClient = successData?.client;
   const createdProfile = successData?.profile;
@@ -575,7 +654,7 @@ export default function AdminCreateClientPage() {
     setSuccessData(null);
     setFieldErrors({});
     setGeneralError('');
-    setSelectedCompanyAccessType('PROSPECT');
+    setSelectedEntityAccessType('PROSPECT');
     setFormData((prev) => ({
       ...prev,
       email: '',
@@ -668,7 +747,7 @@ export default function AdminCreateClientPage() {
       />
 
       {isCompanyClient && successData && (
-        <div className='rounded-xl border border-green-200 bg-green-50 p-6 text-green-950'>
+        <div className='rounded-xl border border-green-300/70 bg-green-50 p-6 text-green-950 dark:border-green-700 dark:bg-green-950/30 dark:text-green-100'>
           <h2 className='text-xl font-semibold'>Company client created</h2>
           <div className='mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm'>
             <div><strong>Company:</strong> {createdProfile?.company_name}</div>
@@ -679,10 +758,10 @@ export default function AdminCreateClientPage() {
             <div><strong>Portal login email:</strong> {createdPortalUser?.email || 'Not created'}</div>
           </div>
           {createdTempPassword && (
-            <div className='mt-4 rounded-lg border border-green-300 bg-white p-4'>
+            <div className='mt-4 rounded-lg border border-green-300 bg-white/85 p-4 dark:border-green-700 dark:bg-[color:var(--surface-raised)]'>
               <div className='text-sm font-semibold'>Temporary password</div>
               <div className='mt-2 flex flex-col gap-3 sm:flex-row sm:items-center'>
-                <code className='rounded bg-slate-100 px-3 py-2 text-slate-950'>
+                <code className='rounded bg-slate-100 px-3 py-2 text-slate-950 dark:bg-slate-900 dark:text-slate-100'>
                   {createdTempPassword}
                 </code>
                 <Button3D type='button' variant='outlineLight' size='sm' onClick={copyTempPassword}>
@@ -717,7 +796,7 @@ export default function AdminCreateClientPage() {
 	      )}
 
 	      {isIndividual && successData && (
-	        <div className='rounded-xl border border-green-200 bg-green-50 p-6 text-green-950'>
+	        <div className='rounded-xl border border-green-300/70 bg-green-50 p-6 text-green-950 dark:border-green-700 dark:bg-green-950/30 dark:text-green-100'>
 	          <h2 className='text-xl font-semibold'>Individual client created successfully</h2>
 	          <p className='mt-1 text-sm'>
 	            {createdTempPassword
@@ -737,10 +816,10 @@ export default function AdminCreateClientPage() {
 	            <div><strong>Portal login email:</strong> {createdClient?.portal_login_email || 'N/A'}</div>
 	          </div>
 	          {createdTempPassword && (
-	            <div className='mt-4 rounded-lg border border-green-300 bg-white p-4'>
+	            <div className='mt-4 rounded-lg border border-green-300 bg-white/85 p-4 dark:border-green-700 dark:bg-[color:var(--surface-raised)]'>
 	              <div className='text-sm font-semibold'>Temporary password</div>
 	              <div className='mt-2 flex flex-col gap-3 sm:flex-row sm:items-center'>
-	                <code className='rounded bg-slate-100 px-3 py-2 text-slate-950'>
+	                <code className='rounded bg-slate-100 px-3 py-2 text-slate-950 dark:bg-slate-900 dark:text-slate-100'>
 	                  {createdTempPassword}
 	                </code>
 	                <Button3D type='button' variant='outlineLight' size='sm' onClick={copyTempPassword}>
@@ -753,7 +832,7 @@ export default function AdminCreateClientPage() {
 	            </div>
 	          )}
 	          {!createdTempPassword && (
-	            <div className='mt-4 rounded-lg border border-green-300 bg-white p-4 text-sm'>
+	            <div className='mt-4 rounded-lg border border-green-300 bg-white/85 p-4 text-sm dark:border-green-700 dark:bg-[color:var(--surface-raised)]'>
 	              Portal Access: Not created. This client is managed by firm staff.
 	            </div>
 	          )}
@@ -782,7 +861,7 @@ export default function AdminCreateClientPage() {
       <Card className='p-6'>
         <form onSubmit={handleSubmit} className='space-y-6'>
           {generalError && (
-            <div className='rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700'>
+            <div className='rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200'>
               {generalError}
             </div>
           )}
@@ -813,7 +892,7 @@ export default function AdminCreateClientPage() {
 	                    }}
 	                    className={`rounded-xl border p-4 text-left transition ${
 	                      selectedClientMode === option.value
-	                        ? 'border-blue-600 bg-blue-50 text-blue-950'
+	                        ? 'border-blue-600 bg-blue-50 text-blue-950 dark:border-blue-400 dark:bg-blue-950/40 dark:text-blue-100'
 	                        : 'border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--text-primary)]'
 	                    }`}
 	                  >
@@ -823,35 +902,260 @@ export default function AdminCreateClientPage() {
 	                ))}
 	              </div>
 	              {isProspect ? (
-	                <div className='rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950'>
+	                <div className='rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-100'>
 	                  A portal login will be created using this client email address. A temporary password will be shown once after creation.
 	                </div>
 	              ) : (
-	                <div className='rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800'>
+	                <div className='rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800 dark:border-[color:var(--border)] dark:bg-[color:var(--surface-raised)] dark:text-[color:var(--text-primary)]'>
 	                  No portal account or login credentials will be created. Portal access can be added later through a controlled action.
 	                </div>
 	              )}
 	            </section>
 	          )}
 
-	          {!isCompanyClient && !isIndividual && !isAssistedIndividual && (
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-              <FloatingInput
-                label={isProspect ? 'Login Email' : 'Email'}
-                name='email'
-                value={formData.email}
-                onChange={handleChange}
-                required={isProspect}
+          {!isCompanyClient && !isIndividual && !isAssistedIndividual && (
+            <section className='space-y-4'>
+              <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                Access type
+              </h3>
+              <Select3D
+                label='Client Access'
+                name='entity_access_type'
+                value={selectedEntityAccessType}
+                onChange={(event) => {
+                  setSelectedEntityAccessType(event.target.value);
+                  setGeneralError('');
+                }}
+                options={[
+                  { value: 'ASSISTED_CLIENT', label: 'Firm-managed client' },
+                  { value: 'PROSPECT', label: 'Client portal access' },
+                ]}
               />
+              {isProspect ? (
+                <div className='rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-100'>
+                  Portal access creates login credentials for an authorized human contact.
+                </div>
+              ) : (
+                <div className='rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800 dark:border-[color:var(--border)] dark:bg-[color:var(--surface-raised)] dark:text-[color:var(--text-primary)]'>
+                  No portal account or login credentials will be created. Email is optional contact information only.
+                </div>
+              )}
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <FloatingInput
+                  label={isProspect ? 'Portal Login Email' : 'Contact Email'}
+                  name='email'
+                  value={formData.email}
+                  onChange={handleChange}
+                  required={isProspect}
+                />
 
-              <FloatingInput
-                label={isProspect ? 'Login Phone Number' : 'Phone Number'}
-                name='phone_number'
-                value={formData.phone_number}
-                onChange={handleChange}
-                required={isProspect}
-              />
-            </div>
+                <FloatingInput
+                  label={isProspect ? 'Portal Contact Phone Number' : 'Contact Phone Number'}
+                  name='phone_number'
+                  value={formData.phone_number}
+                  onChange={handleChange}
+                  required={isProspect}
+                />
+              </div>
+            </section>
+          )}
+
+          {canonicalEntityTypes.includes(clientType) && (
+            <section className='space-y-5'>
+              <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                Legal identity and authority
+              </h3>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <FloatingInput
+                  label='Legal / Registered Name'
+                  name='legal_name'
+                  value={formData.legal_name}
+                  onChange={handleChange}
+                />
+                <FloatingInput
+                  label='Registration Number'
+                  name='registration_number'
+                  value={formData.registration_number}
+                  onChange={handleChange}
+                />
+                <FloatingInput
+                  label='KRA PIN'
+                  name='kra_pin'
+                  value={formData.kra_pin}
+                  onChange={handleChange}
+                />
+                <FloatingInput
+                  label='Registration Date'
+                  name='registration_date'
+                  type='date'
+                  value={formData.registration_date}
+                  onChange={handleChange}
+                  noFloat
+                />
+                <FloatingInput
+                  label='Registration Authority'
+                  name='registration_authority'
+                  value={formData.registration_authority}
+                  onChange={handleChange}
+                />
+                <FloatingInput
+                  label='Sector / Purpose'
+                  name='sector'
+                  value={formData.sector}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {clientType === 'SOLE_PROPRIETORSHIP' && (
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Registered Business Name' name='registered_business_name' value={formData.registered_business_name} onChange={handleChange} required />
+                  <FloatingInput label='Proprietor Full Legal Name' name='proprietor_name' value={formData.proprietor_name} onChange={handleChange} required />
+                  <FloatingInput label='Proprietor ID / Passport' name='proprietor_identifier' value={formData.proprietor_identifier} onChange={handleChange} />
+                  <FloatingInput label='Business KRA PIN' name='business_kra_pin' value={formData.business_kra_pin} onChange={handleChange} />
+                </div>
+              )}
+
+              {clientType === 'PARTNERSHIP' && (
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Partnership Name' name='partnership_name' value={formData.partnership_name} onChange={handleChange} required />
+                  <Select3D label='Partnership Type' name='subtype' value={formData.subtype} onChange={handleChange} options={[
+                    { value: 'GENERAL_PARTNERSHIP', label: 'General Partnership' },
+                    { value: 'LIMITED_PARTNERSHIP', label: 'Limited Partnership' },
+                    { value: 'FOREIGN_PARTNERSHIP', label: 'Foreign Partnership' },
+                  ]} />
+                  <FloatingInput label='Partner 1 Legal Name' name='partner_one_name' value={formData.partner_one_name} onChange={handleChange} required />
+                  <FloatingInput label='Partner 2 Legal Name' name='partner_two_name' value={formData.partner_two_name} onChange={handleChange} required />
+                  <FloatingInput label='Partnership Agreement Reference' name='partnership_agreement_reference' value={formData.partnership_agreement_reference} onChange={handleChange} />
+                  <FloatingInput label='Principal Place of Business' name='principal_place_of_business' value={formData.principal_place_of_business} onChange={handleChange} />
+                </div>
+              )}
+
+              {clientType === 'LIMITED_LIABILITY_PARTNERSHIP' && (
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Registered LLP Name' name='registered_name' value={formData.registered_name} onChange={handleChange} required />
+                  <FloatingInput label='LLP Registration Number' name='llp_registration_number' value={formData.llp_registration_number} onChange={handleChange} required />
+                  <FloatingInput label='Designated Partner Legal Name' name='designated_partner_name' value={formData.designated_partner_name} onChange={handleChange} required />
+                  <FloatingInput label='Registered Office' name='registered_office' value={formData.registered_office} onChange={handleChange} />
+                  <FloatingInput label='Principal Business Address' name='principal_business_address' value={formData.principal_business_address} onChange={handleChange} />
+                </div>
+              )}
+
+              {clientType === 'COOPERATIVE' && (
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Registered Cooperative Name' name='registered_name' value={formData.registered_name} onChange={handleChange} required />
+                  <Select3D label='Cooperative Subtype' name='cooperative_subtype' value={requestedClientType === 'SACCO' ? 'SACCO' : formData.cooperative_subtype} onChange={handleChange} options={[
+                    { value: 'PRIMARY_COOPERATIVE', label: 'Primary Co-operative' },
+                    { value: 'COOPERATIVE_UNION', label: 'Co-operative Union' },
+                    { value: 'APEX_COOPERATIVE', label: 'Apex Co-operative' },
+                    { value: 'SACCO', label: 'SACCO' },
+                    { value: 'OTHER_COOPERATIVE', label: 'Other Co-operative' },
+                  ]} />
+                  <FloatingInput label='Area of Operation' name='area_of_operation' value={formData.area_of_operation} onChange={handleChange} />
+                  <FloatingInput label='Regulator / License Status' name='license_status' value={formData.license_status} onChange={handleChange} />
+                </div>
+              )}
+
+              {clientType === 'SOCIETY_OR_ASSOCIATION' && (
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Society / Association Legal Name' name='legal_name' value={formData.legal_name} onChange={handleChange} required />
+                  <Select3D label='Registration Status' name='registration_status' value={formData.registration_status} onChange={handleChange} options={[
+                    { value: 'REGISTERED', label: 'Registered' },
+                    { value: 'UNREGISTERED', label: 'Unregistered' },
+                    { value: 'EXEMPTED', label: 'Exempted' },
+                    { value: 'UNKNOWN', label: 'Unknown' },
+                  ]} />
+                  <FloatingInput label='Constitution Reference' name='constitution_reference' value={formData.constitution_reference} onChange={handleChange} />
+                  <FloatingInput label='Litigation Authority Reference' name='litigation_authority_reference' value={formData.litigation_authority_reference} onChange={handleChange} />
+                </div>
+              )}
+
+              {clientType === 'NON_PROFIT_ORGANIZATION' && (
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Registered Non-Profit Name' name='registered_name' value={formData.registered_name} onChange={handleChange} required />
+                  <Select3D label='Non-Profit Form' name='nonprofit_form' value={formData.nonprofit_form} onChange={handleChange} options={[
+                    { value: 'PUBLIC_BENEFIT_ORGANIZATION', label: 'Public Benefit Organization' },
+                    { value: 'LEGACY_NGO_OR_TRANSITIONAL', label: 'Legacy NGO / Transitional' },
+                    { value: 'COMPANY_LIMITED_BY_GUARANTEE', label: 'Company Limited by Guarantee' },
+                    { value: 'CHARITABLE_TRUST', label: 'Charitable Trust' },
+                    { value: 'SOCIETY', label: 'Society' },
+                    { value: 'FAITH_BASED_ORGANIZATION', label: 'Faith Based Organization' },
+                    { value: 'OTHER_NON_PROFIT', label: 'Other Non-Profit' },
+                  ]} />
+                  <FloatingInput label='PBO / NGO Status' name='pbo_or_ngo_status' value={formData.pbo_or_ngo_status} onChange={handleChange} />
+                  <FloatingInput label='Objectives' name='objectives' value={formData.objectives} onChange={handleChange} />
+                </div>
+              )}
+
+              {clientType === 'TRUST' && (
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Trust Name' name='trust_name' value={formData.trust_name} onChange={handleChange} required />
+                  <Select3D label='Trust Type' name='trust_type' value={formData.trust_type} onChange={handleChange} options={[
+                    { value: 'PRIVATE_TRUST', label: 'Private Trust' },
+                    { value: 'CHARITABLE_TRUST', label: 'Charitable Trust' },
+                    { value: 'INCORPORATED_TRUSTEES', label: 'Incorporated Trustees' },
+                    { value: 'PUBLIC_TRUST', label: 'Public Trust' },
+                    { value: 'OTHER', label: 'Other' },
+                  ]} />
+                  <FloatingInput label='Trustee Legal Name' name='trustee_name' value={formData.trustee_name} onChange={handleChange} required />
+                  <FloatingInput label='Trust Deed Reference' name='trust_deed_reference' value={formData.trust_deed_reference} onChange={handleChange} />
+                </div>
+              )}
+
+              {clientType === 'ESTATE' && (
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Estate Display Name' name='estate_name' value={formData.estate_name} onChange={handleChange} required />
+                  <FloatingInput label='Deceased Full Name' name='deceased_full_name' value={formData.deceased_full_name} onChange={handleChange} required />
+                  <FloatingInput label='Date of Death' name='date_of_death' type='date' value={formData.date_of_death} onChange={handleChange} noFloat />
+                  <FloatingInput label='Executor / Administrator Name' name='personal_representative_name' value={formData.personal_representative_name} onChange={handleChange} />
+                  <FloatingInput label='Succession Cause / Probate Number' name='probate_number' value={formData.probate_number} onChange={handleChange} />
+                </div>
+              )}
+
+              {clientType === 'PUBLIC_ENTITY' && (
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Official Name' name='official_name' value={formData.official_name} onChange={handleChange} required />
+                  <Select3D label='Public Entity Type' name='public_entity_subtype' value={formData.public_entity_subtype} onChange={handleChange} options={[
+                    { value: 'NATIONAL_GOVERNMENT', label: 'National Government' },
+                    { value: 'COUNTY_GOVERNMENT', label: 'County Government' },
+                    { value: 'MINISTRY_OR_DEPARTMENT', label: 'Ministry or Department' },
+                    { value: 'CONSTITUTIONAL_COMMISSION', label: 'Constitutional Commission' },
+                    { value: 'INDEPENDENT_OFFICE', label: 'Independent Office' },
+                    { value: 'STATE_CORPORATION', label: 'State Corporation' },
+                    { value: 'COUNTY_ENTITY', label: 'County Entity' },
+                    { value: 'PUBLIC_UNIVERSITY', label: 'Public University' },
+                    { value: 'OTHER_STATUTORY_BODY', label: 'Other Statutory Body' },
+                  ]} />
+                  <FloatingInput label='Enabling Instrument' name='enabling_instrument' value={formData.enabling_instrument} onChange={handleChange} />
+                  <FloatingInput label='Authorized Public Officer' name='statutory_representative' value={formData.statutory_representative} onChange={handleChange} />
+                </div>
+              )}
+
+              {clientType === 'INTERNATIONAL_ORGANIZATION' && (
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Official Name' name='official_name' value={formData.official_name} onChange={handleChange} required />
+                  <Select3D label='Organization Type' name='organization_type' value={formData.organization_type} onChange={handleChange} options={[
+                    { value: 'INTERGOVERNMENTAL', label: 'Intergovernmental Organization' },
+                    { value: 'TREATY_BODY', label: 'Treaty Body' },
+                    { value: 'DIPLOMATIC_OR_MISSION_ENTITY', label: 'Diplomatic or Mission Entity' },
+                    { value: 'OTHER', label: 'Other' },
+                  ]} />
+                  <FloatingInput label='Founding Instrument' name='founding_instrument' value={formData.founding_instrument} onChange={handleChange} />
+                  <FloatingInput label='Kenya Recognition / Host Details' name='kenya_recognition_details' value={formData.kenya_recognition_details} onChange={handleChange} />
+                </div>
+              )}
+
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <FloatingInput label='Authorized Contact Full Name' name='contact_full_name' value={formData.contact_full_name} onChange={handleChange} required={isProspect} />
+                <FloatingInput label='Authorized Contact Role / Title' name='contact_role_or_designation' value={formData.contact_role_or_designation} onChange={handleChange} />
+                <FloatingInput
+                  label={isProspect ? 'Authorized Contact Email (optional if login email is above)' : 'Authorized Contact Email'}
+                  name='contact_email'
+                  value={formData.contact_email}
+                  onChange={handleChange}
+                />
+                <FloatingInput label='Authorized Contact Phone' name='contact_phone_number' value={formData.contact_phone_number} onChange={handleChange} />
+              </div>
+            </section>
           )}
 
           {isCompany && !isCompanyClient && (
@@ -1400,7 +1704,7 @@ export default function AdminCreateClientPage() {
 	                  Personal identity
 	                </h3>
 	                {fieldErrors.identification && (
-	                  <div className='rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700'>
+	                  <div className='rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200'>
 	                    {fieldErrors.identification}
 	                  </div>
 	                )}
@@ -1881,9 +2185,9 @@ export default function AdminCreateClientPage() {
                 <Select3D
                   label='Access Type'
                   name='access_type'
-                  value={selectedCompanyAccessType}
+                  value={selectedEntityAccessType}
                   onChange={(event) => {
-                    setSelectedCompanyAccessType(event.target.value);
+                    setSelectedEntityAccessType(event.target.value);
                     setGeneralError('');
                   }}
                   options={[
@@ -1892,7 +2196,7 @@ export default function AdminCreateClientPage() {
                   ]}
                 />
                 {isProspect && (
-                  <div className='rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950'>
+                  <div className='rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-100'>
                     The main company email will be used as the login email. A
                     temporary password will be generated after creation.
                   </div>

@@ -4,6 +4,7 @@ from apps.clients.models import (
     Client,
     ClientAddress,
     ClientContact,
+    ClientRepresentative,
 )
 from apps.clients.serializers.client.client_type_profile_serializer import (
     serialize_client_type_profile,
@@ -28,6 +29,30 @@ class ClientContactSerializer(
         fields = "__all__"
 
 
+class ClientRepresentativeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClientRepresentative
+        fields = (
+            "id",
+            "full_legal_name",
+            "representative_category",
+            "role_title",
+            "email",
+            "telephone",
+            "authority_type",
+            "authority_document_reference",
+            "authority_start_date",
+            "authority_end_date",
+            "is_primary",
+            "is_portal_contact",
+            "is_litigation_representative",
+            "is_verified",
+            "notes",
+            "created_at",
+            "updated_at",
+        )
+
+
 class ClientDetailSerializer(
     serializers.ModelSerializer
 ):
@@ -40,6 +65,7 @@ class ClientDetailSerializer(
     portal_access_exists = serializers.SerializerMethodField()
     portal_login_email = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
+    representatives = ClientRepresentativeSerializer(many=True, read_only=True)
     has_cases = serializers.BooleanField(read_only=True)
     can_hard_delete = serializers.BooleanField(read_only=True)
     can_archive = serializers.BooleanField(read_only=True)
@@ -95,6 +121,7 @@ class ClientDetailSerializer(
             "portal_login_email",
             "addresses",
             "contacts",
+            "representatives",
 
             # Future-ready
             "cases",

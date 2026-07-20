@@ -2,11 +2,23 @@ from .client import Client
 
 from .individual_client import IndividualClient
 from .company_client import CompanyClient
-from .partnership_client import PartnershipClient
+from .partnership_client import PartnershipClient, PartnershipPartner
 from .ngo_client import NGOClient
-from .trust_client import TrustClient
-from .estate_client import EstateClient
+from .trust_client import TrustClient, TrustTrustee
+from .estate_client import EstateClient, EstatePersonalRepresentative
 from .government_client import GovernmentClient
+from .legal_entity_profiles import (
+    ClientRepresentative,
+    CooperativeClient,
+    InternationalOrganizationClient,
+    LimitedLiabilityPartnershipClient,
+    LLPPartner,
+    NonProfitOrganizationClient,
+    PublicEntityClient,
+    RegistrationStatus,
+    SocietyAssociationClient,
+    SoleProprietorshipClient,
+)
 
 from .client_address import ClientAddress
 from .client_contact import (
@@ -23,10 +35,23 @@ __all__ = [
     "IndividualClient",
     "CompanyClient",
     "PartnershipClient",
+    "PartnershipPartner",
     "NGOClient",
     "TrustClient",
+    "TrustTrustee",
     "EstateClient",
+    "EstatePersonalRepresentative",
     "GovernmentClient",
+    "ClientRepresentative",
+    "CooperativeClient",
+    "InternationalOrganizationClient",
+    "LimitedLiabilityPartnershipClient",
+    "LLPPartner",
+    "NonProfitOrganizationClient",
+    "PublicEntityClient",
+    "RegistrationStatus",
+    "SocietyAssociationClient",
+    "SoleProprietorshipClient",
 
     "ClientAddress",
     "ClientContact",

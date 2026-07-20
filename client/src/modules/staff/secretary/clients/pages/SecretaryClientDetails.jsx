@@ -4,10 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 
 import secretaryClientsService from '@/modules/staff/secretary/clients/services/secretaryClientServices';
 
+import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
 import BackLink from '@/components/ui/BackLink';
 import { formatDateTime } from '@/core/utils/dateFormatter';
+import { enumLabel, titleCase } from '@/core/utils/textFormatter';
 
 const clientKeys = {
   detail: (id) => ['secretary-client', id],
@@ -43,6 +45,22 @@ const SecretaryClientDetails = () => {
   }
 
   const safe = (val, fallback = 'N/A') => val || fallback;
+  const hasValue = (value) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') return value.trim() !== '';
+    return true;
+  };
+  const profileFields = client.type_profile
+    ? Object.entries(client.type_profile)
+        .filter(([key, value]) => key !== 'id' && hasValue(value))
+        .map(([key, value]) => ({
+          label: titleCase(key.replace(/_/g, ' ')),
+          value:
+            typeof value === 'string' && /^[A-Z0-9_]+$/.test(value)
+              ? enumLabel(value)
+              : value,
+        }))
+    : [];
   const pageTitle = safe(
     client.full_name ||
       client.display_name ||
@@ -53,23 +71,16 @@ const SecretaryClientDetails = () => {
   );
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 16 }}>
+    <div className='space-y-6 p-4 md:p-6 text-[color:var(--text-primary)]'>
+      <div>
         <BackLink label='Back to Clients' fallbackPath='/secretary/clients' />
       </div>
 
       <SectionHeading title={pageTitle} subtitle='Client Details' />
 
       {/* CLIENT HEADER */}
-      <div
-        style={{
-          marginBottom: 24,
-          padding: 20,
-          border: '1px solid #e5e7eb',
-          borderRadius: 12,
-        }}
-      >
-        <h2 style={{ marginBottom: 8 }}>{client.full_name}</h2>
+      <Card className='p-5'>
+        <h2 className='mb-3 text-xl font-semibold'>{client.full_name}</h2>
 
         <p>
           <strong>Email:</strong> {safe(client.email)}
@@ -88,11 +99,15 @@ const SecretaryClientDetails = () => {
         </p>
 
         <p>
-          <strong>Client Type:</strong> {safe(client.client_type)}
+          <strong>Client Type:</strong> {enumLabel(client.client_type)}
         </p>
 
         <p>
-          <strong>Status:</strong> {safe(client.lifecycle_status)}
+          <strong>Access Type:</strong> {enumLabel(client.access_type)}
+        </p>
+
+        <p>
+          <strong>Status:</strong> {enumLabel(client.lifecycle_status)}
         </p>
 
         <p>
@@ -118,16 +133,52 @@ const SecretaryClientDetails = () => {
         <p>
           <strong>Created:</strong> {formatDateTime(client.created_at)}
         </p>
-      </div>
+      </Card>
+
+      {profileFields.length > 0 && (
+        <Card className='p-5'>
+          <h3 className='mb-3 text-lg font-semibold'>
+            {enumLabel(client.client_type)} Profile
+          </h3>
+          <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-3'>
+            {profileFields.map((field) => (
+              <p key={field.label}>
+                <strong>{field.label}:</strong> {String(field.value)}
+              </p>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card className='p-5'>
+        <h3 className='mb-3 text-lg font-semibold'>Authorized Representatives</h3>
+        {(client.representatives ?? []).length === 0 ? (
+          <p className='text-[color:var(--text-muted)]'>
+            No authorized representatives recorded.
+          </p>
+        ) : (
+          client.representatives.map((representative) => (
+            <div
+              key={representative.id}
+              className='mb-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-raised)] p-4'
+            >
+              <p>
+                <strong>{representative.full_legal_name}</strong>
+              </p>
+              <p>
+                {enumLabel(representative.representative_category)} ·{' '}
+                {safe(representative.role_title)}
+              </p>
+              <p>
+                {safe(representative.email)} · {safe(representative.telephone)}
+              </p>
+            </div>
+          ))
+        )}
+      </Card>
 
       {/* QUICK STATS */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: 12,
-        }}
-      >
+      <div className='grid grid-cols-1 gap-3 md:grid-cols-2'>
         <StatsCard
           title='Representation'
           value={client.is_represented ? 'Active' : 'Not Active'}

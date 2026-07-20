@@ -137,6 +137,33 @@ export default function AdminClientDetailsPage() {
         }))
     : [];
 
+  const representativeFields = (representative) =>
+    [
+      { label: 'Full legal name', value: titleCase(representative.full_legal_name) },
+      { label: 'Category', value: enumLabel(representative.representative_category) },
+      { label: 'Role / title', value: titleCase(representative.role_title) },
+      { label: 'Email', value: representative.email?.toLowerCase() },
+      { label: 'Telephone', value: representative.telephone },
+      { label: 'Authority type', value: titleCase(representative.authority_type) },
+      {
+        label: 'Authority document',
+        value: representative.authority_document_reference,
+      },
+      { label: 'Authority starts', value: representative.authority_start_date },
+      { label: 'Authority ends', value: representative.authority_end_date },
+      { label: 'Primary', value: representative.is_primary ? 'Yes' : 'No' },
+      {
+        label: 'Portal contact',
+        value: representative.is_portal_contact ? 'Yes' : 'No',
+      },
+      {
+        label: 'Litigation representative',
+        value: representative.is_litigation_representative ? 'Yes' : 'No',
+      },
+      { label: 'Verified', value: representative.is_verified ? 'Yes' : 'No' },
+      { label: 'Notes', value: representative.notes },
+    ].filter((field) => hasValue(field.value));
+
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
       <BackLink label='Back to Clients' fallbackPath='/admin/clients' />
@@ -221,6 +248,32 @@ export default function AdminClientDetailsPage() {
           </div>
         </Card>
       )}
+
+      <Card className='p-6'>
+        <h3 className='text-lg font-semibold mb-4'>
+          Authorized Representatives and Officeholders
+        </h3>
+
+        {(client.representatives ?? []).length === 0 ? (
+          <p>No authorized representatives recorded.</p>
+        ) : (
+          client.representatives.map((representative) => (
+            <div
+              key={representative.id}
+              className='border border-border-light dark:border-border-dark rounded-xl p-4 mb-4'
+            >
+              <div className='grid md:grid-cols-3 gap-4'>
+                {representativeFields(representative).map((field) => (
+                  <div key={field.label}>
+                    <strong>{field.label}</strong>
+                    <p>{field.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        )}
+      </Card>
 
       <Card className='p-6'>
         <h3 className='text-lg font-semibold mb-4'>Addresses</h3>

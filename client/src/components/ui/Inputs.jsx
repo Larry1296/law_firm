@@ -30,7 +30,7 @@ export default function Input({
       {label && (
         <label
           htmlFor={name}
-          className='block text-sm font-medium text-gray-700 dark:text-gray-300'
+          className='block text-sm font-semibold text-[color:var(--text-primary)]'
         >
           {label}
         </label>
@@ -57,10 +57,8 @@ export default function Input({
           dark:bg-surface-dark
           border-border-light
           dark:border-border-dark
-          text-gray-900
-          dark:text-white
-          placeholder:text-gray-400
-          dark:placeholder:text-slate-500
+          text-[color:var(--text-primary)]
+          placeholder:text-[color:var(--text-muted)]
           shadow-soft
           transition-all
           duration-200

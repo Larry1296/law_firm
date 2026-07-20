@@ -25,6 +25,19 @@ from .government_admin_create_client_view import (
     EducationalInstitutionAdminCreateClientView,
     GovernmentAdminCreateClientView,
 )
+from .legal_entity_admin_create_client_view import (
+    CanonicalCooperativeAdminCreateClientView,
+    CanonicalEstateAdminCreateClientView,
+    CanonicalPartnershipAdminCreateClientView,
+    CanonicalTrustAdminCreateClientView,
+    InternationalOrganizationAdminCreateClientView,
+    LegalEntityAdminCreateClientView,
+    LimitedLiabilityPartnershipAdminCreateClientView,
+    NonProfitOrganizationAdminCreateClientView,
+    PublicEntityAdminCreateClientView,
+    SocietyAssociationAdminCreateClientView,
+    SoleProprietorshipAdminCreateClientView,
+)
 
 __all__ = [
     "ClientAdminListView",
@@ -48,4 +61,15 @@ __all__ = [
     "EstateAdminCreateClientView",
     "EducationalInstitutionAdminCreateClientView",
     "GovernmentAdminCreateClientView",
+    "CanonicalCooperativeAdminCreateClientView",
+    "CanonicalEstateAdminCreateClientView",
+    "CanonicalPartnershipAdminCreateClientView",
+    "CanonicalTrustAdminCreateClientView",
+    "InternationalOrganizationAdminCreateClientView",
+    "LegalEntityAdminCreateClientView",
+    "LimitedLiabilityPartnershipAdminCreateClientView",
+    "NonProfitOrganizationAdminCreateClientView",
+    "PublicEntityAdminCreateClientView",
+    "SocietyAssociationAdminCreateClientView",
+    "SoleProprietorshipAdminCreateClientView",
 ]
