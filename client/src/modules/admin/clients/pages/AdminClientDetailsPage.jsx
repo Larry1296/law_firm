@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import adminClientsService from '@/modules/admin/clients/services/adminClientsService';
@@ -8,16 +8,23 @@ import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
 import BackLink from '@/components/ui/BackLink';
+import Button3D from '@/components/ui/Button3D';
 
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { titleCase, enumLabel } from '@/core/utils/textFormatter';
 
 export default function AdminClientDetailsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-client', id],
     queryFn: () => adminClientsService.getClientDetails(id),
+    enabled: !!id,
+  });
+  const { data: conflictChecks = [] } = useQuery({
+    queryKey: ['admin-client-conflict-checks', id],
+    queryFn: () => adminClientsService.getConflictChecks(id),
     enabled: !!id,
   });
 
@@ -164,6 +171,17 @@ export default function AdminClientDetailsPage() {
       { label: 'Notes', value: representative.notes },
     ].filter((field) => hasValue(field.value));
 
+  const actionForConflictCheck = (check) => {
+    if (check.status === 'CLEARED' && check.created_case) return { label: 'View Case', path: `/admin/cases/${check.created_case}` };
+    if (check.status === 'CLEARED') return { label: 'Create Case', path: `/admin/cases/create?client=${id}&conflict_check=${check.id}` };
+    if (check.status === 'NOT_STARTED') return { label: 'Begin Check', path: `/admin/clients/${id}/conflict-checks/${check.id}` };
+    if (check.status === 'IN_PROGRESS') return { label: 'Continue Check', path: `/admin/clients/${id}/conflict-checks/${check.id}` };
+    if (check.status === 'AWAITING_INFORMATION') return { label: 'Update / Resume', path: `/admin/clients/${id}/conflict-checks/${check.id}` };
+    if (check.status === 'POTENTIAL_CONFLICT') return { label: 'Review / Escalate', path: `/admin/clients/${id}/conflict-checks/${check.id}` };
+    if (check.status === 'ESCALATED_FOR_REVIEW') return { label: 'Review Decision', path: `/admin/clients/${id}/conflict-checks/${check.id}` };
+    return { label: check.status === 'CONFLICT_CONFIRMED' ? 'View Decision' : 'View Record', path: `/admin/clients/${id}/conflict-checks/${check.id}` };
+  };
+
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
       <BackLink label='Back to Clients' fallbackPath='/admin/clients' />
@@ -248,6 +266,56 @@ export default function AdminClientDetailsPage() {
           </div>
         </Card>
       )}
+
+      <Card className='p-6'>
+        <div className='mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
+          <h3 className='text-lg font-semibold'>Proposed Matters and Conflict Checks</h3>
+          <Button3D variant='primary' onClick={() => navigate(`/admin/clients/${id}/conflict-checks/new`)}>
+            Start New Proposed Matter
+          </Button3D>
+        </div>
+        {conflictChecks.length === 0 ? (
+          <p>No proposed-matter conflict checks recorded.</p>
+        ) : (
+          <div className='overflow-x-auto'>
+            <table className='min-w-full text-left text-sm'>
+              <thead className='text-text-muted-light dark:text-text-muted-dark'>
+                <tr>
+                  <th className='py-2 pr-4'>Reference</th>
+                  <th className='py-2 pr-4'>Proposed matter</th>
+                  <th className='py-2 pr-4'>Adverse parties</th>
+                  <th className='py-2 pr-4'>Responsible advocate</th>
+                  <th className='py-2 pr-4'>Status</th>
+                  <th className='py-2 pr-4'>Urgency / deadline</th>
+                  <th className='py-2 pr-4'>Linked case</th>
+                  <th className='py-2 pr-4'>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {conflictChecks.map((check) => {
+                  const action = actionForConflictCheck(check);
+                  return (
+                    <tr key={check.id} className='border-t border-border-light dark:border-border-dark'>
+                      <td className='py-3 pr-4 font-medium'>{check.reference_number}</td>
+                      <td className='py-3 pr-4'>{check.proposed_matter_title}</td>
+                      <td className='py-3 pr-4'>{(check.adverse_parties || []).join(', ') || '-'}</td>
+                      <td className='py-3 pr-4'>{check.responsible_lawyer_name || '-'}</td>
+                      <td className='py-3 pr-4'>{check.status_label || enumLabel(check.status)}</td>
+                      <td className='py-3 pr-4'>{[enumLabel(check.urgency_level), check.limitation_or_deadline_date].filter(Boolean).join(' / ') || '-'}</td>
+                      <td className='py-3 pr-4'>{check.created_case_number || '-'}</td>
+                      <td className='py-3 pr-4'>
+                        <Button3D size='sm' variant='outlineLight' onClick={() => navigate(action.path)}>
+                          {action.label}
+                        </Button3D>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       <Card className='p-6'>
         <h3 className='text-lg font-semibold mb-4'>

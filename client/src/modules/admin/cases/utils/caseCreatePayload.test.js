@@ -8,6 +8,7 @@ import {
 const baseFiledCase = {
   entry_route: 'EXISTING_FILED_COURT_CASE',
   client_id: 'client-1',
+  conflict_check_id: 'check-1',
   title: 'Musau Building Construction LTD v Metro Data Systems Limited',
   description: 'Land and commercial dispute registered from eFiling.',
   practice_area: 'LAND_ENVIRONMENT',
@@ -39,8 +40,6 @@ const baseFiledCase = {
       is_adverse: true,
     },
   ],
-  conflict_record_status: 'REQUIRES_VERIFICATION',
-  conflict_reason: 'Historical conflict position requires verification.',
   cts_reference: 'SHOULD-NOT-SEND',
   jurisdiction_verified: true,
   jurisdiction_verified_by: 'user-1',
@@ -71,9 +70,9 @@ assert.equal(filedPayload.monetary_relief.currency, 'KES');
 assert.equal(filedPayload.land_details.title_number, 'NAIROBI/BLOCK/1');
 assert.equal(filedPayload.land_details.estimated_property_value, '9000000.00');
 assert.equal(filedPayload.parties.length, 1);
-assert.equal(filedPayload.conflict_record.status, 'REQUIRES_VERIFICATION');
 assert.equal(filedPayload.title, baseFiledCase.title);
 assert.equal(filedPayload.client_id, 'client-1');
+assert.equal(filedPayload.conflict_check_id, 'check-1');
 
 [
   'cts_reference',

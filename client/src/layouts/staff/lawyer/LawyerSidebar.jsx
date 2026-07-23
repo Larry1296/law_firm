@@ -23,7 +23,6 @@ import {
   User,
   Shield,
   FolderOpen,
-  PlusCircle,
 } from 'lucide-react';
 
 //* ================= LAWYER NAVIGATION ================= */
@@ -34,14 +33,6 @@ const links = [
     icon: Briefcase,
     section: 'Cases',
   },
-  {
-    name: 'Create Matter',
-    path: '/lawyer/cases/create',
-    icon: PlusCircle,
-    section: 'Cases',
-    permission: 'CREATE_CASES',
-  },
-
   {
     name: 'Calendar',
     path: '/lawyer/calendar',

@@ -7,7 +7,8 @@ from rest_framework.test import APIClient
 
 from apps.cases.models import Case, CaseActivity, CaseEvent
 from apps.clients.models import Client
-from apps.common.choices import UserRole
+from apps.clients.models import ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty
+from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.common.choices import FirmRole
 from apps.firm.models import LawFirm, LawFirmMember
 from apps.notifications.models import Notification
@@ -88,9 +89,59 @@ class CaseApiTests(TestCase):
         self.secretary.assigned_lawyers.add(self.lawyer)
         self.client_api.force_authenticate(user=self.admin)
 
+    def cleared_conflict_check(self, client=None, lawyer=None, title="Land Boundary Dispute"):
+        client = client or self.client
+        lawyer = lawyer or self.owner_lawyer
+        index = ClientMatterConflictCheck.objects.count() + 1
+        check = ClientMatterConflictCheck.objects.create(
+            firm=self.firm,
+            client=client,
+            reference_number=f"PMA/CONF/2026/API-{index:04d}",
+            proposed_matter_title=title,
+            proposed_instructions="Boundary dispute between neighbours.",
+            status=ConflictCheckStatus.CLEARED,
+            responsible_lawyer=lawyer,
+            names_checked=[client.full_name, "John Doe"],
+            source_categories_checked=[
+                ConflictCheckSourceCategory.CURRENT_CLIENTS,
+                ConflictCheckSourceCategory.OPEN_MATTERS,
+            ],
+            result_summary="No relevant conflict identified for the proposed instructions based on the information and records checked.",
+            decision_confirmation=True,
+            decided_by=lawyer,
+            decided_at=timezone.now(),
+            completed_at=timezone.now(),
+            created_by=self.admin,
+        )
+        ConflictCheckParty.objects.create(
+            conflict_check=check,
+            name=client.full_name,
+            party_type=ConflictCheckParty.PartyType.PERSON if client.client_type == Client.ClientType.INDIVIDUAL else ConflictCheckParty.PartyType.ORGANISATION,
+            role=ConflictCheckParty.PartyRole.PROSPECTIVE_CLIENT,
+            created_by=self.admin,
+        )
+        ConflictCheckParty.objects.create(
+            conflict_check=check,
+            name="John Doe",
+            party_type=ConflictCheckParty.PartyType.PERSON,
+            role=ConflictCheckParty.PartyRole.PROPOSED_ADVERSE_PARTY,
+            created_by=self.admin,
+        )
+        ConflictCheckHistory.objects.create(
+            conflict_check=check,
+            from_status=ConflictCheckStatus.IN_PROGRESS,
+            to_status=ConflictCheckStatus.CLEARED,
+            action="FINAL_DECISION_RECORDED",
+            summary=check.result_summary,
+            actor=self.admin,
+        )
+        return check
+
     def payload(self):
+        check = self.cleared_conflict_check(lawyer=self.lawyer)
         return {
             "client_id": str(self.client.id),
+            "conflict_check_id": str(check.id),
             "assigned_lawyer_membership_id": str(self.lawyer.id),
             "assigned_secretary_membership_id": str(self.secretary.id),
             "official_court_case_number": "ELC E001 of 2026",
@@ -134,7 +185,7 @@ class CaseApiTests(TestCase):
             self.client.access_type,
             Client.AccessType.ASSISTED_CLIENT,
         )
-        self.assertTrue(self.client.is_verified)
+        self.assertFalse(self.client.is_verified)
         self.assertTrue(
             Notification.objects.filter(
                 recipient=self.lawyer.user,
@@ -272,31 +323,8 @@ class CaseApiTests(TestCase):
         self.client_api.force_authenticate(user=self.secretary.user)
         response = self.client_api.post(reverse("secretary-cases"), payload, format="json")
 
-        self.assertEqual(response.status_code, 201, response.data)
-        created = Case.objects.get(id=response.data["case"]["id"])
-        self.assertEqual(created.assigned_lawyer, second_lawyer)
-        self.assertEqual(created.assigned_secretary, self.secretary)
-        self.assertEqual(created.priority, Case.Priority.URGENT)
-        self.assertEqual(created.case_number, "ELC E004 of 2026")
-        self.assertEqual(created.official_court_case_number, "ELC E004 of 2026")
-        self.assertEqual(created.court_stage, Case.CourtStage.FILED)
-        self.assertEqual(created.efiling_reference, "EFILE-2026-000004")
-        self.assertTrue(
-            CaseActivity.objects.filter(
-                case=created,
-                action="FILED_CASE_REGISTERED",
-                actor=self.secretary.user,
-            ).exists()
-        )
-
-        priority_update = self.client_api.patch(
-            reverse("case-detail", kwargs={"case_id": created.id}),
-            {"priority": Case.Priority.URGENT},
-            format="json",
-        )
-        self.assertEqual(priority_update.status_code, 403, priority_update.data)
-        created.refresh_from_db()
-        self.assertEqual(created.priority, Case.Priority.URGENT)
+        self.assertEqual(response.status_code, 403, response.data)
+        self.assertFalse(Case.objects.filter(official_court_case_number="ELC E004 of 2026").exists())
 
     def test_authorized_secretary_can_create_company_client_case(self):
         company = Client.objects.create(
@@ -321,11 +349,8 @@ class CaseApiTests(TestCase):
         self.client_api.force_authenticate(user=self.secretary.user)
         response = self.client_api.post(reverse("secretary-cases"), payload, format="json")
 
-        self.assertEqual(response.status_code, 201, response.data)
-        created = Case.objects.get(id=response.data["case"]["id"])
-        self.assertEqual(created.client, company)
-        self.assertEqual(created.court_stage, Case.CourtStage.FILED)
-        self.assertEqual(created.official_court_case_number, "ELC E005 of 2026")
+        self.assertEqual(response.status_code, 403, response.data)
+        self.assertFalse(Case.objects.filter(official_court_case_number="ELC E005 of 2026").exists())
 
     def test_secretary_without_manage_cases_permission_receives_403(self):
         user = User.objects.create_user(
@@ -412,7 +437,7 @@ class CaseApiTests(TestCase):
         self.client_api.force_authenticate(user=self.secretary.user)
         response = self.client_api.post(reverse("secretary-cases"), payload, format="json")
 
-        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(response.status_code, 403, response.data)
 
     def test_lawyer_only_sees_assigned_cases(self):
         response = self.client_api.post(reverse("case-create"), self.payload(), format="json")

@@ -4,6 +4,7 @@ import { buildCaseCreatePayload } from './caseCreatePayload.js';
 
 const filedMatter = {
   client_id: 'client-1',
+  conflict_check_id: 'check-1',
   entry_route: 'EXISTING_FILED_COURT_CASE',
   title: 'Musau Building Construction LTD v Metro Data Systems Limited',
   description: 'Existing ELC matter registered for firm management.',
@@ -42,6 +43,7 @@ const lawyerPayload = buildCaseCreatePayload(filedMatter);
 assert.deepEqual(filedMatter, original, 'payload builder must not mutate form state');
 assert.deepEqual(lawyerPayload, adminPayload, 'admin and lawyer forms must use the same payload contract');
 assert.equal(adminPayload.court_proceeding.official_court_case_number, 'ELC E012 of 2026');
+assert.equal(adminPayload.conflict_check_id, 'check-1');
 assert.equal(adminPayload.court_proceeding.filing_date, '2026-07-17');
 assert.equal(adminPayload.court_proceeding.efiling_reference, 'EFILE-2026-00045871');
 assert.equal(adminPayload.court_proceeding.payment_reference, 'KES-PAY-2026-781245');

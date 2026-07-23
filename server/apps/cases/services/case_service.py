@@ -9,7 +9,6 @@ from apps.cases.models import (
     CaseEvent,
     CaseParty,
     CaseTimeline,
-    ConflictRecordAtRegistration,
     CourtProceeding,
     CriminalMatterDetails,
     EmploymentMatterDetails,
@@ -22,6 +21,7 @@ from apps.cases.models import (
 )
 from apps.cases.services.case_lifecycle_service import CaseLifecycleService
 from apps.clients.models import Client
+from apps.clients.services.conflict import ClientMatterConflictService
 from apps.common.choices import UserRole
 from apps.notifications.services import NotificationService
 from apps.staff.models import Lawyer, LawyerPermission, Secretary, SecretaryPermission
@@ -351,6 +351,13 @@ class CaseService:
             firm=firm,
             is_active=True,
         )
+        conflict_check_id = validated_data.pop("conflict_check_id", None)
+        conflict_check = ClientMatterConflictService.validate_for_case_creation(
+            user=user,
+            firm=firm,
+            client=client,
+            conflict_check_id=conflict_check_id,
+        )
         lawyer_id = validated_data.pop("assigned_lawyer_membership_id", None)
         secretary_id = validated_data.pop("assigned_secretary_membership_id", None)
         assigned_lawyer, assigned_secretary = CaseService.get_case_assignments(
@@ -371,7 +378,6 @@ class CaseService:
         employment_data = validated_data.pop("employment_details", {}) or {}
         criminal_data = validated_data.pop("criminal_details", {}) or {}
         monetary_data = validated_data.pop("monetary_relief", {}) or {}
-        conflict_record_data = validated_data.pop("conflict_record", {}) or {}
 
         plaintiff = validated_data.pop("plaintiff", "") or client.full_name
         defendant = validated_data.pop("defendant", "")
@@ -464,17 +470,20 @@ class CaseService:
             employment_data=employment_data,
             criminal_data=criminal_data,
             monetary_data=monetary_data,
-            conflict_record_data=conflict_record_data,
+        )
+
+        ClientMatterConflictService.consume_for_case(
+            check=conflict_check,
+            case=case,
+            actor=user,
         )
 
         if client.lifecycle_status == Client.LifecycleStatus.PROSPECT:
             client.lifecycle_status = Client.LifecycleStatus.OFFICIAL_CLIENT
-            client.is_verified = True
-            client.save(update_fields=["lifecycle_status", "is_verified", "updated_at"])
-
-        elif not client.is_verified:
-            client.is_verified = True
-            client.save(update_fields=["is_verified", "updated_at"])
+            client.save(update_fields=["lifecycle_status", "updated_at"])
+            if client.user_id and client.user.role == UserRole.PROSPECT:
+                client.user.role = UserRole.OFFICIAL_CLIENT
+                client.user.save(update_fields=["role", "updated_at"])
 
 
         action, timeline_title, description = CaseService.creation_event_copy(case)
@@ -486,6 +495,8 @@ class CaseService:
             metadata={
                 "client_id": str(client.id),
                 "case_number": case.case_number,
+                "conflict_check_id": str(conflict_check.id),
+                "conflict_reference": conflict_check.reference_number,
                 "entry_route": case.entry_route,
                 "forum": case.forum,
                 "official_court_case_number": case.official_court_case_number,
@@ -500,18 +511,6 @@ class CaseService:
             description=description,
             created_by=user,
         )
-        try:
-            conflict_record = case.conflict_record
-        except ConflictRecordAtRegistration.DoesNotExist:
-            conflict_record = None
-        if conflict_record and conflict_record.status == ConflictRecordAtRegistration.Status.REQUIRES_VERIFICATION:
-            CaseService.record_activity(
-                case,
-                action="CONFLICT_RECORD_VERIFICATION_REQUIRED",
-                description="Conflict-check position requires verification for this matter.",
-                actor=user,
-                metadata={"source": "matter_registration", "entry_route": case.entry_route},
-            )
         CaseService.notify_case_assignments(case, actor=user)
 
         return case
@@ -553,7 +552,6 @@ class CaseService:
         employment_data,
         criminal_data,
         monetary_data,
-        conflict_record_data,
     ):
         CaseService._create_case_parties(
             case=case,
@@ -665,18 +663,6 @@ class CaseService:
             if "currency" not in payload:
                 payload["currency"] = case.currency or "KES"
             MonetaryRelief.objects.create(matter=case, **payload)
-
-        conflict_status = conflict_record_data.get("status") or conflict_record_data.get("conflict_record_status") or "REQUIRES_VERIFICATION"
-        ConflictRecordAtRegistration.objects.create(
-            matter=case,
-            status=conflict_status,
-            effective_date=conflict_record_data.get("effective_date"),
-            result_summary=conflict_record_data.get("result_summary", ""),
-            reason=conflict_record_data.get("reason", ""),
-            notes=conflict_record_data.get("notes", ""),
-            recorded_by=actor,
-            recorded_at=timezone.now(),
-        )
 
     @staticmethod
     def _create_case_parties(*, case, client, client_party_role, plaintiff, defendant, parties_data):

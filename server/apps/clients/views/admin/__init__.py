@@ -7,6 +7,18 @@ from .client_admin_lawyers_view import ClientAdminLawyersView
 from .client_admin_assign_view import ClientAdminAssignView
 from .client_admin_remove_lawyer_view import ClientAdminRemoveLawyerView
 from .client_admin_delete_view import ClientAdminDeleteView
+from .client_matter_conflict_check_view import (
+    ClientMatterConflictCheckClearedUnconsumedView,
+    ClientMatterConflictCheckCloseView,
+    ClientMatterConflictCheckDecideView,
+    ClientMatterConflictCheckDetailView,
+    ClientMatterConflictCheckEscalateView,
+    ClientMatterConflictCheckListCreateView,
+    ClientMatterConflictCheckPotentialView,
+    ClientMatterConflictCheckRequestInformationView,
+    ClientMatterConflictCheckResumeView,
+    ClientMatterConflictCheckStartView,
+)
 from .individual_admin_create_client_view import IndividualAdminCreateClientView
 from .company_admin_create_client_view import (
     CompanyAdminCreateClientView,
@@ -49,6 +61,16 @@ __all__ = [
     "ClientAdminAssignView",
     "ClientAdminRemoveLawyerView",
     "ClientAdminDeleteView",
+    "ClientMatterConflictCheckClearedUnconsumedView",
+    "ClientMatterConflictCheckCloseView",
+    "ClientMatterConflictCheckDecideView",
+    "ClientMatterConflictCheckDetailView",
+    "ClientMatterConflictCheckEscalateView",
+    "ClientMatterConflictCheckListCreateView",
+    "ClientMatterConflictCheckPotentialView",
+    "ClientMatterConflictCheckRequestInformationView",
+    "ClientMatterConflictCheckResumeView",
+    "ClientMatterConflictCheckStartView",
     "IndividualAdminCreateClientView",
     "CompanyAdminCreateClientView",
     "CooperativeAdminCreateClientView",

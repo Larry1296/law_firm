@@ -37,6 +37,28 @@ class FirmRole(models.TextChoices):
             cls.ACCOUNTANT,
             cls.HR,
         ]
+
+
+class ConflictCheckStatus(models.TextChoices):
+    NOT_STARTED = "NOT_STARTED", "Not started"
+    IN_PROGRESS = "IN_PROGRESS", "In progress"
+    AWAITING_INFORMATION = "AWAITING_INFORMATION", "Awaiting information"
+    POTENTIAL_CONFLICT = "POTENTIAL_CONFLICT", "Potential conflict"
+    ESCALATED_FOR_REVIEW = "ESCALATED_FOR_REVIEW", "Escalated for review"
+    CLEARED = "CLEARED", "Cleared for proposed instructions"
+    CONFLICT_CONFIRMED = "CONFLICT_CONFIRMED", "Conflict confirmed"
+    CLOSED_WITHOUT_DECISION = "CLOSED_WITHOUT_DECISION", "Closed without decision"
+
+
+class ConflictCheckSourceCategory(models.TextChoices):
+    CURRENT_CLIENTS = "CURRENT_CLIENTS", "Current clients"
+    FORMER_CLIENTS = "FORMER_CLIENTS", "Former clients"
+    OPEN_MATTERS = "OPEN_MATTERS", "Open matters"
+    CLOSED_MATTERS = "CLOSED_MATTERS", "Closed matters"
+    PROSPECTIVE_CLIENTS = "PROSPECTIVE_CLIENTS", "Prospective clients"
+    RELATED_PARTIES = "RELATED_PARTIES", "Related parties"
+    FIRM_ADVOCATES_AND_STAFF = "FIRM_ADVOCATES_AND_STAFF", "Firm advocates and staff"
+    OTHER = "OTHER", "Other"
 # ==========================================================
 # Employment Types
 # ==========================================================

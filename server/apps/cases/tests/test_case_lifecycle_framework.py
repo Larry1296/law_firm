@@ -16,7 +16,8 @@ from apps.cases.models import (
     CaseTimeline,
 )
 from apps.clients.models import Client
-from apps.common.choices import UserRole
+from apps.clients.models import ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty
+from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.firm.models import LawFirm
 from apps.staff.models import Lawyer, Secretary
 from apps.users.models import User
@@ -83,10 +84,58 @@ class CaseLifecycleFrameworkTests(TestCase):
         )
         self.api.force_authenticate(user=self.admin)
 
+    def cleared_conflict_check(self, title="Lakeview proposed matter"):
+        index = ClientMatterConflictCheck.objects.count() + 1
+        check = ClientMatterConflictCheck.objects.create(
+            firm=self.firm,
+            client=self.client,
+            reference_number=f"PMA/CONF/2026/LIFE-{index:04d}",
+            proposed_matter_title=title,
+            proposed_instructions="Debt recovery claim.",
+            status=ConflictCheckStatus.CLEARED,
+            responsible_lawyer=self.lawyer,
+            names_checked=["Lakeview Technologies Limited", "Highland Distributors Limited"],
+            source_categories_checked=[
+                ConflictCheckSourceCategory.CURRENT_CLIENTS,
+                ConflictCheckSourceCategory.OPEN_MATTERS,
+            ],
+            result_summary="No relevant conflict identified for the proposed instructions based on the information and records checked.",
+            decision_confirmation=True,
+            decided_by=self.lawyer,
+            decided_at=timezone.now(),
+            completed_at=timezone.now(),
+            created_by=self.admin,
+        )
+        ConflictCheckParty.objects.create(
+            conflict_check=check,
+            name=self.client.full_name,
+            party_type=ConflictCheckParty.PartyType.ORGANISATION,
+            role=ConflictCheckParty.PartyRole.PROSPECTIVE_CLIENT,
+            created_by=self.admin,
+        )
+        ConflictCheckParty.objects.create(
+            conflict_check=check,
+            name="Highland Distributors Limited",
+            party_type=ConflictCheckParty.PartyType.ORGANISATION,
+            role=ConflictCheckParty.PartyRole.PROPOSED_ADVERSE_PARTY,
+            created_by=self.admin,
+        )
+        ConflictCheckHistory.objects.create(
+            conflict_check=check,
+            from_status=ConflictCheckStatus.IN_PROGRESS,
+            to_status=ConflictCheckStatus.CLEARED,
+            action="FINAL_DECISION_RECORDED",
+            summary=check.result_summary,
+            actor=self.admin,
+        )
+        return check
+
     def payload(self, case_number=None):
         case_number = case_number or f"ELC E{Case.objects.count() + 12:03d} of 2026"
+        check = self.cleared_conflict_check(title=case_number)
         return {
             "client_id": str(self.client.id),
+            "conflict_check_id": str(check.id),
             "assigned_lawyer_membership_id": str(self.lawyer.id),
             "assigned_secretary_membership_id": str(self.secretary.id),
             "official_court_case_number": case_number,

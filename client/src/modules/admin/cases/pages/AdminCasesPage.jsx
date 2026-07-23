@@ -59,12 +59,6 @@ export default function AdminCasesPage() {
             {isFetching ? 'Refreshing...' : 'Refresh'}
           </Button3D>
 
-          <Button3D
-            variant='primary'
-            onClick={() => navigate('/admin/cases/create')}
-          >
-            + Create Case
-          </Button3D>
         </div>
       </div>
 

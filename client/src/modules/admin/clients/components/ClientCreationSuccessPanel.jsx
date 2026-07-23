@@ -53,9 +53,11 @@ export default function ClientCreationSuccessPanel({
         <Button3D type='button' variant='primary' onClick={onView}>
           {viewLabel}
         </Button3D>
-        <Button3D type='button' variant='success' onClick={onCreateMatter}>
-          Continue to create a matter
-        </Button3D>
+        {onCreateMatter && (
+          <Button3D type='button' variant='success' onClick={onCreateMatter}>
+            Start Proposed Matter
+          </Button3D>
+        )}
         <Button3D type='button' variant='outlineLight' onClick={onCreateAnother}>
           Create another client
         </Button3D>

@@ -18,6 +18,7 @@ export const CASE_CREATE_CONTROLLED_FIELDS = [
 
 const UNIVERSAL_FIELDS = [
   'client_id',
+  'conflict_check_id',
   'entry_route',
   'title',
   'description',
@@ -235,22 +236,6 @@ const MONETARY_ALIASES = {
   amount_paid: 'amount_already_paid',
 };
 
-const CONFLICT_FIELDS = [
-  'conflict_record_status',
-  'conflict_effective_date',
-  'conflict_result_summary',
-  'conflict_reason',
-  'conflict_notes',
-];
-
-const CONFLICT_ALIASES = {
-  conflict_record_status: 'status',
-  conflict_effective_date: 'effective_date',
-  conflict_result_summary: 'result_summary',
-  conflict_reason: 'reason',
-  conflict_notes: 'notes',
-};
-
 const isEmpty = (value) => value === '' || value === null || value === undefined;
 
 const trimSpaces = (value) => String(value).trim().replace(/\s+/g, ' ');
@@ -277,15 +262,13 @@ const pickSection = (source, fields, aliases = {}) => {
   return section;
 };
 
-const removeControlled = (payload, path = '') => {
+const removeControlled = (payload) => {
   CASE_CREATE_CONTROLLED_FIELDS.forEach((field) => {
-    if (!(path === 'conflict_record' && field === 'status')) {
-      delete payload[field];
-    }
+    delete payload[field];
   });
-  Object.entries(payload).forEach(([key, value]) => {
+  Object.values(payload).forEach((value) => {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
-      removeControlled(value, key);
+      removeControlled(value);
     }
   });
   return payload;
@@ -396,9 +379,6 @@ export const buildCaseCreatePayload = (formData = {}, context = {}) => {
     }
     payload.monetary_relief = monetaryRelief;
   }
-
-  const conflictRecord = pickSection(data, CONFLICT_FIELDS, CONFLICT_ALIASES);
-  if (Object.keys(conflictRecord).length) payload.conflict_record = conflictRecord;
 
   const parties = Array.isArray(data.parties)
     ? data.parties.map(normalizeParty).filter((party) => Object.keys(party).length)

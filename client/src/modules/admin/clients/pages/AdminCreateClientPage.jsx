@@ -644,9 +644,7 @@ export default function AdminCreateClientPage() {
   const createdTempPassword = successData?.temp_password;
   const createdClientId = createdClient?.id;
   const clientsPath = isSecretaryCreate ? '/secretary/clients' : '/admin/clients';
-  const createMatterPath = isSecretaryCreate
-    ? `/secretary/cases/create${createdClientId ? `?client_id=${createdClientId}` : ''}`
-    : `/admin/cases/create${createdClientId ? `?client_id=${createdClientId}` : ''}`;
+  const createMatterPath = createdClientId ? `/admin/clients/${createdClientId}/conflict-checks/new` : '/admin/clients';
   const createdClientTypeLabel = (createdClient?.client_type || clientType || requestedClientType)
     .replace(/_/g, ' ')
     .toLowerCase()
@@ -930,7 +928,7 @@ export default function AdminCreateClientPage() {
           tempPassword={createdTempPassword}
           viewLabel={isIndividual ? 'View individual client' : 'View client'}
           onView={() => navigate(`${isSecretaryCreate ? '/secretary' : '/admin'}/clients/${createdClient?.id}`)}
-          onCreateMatter={() => navigate(createMatterPath)}
+          onCreateMatter={isSecretaryCreate ? null : () => navigate(createMatterPath)}
           onCreateAnother={resetCurrentForm}
           onReturnToClients={() => navigate(clientsPath)}
           onCopyPassword={copyTempPassword}

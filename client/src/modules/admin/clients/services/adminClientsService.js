@@ -102,6 +102,44 @@ const adminClientsService = {
     };
   },
 
+  async getConflictChecks(clientId) {
+    const { data } = await axiosInstance.get(
+      `/admin/clients/${clientId}/conflict-checks/`,
+    );
+    return data.conflict_checks || [];
+  },
+
+  async getConflictCheck(clientId, checkId) {
+    const { data } = await axiosInstance.get(
+      `/admin/clients/${clientId}/conflict-checks/${checkId}/`,
+    );
+    return data.conflict_check;
+  },
+
+  async createConflictCheck(clientId, payload) {
+    const { data } = await axiosInstance.post(
+      `/admin/clients/${clientId}/conflict-checks/`,
+      payload,
+    );
+    return data.conflict_check;
+  },
+
+  async updateConflictCheck(clientId, checkId, payload) {
+    const { data } = await axiosInstance.patch(
+      `/admin/clients/${clientId}/conflict-checks/${checkId}/`,
+      payload,
+    );
+    return data.conflict_check;
+  },
+
+  async runConflictAction(clientId, checkId, action, payload = {}) {
+    const { data } = await axiosInstance.post(
+      `/admin/clients/${clientId}/conflict-checks/${checkId}/${action}/`,
+      payload,
+    );
+    return data.conflict_check;
+  },
+
   /* ======================================================
      UPDATE CLIENT
   ====================================================== */

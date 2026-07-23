@@ -1,4 +1,5 @@
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from apps.cases.serializers import CaseCreateSerializer, CaseDetailSerializer
@@ -87,6 +88,8 @@ class LawyerCasesView(LawyerBaseView):
             case = CaseService.create_case(user=request.user, validated_data=serializer.validated_data)
         except PermissionError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except ValidationError as exc:
+            return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
         except Client.DoesNotExist:
             return Response({"detail": "Client not found."}, status=status.HTTP_404_NOT_FOUND)
         except (Lawyer.DoesNotExist, Secretary.DoesNotExist):

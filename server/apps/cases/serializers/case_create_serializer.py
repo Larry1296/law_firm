@@ -25,6 +25,7 @@ CONTROLLED_CREATE_FIELDS = {
 
 class CaseCreateSerializer(serializers.Serializer):
     client_id = serializers.UUIDField()
+    conflict_check_id = serializers.UUIDField()
     assigned_lawyer_membership_id = serializers.UUIDField(required=False, allow_null=True)
     assigned_secretary_membership_id = serializers.UUIDField(required=False, allow_null=True)
 
@@ -72,7 +73,6 @@ class CaseCreateSerializer(serializers.Serializer):
     employment_details = serializers.DictField(required=False)
     criminal_details = serializers.DictField(required=False)
     monetary_relief = serializers.DictField(required=False)
-    conflict_record = serializers.DictField(required=False)
 
     # Backward-compatible flat fields used by the prior filed-case create flow.
     official_court_case_number = serializers.CharField(max_length=120, required=False, allow_blank=True)

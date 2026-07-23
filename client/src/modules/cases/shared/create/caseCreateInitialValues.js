@@ -1,6 +1,7 @@
 export const caseCreateInitialValues = {
   entry_route: 'EXISTING_FILED_COURT_CASE',
   client_id: '',
+  conflict_check_id: '',
   title: '',
   description: '',
   practice_area: 'CIVIL_COMMERCIAL_LITIGATION',
@@ -141,9 +142,4 @@ export const caseCreateInitialValues = {
   assigned_lawyer_membership_id: '',
   assigned_secretary_membership_id: '',
   parties: [],
-  conflict_record_status: 'REQUIRES_VERIFICATION',
-  conflict_effective_date: '',
-  conflict_result_summary: '',
-  conflict_reason: '',
-  conflict_notes: '',
 };

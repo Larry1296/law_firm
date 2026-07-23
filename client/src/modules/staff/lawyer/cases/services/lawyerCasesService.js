@@ -25,6 +25,44 @@ const lawyerCasesService = {
     return data;
   },
 
+  async getConflictCheck(clientId, checkId) {
+    const { data } = await axiosInstance.get(
+      `/staff/lawyer/clients/${clientId}/conflict-checks/${checkId}/`,
+    );
+    return data.conflict_check;
+  },
+
+  async getConflictChecks(clientId) {
+    const { data } = await axiosInstance.get(
+      `/staff/lawyer/clients/${clientId}/conflict-checks/`,
+    );
+    return data.conflict_checks || [];
+  },
+
+  async createConflictCheck(clientId, payload) {
+    const { data } = await axiosInstance.post(
+      `/staff/lawyer/clients/${clientId}/conflict-checks/`,
+      payload,
+    );
+    return data.conflict_check;
+  },
+
+  async updateConflictCheck(clientId, checkId, payload) {
+    const { data } = await axiosInstance.patch(
+      `/staff/lawyer/clients/${clientId}/conflict-checks/${checkId}/`,
+      payload,
+    );
+    return data.conflict_check;
+  },
+
+  async runConflictAction(clientId, checkId, action, payload = {}) {
+    const { data } = await axiosInstance.post(
+      `/staff/lawyer/clients/${clientId}/conflict-checks/${checkId}/${action}/`,
+      payload,
+    );
+    return data.conflict_check;
+  },
+
   async updateLifecycleTransition(caseId, payload) {
     const { data } = await axiosInstance.post(
       `/cases/${caseId}/transitions/`,  // <-- correct endpoint

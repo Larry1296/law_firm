@@ -27,6 +27,12 @@ from .client_contact import (
     CommunicationChannel,
 )
 from .client_document import ClientDocument
+from .client_matter_conflict_check import (
+    ClientMatterConflictCheck,
+    ClientMatterConflictReferenceSequence,
+    ConflictCheckHistory,
+    ConflictCheckParty,
+)
 
 
 __all__ = [
@@ -58,4 +64,8 @@ __all__ = [
     "ContactType",
     "CommunicationChannel",
     "ClientDocument",
+    "ClientMatterConflictCheck",
+    "ClientMatterConflictReferenceSequence",
+    "ConflictCheckHistory",
+    "ConflictCheckParty",
 ]

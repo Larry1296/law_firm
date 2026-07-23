@@ -18,6 +18,9 @@ export const validateCaseCreateForm = (formData = {}, context = {}) => {
   if (!context.client_id && !formData.client_id) {
     addError(errors, 'client_id', 'Select the client or party represented by the firm.');
   }
+  if (!context.conflict_check_id && !formData.conflict_check_id) {
+    addError(errors, 'conflict_check_id', 'Select a client and complete conflict clearance before creating a case.');
+  }
   if (isBlank(formData.title)) {
     addError(errors, 'title', 'Matter title is required.');
   }
@@ -100,10 +103,6 @@ export const validateCaseCreateForm = (formData = {}, context = {}) => {
   }
   if (!isBlank(formData.claim_amount) && Number(formData.claim_amount) < 0) {
     addError(errors, 'claim_amount', 'Monetary amounts cannot be negative.');
-  }
-
-  if (entryRoute === 'EXISTING_FILED_COURT_CASE' && formData.conflict_record_status === 'REQUIRES_VERIFICATION') {
-    warnings.push('This filed case will be registered with conflict-record verification still pending.');
   }
 
   return {

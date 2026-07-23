@@ -10,7 +10,6 @@ import StatsCard from '@/components/ui/StatsCard';
 import DataTable from '@/components/ui/DataTable';
 import Button3D from '@/components/ui/Button3D';
 import SectionHeading from '@/components/ui/SectionHeading';
-import useSecretaryDashboard from '@/modules/staff/secretary/dashboard/hooks/useSecretaryDashboard';
 import {
   casePartyLabel,
   casePartyName,
@@ -20,17 +19,10 @@ import {
   renderStatusBadge,
 } from '@/modules/cases/shared/casePresentation';
 
-const hasPermission = (permissions, permission) =>
-  permissions.map((item) => String(item).toUpperCase()).includes(permission);
-
 export default function SecretaryCasesPage() {
   const navigate = useNavigate();
 
   const { cases, loading, refetch } = useSecretaryCases();
-  const { data: dashboardData } = useSecretaryDashboard();
-  const permissions = dashboardData?.permissions || [];
-
-  const canManageCases = hasPermission(permissions, 'MANAGE_CASES');
 
   const safeCases = Array.isArray(cases) ? cases : [];
 
@@ -66,14 +58,6 @@ export default function SecretaryCasesPage() {
         <div className='flex flex-wrap gap-3'>
           <Button3D onClick={refetch}>Refresh</Button3D>
 
-          {canManageCases && (
-            <Button3D
-              variant='primary'
-              onClick={() => navigate('/secretary/cases/create')}
-            >
-              + Create Case
-            </Button3D>
-          )}
         </div>
       </div>
 

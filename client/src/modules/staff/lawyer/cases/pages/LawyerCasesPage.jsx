@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { Briefcase, CheckCircle, Clock, FileText } from 'lucide-react';
 
 import { useMyCases } from '@/modules/staff/lawyer/cases/hooks/useLawyerCases';
-import useLawyerDashboard from '@/modules/staff/lawyer/dashboard/hooks/useLawyerDashboard';
 
 import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
@@ -24,9 +23,6 @@ export default function LawyerCasesPage() {
   const navigate = useNavigate();
 
   const { data, isLoading, isFetching, refetch } = useMyCases();
-  const { data: dashboardData } = useLawyerDashboard();
-  const permissions = (dashboardData?.permissions || []).map((item) => String(item).toUpperCase());
-  const canCreateMatter = permissions.includes('CREATE_CASES');
 
   const cases = Array.isArray(data) ? data : [];
 
@@ -58,11 +54,6 @@ export default function LawyerCasesPage() {
         />
 
         <div className='flex gap-3'>
-          {canCreateMatter && (
-            <Button3D onClick={() => navigate('/lawyer/cases/create')}>
-              Create Matter
-            </Button3D>
-          )}
           <Button3D onClick={refetch}>
             {isFetching ? 'Refreshing...' : 'Refresh'}
           </Button3D>

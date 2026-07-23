@@ -126,6 +126,9 @@ const AdminCreateClientPage = lazy(
 const AdminClientDetailsPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminClientDetailsPage'),
 );
+const ClientConflictCheckPage = lazy(
+  () => import('@/modules/admin/clients/pages/ClientConflictCheckPage'),
+);
 
 const AdminClientCasesPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminClientCasesPage'),
@@ -412,9 +415,6 @@ const SecretaryCasesPage = lazy(
 );
 
 
-const SecretaryCreateCasePage = lazy(
-  () => import('@/modules/staff/secretary/cases/pages/SecretaryCreateCasePage'),
-);
 
 
 const SecretaryCaseDetailsPage = lazy(
@@ -693,6 +693,8 @@ const AppRoutes = () => {
           <Route path='clients' element={<AdminClientsPage />} />
           <Route path='clients/create' element={<AdminCreateClientPage />} />
           <Route path='clients/:id' element={<AdminClientDetailsPage />} />
+          <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
+          <Route path='clients/:id/conflict-checks/:checkId' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/cases' element={<AdminClientCasesPage />} />
           <Route
             path='clients/:id/documents'
@@ -794,6 +796,8 @@ const AppRoutes = () => {
           <Route path='cases' element={<LawyerCases />} />
           <Route path='cases/create' element={<LawyerCreateCase />} />
           <Route path='cases/:id' element={<LawyerCaseDetailsPage />} />
+          <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
+          <Route path='clients/:id/conflict-checks/:checkId' element={<ClientConflictCheckPage />} />
           <Route path='documents' element={<LawyerDocumentsPage />} />
           <Route path='documents/:id' element={<LawyerTemplatesPage />} />
           <Route path='chat' element={<LawyerChat />} />
@@ -831,7 +835,7 @@ const AppRoutes = () => {
 
           {/* CASES */}
           <Route path='cases' element={<SecretaryCasesPage />} />
-          <Route path='cases/create' element={<SecretaryCreateCasePage />} />
+          <Route path='cases/create' element={<Navigate to='../cases' replace />} />
           <Route path='cases/:id' element={<SecretaryCaseDetailsPage />} />
 
           {/* CALENDAR */}

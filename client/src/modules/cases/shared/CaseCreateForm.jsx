@@ -56,6 +56,34 @@ const formatPrimaryContact = (client) => {
 
 const responseCase = (result) => result?.data || result?.case || result || {};
 
+const buildInitialFormData = (initialClientId, initialConflictCheckId, initialConflictCheck) => {
+  const next = {
+    ...caseCreateInitialValues,
+    client_id: initialClientId || caseCreateInitialValues.client_id,
+    conflict_check_id: initialConflictCheckId || caseCreateInitialValues.conflict_check_id,
+  };
+
+  if (!initialConflictCheck) return next;
+
+  return {
+    ...next,
+    title: initialConflictCheck.proposed_matter_title || next.title,
+    description: initialConflictCheck.factual_summary || initialConflictCheck.proposed_instructions || next.description,
+    urgency_level: initialConflictCheck.urgency_level || next.urgency_level,
+    urgency_reason: initialConflictCheck.urgency_details || next.urgency_reason,
+    limitation_date: initialConflictCheck.limitation_or_deadline_date || next.limitation_date,
+    defendant: (initialConflictCheck.adverse_parties || []).join(', ') || next.defendant,
+    parties: (initialConflictCheck.parties || [])
+      .filter((party) => party.role !== 'PROSPECTIVE_CLIENT')
+      .map((party) => ({
+        name: party.name,
+        role: party.role === 'PROPOSED_ADVERSE_PARTY' ? 'DEFENDANT' : 'OTHER',
+        party_type: party.party_type === 'ORGANISATION' ? 'COMPANY' : 'INDIVIDUAL',
+        is_adverse: party.role === 'PROPOSED_ADVERSE_PARTY',
+      })),
+  };
+};
+
 const optionLabel = (options, value) =>
   options.find((item) => item.value === value)?.label || value || 'Not recorded';
 
@@ -203,13 +231,14 @@ export default function CaseCreateForm({
   currentLawyer = null,
   canAssignOtherLawyer = true,
   initialClientId = '',
+  initialConflictCheckId = '',
+  initialConflictCheck = null,
 }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
-  const [formData, setFormData] = useState({
-    ...caseCreateInitialValues,
-    client_id: initialClientId || caseCreateInitialValues.client_id,
-  });
+  const [formData, setFormData] = useState(() =>
+    buildInitialFormData(initialClientId, initialConflictCheckId, initialConflictCheck),
+  );
   const [errors, setErrors] = useState({});
   const [warnings, setWarnings] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -371,7 +400,7 @@ export default function CaseCreateForm({
     updateField(name, type === 'checkbox' ? checked : value);
   };
 
-  const validationContext = { client_id: formData.client_id };
+  const validationContext = { client_id: formData.client_id, conflict_check_id: formData.conflict_check_id };
 
   const validateAndSet = () => {
     const result = validateCaseCreateForm(formData, validationContext);
@@ -391,6 +420,7 @@ export default function CaseCreateForm({
       setIsSubmitting(true);
       const payload = buildCaseCreatePayload(formData, {
         client_id: formData.client_id,
+        conflict_check_id: formData.conflict_check_id,
         plaintiff: selectedClient?.full_name || '',
       });
       const result = await createCase(payload);
@@ -479,6 +509,11 @@ export default function CaseCreateForm({
   return (
     <Card className='p-8'>
       <form onSubmit={handleSubmit} className='space-y-8'>
+        {initialConflictCheck && (
+          <ReadOnlyNotice title='Cleared Conflict Check'>
+            {initialConflictCheck.reference_number} - {initialConflictCheck.result_summary || 'Cleared for these proposed instructions.'}
+          </ReadOnlyNotice>
+        )}
         <div className='flex flex-wrap gap-3'>
           {steps.map((label, index) => (
             <button
@@ -530,20 +565,26 @@ export default function CaseCreateForm({
 
         {step === 1 && (
           <Section title='Client and Matter'>
-            <SelectField
-              label='Client / Party Represented'
-              name='client_id'
-              value={formData.client_id}
-              onChange={handleChange}
-              options={sortedClients.map((client) => ({
-                value: normalizeId(client),
-                label: `${client.full_name || client.company_name || 'Unnamed client'}${client.client_type ? ` - ${client.client_type}` : ''}`,
-              }))}
-              error={errors.client_id}
-              required
-            >
-              <option value=''>{clientsLoading ? 'Loading clients...' : 'Select client / party'}</option>
-            </SelectField>
+            {initialConflictCheck ? (
+              <ReadOnlyNotice title='Client / Party Represented'>
+                {selectedClient?.full_name || selectedClient?.company_name || initialConflictCheck.client_name || 'Selected client'} is fixed by the cleared conflict check.
+              </ReadOnlyNotice>
+            ) : (
+              <SelectField
+                label='Client / Party Represented'
+                name='client_id'
+                value={formData.client_id}
+                onChange={handleChange}
+                options={sortedClients.map((client) => ({
+                  value: normalizeId(client),
+                  label: `${client.full_name || client.company_name || 'Unnamed client'}${client.client_type ? ` - ${client.client_type}` : ''}`,
+                }))}
+                error={errors.client_id}
+                required
+              >
+                <option value=''>{clientsLoading ? 'Loading clients...' : 'Select client / party'}</option>
+              </SelectField>
+            )}
             {selectedClient && (
               <div className='grid gap-4 rounded-xl border border-border-light bg-surface-light/60 p-5 text-sm dark:border-border-dark dark:bg-surface-dark/60 md:grid-cols-2'>
                 <p><strong>Client type:</strong> {selectedClient.client_type || 'Not recorded'}</p>
@@ -857,20 +898,6 @@ export default function CaseCreateForm({
               </>
             )}
             <MatterTextInput label='Jurisdiction Notes' name='jurisdiction_notes' value={formData.jurisdiction_notes} onChange={handleChange} />
-            {isFiledCourtRoute(formData) && (
-              <SelectField
-                label='Conflict-check record at registration'
-                name='conflict_record_status'
-                value={formData.conflict_record_status}
-                onChange={handleChange}
-                options={[
-                  { value: 'REQUIRES_VERIFICATION', label: 'Requires verification' },
-                  { value: 'NOT_YET_RECORDED', label: 'Not yet recorded' },
-                  { value: 'PREVIOUSLY_CLEARED', label: 'Previously cleared' },
-                  { value: 'PREVIOUSLY_WAIVED', label: 'Previously waived' },
-                ]}
-              />
-            )}
           </Section>
         )}
 

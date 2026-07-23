@@ -2,6 +2,7 @@ from datetime import date
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.cases.models import (
@@ -17,7 +18,8 @@ from apps.cases.models import (
     TribunalProceeding,
 )
 from apps.clients.models import Client
-from apps.common.choices import UserRole
+from apps.clients.models import ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty
+from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.firm.models import LawFirm
 from apps.staff.models import Lawyer, Secretary
 from apps.users.models import User
@@ -71,9 +73,57 @@ class UniversalMatterCreationTests(TestCase):
         )
         self.api.force_authenticate(self.admin)
 
+    def cleared_conflict_check(self, title="Universal proposed matter"):
+        index = ClientMatterConflictCheck.objects.count() + 1
+        check = ClientMatterConflictCheck.objects.create(
+            firm=self.firm,
+            client=self.client,
+            reference_number=f"PMA/CONF/2026/MAT-{index:04d}",
+            proposed_matter_title=title,
+            proposed_instructions="Universal matter workflow test.",
+            status=ConflictCheckStatus.CLEARED,
+            responsible_lawyer=self.lawyer,
+            names_checked=[self.client.full_name, "Metro Data Systems Limited"],
+            source_categories_checked=[
+                ConflictCheckSourceCategory.CURRENT_CLIENTS,
+                ConflictCheckSourceCategory.OPEN_MATTERS,
+            ],
+            result_summary="No relevant conflict identified for the proposed instructions based on the information and records checked.",
+            decision_confirmation=True,
+            decided_by=self.lawyer,
+            decided_at=timezone.now(),
+            completed_at=timezone.now(),
+            created_by=self.admin,
+        )
+        ConflictCheckParty.objects.create(
+            conflict_check=check,
+            name=self.client.full_name,
+            party_type=ConflictCheckParty.PartyType.ORGANISATION,
+            role=ConflictCheckParty.PartyRole.PROSPECTIVE_CLIENT,
+            created_by=self.admin,
+        )
+        ConflictCheckParty.objects.create(
+            conflict_check=check,
+            name="Metro Data Systems Limited",
+            party_type=ConflictCheckParty.PartyType.ORGANISATION,
+            role=ConflictCheckParty.PartyRole.PROPOSED_ADVERSE_PARTY,
+            created_by=self.admin,
+        )
+        ConflictCheckHistory.objects.create(
+            conflict_check=check,
+            from_status=ConflictCheckStatus.IN_PROGRESS,
+            to_status=ConflictCheckStatus.CLEARED,
+            action="FINAL_DECISION_RECORDED",
+            summary=check.result_summary,
+            actor=self.admin,
+        )
+        return check
+
     def base_payload(self, **overrides):
+        check = self.cleared_conflict_check(title=overrides.get("title", "Universal proposed matter"))
         payload = {
             "client_id": str(self.client.id),
+            "conflict_check_id": str(check.id),
             "assigned_lawyer_membership_id": str(self.lawyer.id),
             "assigned_secretary_membership_id": str(self.secretary.id),
             "title": "Musau Building Construction LTD matter",
