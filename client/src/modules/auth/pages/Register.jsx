@@ -9,6 +9,7 @@ import { normalizeKenyanPhone } from '@/utils/phoneNormalizer';
 import Card from '@/components/ui/Card';
 import Button3D from '@/components/ui/Button3D';
 import FloatingInput from '@/components/ui/FloatingInput';
+import Select3D from '@/components/ui/Select3D';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -144,27 +145,15 @@ export default function Register() {
               onChange={handleChange}
             />
 
-            <select
+            <Select3D
+              label='Client Type'
               name='clientType'
               value={form.clientType}
               onChange={handleChange}
               required
-              className='w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500'
-            >
-              <option value='' className='text-gray-500'>
-                Select Client Type
-              </option>
-
-              {clientTypes.map((type) => (
-                <option
-                  key={type.value}
-                  value={type.value}
-                  className='text-gray-900'
-                >
-                  {type.label}
-                </option>
-              ))}
-            </select>
+              options={clientTypes}
+              placeholder='Select Client Type'
+            />
 
             <FloatingInput
               label='Email'

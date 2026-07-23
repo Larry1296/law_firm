@@ -18,6 +18,7 @@ import {
   buildLegalEntityClientPayload,
   canonicalLegalEntityTypes,
 } from '@/modules/admin/clients/utils/legalEntityClientPayload';
+import ClientCreationSuccessPanel from '@/modules/admin/clients/components/ClientCreationSuccessPanel';
 
 export default function AdminCreateClientPage() {
   const navigate = useNavigate();
@@ -101,6 +102,13 @@ export default function AdminCreateClientPage() {
       value: 'MEMORANDUM_OF_UNDERSTANDING',
       label: 'Memorandum of Understanding',
     },
+  ];
+  const nextOfKinRelationshipOptions = [
+    { value: 'Spouse', label: 'Spouse' },
+    { value: 'Brother', label: 'Brother' },
+    { value: 'Sister', label: 'Sister' },
+    { value: 'Parent', label: 'Parent' },
+    { value: 'Other', label: 'Other' },
   ];
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -289,12 +297,25 @@ export default function AdminCreateClientPage() {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const nextValue = type === 'checkbox' ? checked : value;
-    setFormData((prev) => ({ ...prev, [name]: nextValue }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: nextValue,
+      ...(name === 'national_id' && String(nextValue).trim()
+        ? { passport_number: '' }
+        : {}),
+      ...(name === 'passport_number' && String(nextValue).trim()
+        ? { national_id: '' }
+        : {}),
+    }));
     setFieldErrors((prev) => ({
       ...prev,
       [name]: undefined,
       ...(name === 'national_id' || name === 'passport_number'
-        ? { identification: undefined }
+        ? {
+            identification: undefined,
+            national_id: undefined,
+            passport_number: undefined,
+          }
         : {}),
     }));
     setGeneralError('');
@@ -560,31 +581,8 @@ export default function AdminCreateClientPage() {
         ? await secretaryClientsService.createClient(payload, clientType)
         : await adminClientsService.createClient(payload, clientType);
 
-      if (clientType === 'COMPANY' || clientType === 'INDIVIDUAL') {
-        setSuccessData(response);
-        return;
-      }
-
-      const tempPassword = response?.temp_password;
-
-      await Swal.fire({
-        icon: 'success',
-        title: 'Client Created Successfully',
-        html: tempPassword
-          ? `
-              <p>The client login account has been created.</p>
-              <div class="app-swal-password-card">
-                <div class="app-swal-password-label">Temporary Password</div>
-                <div class="app-swal-password-value">${tempPassword}</div>
-              </div>
-              <p class="app-swal-help-text">Share this with the client. They will be required to change it after their first login.</p>
-            `
-          : 'Client record created successfully.',
-        confirmButtonText: 'Continue',
-        confirmButtonColor: '#2563eb',
-      });
-
-      navigate(isSecretaryCreate ? '/secretary/clients' : '/admin/clients');
+      setSuccessData(response);
+      return;
     } catch (error) {
       const data = error?.response?.data;
       const backendErrors = data?.errors || data || {};
@@ -649,6 +647,40 @@ export default function AdminCreateClientPage() {
   const createMatterPath = isSecretaryCreate
     ? `/secretary/cases/create${createdClientId ? `?client_id=${createdClientId}` : ''}`
     : `/admin/cases/create${createdClientId ? `?client_id=${createdClientId}` : ''}`;
+  const createdClientTypeLabel = (createdClient?.client_type || clientType || requestedClientType)
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const createdClientName =
+    createdClient?.full_name ||
+    createdProfile?.company_name ||
+    createdProfile?.legal_name ||
+    createdProfile?.registered_name ||
+    createdProfile?.registered_business_name ||
+    createdProfile?.partnership_name ||
+    createdProfile?.trust_name ||
+    createdProfile?.estate_name ||
+    createdProfile?.official_name ||
+    'Not recorded';
+  const createdPortalAccess = Boolean(
+    createdTempPassword ||
+      createdPortalUser ||
+      createdClient?.portal_access_exists ||
+      createdClient?.user,
+  );
+  const createdPortalLoginEmail =
+    createdClient?.portal_login_email ||
+    createdPortalUser?.email ||
+    (createdPortalAccess ? createdClient?.email : '') ||
+    '';
+  const createdPrimaryReference =
+    createdProfile?.registration_number ||
+    createdProfile?.business_registration_number ||
+    createdProfile?.llp_registration_number ||
+    createdClient?.national_id ||
+    createdClient?.passport_number ||
+    createdClient?.kra_pin ||
+    '';
 
   const resetCompanyForm = () => {
     setSuccessData(null);
@@ -675,6 +707,115 @@ export default function AdminCreateClientPage() {
       beneficial_ownership_declared: false,
       annual_returns_up_to_date: false,
       compliance_notes: '',
+      partnership_name: '',
+      tax_pin: '',
+      formation_date: '',
+      partner_count: '',
+      agreement_type: '',
+      ngo_name: '',
+      registration_authority: '',
+      registration_date: '',
+      sector: '',
+      headquarters_address: '',
+      operational_regions: '',
+      director_name: '',
+      director_contact: '',
+      funding_sources: '',
+      trust_name: '',
+      trust_type: '',
+      trust_deed_reference: '',
+      jurisdiction: '',
+      trustee_count: '',
+      primary_trustee_name: '',
+      primary_trustee_contact: '',
+      beneficiary_details: '',
+      assets_under_trust: '',
+      legal_representative: '',
+      estate_name: '',
+      deceased_full_name: '',
+      deceased_id_number: '',
+      date_of_death: '',
+      probate_number: '',
+      court_reference: '',
+      executor_name: '',
+      executor_contact: '',
+      administrator_name: '',
+      administrator_contact: '',
+      estate_value_estimate: '',
+      beneficiaries: '',
+      assets_description: '',
+      liabilities_description: '',
+      court_status: '',
+      government_entity_name: '',
+      department: '',
+      agency_code: '',
+      jurisdiction_level: '',
+      contact_person_name: '',
+      contact_person_position: '',
+      contact_person_phone: '',
+      contact_person_email: '',
+      office_address: '',
+      mandate_area: '',
+      legal_department_head: '',
+      legal_department_contact: '',
+      legal_name: '',
+      registered_business_name: '',
+      business_registration_number: '',
+      proprietor_name: '',
+      proprietor_identifier: '',
+      proprietor_kra_pin: '',
+      business_kra_pin: '',
+      subtype: 'GENERAL_PARTNERSHIP',
+      registered_name: '',
+      llp_registration_number: '',
+      registered_office: '',
+      principal_business_address: '',
+      principal_place_of_business: '',
+      partnership_agreement_reference: '',
+      partner_one_name: '',
+      partner_two_name: '',
+      designated_partner_name: '',
+      trustee_name: '',
+      personal_representative_name: '',
+      cooperative_subtype: 'PRIMARY_COOPERATIVE',
+      area_of_operation: '',
+      activity_sector: '',
+      regulator_name: '',
+      license_number: '',
+      license_status: '',
+      common_name: '',
+      registration_status: 'UNKNOWN',
+      constitution_reference: '',
+      objectives: '',
+      principal_office: '',
+      litigation_authority_reference: '',
+      nonprofit_form: 'PUBLIC_BENEFIT_ORGANIZATION',
+      canonical_legal_form: '',
+      pbo_or_ngo_status: '',
+      operational_scope: '',
+      funding_compliance_notes: '',
+      trust_deed_date: '',
+      purpose: '',
+      principal_address: '',
+      settlor_details: '',
+      deceased_last_address: '',
+      grant_type: '',
+      grant_issue_date: '',
+      grant_confirmation_date: '',
+      grant_status: 'UNKNOWN',
+      official_name: '',
+      public_entity_subtype: 'OTHER_STATUTORY_BODY',
+      enabling_instrument: '',
+      parent_ministry_or_county: '',
+      legal_capacity_notes: '',
+      official_address: '',
+      statutory_representative: '',
+      organization_type: 'INTERGOVERNMENTAL',
+      founding_instrument: '',
+      headquarters_country: '',
+      kenya_recognition_details: '',
+      privileges_immunities_status: '',
+      kenya_office_address: '',
       contact_full_name: '',
       contact_email: '',
       contact_phone_number: '',
@@ -739,6 +880,41 @@ export default function AdminCreateClientPage() {
     await navigator.clipboard.writeText(createdTempPassword);
   };
 
+  const resetCurrentForm = isIndividual ? resetIndividualForm : resetCompanyForm;
+  const successTitle = isIndividual
+    ? 'Individual client created successfully'
+    : `${createdClientTypeLabel} client created successfully`;
+  const successDescription = createdTempPassword
+    ? 'A portal login was created. The temporary password is shown once.'
+    : 'This client is staff-assisted and has no portal login.';
+  const successFields = isIndividual
+    ? [
+        { label: 'Client name', value: createdClient?.full_name },
+        { label: 'Client ID', value: createdClient?.id },
+        { label: 'Access type', value: createdClient?.access_type },
+        { label: 'Lifecycle status', value: createdClient?.lifecycle_status },
+        { label: 'National ID', value: createdClient?.national_id || 'Not recorded' },
+        { label: 'Passport', value: createdClient?.passport_number || 'Not recorded' },
+        { label: 'Phone', value: createdClient?.phone_number || 'Not recorded' },
+        { label: 'Email', value: createdClient?.email || 'Not recorded' },
+        { label: 'Portal access', value: createdPortalAccess ? 'Created' : 'Not created' },
+        { label: 'Portal login email', value: createdPortalLoginEmail || 'N/A' },
+      ]
+    : [
+        { label: 'Client name', value: createdClientName },
+        { label: 'Client ID', value: createdClient?.id },
+        { label: 'Client type', value: createdClientTypeLabel },
+        { label: 'Access type', value: createdClient?.access_type },
+        { label: 'Lifecycle status', value: createdClient?.lifecycle_status },
+        ...(createdPrimaryReference
+          ? [{ label: 'Reference', value: createdPrimaryReference }]
+          : []),
+        { label: 'Phone', value: createdClient?.phone_number || 'Not recorded' },
+        { label: 'Email', value: createdClient?.email || 'Not recorded' },
+        { label: 'Portal access', value: createdPortalAccess ? 'Created' : 'Not created' },
+        { label: 'Portal login email', value: createdPortalLoginEmail || 'N/A' },
+      ];
+
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
       <SectionHeading
@@ -746,118 +922,22 @@ export default function AdminCreateClientPage() {
         subtitle={`${requestedClientType} / ${isProspect ? 'prospect' : 'assisted'}`}
       />
 
-      {isCompanyClient && successData && (
-        <div className='rounded-xl border border-green-300/70 bg-green-50 p-6 text-green-950 dark:border-green-700 dark:bg-green-950/30 dark:text-green-100'>
-          <h2 className='text-xl font-semibold'>Company client created</h2>
-          <div className='mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm'>
-            <div><strong>Company:</strong> {createdProfile?.company_name}</div>
-            <div><strong>Client ID:</strong> {createdClient?.id}</div>
-            <div><strong>Registration number:</strong> {createdProfile?.registration_number}</div>
-            <div><strong>KRA PIN:</strong> {createdClient?.kra_pin || 'Not provided'}</div>
-            <div><strong>Access type:</strong> {createdClient?.access_type}</div>
-            <div><strong>Portal login email:</strong> {createdPortalUser?.email || 'Not created'}</div>
-          </div>
-          {createdTempPassword && (
-            <div className='mt-4 rounded-lg border border-green-300 bg-white/85 p-4 dark:border-green-700 dark:bg-[color:var(--surface-raised)]'>
-              <div className='text-sm font-semibold'>Temporary password</div>
-              <div className='mt-2 flex flex-col gap-3 sm:flex-row sm:items-center'>
-                <code className='rounded bg-slate-100 px-3 py-2 text-slate-950 dark:bg-slate-900 dark:text-slate-100'>
-                  {createdTempPassword}
-                </code>
-                <Button3D type='button' variant='outlineLight' size='sm' onClick={copyTempPassword}>
-                  Copy
-                </Button3D>
-              </div>
-              <p className='mt-2 text-sm'>
-                Save this securely. It is only shown on this confirmation screen.
-              </p>
-            </div>
-          )}
-          <div className='mt-5 flex flex-wrap gap-3'>
-	            <Button3D
-	              type='button'
-	              variant='primary'
-	              onClick={() => navigate(`${isSecretaryCreate ? '/secretary' : '/admin'}/clients/${createdClient?.id}`)}
-	            >
-	              View company client
-	            </Button3D>
-            <Button3D type='button' variant='outlineLight' onClick={resetCompanyForm}>
-              Create another client
-            </Button3D>
-            <Button3D
-	              type='button'
-	              variant='success'
-	              onClick={() => navigate(createMatterPath)}
-	            >
-	              Continue to create a matter
-	            </Button3D>
-          </div>
-        </div>
-	      )}
+      {successData && (
+        <ClientCreationSuccessPanel
+          title={successTitle}
+          description={successDescription}
+          fields={successFields}
+          tempPassword={createdTempPassword}
+          viewLabel={isIndividual ? 'View individual client' : 'View client'}
+          onView={() => navigate(`${isSecretaryCreate ? '/secretary' : '/admin'}/clients/${createdClient?.id}`)}
+          onCreateMatter={() => navigate(createMatterPath)}
+          onCreateAnother={resetCurrentForm}
+          onReturnToClients={() => navigate(clientsPath)}
+          onCopyPassword={copyTempPassword}
+        />
+      )}
 
-	      {isIndividual && successData && (
-	        <div className='rounded-xl border border-green-300/70 bg-green-50 p-6 text-green-950 dark:border-green-700 dark:bg-green-950/30 dark:text-green-100'>
-	          <h2 className='text-xl font-semibold'>Individual client created successfully</h2>
-	          <p className='mt-1 text-sm'>
-	            {createdTempPassword
-	              ? 'A portal login was created. The temporary password is shown once.'
-	              : 'This client is staff-assisted and has no portal login.'}
-	          </p>
-	          <div className='mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm'>
-	            <div><strong>Client name:</strong> {createdClient?.full_name}</div>
-	            <div><strong>Client ID:</strong> {createdClient?.id}</div>
-	            <div><strong>Access type:</strong> {createdClient?.access_type}</div>
-	            <div><strong>Lifecycle status:</strong> {createdClient?.lifecycle_status}</div>
-	            <div><strong>National ID:</strong> {createdClient?.national_id || 'Not recorded'}</div>
-	            <div><strong>Passport:</strong> {createdClient?.passport_number || 'Not recorded'}</div>
-	            <div><strong>Phone:</strong> {createdClient?.phone_number || 'Not recorded'}</div>
-	            <div><strong>Email:</strong> {createdClient?.email || 'Not recorded'}</div>
-	            <div><strong>Portal access:</strong> {createdClient?.portal_access_exists ? 'Created' : 'Not created'}</div>
-	            <div><strong>Portal login email:</strong> {createdClient?.portal_login_email || 'N/A'}</div>
-	          </div>
-	          {createdTempPassword && (
-	            <div className='mt-4 rounded-lg border border-green-300 bg-white/85 p-4 dark:border-green-700 dark:bg-[color:var(--surface-raised)]'>
-	              <div className='text-sm font-semibold'>Temporary password</div>
-	              <div className='mt-2 flex flex-col gap-3 sm:flex-row sm:items-center'>
-	                <code className='rounded bg-slate-100 px-3 py-2 text-slate-950 dark:bg-slate-900 dark:text-slate-100'>
-	                  {createdTempPassword}
-	                </code>
-	                <Button3D type='button' variant='outlineLight' size='sm' onClick={copyTempPassword}>
-	                  Copy password
-	                </Button3D>
-	              </div>
-	              <p className='mt-2 text-sm'>
-	                This password cannot be retrieved later. The client must change it after first login.
-	              </p>
-	            </div>
-	          )}
-	          {!createdTempPassword && (
-	            <div className='mt-4 rounded-lg border border-green-300 bg-white/85 p-4 text-sm dark:border-green-700 dark:bg-[color:var(--surface-raised)]'>
-	              Portal Access: Not created. This client is managed by firm staff.
-	            </div>
-	          )}
-	          <div className='mt-5 flex flex-wrap gap-3'>
-	            <Button3D
-	              type='button'
-	              variant='primary'
-	              onClick={() => navigate(`${isSecretaryCreate ? '/secretary' : '/admin'}/clients/${createdClient?.id}`)}
-	            >
-	              View individual client
-	            </Button3D>
-	            <Button3D type='button' variant='success' onClick={() => navigate(createMatterPath)}>
-	              Continue to create a matter
-	            </Button3D>
-	            <Button3D type='button' variant='outlineLight' onClick={resetIndividualForm}>
-	              Create another client
-	            </Button3D>
-	            <Button3D type='button' variant='secondary' onClick={() => navigate(clientsPath)}>
-	              Return to clients
-	            </Button3D>
-	          </div>
-	        </div>
-	      )}
-
-	      {!((isCompanyClient || isIndividual) && successData) && (
+		      {!successData && (
       <Card className='p-6'>
         <form onSubmit={handleSubmit} className='space-y-6'>
           {generalError && (
@@ -1745,20 +1825,24 @@ export default function AdminCreateClientPage() {
 	                    onChange={handleChange}
 	                    error={fieldErrors.last_name}
 	                  />
-	                  <FloatingInput
-	                    label='National ID'
-	                    name='national_id'
-	                    value={formData.national_id}
-	                    onChange={handleChange}
-	                    error={fieldErrors.national_id}
-	                  />
-	                  <FloatingInput
-	                    label='Passport Number'
-	                    name='passport_number'
-	                    value={formData.passport_number}
-	                    onChange={handleChange}
-	                    error={fieldErrors.passport_number}
-	                  />
+	                  {!formData.passport_number.trim() && (
+	                    <FloatingInput
+	                      label='National ID'
+	                      name='national_id'
+	                      value={formData.national_id}
+	                      onChange={handleChange}
+	                      error={fieldErrors.national_id}
+	                    />
+	                  )}
+	                  {!formData.national_id.trim() && (
+	                    <FloatingInput
+	                      label='Passport Number'
+	                      name='passport_number'
+	                      value={formData.passport_number}
+	                      onChange={handleChange}
+	                      error={fieldErrors.passport_number}
+	                    />
+	                  )}
 	                  <FloatingInput
 	                    label='KRA PIN'
 	                    name='kra_pin'
@@ -1910,12 +1994,13 @@ export default function AdminCreateClientPage() {
 	                    onChange={handleChange}
 	                    error={fieldErrors.next_of_kin_name}
 	                  />
-	                  <FloatingInput
+	                  <Select3D
 	                    label='Relationship'
 	                    name='next_of_kin_relationship'
 	                    value={formData.next_of_kin_relationship}
 	                    onChange={handleChange}
 	                    error={fieldErrors.next_of_kin_relationship}
+	                    options={nextOfKinRelationshipOptions}
 	                  />
 	                  <FloatingInput
 	                    label='Phone'

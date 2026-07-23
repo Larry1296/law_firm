@@ -15,6 +15,7 @@ import {
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
 import { Input3D } from '@/components/ui/Input3D';
+import Select3D from '@/components/ui/Select3D';
 
 const initialThreadForm = {
   staff_user_id: '',
@@ -138,23 +139,19 @@ export default function AdminChatPage() {
           </div>
 
           <form onSubmit={handleStartThread} className='space-y-4'>
-            <select
+            <Select3D
+              name='staff_user_id'
               value={form.staff_user_id}
               onChange={(event) =>
                 updateForm('staff_user_id', event.target.value)
               }
-              className='h-12 w-full rounded-2xl border border-border-light bg-white px-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-border-dark dark:bg-slate-900 dark:text-white'
-            >
-              <option value=''>Choose staff member</option>
-              {activeStaff.map((member) => (
-                <option
-                  key={member.user_id || member.id}
-                  value={member.user_id || member.id}
-                >
-                  {member.full_name || member.email} — {member.role}
-                </option>
-              ))}
-            </select>
+              wrapperClassName='mb-0'
+              placeholder='Choose staff member'
+              options={activeStaff.map((member) => ({
+                value: member.user_id || member.id,
+                label: `${member.full_name || member.email} - ${member.role}`,
+              }))}
+            />
 
             <Input3D
               value={form.subject}

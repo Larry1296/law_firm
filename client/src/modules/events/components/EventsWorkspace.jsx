@@ -129,12 +129,8 @@ function EventRow({ event, caseBasePath, highlighted, secretaryMode, onAwareness
                   {event.case?.title || event.case?.case_number || 'Matter not set'}
                 </p>
                 <p>
-                  <span className='font-semibold text-slate-800 dark:text-slate-100'>Internal no.:</span>{' '}
-                  {event.case?.internal_matter_number || event.case?.case_number || 'Not set'}
-                </p>
-                <p>
-                  <span className='font-semibold text-slate-800 dark:text-slate-100'>Official court no.:</span>{' '}
-                  {event.case?.official_court_case_number || 'Not recorded'}
+                  <span className='font-semibold text-slate-800 dark:text-slate-100'>Case no.:</span>{' '}
+                  {event.case?.case_number || event.case?.official_court_case_number || 'Not set'}
                 </p>
               </div>
 

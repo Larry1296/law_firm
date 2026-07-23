@@ -12,6 +12,7 @@ import {
 
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
+import Select3D from '@/components/ui/Select3D';
 import {
   useCreateCourtroomAttendance,
   useCreateCourtroomCauseListSync,
@@ -263,14 +264,17 @@ export default function AdminVirtualCourtroomPage() {
           </div>
 
           <form onSubmit={handleCreateCourtroom} className='grid gap-3 lg:grid-cols-2'>
-            <select name='eventId' value={eventForm.eventId} onChange={handleEventSelect} className='h-12 rounded-xl border border-border-light bg-white px-4 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white lg:col-span-2'>
-              <option value=''>{todayEventsQuery.isLoading ? 'Loading today’s court events...' : 'Choose today’s court event'}</option>
-              {todayEvents.map((courtEvent) => (
-                <option key={courtEvent.id} value={courtEvent.id}>
-                  {courtEvent.case?.case_number} - {courtEvent.title} · {courtEvent.starts_at ? formatDateTime(courtEvent.starts_at) : 'Time not set'}
-                </option>
-              ))}
-            </select>
+            <Select3D
+              name='eventId'
+              value={eventForm.eventId}
+              onChange={handleEventSelect}
+              wrapperClassName='mb-0 lg:col-span-2'
+              placeholder={todayEventsQuery.isLoading ? 'Loading today’s court events...' : 'Choose today’s court event'}
+              options={todayEvents.map((courtEvent) => ({
+                value: courtEvent.id,
+                label: `${courtEvent.case?.case_number} - ${courtEvent.title} - ${courtEvent.starts_at ? formatDateTime(courtEvent.starts_at) : 'Time not set'}`,
+              }))}
+            />
 
             {selectedEvent && (
               <div className='rounded-xl border border-border-light bg-slate-50 p-4 text-sm text-slate-600 dark:border-border-dark dark:bg-slate-900 dark:text-slate-300 lg:col-span-2'>
@@ -288,10 +292,14 @@ export default function AdminVirtualCourtroomPage() {
               </div>
             )}
 
-            <select name='provider' value={eventForm.provider} onChange={updateEventForm} className='h-12 rounded-xl border border-border-light bg-white px-4 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white'>
-              <option value=''>No provider selected</option>
-              {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
-            </select>
+            <Select3D
+              name='provider'
+              value={eventForm.provider}
+              onChange={updateEventForm}
+              wrapperClassName='mb-0'
+              placeholder='No provider selected'
+              options={providers.map((provider) => ({ value: provider.id, label: provider.name }))}
+            />
 
             <input name='virtual_courtroom_label' value={eventForm.virtual_courtroom_label} onChange={updateEventForm} placeholder='Link label' className='h-12 rounded-xl border border-border-light bg-white px-4 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white' />
             <input name='join_url' value={eventForm.join_url} onChange={updateEventForm} placeholder='Participant courtroom link' className='h-12 rounded-xl border border-border-light bg-white px-4 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white lg:col-span-2' />
@@ -311,9 +319,13 @@ export default function AdminVirtualCourtroomPage() {
           </div>
           <form onSubmit={handleCreateProvider} className='space-y-3'>
             <input value={providerForm.name} onChange={(event) => setProviderForm((current) => ({ ...current, name: event.target.value }))} placeholder='Provider name' className='h-11 w-full rounded-xl border border-border-light bg-white px-3 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white' />
-            <select value={providerForm.provider_type} onChange={(event) => setProviderForm((current) => ({ ...current, provider_type: event.target.value }))} className='h-11 w-full rounded-xl border border-border-light bg-white px-3 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white'>
-              {providerTypes.map((type) => <option key={type} value={type}>{type.replaceAll('_', ' ')}</option>)}
-            </select>
+            <Select3D
+              value={providerForm.provider_type}
+              onChange={(event) => setProviderForm((current) => ({ ...current, provider_type: event.target.value }))}
+              wrapperClassName='mb-0'
+              className='h-11 min-h-11 rounded-xl px-3'
+              options={providerTypes.map((type) => ({ value: type, label: type.replaceAll('_', ' ') }))}
+            />
             <input value={providerForm.base_url} onChange={(event) => setProviderForm((current) => ({ ...current, base_url: event.target.value }))} placeholder='Provider portal URL' className='h-11 w-full rounded-xl border border-border-light bg-white px-3 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white' />
             <label className='flex items-center gap-3 text-sm dark:text-white'>
               <input type='checkbox' checked={providerForm.is_default} onChange={(event) => setProviderForm((current) => ({ ...current, is_default: event.target.checked }))} />
@@ -345,9 +357,13 @@ export default function AdminVirtualCourtroomPage() {
                   <p className='mt-1 text-xs text-slate-400'>{session.provider_name || 'No provider'} · {session.attendance_count || 0} attendance logs · {session.recording_count || 0} recordings</p>
                 </div>
 
-                <select value={session.status} onChange={(event) => handleStatusChange(session, event.target.value)} className='h-11 rounded-xl border border-border-light bg-white px-3 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white'>
-                  {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
-                </select>
+                <Select3D
+                  value={session.status}
+                  onChange={(event) => handleStatusChange(session, event.target.value)}
+                  wrapperClassName='mb-0'
+                  className='h-11 min-h-11 rounded-xl px-3'
+                  options={statuses.map((status) => ({ value: status, label: status }))}
+                />
 
                 <div className='space-y-2'>
                   <input value={attendanceDrafts[session.id]?.attendee_name || ''} onChange={(event) => setAttendanceDrafts((current) => ({ ...current, [session.id]: { ...current[session.id], attendee_name: event.target.value } }))} placeholder='Attendee name' className='h-10 w-full rounded-xl border border-border-light bg-white px-3 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white' />
@@ -382,10 +398,14 @@ export default function AdminVirtualCourtroomPage() {
         </div>
 
         <form onSubmit={handleCauseListSync} className='grid gap-3 lg:grid-cols-5'>
-          <select value={causeListForm.provider} onChange={(event) => setCauseListForm((current) => ({ ...current, provider: event.target.value }))} className='h-11 rounded-xl border border-border-light bg-white px-3 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white'>
-            <option value=''>Provider</option>
-            {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}
-          </select>
+          <Select3D
+            value={causeListForm.provider}
+            onChange={(event) => setCauseListForm((current) => ({ ...current, provider: event.target.value }))}
+            wrapperClassName='mb-0'
+            className='h-11 min-h-11 rounded-xl px-3'
+            placeholder='Provider'
+            options={providers.map((provider) => ({ value: provider.id, label: provider.name }))}
+          />
           <input value={causeListForm.court_station} onChange={(event) => setCauseListForm((current) => ({ ...current, court_station: event.target.value }))} placeholder='Court station' className='h-11 rounded-xl border border-border-light bg-white px-3 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white' />
           <input value={causeListForm.source_url} onChange={(event) => setCauseListForm((current) => ({ ...current, source_url: event.target.value }))} placeholder='Cause list URL' className='h-11 rounded-xl border border-border-light bg-white px-3 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white' />
           <input value={causeListForm.cause_list_date} onChange={(event) => setCauseListForm((current) => ({ ...current, cause_list_date: event.target.value }))} type='date' className='h-11 rounded-xl border border-border-light bg-white px-3 text-sm dark:border-border-dark dark:bg-slate-900 dark:text-white' />

@@ -13,6 +13,7 @@ import {
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
+import Select3D from '@/components/ui/Select3D';
 
 const toCaseThread = (caseItem) => ({
   id: caseItem.id,
@@ -117,19 +118,17 @@ export default function ClientCaseCommunicationPage() {
           </div>
 
           <div className='flex min-w-full flex-col gap-2 md:min-w-[360px] md:flex-row lg:min-w-[460px]'>
-            <select
+            <Select3D
               value={selectedCaseId || ''}
               onChange={(event) => setSelectedCaseId(event.target.value)}
               disabled={Boolean(routeCaseId)}
-              className='h-12 flex-1 rounded-2xl border border-border-light bg-white px-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-border-dark dark:bg-slate-900 dark:text-white'
-            >
-              <option value=''>Choose case</option>
-              {safeCases.map((caseItem) => (
-                <option key={caseItem.id} value={caseItem.id}>
-                  {caseItem.case_number} — {caseItem.title}
-                </option>
-              ))}
-            </select>
+              wrapperClassName='mb-0 flex-1'
+              placeholder='Choose case'
+              options={safeCases.map((caseItem) => ({
+                value: caseItem.id,
+                label: `${caseItem.case_number} - ${caseItem.title}`,
+              }))}
+            />
           </div>
         </div>
 

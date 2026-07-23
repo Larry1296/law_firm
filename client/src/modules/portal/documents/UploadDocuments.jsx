@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { UploadCloud, FileText, X, CheckCircle, Loader2 } from "lucide-react";
+import Select3D from "@/components/ui/Select3D";
 
 export default function UploadDocuments() {
   const [file, setFile] = useState(null);
@@ -72,17 +73,18 @@ export default function UploadDocuments() {
         <div>
           <label className="text-sm text-text-muted-dark">Document Type</label>
 
-          <select
+          <Select3D
             value={type}
             onChange={(e) => setType(e.target.value)}
-            className="w-full mt-1 p-3 rounded-xl bg-background-dark border border-border-dark text-sm"
-          >
-            <option>Identity</option>
-            <option>Legal Contract</option>
-            <option>Evidence</option>
-            <option>Court Document</option>
-            <option>Other</option>
-          </select>
+            wrapperClassName="mb-0 mt-1"
+            options={[
+              { value: "Identity", label: "Identity" },
+              { value: "Legal Contract", label: "Legal Contract" },
+              { value: "Evidence", label: "Evidence" },
+              { value: "Court Document", label: "Court Document" },
+              { value: "Other", label: "Other" },
+            ]}
+          />
         </div>
 
         {/* DESCRIPTION */}

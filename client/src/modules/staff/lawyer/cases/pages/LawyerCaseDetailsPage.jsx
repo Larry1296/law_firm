@@ -6,6 +6,7 @@ import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
 import BackLink from '@/components/ui/BackLink';
 import Card from '@/components/ui/Card';
+import Select3D from '@/components/ui/Select3D';
 import { formatDate, formatDateTime } from '@/core/utils/dateFormatter';
 import { displayEnum } from '@/core/utils/textFormatter';
 import ChatWorkspace from '@/modules/communications/components/ChatWorkspace';
@@ -265,10 +266,7 @@ export default function LawyerCaseDetailsPage() {
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
             <p>
-              <strong>Internal Matter Number:</strong> {safe(caseData.internal_case_number || caseData.case_number)}
-            </p>
-            <p>
-              <strong>Official Court Case Number:</strong> {safe(caseData.official_court_case_number, 'Not recorded')}
+              <strong>Case Number:</strong> {safe(caseData.case_number || caseData.official_court_case_number, 'Not recorded')}
             </p>
             <p>
               <strong>Title:</strong> {safe(caseData.title)}
@@ -416,20 +414,18 @@ export default function LawyerCaseDetailsPage() {
             <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
               Current Status
             </label>
-            <select
+            <Select3D
               value={selectedStatus}
               onChange={(event) => handleTransitionSelect(event.target.value)}
-              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-            >
-              <option value=''>Select lifecycle transition...</option>
-              {(caseData?.available_transitions || [])
+              wrapperClassName='mb-0'
+              placeholder='Select lifecycle transition...'
+              options={(caseData?.available_transitions || [])
                 .filter((t) => t.dimension === 'MATTER_STATUS')
-                .map((t) => (
-                  <option key={`${t.dimension}:${t.to_state}`} value={`${t.dimension}:${t.to_state}`}>
-                    {t.label || `${t.dimension} → ${t.to_state}`}
-                  </option>
-                ))}
-            </select>
+                .map((t) => ({
+                  value: `${t.dimension}:${t.to_state}`,
+                  label: t.label || `${t.dimension} -> ${t.to_state}`,
+                }))}
+            />
           </div>
 
           <div>
@@ -473,17 +469,12 @@ export default function LawyerCaseDetailsPage() {
               <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                 Event Type
               </label>
-              <select
+              <Select3D
                 value={nextEvent.event_type}
                 onChange={(event) => setNextEvent((current) => ({ ...current, event_type: event.target.value }))}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-              >
-                {EVENT_TYPE_OPTIONS.map((eventType) => (
-                  <option key={eventType.value} value={eventType.value}>
-                    {eventType.label}
-                  </option>
-                ))}
-              </select>
+                wrapperClassName='mb-0'
+                options={EVENT_TYPE_OPTIONS}
+              />
             </div>
 
             <div>
@@ -575,19 +566,20 @@ export default function LawyerCaseDetailsPage() {
             <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
               Conflict Action
             </label>
-            <select
+            <Select3D
               value={nextEvent.event_type}
               onChange={(event) => setNextEvent((current) => ({ ...current, event_type: event.target.value }))}
-              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-            >
-              <option value=''>Select action...</option>
-              <option value='REVIEW'>Review</option>
-              <option value='MARK_CLEAR'>Mark Clear</option>
-              <option value='POTENTIAL_CONFLICT'>Potential Conflict</option>
-              <option value='CONFIRM_CONFLICT'>Confirm Conflict</option>
-              <option value='REQUEST_WAIVER'>Request Waiver</option>
-              <option value='RECORD_WAIVER'>Record Waiver</option>
-            </select>
+              wrapperClassName='mb-0'
+              placeholder='Select action...'
+              options={[
+                { value: 'REVIEW', label: 'Review' },
+                { value: 'MARK_CLEAR', label: 'Mark Clear' },
+                { value: 'POTENTIAL_CONFLICT', label: 'Potential Conflict' },
+                { value: 'CONFIRM_CONFLICT', label: 'Confirm Conflict' },
+                { value: 'REQUEST_WAIVER', label: 'Request Waiver' },
+                { value: 'RECORD_WAIVER', label: 'Record Waiver' },
+              ]}
+            />
           </div>
           <div>
             <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>

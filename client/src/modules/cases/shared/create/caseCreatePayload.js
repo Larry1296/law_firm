@@ -6,7 +6,6 @@ export const CASE_CREATE_CONTROLLED_FIELDS = [
   'enforcement_status',
   'appeal_status',
   'case_number',
-  'internal_matter_number',
   'jurisdiction_verified',
   'jurisdiction_verified_by',
   'jurisdiction_verified_at',

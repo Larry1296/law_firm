@@ -15,6 +15,7 @@ import ThemeContext from "@/core/store/ThemeContext";
 import Card from "@/components/ui/Card";
 import Button3D from "@/components/ui/Button3D";
 import FloatingInput from "@/components/ui/FloatingInput";
+import Select3D from "@/components/ui/Select3D";
 import { Textarea3D } from "@/components/ui/TextArea3D";
 
 export default function NewIntakeForm() {
@@ -165,26 +166,21 @@ export default function NewIntakeForm() {
                     Legal Category
                   </label>
 
-                  <select
+                  <Select3D
+                    label="Legal Category"
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
-                    className={inputClass}
-                  >
-                    <option value="">Select legal category</option>
-
-                    <option value="Family Law">Family Law</option>
-
-                    <option value="Employment Law">Employment Law</option>
-
-                    <option value="Land Dispute">Land Dispute</option>
-
-                    <option value="Civil Litigation">Civil Litigation</option>
-
-                    <option value="Corporate Law">Corporate Law</option>
-
-                    <option value="Criminal Defense">Criminal Defense</option>
-                  </select>
+                    placeholder="Select legal category"
+                    options={[
+                      { value: "Family Law", label: "Family Law" },
+                      { value: "Employment Law", label: "Employment Law" },
+                      { value: "Land Dispute", label: "Land Dispute" },
+                      { value: "Civil Litigation", label: "Civil Litigation" },
+                      { value: "Corporate Law", label: "Corporate Law" },
+                      { value: "Criminal Defense", label: "Criminal Defense" },
+                    ]}
+                  />
                 </div>
 
                 {/* DESCRIPTION */}
@@ -307,22 +303,19 @@ export default function NewIntakeForm() {
                     Preferred Contact Method
                   </label>
 
-                  <select
+                  <Select3D
+                    label="Preferred Contact Method"
                     name="preferredContact"
                     value={formData.preferredContact}
                     onChange={handleChange}
-                    className={inputClass}
-                  >
-                    <option value="">Select contact method</option>
-
-                    <option value="Phone Call">Phone Call</option>
-
-                    <option value="Email">Email</option>
-
-                    <option value="WhatsApp">WhatsApp</option>
-
-                    <option value="SMS">SMS</option>
-                  </select>
+                    placeholder="Select contact method"
+                    options={[
+                      { value: "Phone Call", label: "Phone Call" },
+                      { value: "Email", label: "Email" },
+                      { value: "WhatsApp", label: "WhatsApp" },
+                      { value: "SMS", label: "SMS" },
+                    ]}
+                  />
                 </div>
               </div>
             </Card>

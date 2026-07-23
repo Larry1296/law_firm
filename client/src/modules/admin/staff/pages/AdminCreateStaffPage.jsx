@@ -8,6 +8,7 @@ import Card from '@/components/ui/Card';
 import Button3D from '@/components/ui/Button3D';
 import SectionHeading from '@/components/ui/SectionHeading';
 import FloatingInput from '@/components/ui/FloatingInput';
+import Select3D from '@/components/ui/Select3D';
 
 import adminFirmService from '@/modules/admin/firm/services/adminFirmService';
 import { useAdminStaff } from '@/modules/admin/staff/hooks/useAdminStaff';
@@ -302,34 +303,12 @@ export default function AdminCreateStaffPage() {
           <div>
             <label className='block text-sm font-medium mb-2'>Staff Role</label>
 
-            <select
+            <Select3D
               value={formData.firm_role}
               onChange={(e) => handleRoleChange(e.target.value)}
-              className='
-    w-full
-    px-4 py-3
-    rounded-xl
-    border
-    border-border-light
-    dark:border-border-dark
-
-    bg-surface-light
-    dark:bg-surface-dark
-
-    text-text-primary-light
-    dark:text-text-primary-dark
-
-    focus:outline-none
-    focus:ring-2
-    focus:ring-brand-primary
-  '
-            >
-              {STAFF_ROLE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              wrapperClassName='mb-0'
+              options={STAFF_ROLE_OPTIONS}
+            />
           </div>
 
           <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
@@ -360,35 +339,24 @@ export default function AdminCreateStaffPage() {
                 Branch
               </label>
 
-              <select
-                id='branch'
+              <Select3D
                 name='branch'
                 value={formData.branch}
                 onChange={handleChange}
                 disabled={isLoadingBranches || branches.length === 0}
-                className='
-                  w-full h-12 rounded-2xl border border-border-light dark:border-border-dark
-                  bg-surface-light dark:bg-surface-dark
-                  text-text-primary-light dark:text-text-primary-dark
-                  px-4 shadow-soft transition-all
-                  focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary
-                '
-              >
-                <option value=''>
-                  {isLoadingBranches
+                wrapperClassName='mb-0'
+                placeholder={
+                  isLoadingBranches
                     ? 'Loading branches...'
                     : branches.length === 0
                       ? 'Main firm'
-                      : 'Main firm / no branch'}
-                </option>
-
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                    {branch.is_head_office ? ' (Head Office)' : ''}
-                  </option>
-                ))}
-              </select>
+                      : 'Main firm / no branch'
+                }
+                options={branches.map((branch) => ({
+                  value: branch.id,
+                  label: `${branch.name}${branch.is_head_office ? ' (Head Office)' : ''}`,
+                }))}
+              />
             </div>
 
             <div className='space-y-2'>
@@ -399,8 +367,7 @@ export default function AdminCreateStaffPage() {
                 Department
               </label>
 
-              <select
-                id='department_unit'
+              <Select3D
                 name='department_unit'
                 value={formData.department_unit}
                 onChange={(event) => {
@@ -417,29 +384,19 @@ export default function AdminCreateStaffPage() {
                   }));
                 }}
                 disabled={isLoadingDepartments || availableDepartments.length === 0}
-                className='
-                  w-full h-12 rounded-2xl border border-border-light dark:border-border-dark
-                  bg-surface-light dark:bg-surface-dark
-                  text-text-primary-light dark:text-text-primary-dark
-                  px-4 shadow-soft transition-all
-                  focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary
-                '
-              >
-                <option value=''>
-                  {isLoadingDepartments
+                wrapperClassName='mb-0'
+                placeholder={
+                  isLoadingDepartments
                     ? 'Loading departments...'
                     : availableDepartments.length === 0
                       ? 'No department'
-                      : 'Select department'}
-                </option>
-
-                {availableDepartments.map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.name}
-                    {department.branch_name ? ` - ${department.branch_name}` : ''}
-                  </option>
-                ))}
-              </select>
+                      : 'Select department'
+                }
+                options={availableDepartments.map((department) => ({
+                  value: department.id,
+                  label: `${department.name}${department.branch_name ? ` - ${department.branch_name}` : ''}`,
+                }))}
+              />
             </div>
 
             <FloatingInput

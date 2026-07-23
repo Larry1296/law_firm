@@ -44,7 +44,6 @@ class ClientCaseSerializer(serializers.ModelSerializer):
     outcome_status_label = serializers.CharField(source="get_outcome_status_display", read_only=True)
     enforcement_status_label = serializers.CharField(source="get_enforcement_status_display", read_only=True)
     appeal_status_label = serializers.CharField(source="get_appeal_status_display", read_only=True)
-    internal_case_number = serializers.CharField(source="case_number", read_only=True)
     court_proceeding = serializers.SerializerMethodField()
     tribunal_proceeding = serializers.SerializerMethodField()
     arbitration_proceeding = serializers.SerializerMethodField()
@@ -195,7 +194,6 @@ class ClientCaseSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "case_number",
-            "internal_case_number",
             "official_court_case_number",
             "title",
             "description",

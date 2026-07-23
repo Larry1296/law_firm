@@ -6,6 +6,7 @@ import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
 import BackLink from '@/components/ui/BackLink';
 import Card from '@/components/ui/Card';
+import Select3D from '@/components/ui/Select3D';
 import { formatDate, formatDateTime } from '@/core/utils/dateFormatter';
 import { displayEnum } from '@/core/utils/textFormatter';
 
@@ -856,12 +857,8 @@ const AdminCaseDetailsPage = () => {
 
         <div className='grid gap-5 md:grid-cols-2 xl:grid-cols-4'>
           <InfoRow
-            label='Internal Matter Number'
-            value={safe(caseData.internal_case_number || caseData.case_number)}
-          />
-          <InfoRow
-            label='Official Court Case Number'
-            value={isCourtMatter ? safe(caseData.official_court_case_number, 'Not recorded') : 'Not applicable'}
+            label='Case Number'
+            value={safe(caseData.case_number || caseData.official_court_case_number)}
           />
           <InfoRow
             label='Entry Route'
@@ -966,21 +963,16 @@ const AdminCaseDetailsPage = () => {
         </h3>
         {(caseData.available_transitions || []).length ? (
           <form onSubmit={handleTransitionSubmit} className='grid gap-4 lg:grid-cols-2'>
-            <select
+            <Select3D
               value={transitionDraft.key}
               onChange={(event) => setTransitionDraft((current) => ({ ...current, key: event.target.value }))}
-              className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-            >
-              <option value=''>Choose permitted transition</option>
-              {(caseData.available_transitions || []).map((transition) => (
-                <option
-                  key={`${transition.dimension}:${transition.to_state}`}
-                  value={`${transition.dimension}:${transition.to_state}`}
-                >
-                  {friendly(transition.dimension)}: {friendly(transition.from_state)} to {transition.label || friendly(transition.to_state)}
-                </option>
-              ))}
-            </select>
+              wrapperClassName='mb-0'
+              placeholder='Choose permitted transition'
+              options={(caseData.available_transitions || []).map((transition) => ({
+                value: `${transition.dimension}:${transition.to_state}`,
+                label: `${friendly(transition.dimension)}: ${friendly(transition.from_state)} to ${transition.label || friendly(transition.to_state)}`,
+              }))}
+            />
             <input
               type='datetime-local'
               value={transitionDraft.effective_at}
@@ -1103,18 +1095,13 @@ const AdminCaseDetailsPage = () => {
               <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                 Conflict action
               </label>
-              <select
+              <Select3D
                 value={conflictDraft.action}
                 onChange={(event) => setConflictDraft((current) => ({ ...current, action: event.target.value }))}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-              >
-                <option value=''>Choose conflict-check action</option>
-                {conflictActions.map((action) => (
-                  <option key={action.value} value={action.value}>
-                    {action.label}
-                  </option>
-                ))}
-              </select>
+                wrapperClassName='mb-0'
+                placeholder='Choose conflict-check action'
+                options={conflictActions}
+              />
               {conflictErrors.action && <p className='mt-1 text-sm text-error'>{conflictErrors.action}</p>}
             </div>
             {conflictDraft.action !== 'INITIATE' && (
@@ -1233,8 +1220,8 @@ const AdminCaseDetailsPage = () => {
 
           <div className='grid gap-5 md:grid-cols-2 xl:grid-cols-4'>
             <InfoRow
-              label='Official Court Case Number'
-              value={safe(caseData.official_court_case_number || courtProceeding.official_court_case_number, 'Not recorded')}
+              label='Case Number'
+              value={safe(caseData.case_number || caseData.official_court_case_number || courtProceeding.official_court_case_number, 'Not recorded')}
             />
             <InfoRow
               label='Date Filed in eFiling / Court'
@@ -1376,14 +1363,15 @@ const AdminCaseDetailsPage = () => {
                   Verify the court, level, station and claim value through the controlled jurisdiction workflow.
                 </p>
               </div>
-              <select
+              <Select3D
                 value={jurisdictionValues.action}
                 onChange={(event) => setJurisdictionDraft((current) => ({ ...current, action: event.target.value }))}
-                className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-              >
-                <option value='VERIFY'>Verify jurisdiction</option>
-                <option value='REVOKE'>Revoke verification</option>
-              </select>
+                wrapperClassName='mb-0 md:w-64'
+                options={[
+                  { value: 'VERIFY', label: 'Verify jurisdiction' },
+                  { value: 'REVOKE', label: 'Revoke verification' },
+                ]}
+              />
             </div>
 
             {jurisdictionValues.action === 'VERIFY' ? (
@@ -1414,31 +1402,25 @@ const AdminCaseDetailsPage = () => {
                   <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                     Court type
                   </label>
-                  <select
+                  <Select3D
                     value={jurisdictionValues.court_type}
                     onChange={(event) => setJurisdictionDraft((current) => ({ ...current, court_type: event.target.value }))}
-                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-                  >
-                    <option value=''>Select court type</option>
-                    {COURT_TYPES.map((court) => (
-                      <option key={court.value} value={court.value}>{court.label}</option>
-                    ))}
-                  </select>
+                    wrapperClassName='mb-0'
+                    placeholder='Select court type'
+                    options={COURT_TYPES}
+                  />
                 </div>
                 <div>
                   <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                     Court level
                   </label>
-                  <select
+                  <Select3D
                     value={jurisdictionValues.court_level}
                     onChange={(event) => setJurisdictionDraft((current) => ({ ...current, court_level: event.target.value }))}
-                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-                  >
-                    <option value=''>Select court level</option>
-                    {COURT_LEVELS.map((level) => (
-                      <option key={level.value} value={level.value}>{level.label}</option>
-                    ))}
-                  </select>
+                    wrapperClassName='mb-0'
+                    placeholder='Select court level'
+                    options={COURT_LEVELS}
+                  />
                   {jurisdictionErrors.court_level && <p className='mt-1 text-sm text-error'>{jurisdictionErrors.court_level}</p>}
                 </div>
                 <div>
@@ -1628,17 +1610,12 @@ const AdminCaseDetailsPage = () => {
               Priority
             </label>
 
-            <select
+            <Select3D
               value={selectedPriority || caseData.priority || ''}
               onChange={(event) => setSelectedPriority(event.target.value)}
-              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-            >
-              {PRIORITIES.map((priority) => (
-                <option key={priority.value} value={priority.value}>
-                  {priority.label}
-                </option>
-              ))}
-            </select>
+              wrapperClassName='mb-0'
+              options={PRIORITIES}
+            />
           </div>
 
           <button
@@ -1679,22 +1656,16 @@ const AdminCaseDetailsPage = () => {
             </div>
 
             <div className='mt-4 space-y-3'>
-              <select
+              <Select3D
                 value={selectedLawyer}
                 onChange={(e) => setSelectedLawyer(e.target.value)}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-              >
-                <option value=''>Select Lawyer</option>
-
-                {selectableLawyers.map((lawyer) => (
-                  <option
-                    key={lawyer.membership_id}
-                    value={lawyer.membership_id}
-                  >
-                    {lawyer.full_name}
-                  </option>
-                ))}
-              </select>
+                wrapperClassName='mb-0'
+                placeholder='Select Lawyer'
+                options={selectableLawyers.map((lawyer) => ({
+                  value: lawyer.membership_id,
+                  label: lawyer.full_name,
+                }))}
+              />
 
               <button
                 onClick={handleReassign}
@@ -1722,21 +1693,16 @@ const AdminCaseDetailsPage = () => {
             </div>
 
             <div className='mt-4 space-y-3'>
-              <select
+              <Select3D
                 value={selectedSecretary}
                 onChange={(e) => setSelectedSecretary(e.target.value)}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-              >
-                <option value=''>Select Secretary</option>
-                {selectableSecretaries.map((secretary) => (
-                  <option
-                    key={secretary.membership_id}
-                    value={secretary.membership_id}
-                  >
-                    {secretary.full_name}
-                  </option>
-                ))}
-              </select>
+                wrapperClassName='mb-0'
+                placeholder='Select Secretary'
+                options={selectableSecretaries.map((secretary) => ({
+                  value: secretary.membership_id,
+                  label: secretary.full_name,
+                }))}
+              />
 
               <button
                 onClick={handleSecretaryReassign}
@@ -1866,15 +1832,12 @@ const AdminCaseDetailsPage = () => {
               <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                 Event type
               </label>
-              <select
+              <Select3D
                 value={eventDraft.event_type}
                 onChange={(event) => handleEventTypeChange(event.target.value)}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-              >
-                {COURT_EVENT_TYPES.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                wrapperClassName='mb-0'
+                options={COURT_EVENT_TYPES}
+              />
               {eventErrors.event_type && <p className='mt-1 text-sm text-error'>{eventErrors.event_type}</p>}
             </div>
 
@@ -1942,15 +1905,12 @@ const AdminCaseDetailsPage = () => {
               <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                 Hearing mode
               </label>
-              <select
+              <Select3D
                 value={eventDraft.hearing_mode}
                 onChange={(event) => setEventDraft((current) => ({ ...current, hearing_mode: event.target.value }))}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-              >
-                {HEARING_MODES.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                wrapperClassName='mb-0'
+                options={HEARING_MODES}
+              />
             </div>
 
             <div>

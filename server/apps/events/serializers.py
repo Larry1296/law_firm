@@ -37,7 +37,6 @@ class EventSerializer(serializers.ModelSerializer):
         return {
             "id": str(case.id),
             "case_number": case.case_number,
-            "internal_matter_number": getattr(case, "internal_matter_number", "") or case.case_number,
             "official_court_case_number": getattr(case, "official_court_case_number", "") or "",
             "title": case.title,
             "client": {

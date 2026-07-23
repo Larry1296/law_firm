@@ -837,8 +837,8 @@ class CaseLifecycleFrameworkTests(TestCase):
         response = self.api.get(reverse("case-detail", kwargs={"case_id": case.id}))
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn("data", response.data)
-        self.assertEqual(response.data["data"]["internal_case_number"], case.official_court_case_number)
-        self.assertEqual(response.data["data"]["official_court_case_number"], case.official_court_case_number)
+        self.assertEqual(response.data["data"]["case_number"], case.official_court_case_number)
+        self.assertNotIn("internal_case_number", response.data["data"])
 
     def test_existing_assignments_and_parties_remain_intact(self):
         case = self.create_case()

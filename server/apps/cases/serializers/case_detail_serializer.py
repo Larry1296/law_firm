@@ -59,7 +59,6 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     outcome_status_label = serializers.CharField(source="get_outcome_status_display", read_only=True)
     enforcement_status_label = serializers.CharField(source="get_enforcement_status_display", read_only=True)
     appeal_status_label = serializers.CharField(source="get_appeal_status_display", read_only=True)
-    internal_case_number = serializers.CharField(source="case_number", read_only=True)
     available_transitions = serializers.SerializerMethodField()
     jurisdiction_warnings = serializers.SerializerMethodField()
     conflict_check = serializers.SerializerMethodField()
@@ -212,7 +211,6 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "case_number",
-            "internal_case_number",
             "official_court_case_number",
             "title",
             "description",

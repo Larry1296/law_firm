@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FileText, Send, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import Select3D from "@/components/ui/Select3D";
 
 const dummySubmissions = [
   {
@@ -85,21 +86,22 @@ export default function IntakeForms() {
               Legal Category
             </label>
 
-            <select
+            <Select3D
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full mt-1 px-4 py-3 rounded-xl bg-background-dark border border-border-dark text-sm outline-none focus:border-brand-primary"
-            >
-              <option>Property Law</option>
-              <option>Family Law</option>
-              <option>Employment Law</option>
-              <option>Criminal Law</option>
-              <option>Corporate Law</option>
-              <option>Immigration Law</option>
-              <option>Tax Law</option>
-              <option>Civil Litigation</option>
-              <option>Other</option>
-            </select>
+              wrapperClassName="mb-0 mt-1"
+              options={[
+                { value: "Property Law", label: "Property Law" },
+                { value: "Family Law", label: "Family Law" },
+                { value: "Employment Law", label: "Employment Law" },
+                { value: "Criminal Law", label: "Criminal Law" },
+                { value: "Corporate Law", label: "Corporate Law" },
+                { value: "Immigration Law", label: "Immigration Law" },
+                { value: "Tax Law", label: "Tax Law" },
+                { value: "Civil Litigation", label: "Civil Litigation" },
+                { value: "Other", label: "Other" },
+              ]}
+            />
           </div>
 
           {/* DESCRIPTION */}

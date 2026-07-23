@@ -485,8 +485,7 @@ class CaseService:
             actor=user,
             metadata={
                 "client_id": str(client.id),
-                "internal_case_number": case.case_number,
-                "internal_number_source": "official_court_case_number" if case.entry_route == Case.EntryRoute.EXISTING_FILED_COURT_CASE else "generated",
+                "case_number": case.case_number,
                 "entry_route": case.entry_route,
                 "forum": case.forum,
                 "official_court_case_number": case.official_court_case_number,
@@ -779,7 +778,7 @@ class CaseService:
         return (
             "FILED_CASE_REGISTERED",
             "Filed Case Registered",
-            f"{case.official_court_case_number} was registered in Sheria Master as {case.case_number} by {actor_name}.",
+            f"Case number {case.case_number} was registered in Sheria Master by {actor_name}.",
         )
 
     @staticmethod

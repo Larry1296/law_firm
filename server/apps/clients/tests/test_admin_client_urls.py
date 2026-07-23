@@ -6,7 +6,7 @@ from rest_framework.test import APIClient
 
 from apps.cases.models import Case
 from apps.common.choices import FirmRole, UserRole
-from apps.clients.models import Client, NGOClient
+from apps.clients.models import Client, ClientAddress, ClientContact, IndividualClient, NGOClient
 from apps.firm.models import LawFirm, LawFirmMember
 from apps.users.models import User
 
@@ -71,6 +71,15 @@ class AdminClientUrlTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_prospect_without_case_is_hard_deleted(self):
+        portal_user = User.objects.create_user(
+            email="prospect-delete-login@example.com",
+            password="strong-pass123",
+            first_name="Prospect",
+            last_name="Delete",
+            phone_number="+254700000123",
+            national_id_number="123456793",
+            role=UserRole.PROSPECT,
+        )
         client = Client.objects.create(
             firm=self.firm,
             full_name="Prospect Delete",
@@ -79,6 +88,24 @@ class AdminClientUrlTests(TestCase):
             client_type=Client.ClientType.INDIVIDUAL,
             access_type=Client.AccessType.PROSPECT,
             lifecycle_status=Client.LifecycleStatus.PROSPECT,
+            user=portal_user,
+        )
+        IndividualClient.objects.create(
+            client=client,
+            first_name="Prospect",
+            last_name="Delete",
+        )
+        ClientContact.objects.create(
+            client=client,
+            full_name="Prospect Contact",
+            phone_number="+254700000124",
+            is_primary=True,
+        )
+        ClientAddress.objects.create(
+            client=client,
+            country="Kenya",
+            full_address="Nairobi",
+            is_primary=True,
         )
         self.client.force_authenticate(user=self.admin_user)
 
@@ -89,6 +116,10 @@ class AdminClientUrlTests(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data["action"], "deleted")
         self.assertFalse(Client.objects.filter(id=client.id).exists())
+        self.assertFalse(User.objects.filter(id=portal_user.id).exists())
+        self.assertFalse(IndividualClient.objects.filter(client_id=client.id).exists())
+        self.assertFalse(ClientContact.objects.filter(client_id=client.id).exists())
+        self.assertFalse(ClientAddress.objects.filter(client_id=client.id).exists())
 
     def test_case_linked_client_is_archived_instead_of_hard_deleted(self):
         client = Client.objects.create(

@@ -18,6 +18,7 @@ import ThemeContext from "@/core/store/ThemeContext";
 import Card from "@/components/ui/Card";
 import Button3D from "@/components/ui/Button3D";
 import FloatingInput from "@/components/ui/FloatingInput";
+import Select3D from "@/components/ui/Select3D";
 import { Textarea3D } from "@/components/ui/TextArea3D";
 
 export default function BecomeClient() {
@@ -224,26 +225,21 @@ export default function BecomeClient() {
                   Legal Need Category
                 </label>
 
-                <select
+                <Select3D
+                  label="Legal Need Category"
                   name="caseCategory"
                   value={formData.caseCategory}
                   onChange={handleChange}
-                  className={inputClass}
-                >
-                  <option value="">Select legal category</option>
-
-                  <option value="Family Law">Family Law</option>
-
-                  <option value="Employment Law">Employment Law</option>
-
-                  <option value="Civil Litigation">Civil Litigation</option>
-
-                  <option value="Corporate Law">Corporate Law</option>
-
-                  <option value="Criminal Defense">Criminal Defense</option>
-
-                  <option value="Land & Property">Land & Property</option>
-                </select>
+                  placeholder="Select legal category"
+                  options={[
+                    { value: "Family Law", label: "Family Law" },
+                    { value: "Employment Law", label: "Employment Law" },
+                    { value: "Civil Litigation", label: "Civil Litigation" },
+                    { value: "Corporate Law", label: "Corporate Law" },
+                    { value: "Criminal Defense", label: "Criminal Defense" },
+                    { value: "Land & Property", label: "Land & Property" },
+                  ]}
+                />
               </div>
 
               {/* LEGAL NEED */}

@@ -12,7 +12,6 @@ CONTROLLED_CREATE_FIELDS = {
     "enforcement_status",
     "appeal_status",
     "case_number",
-    "internal_matter_number",
     "jurisdiction_verified",
     "jurisdiction_verified_by",
     "jurisdiction_verified_at",
@@ -200,14 +199,14 @@ class CaseCreateSerializer(serializers.Serializer):
         if filed_case_intent:
             official_number = self._clean_text(court.get("official_court_case_number"))
             if not official_number:
-                errors["official_court_case_number"] = "Official court case number is required for filed-case registration."
+                errors["official_court_case_number"] = "Case number is required for filed-case registration."
             else:
                 firm = self.context.get("firm")
                 if firm and Case.objects.filter(
                     firm=firm,
                     official_court_case_number__iexact=official_number,
                 ).exists():
-                    errors["court_proceeding.official_court_case_number"] = "A matter with this official court case number already exists."
+                    errors["court_proceeding.official_court_case_number"] = "A matter with this case number already exists."
                 court["official_court_case_number"] = official_number
 
             if not court.get("filing_date"):

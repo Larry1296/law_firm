@@ -10,7 +10,6 @@ class CaseSerializer(serializers.ModelSerializer):
     client_national_id = serializers.CharField(source="client.national_id", read_only=True)
     assigned_lawyer_name = serializers.CharField(source="assigned_lawyer.user.full_name", read_only=True)
     assigned_secretary_name = serializers.CharField(source="assigned_secretary.user.full_name", read_only=True)
-    internal_case_number = serializers.CharField(source="case_number", read_only=True)
     entry_route_label = serializers.CharField(source="get_entry_route_display", read_only=True)
     practice_area_label = serializers.CharField(source="get_practice_area_display", read_only=True)
     matter_nature_label = serializers.CharField(source="get_matter_nature_display", read_only=True)
@@ -39,7 +38,6 @@ class CaseSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "case_number",
-            "internal_case_number",
             "official_court_case_number",
             "title",
             "description",

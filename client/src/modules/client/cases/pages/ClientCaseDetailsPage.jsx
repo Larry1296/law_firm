@@ -94,10 +94,7 @@ export default function ClientCaseDetailsPage() {
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
             <p>
-              <strong>Internal Matter Number:</strong> {safe(caseData.internal_case_number || caseData.case_number)}
-            </p>
-            <p>
-              <strong>Official Court Case Number:</strong> {safe(officialCourtNumber, 'Not recorded')}
+              <strong>Case Number:</strong> {safe(caseData.case_number || officialCourtNumber, 'Not recorded')}
             </p>
             <p>
               <strong>Title:</strong> {safe(caseData.title)}

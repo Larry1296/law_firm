@@ -10,9 +10,11 @@ export default function Select3D({
   placeholder = 'Select an option',
   required = false,
   className = '',
+  wrapperClassName = '',
   error,
   children,
   disabled = false,
+  multiple = false,
   ...props
 }) {
   const [open, setOpen] = useState(false);
@@ -35,8 +37,19 @@ export default function Select3D({
     [childOptions, options],
   );
 
-  const selectedOption = normalizedOptions.find((option) => String(option.value) === String(value ?? ''));
-  const displayValue = selectedOption?.label || placeholder;
+  const selectedValues = useMemo(
+    () => (multiple && Array.isArray(value) ? value.map(String) : [String(value ?? '')]),
+    [multiple, value],
+  );
+  const selectedOptions = normalizedOptions.filter((option) =>
+    selectedValues.includes(String(option.value)),
+  );
+  const selectedOption = selectedOptions[0];
+  const displayValue = multiple
+    ? selectedOptions.length
+      ? selectedOptions.map((option) => option.label).join(', ')
+      : placeholder
+    : selectedOption?.label || placeholder;
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -50,22 +63,39 @@ export default function Select3D({
   }, []);
 
   const emitChange = (nextValue) => {
+    const selected = normalizedOptions
+      .filter((option) =>
+        Array.isArray(nextValue)
+          ? nextValue.map(String).includes(String(option.value))
+          : String(option.value) === String(nextValue),
+      )
+      .map((option) => ({ value: option.value }));
+
     onChange?.({
       target: {
         name,
         value: nextValue,
+        selectedOptions: selected,
       },
     });
   };
 
   const handleSelect = (option) => {
     if (option.disabled) return;
+    if (multiple) {
+      const optionValue = String(option.value);
+      const nextValues = selectedValues.includes(optionValue)
+        ? selectedValues.filter((current) => current !== optionValue)
+        : [...selectedValues.filter(Boolean), optionValue];
+      emitChange(nextValues);
+      return;
+    }
     emitChange(option.value);
     setOpen(false);
   };
 
   return (
-    <div ref={wrapperRef} className='relative w-full mb-8'>
+    <div ref={wrapperRef} className={`relative w-full mb-8 ${wrapperClassName}`}>
       {label && (
         <label
           htmlFor={name}
@@ -95,7 +125,7 @@ export default function Select3D({
           ${className}
         `}
       >
-        <span className={selectedOption ? '' : 'text-text-muted-light dark:text-text-muted-dark'}>
+        <span className={selectedOptions.length ? '' : 'text-text-muted-light dark:text-text-muted-dark'}>
           {displayValue}
         </span>
         <ChevronDown
@@ -108,6 +138,7 @@ export default function Select3D({
       {open && (
         <div
           role='listbox'
+          aria-multiselectable={multiple || undefined}
           aria-labelledby={name}
           className='relative z-50 mt-2 max-h-72 overflow-y-auto rounded-2xl border border-border-light bg-surface-light py-2 shadow-xl dark:border-border-dark dark:bg-surface-dark'
         >
@@ -122,13 +153,13 @@ export default function Select3D({
               key={`${name}-${option.value}`}
               type='button'
               role='option'
-              aria-selected={String(option.value) === String(value ?? '')}
+              aria-selected={selectedValues.includes(String(option.value))}
               disabled={option.disabled}
               onClick={() => handleSelect(option)}
               className={`
                 block w-full px-4 py-2 text-left text-sm transition
-                ${String(option.value) === String(value ?? '')
-                  ? 'bg-brand-primary/10 font-semibold text-brand-primary'
+                ${selectedValues.includes(String(option.value))
+                  ? 'bg-brand-primary/10 font-semibold text-text-primary-light dark:bg-brand-primary/20 dark:text-text-primary-dark'
                   : 'text-text-primary-light hover:bg-brand-primary/10 dark:text-text-primary-dark'
                 }
                 disabled:cursor-not-allowed disabled:opacity-50

@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
+import Select3D from '@/components/ui/Select3D';
 import ChatWorkspace from '@/modules/communications/components/ChatWorkspace';
 import {
   useAdminThreads,
@@ -83,9 +84,9 @@ export default function AdminChatPage() {
   const selectedStaffId = selectedStaffIds[0] || '';
 
   const handleStaffSelect = (event) => {
-    const values = Array.from(event.target.selectedOptions).map(
-      (option) => option.value,
-    );
+    const values = Array.isArray(event.target.value)
+      ? event.target.value
+      : Array.from(event.target.selectedOptions).map((option) => option.value);
     setSelectedStaffIds(targetMode === 'single' ? values.slice(0, 1) : values);
   };
 
@@ -201,47 +202,44 @@ export default function AdminChatPage() {
         </div>
 
         <div className='grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_minmax(0,1fr)]'>
-          <select
+          <Select3D
+            name='targetMode'
             value={targetMode}
             onChange={(event) => {
               setTargetMode(event.target.value);
               setSelectedStaffIds([]);
             }}
-            className='h-12 rounded-2xl border border-border-light bg-white px-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-border-dark dark:bg-slate-900 dark:text-white'
-          >
-            <option value='single'>One staff member</option>
-            <option value='selected'>Selected staff</option>
-            <option value='lawyers'>All lawyers</option>
-            <option value='secretaries'>All secretaries</option>
-            <option value='all'>All staff</option>
-          </select>
+            wrapperClassName='mb-0'
+            options={[
+              { value: 'single', label: 'One staff member' },
+              { value: 'selected', label: 'Selected staff' },
+              { value: 'lawyers', label: 'All lawyers' },
+              { value: 'secretaries', label: 'All secretaries' },
+              { value: 'all', label: 'All staff' },
+            ]}
+          />
 
-          <select
+          <Select3D
+            name='staff_user_ids'
             value={targetMode === 'single' ? selectedStaffId : selectedStaffIds}
             onChange={handleStaffSelect}
             multiple={targetMode === 'selected'}
             disabled={!['single', 'selected'].includes(targetMode)}
-            className={`rounded-2xl border border-border-light bg-white px-4 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-slate-900 dark:text-white ${
-              targetMode === 'selected' ? 'min-h-28 py-3' : 'h-12'
-            }`}
-          >
-            <option value=''>
-              {contactsQuery.isLoading
+            wrapperClassName='mb-0'
+            placeholder={
+              contactsQuery.isLoading
                 ? 'Loading staff...'
                 : targetMode === 'selected'
-                  ? 'Use Ctrl/Cmd to select staff'
-                  : 'Choose staff'}
-            </option>
-            {Object.entries(groupedStaff).map(([role, members]) => (
-              <optgroup key={role} label={roleLabels[role] || role}>
-                {members.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.full_name || member.email} ({member.email})
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+                  ? 'Choose staff'
+                  : 'Choose staff'
+            }
+            options={Object.entries(groupedStaff).flatMap(([role, members]) =>
+              members.map((member) => ({
+                value: member.id,
+                label: `${member.full_name || member.email} (${member.email}) - ${roleLabels[role] || role}`,
+              })),
+            )}
+          />
 
           <input
             value={message}

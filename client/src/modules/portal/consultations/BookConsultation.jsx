@@ -21,6 +21,7 @@ import ThemeContext from "@/core/store/ThemeContext";
 
 import Card from "@/components/ui/Card";
 import Button3D from "@/components/ui/Button3D";
+import Select3D from "@/components/ui/Select3D";
 
 const lawyers = [
   {
@@ -71,6 +72,7 @@ export default function BookConsultation() {
   const isDark = theme === "dark";
 
   const [selectedType, setSelectedType] = useState("Virtual");
+  const [practiceArea, setPracticeArea] = useState("Family Law");
 
   const [selectedLawyer, setSelectedLawyer] = useState(null);
 
@@ -232,19 +234,18 @@ export default function BookConsultation() {
                   Practice Area
                 </label>
 
-                <select
-                  className={`w-full px-4 py-3 rounded-xl border outline-none ${
-                    isDark
-                      ? "bg-slate-900 border-slate-700 text-white"
-                      : "bg-slate-50 border-slate-200 text-slate-800"
-                  }`}
-                >
-                  <option>Family Law</option>
-                  <option>Corporate Law</option>
-                  <option>Land & Property</option>
-                  <option>Criminal Law</option>
-                  <option>Employment Law</option>
-                </select>
+                <Select3D
+                  value={practiceArea}
+                  onChange={(event) => setPracticeArea(event.target.value)}
+                  wrapperClassName="mb-0"
+                  options={[
+                    { value: "Family Law", label: "Family Law" },
+                    { value: "Corporate Law", label: "Corporate Law" },
+                    { value: "Land & Property", label: "Land & Property" },
+                    { value: "Criminal Law", label: "Criminal Law" },
+                    { value: "Employment Law", label: "Employment Law" },
+                  ]}
+                />
               </div>
 
               {/* CONSULTATION TYPE */}

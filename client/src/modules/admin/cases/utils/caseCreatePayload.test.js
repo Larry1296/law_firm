@@ -48,7 +48,6 @@ const baseFiledCase = {
   filed_by: 'user-1',
   status: 'WON',
   case_number: 'ELC E012 of 2026',
-  internal_matter_number: 'MAT-2026-0001',
   created_by: 'user-1',
 };
 
@@ -84,7 +83,6 @@ assert.equal(filedPayload.client_id, 'client-1');
   'filed_by',
   'status',
   'case_number',
-  'internal_matter_number',
   'created_by',
 ].forEach((field) => assertAbsent(filedPayload, field));
 assertAbsent(filedPayload.court_proceeding, 'cts_reference');
