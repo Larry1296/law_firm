@@ -190,7 +190,7 @@ const SuccessPanel = ({ result, listPath, detailsPath, onCreateAnother }) => {
         </div>
         <dl className='grid gap-3 md:grid-cols-2'>
           <div>
-            <dt className='text-sm text-text-muted-light dark:text-text-muted-dark'>Case Number</dt>
+            <dt className='text-sm text-text-muted-light dark:text-text-muted-dark'>Internal Matter Number</dt>
             <dd className='font-semibold'>{createdCase.case_number || createdCase.official_court_case_number || 'Generated'}</dd>
           </div>
           <div>
@@ -675,7 +675,7 @@ export default function CaseCreateForm({
               <>
                 {isFiledCourtRoute(formData) && (
                   <>
-                    <MatterTextInput label='Case Number' name='official_court_case_number' value={formData.official_court_case_number} onChange={handleChange} placeholder='ELC E012 of 2026' error={errors.official_court_case_number} required />
+                    <MatterTextInput label='Internal Matter Number' name='official_court_case_number' value={formData.official_court_case_number} onChange={handleChange} placeholder='ELC E012 of 2026' error={errors.official_court_case_number} required />
                     <MatterTextInput label='Date Filed in eFiling / Court' name='filing_date' type='date' value={formData.filing_date} onChange={handleChange} noFloat error={errors.filing_date} required />
                     <MatterTextInput label='eFiling Reference' name='efiling_reference' value={formData.efiling_reference} onChange={handleChange} error={errors.efiling_reference} required />
                     <MatterTextInput label='Court Payment Reference' name='payment_reference' value={formData.payment_reference} onChange={handleChange} />
@@ -908,7 +908,7 @@ export default function CaseCreateForm({
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Client</dt><dd className='font-semibold'>{selectedClient?.full_name || selectedClient?.company_name || 'Not selected'}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Practice Area</dt><dd className='font-semibold'>{optionLabel(PRACTICE_AREAS, formData.practice_area)}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Forum</dt><dd className='font-semibold'>{optionLabel(FORUMS, formData.forum)}</dd></div>
-              <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Case Number</dt><dd className='font-semibold'>{isFiledCourtRoute(formData) ? (formData.official_court_case_number || 'Enter case number') : 'Generated automatically'}</dd></div>
+              <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Internal Matter Number</dt><dd className='font-semibold'>{isFiledCourtRoute(formData) ? (formData.official_court_case_number || 'Enter case number') : 'Generated automatically'}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Court Stage</dt><dd className='font-semibold'>{isFiledCourtRoute(formData) ? 'Filed' : 'Not yet filed / not applicable'}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>CTS Reference</dt><dd className='font-semibold'>Pending controlled verification</dd></div>
             </dl>

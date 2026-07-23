@@ -114,7 +114,7 @@ class AdminIndividualClientCreationTests(TestCase):
 
         self.assertEqual(client.client_type, Client.ClientType.INDIVIDUAL)
         self.assertEqual(client.access_type, Client.AccessType.ASSISTED_CLIENT)
-        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECT)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
         self.assertIsNone(client.user_id)
         self.assertEqual(User.objects.count(), user_count)
         self.assertIsNone(response.data["portal_user"])

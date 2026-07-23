@@ -11,6 +11,7 @@ export default function DataTable({
   mobileTitleKey = null,
   mobileSubtitleKey = null,
   actions = null,
+  fitToContainer = false,
 }) {
   if (loading) {
     return (
@@ -101,10 +102,10 @@ export default function DataTable({
       {/* ====================================================== */}
       {/* DESKTOP TABLE */}
       {/* ====================================================== */}
-      <div className='hidden lg:block'>
-        <Card className='overflow-hidden'>
-          <div className='overflow-x-auto'>
-            <table className='w-full'>
+      <div className='hidden min-w-0 w-full lg:block'>
+        <Card className='w-full overflow-hidden'>
+          <div className={fitToContainer ? 'w-full overflow-x-hidden' : 'w-full overflow-x-auto'}>
+            <table className={fitToContainer ? 'w-full table-fixed' : 'w-full min-w-max table-auto'}>
               <thead
                 className='
                   bg-slate-100
@@ -118,16 +119,16 @@ export default function DataTable({
                   {columns.map((column) => (
                     <th
                       key={column.key}
-                      className='
-                        px-6
+                      className={`
+                        px-4
                         py-4
                         text-left
                         text-sm
                         font-semibold
                         text-slate-700
                         dark:text-white
-                        whitespace-nowrap
-                      '
+                        ${fitToContainer ? 'whitespace-normal break-words' : 'whitespace-nowrap'}
+                      `}
                     >
                       {column.label}
                     </th>
@@ -135,16 +136,16 @@ export default function DataTable({
 
                   {actions && (
                     <th
-                      className='
-                        px-6
+                      className={`
+                        px-4
                         py-4
                         text-left
                         text-sm
                         font-semibold
                         text-slate-700
                         dark:text-white
-                        whitespace-nowrap
-                      '
+                        ${fitToContainer ? 'whitespace-normal break-words' : 'whitespace-nowrap'}
+                      `}
                     >
                       Actions
                     </th>
@@ -173,14 +174,15 @@ export default function DataTable({
                       return (
                         <td
                           key={column.key}
-                          className='
-                            px-6
+                          className={`
+                            px-4
                             py-4
                             text-sm
                             text-slate-700
                             dark:text-slate-200
                             align-middle
-                          '
+                            ${fitToContainer ? 'whitespace-normal break-words' : 'whitespace-nowrap'}
+                          `}
                         >
                           {column.render
                             ? column.render(value, row)
@@ -191,13 +193,14 @@ export default function DataTable({
 
                     {actions && (
                       <td
-                        className='
-                          px-6
+                        className={`
+                          px-4
                           py-4
                           text-sm
                           text-slate-700
                           dark:text-slate-200
-                        '
+                          ${fitToContainer ? 'whitespace-normal' : 'whitespace-nowrap'}
+                        `}
                       >
                         {actions(row)}
                       </td>

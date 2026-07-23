@@ -1,6 +1,7 @@
 from django.urls import path
 
 from apps.clients.views.admin.client_matter_conflict_check_view import (
+    ClientMatterConflictCheckAcceptanceView,
     ClientMatterConflictCheckClearedUnconsumedView,
     ClientMatterConflictCheckCloseView,
     ClientMatterConflictCheckDecideView,
@@ -38,6 +39,7 @@ urlpatterns = [
     path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/potential/", ClientMatterConflictCheckPotentialView.as_view(), name="lawyer-client-conflict-check-potential"),
     path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/escalate/", ClientMatterConflictCheckEscalateView.as_view(), name="lawyer-client-conflict-check-escalate"),
     path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/decide/", ClientMatterConflictCheckDecideView.as_view(), name="lawyer-client-conflict-check-decide"),
+    path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/acceptance/", ClientMatterConflictCheckAcceptanceView.as_view(), name="lawyer-client-conflict-check-acceptance"),
     path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/close/", ClientMatterConflictCheckCloseView.as_view(), name="lawyer-client-conflict-check-close"),
     path("calendar/", LawyerCalendarView.as_view(), name="lawyer-calendar"),
     path("tasks/", LawyerTasksView.as_view(), name="lawyer-tasks"),

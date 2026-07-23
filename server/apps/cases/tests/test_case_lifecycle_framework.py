@@ -105,6 +105,13 @@ class CaseLifecycleFrameworkTests(TestCase):
             decided_at=timezone.now(),
             completed_at=timezone.now(),
             created_by=self.admin,
+            acceptance_decision=ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED,
+            scope_confirmation="Accepted scope confirmed for test matter.",
+            engagement_status=ClientMatterConflictCheck.EngagementStatus.SIGNED,
+            accepted_by=lawyer if 'lawyer' in locals() else self.lawyer,
+            accepted_at=timezone.now(),
+            acceptance_decided_by=lawyer if 'lawyer' in locals() else self.lawyer,
+            acceptance_decided_at=timezone.now(),
         )
         ConflictCheckParty.objects.create(
             conflict_check=check,
@@ -184,15 +191,16 @@ class CaseLifecycleFrameworkTests(TestCase):
 
     def test_internal_number_is_not_official_court_number(self):
         case = self.create_case()
-        self.assertEqual(case.case_number, "ELC E012 of 2026")
+        self.assertTrue(case.case_number.startswith("MAT-2026-"))
+        self.assertNotEqual(case.case_number, case.official_court_case_number)
         self.assertEqual(case.official_court_case_number, "ELC E012 of 2026")
-        self.assertEqual(case.case_number, case.official_court_case_number)
+        self.assertNotEqual(case.case_number, case.official_court_case_number)
 
     def test_first_case_changes_client_lifecycle_without_removing_portal_access(self):
         self.create_case()
         self.client.refresh_from_db()
         self.client_user.refresh_from_db()
-        self.assertEqual(self.client.lifecycle_status, Client.LifecycleStatus.OFFICIAL_CLIENT)
+        self.assertEqual(self.client.lifecycle_status, Client.LifecycleStatus.OFFICIAL)
         self.assertEqual(self.client.access_type, Client.AccessType.PROSPECT)
         self.assertEqual(self.client.user_id, self.client_user.id)
         self.assertTrue(self.client_user.is_active)
@@ -886,7 +894,8 @@ class CaseLifecycleFrameworkTests(TestCase):
         response = self.api.get(reverse("case-detail", kwargs={"case_id": case.id}))
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn("data", response.data)
-        self.assertEqual(response.data["data"]["case_number"], case.official_court_case_number)
+        self.assertEqual(response.data["data"]["internal_matter_number"], case.case_number)
+        self.assertNotEqual(response.data["data"]["case_number"], case.official_court_case_number)
         self.assertNotIn("internal_case_number", response.data["data"])
 
     def test_existing_assignments_and_parties_remain_intact(self):

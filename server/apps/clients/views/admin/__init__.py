@@ -8,7 +8,10 @@ from .client_admin_assign_view import ClientAdminAssignView
 from .client_admin_remove_lawyer_view import ClientAdminRemoveLawyerView
 from .client_admin_delete_view import ClientAdminDeleteView
 from .client_matter_conflict_check_view import (
+    ClientMatterConflictCheckAcceptanceView,
     ClientMatterConflictCheckClearedUnconsumedView,
+    ClientMatterConflictCheckRejectedDetailView,
+    ClientMatterConflictCheckRejectedListView,
     ClientMatterConflictCheckCloseView,
     ClientMatterConflictCheckDecideView,
     ClientMatterConflictCheckDetailView,
@@ -61,7 +64,10 @@ __all__ = [
     "ClientAdminAssignView",
     "ClientAdminRemoveLawyerView",
     "ClientAdminDeleteView",
+    "ClientMatterConflictCheckAcceptanceView",
     "ClientMatterConflictCheckClearedUnconsumedView",
+    "ClientMatterConflictCheckRejectedDetailView",
+    "ClientMatterConflictCheckRejectedListView",
     "ClientMatterConflictCheckCloseView",
     "ClientMatterConflictCheckDecideView",
     "ClientMatterConflictCheckDetailView",

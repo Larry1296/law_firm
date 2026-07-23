@@ -5,7 +5,6 @@ import { Briefcase, CheckCircle, Clock, FileText } from 'lucide-react';
 
 import { useMyCases } from '@/modules/staff/lawyer/cases/hooks/useLawyerCases';
 
-import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
 import DataTable from '@/components/ui/DataTable';
 import Button3D from '@/components/ui/Button3D';
@@ -46,7 +45,7 @@ export default function LawyerCasesPage() {
   }
 
   return (
-    <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
+    <div className='w-full min-w-0 space-y-6 p-4 md:p-6 animate-fadeIn'>
       <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
         <SectionHeading
           title='My Cases'
@@ -90,11 +89,12 @@ export default function LawyerCasesPage() {
         />
       </div>
 
-      <Card className='p-2 md:p-4'>
+      <div className='min-w-0'>
         <DataTable
           data={cases}
           mobileTitleKey='title'
           mobileSubtitleKey='case_number'
+          fitToContainer
           emptyMessage='No cases assigned yet.'
           columns={[
             { key: 'case_number', label: 'Case No' },
@@ -139,7 +139,7 @@ export default function LawyerCasesPage() {
             </div>
           )}
         />
-      </Card>
+      </div>
     </div>
   );
 }

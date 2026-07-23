@@ -32,6 +32,7 @@ from .client_matter_conflict_check import (
     ClientMatterConflictReferenceSequence,
     ConflictCheckHistory,
     ConflictCheckParty,
+    FirmAcceptanceHistory,
 )
 
 
@@ -68,4 +69,5 @@ __all__ = [
     "ClientMatterConflictReferenceSequence",
     "ConflictCheckHistory",
     "ConflictCheckParty",
+    "FirmAcceptanceHistory",
 ]

@@ -49,6 +49,14 @@ const emptyDraft = {
   adverse_party_name: '',
 };
 
+const emptyAcceptanceDraft = {
+  decision: 'ACCEPTED',
+  reason_category: '',
+  internal_reason: '',
+  scope_confirmation: '',
+  engagement_status: 'SENT_TO_CLIENT',
+};
+
 const emptyActionDraft = {
   next_status: '',
   information_missing: '',
@@ -63,6 +71,41 @@ const emptyActionDraft = {
   restricted_note: '',
   decision_confirmation: false,
   closure_reason: '',
+};
+
+const optionalValue = (value) => {
+  const normalized = typeof value === 'string' ? value.trim() : value;
+  return normalized === '' || normalized === null || normalized === undefined ? undefined : normalized;
+};
+
+const buildProposedMatterPayload = (draft) => {
+  const payload = {
+    proposed_matter_title: draft.proposed_matter_title.trim(),
+    proposed_instructions: draft.proposed_instructions.trim(),
+    factual_summary: draft.factual_summary.trim(),
+    desired_outcome: draft.desired_outcome.trim(),
+    urgency_level: draft.urgency_level,
+    urgency_details: draft.urgency_details.trim(),
+    no_adverse_party_currently_known: draft.no_adverse_party_currently_known,
+    no_adverse_party_explanation: draft.no_adverse_party_explanation.trim(),
+  };
+
+  const responsibleLawyerId = optionalValue(draft.responsible_lawyer_id);
+  if (responsibleLawyerId) payload.responsible_lawyer_id = responsibleLawyerId;
+
+  const deadlineDate = optionalValue(draft.limitation_or_deadline_date);
+  if (deadlineDate) payload.limitation_or_deadline_date = deadlineDate;
+
+  const adversePartyName = optionalValue(draft.adverse_party_name);
+  if (adversePartyName) {
+    payload.parties = [{
+      name: adversePartyName,
+      party_type: 'ORGANISATION',
+      role: 'PROPOSED_ADVERSE_PARTY',
+    }];
+  }
+
+  return payload;
 };
 
 function TextArea({ label, value, onChange, required = false, rows = 3 }) {
@@ -90,6 +133,7 @@ export default function ClientConflictCheckPage() {
   const isNew = !checkId;
   const [draft, setDraft] = useState(emptyDraft);
   const [actionDraft, setActionDraft] = useState(emptyActionDraft);
+  const [acceptanceDraft, setAcceptanceDraft] = useState(emptyAcceptanceDraft);
   const { lawyers = [] } = useFirmLawyers();
 
   const { data: clientData } = useQuery({
@@ -113,16 +157,17 @@ export default function ClientConflictCheckPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const parties = draft.adverse_party_name.trim()
-        ? [{
-            name: draft.adverse_party_name.trim(),
-            party_type: 'PERSON',
-            role: 'PROPOSED_ADVERSE_PARTY',
-          }]
-        : [];
-      return service.createConflictCheck(clientId, { ...draft, parties });
+      return service.createConflictCheck(clientId, buildProposedMatterPayload(draft));
     },
     onSuccess: (created) => navigate(`${basePath}/clients/${clientId}/conflict-checks/${created.id}`),
+  });
+
+  const acceptanceMutation = useMutation({
+    mutationFn: async () => service.recordFirmAcceptance(clientId, checkId, acceptanceDraft),
+    onSuccess: () => {
+      setAcceptanceDraft(emptyAcceptanceDraft);
+      queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] });
+    },
   });
 
   const actionMutation = useMutation({
@@ -186,7 +231,8 @@ export default function ClientConflictCheckPage() {
     return <div className='p-6'>Loading conflict check...</div>;
   }
 
-  const canCreateCase = check.status === 'CLEARED' && !check.consumed_at && !check.created_case;
+  const canCreateCase = Boolean(check.can_open_matter);
+  const canRecordAcceptance = check.status === 'CLEARED' && check.acceptance_decision === 'PENDING';
   const canViewCase = check.created_case;
   const nextOptions = check.permitted_next_statuses || [];
 
@@ -201,8 +247,10 @@ export default function ClientConflictCheckPage() {
           <p><strong>Status:</strong> {check.status_label || enumLabel(check.status)}</p>
           <p><strong>Responsible advocate:</strong> {check.responsible_lawyer_name || 'Not recorded'}</p>
           <p><strong>Deadline:</strong> {check.limitation_or_deadline_date || 'Not recorded'}</p>
-          <p><strong>Linked case:</strong> {check.created_case_number || '-'}</p>
+          <p><strong>Linked matter:</strong> {check.created_case_number || '-'}</p>
           <p><strong>Consumed:</strong> {check.consumed_at ? formatDateTime(check.consumed_at) : 'No'}</p>
+          <p><strong>Firm acceptance:</strong> {enumLabel(check.acceptance_decision || 'PENDING')}</p>
+          <p><strong>Accepted at:</strong> {check.accepted_at ? formatDateTime(check.accepted_at) : 'Not recorded'}</p>
         </div>
         <div className='mt-4 grid gap-4 md:grid-cols-2'>
           <p><strong>Instructions:</strong> {check.proposed_instructions}</p>
@@ -216,17 +264,33 @@ export default function ClientConflictCheckPage() {
         </div>
         <div className='mt-5 flex flex-wrap gap-3'>
           {canCreateCase && (
-            <Button3D variant='primary' onClick={() => navigate(`${basePath}/cases/create?client=${clientId}&conflict_check=${check.id}`)}>
-              Create Case
+            <Button3D variant='primary' onClick={() => navigate(`${basePath}/clients/${clientId}/conflict-checks/${check.id}/open-matter`)}>
+              Open Matter
             </Button3D>
           )}
           {canViewCase && (
             <Button3D variant='primary' onClick={() => navigate(`${basePath}/cases/${check.created_case}`)}>
-              View Case
+              View Matter
             </Button3D>
           )}
         </div>
       </Card>
+
+      {canRecordAcceptance && (
+        <Card className='p-6'>
+          <h3 className='mb-4 text-lg font-semibold'>Firm Acceptance Decision</h3>
+          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); acceptanceMutation.mutate(); }}>
+            <Select3D label='Decision' value={acceptanceDraft.decision} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, decision: e.target.value }))} options={[{ value: 'ACCEPTED', label: 'Accept instructions' }, { value: 'DECLINED', label: 'Decline instructions' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }]} required />
+            <Select3D label='Engagement status' value={acceptanceDraft.engagement_status} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, engagement_status: e.target.value }))} options={[{ value: 'DRAFTING', label: 'Drafting' }, { value: 'SENT_TO_CLIENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed' }, { value: 'FEE_ARRANGEMENT_CONFIRMED', label: 'Fee arrangement confirmed' }, { value: 'WAIVED_OR_NOT_REQUIRED', label: 'Waived or not required' }]} />
+            {acceptanceDraft.decision !== 'ACCEPTED' && <Select3D label='Reason category' value={acceptanceDraft.reason_category} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, reason_category: e.target.value }))} options={[{ value: 'OUTSIDE_EXPERTISE', label: 'Outside expertise' }, { value: 'CAPACITY_CONSTRAINT', label: 'Capacity constraint' }, { value: 'COMMERCIAL_TERMS', label: 'Commercial terms' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }, { value: 'CDD_RESTRICTED', label: 'CDD restricted' }, { value: 'OTHER', label: 'Other' }]} required />}
+            <TextArea label='Scope confirmation' value={acceptanceDraft.scope_confirmation} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, scope_confirmation: value }))} required={acceptanceDraft.decision === 'ACCEPTED'} />
+            {acceptanceDraft.decision !== 'ACCEPTED' && <TextArea label='Restricted internal reason' value={acceptanceDraft.internal_reason} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, internal_reason: value }))} required />}
+            <Button3D type='submit' variant='primary' disabled={acceptanceMutation.isPending}>
+              {acceptanceMutation.isPending ? 'Recording...' : 'Record Acceptance Decision'}
+            </Button3D>
+          </form>
+        </Card>
+      )}
 
       {nextOptions.length > 0 && (
         <Card className='p-6'>

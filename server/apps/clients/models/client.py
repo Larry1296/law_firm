@@ -40,13 +40,21 @@ class Client(models.Model):
         INTERNATIONAL_ENTITY = "INTERNATIONAL_ENTITY", "International Entity"
 
     class AccessType(models.TextChoices):
+        PORTAL_ENABLED = "PORTAL_ENABLED", "Portal enabled"
+        ASSISTED = "ASSISTED", "Assisted"
+
+        # Legacy values retained temporarily for API/data compatibility.
         PROSPECT = "PROSPECT", "Prospect"
         ASSISTED_CLIENT = "ASSISTED_CLIENT", "Assisted Client"
 
     class LifecycleStatus(models.TextChoices):
+        PROSPECTIVE = "PROSPECTIVE", "Prospective"
+        OFFICIAL = "OFFICIAL", "Official"
+        ARCHIVED = "ARCHIVED", "Archived"
+
+        # Legacy values retained temporarily for API/data compatibility.
         PROSPECT = "PROSPECT", "Prospect"
         OFFICIAL_CLIENT = "OFFICIAL_CLIENT", "Official Client"
-        ARCHIVED = "ARCHIVED", "Archived"
 
     class ClassificationReviewStatus(models.TextChoices):
         NOT_REQUIRED = "NOT_REQUIRED", "Not Required"
@@ -121,7 +129,7 @@ class Client(models.Model):
     access_type = models.CharField(
         max_length=30,
         choices=AccessType.choices,
-        default=AccessType.ASSISTED_CLIENT,
+        default=AccessType.ASSISTED,
     )
 
     # Identification
@@ -156,7 +164,7 @@ class Client(models.Model):
     lifecycle_status = models.CharField(
         max_length=30,
         choices=LifecycleStatus.choices,
-        default=LifecycleStatus.PROSPECT,
+        default=LifecycleStatus.PROSPECTIVE,
     )
 
     is_verified = models.BooleanField(
@@ -217,11 +225,17 @@ class Client(models.Model):
 
     @property
     def can_hard_delete(self):
-        return not self.has_cases
+        if self.has_cases:
+            return False
+        if self.matter_conflict_checks.exists():
+            return False
+        if self.documents.exists():
+            return False
+        return True
 
     @property
     def can_archive(self):
-        return self.has_cases and self.lifecycle_status != self.LifecycleStatus.ARCHIVED
+        return not self.can_hard_delete and self.lifecycle_status != self.LifecycleStatus.ARCHIVED
 
     @property
     def can_restore(self):

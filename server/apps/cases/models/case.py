@@ -186,7 +186,6 @@ class Case(TimestampedModel):
         SMALL_CLAIMS = "SMALL_CLAIMS", "Small Claims Court"
         KADHI = "KADHI", "Kadhi Court"
         COURT_MARTIAL = "COURT_MARTIAL", "Court Martial"
-        TRIBUNAL = "TRIBUNAL", "Tribunal"
         ADR = "ADR", "Alternative Dispute Resolution"
         OTHER = "OTHER", "Other"
 
@@ -227,6 +226,7 @@ class Case(TimestampedModel):
     )
 
     case_number = models.CharField(max_length=60)
+    accepted_instruction_snapshot = models.JSONField(default=dict, blank=True)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
     entry_route = models.CharField(
@@ -406,6 +406,10 @@ class Case(TimestampedModel):
             models.Index(fields=["assigned_lawyer"]),
             models.Index(fields=["assigned_secretary"]),
         ]
+
+    @property
+    def internal_matter_number(self):
+        return self.case_number
 
     def __str__(self):
         return f"{self.case_number} - {self.title}"

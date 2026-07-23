@@ -1,4 +1,4 @@
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
@@ -8,6 +8,7 @@ from apps.clients.models import (
     ClientMatterConflictReferenceSequence,
     ConflictCheckHistory,
     ConflictCheckParty,
+    FirmAcceptanceHistory,
 )
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.staff.models import Lawyer, LawyerPermission
@@ -226,6 +227,46 @@ class ClientMatterConflictService:
             return queryset.get(id=check_id, client_id=client_id)
         except ClientMatterConflictCheck.DoesNotExist as exc:
             raise ValidationError({"conflict_check_id": "Conflict check was not found for this client."}) from exc
+
+
+    @classmethod
+    def rejected_queryset(cls, user):
+        queryset = cls.base_queryset(user).filter(
+            models.Q(status=ConflictCheckStatus.CONFLICT_CONFIRMED)
+            | models.Q(status=ConflictCheckStatus.CLOSED_WITHOUT_DECISION)
+            | models.Q(acceptance_decision__in=[
+                ClientMatterConflictCheck.AcceptanceDecision.DECLINED,
+                ClientMatterConflictCheck.AcceptanceDecision.CLIENT_WITHDREW,
+            ])
+        )
+        return queryset.distinct()
+
+
+    @staticmethod
+    def rejected_metadata(queryset):
+        now = timezone.localdate()
+        current_month = queryset.filter(created_at__year=now.year, created_at__month=now.month).count()
+        decided = queryset.exclude(completed_at__isnull=True)
+        durations = []
+        for check in decided:
+            durations.append((check.completed_at - check.created_at).total_seconds() / 86400)
+        return {
+            "total_rejected": queryset.count(),
+            "conflict_confirmed": queryset.filter(status=ConflictCheckStatus.CONFLICT_CONFIRMED).count(),
+            "cleared_but_declined": queryset.filter(
+                status=ConflictCheckStatus.CLEARED,
+                acceptance_decision=ClientMatterConflictCheck.AcceptanceDecision.DECLINED,
+            ).count(),
+            "client_withdrew": queryset.filter(
+                acceptance_decision=ClientMatterConflictCheck.AcceptanceDecision.CLIENT_WITHDREW,
+            ).count(),
+            "closed_without_decision": queryset.filter(status=ConflictCheckStatus.CLOSED_WITHOUT_DECISION).count(),
+            "current_month": current_month,
+            "average_decision_time_days": round(sum(durations) / len(durations), 2) if durations else None,
+            "escalated_reviews": queryset.filter(history__to_status=ConflictCheckStatus.ESCALATED_FOR_REVIEW).distinct().count(),
+            "matters_with_limitation_dates": queryset.exclude(limitation_or_deadline_date__isnull=True).count(),
+            "clients_that_also_have_accepted_matters": queryset.filter(client__cases__isnull=False).distinct().count(),
+        }
 
     @classmethod
     @transaction.atomic
@@ -499,9 +540,72 @@ class ClientMatterConflictService:
         return check
 
     @classmethod
+    @transaction.atomic
+    def record_acceptance_decision(cls, *, user, client_id, check_id, data):
+        firm = cls.get_user_firm(user)
+        deciding_lawyer = cls._assert_deciding_advocate(user, firm)
+        check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
+        decision = data.get("decision")
+        if decision not in ClientMatterConflictCheck.AcceptanceDecision.values:
+            raise ValidationError({"decision": "Select a valid firm acceptance decision."})
+        if check.status != ConflictCheckStatus.CLEARED and decision == ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED:
+            raise ValidationError({"status": "Only conflict-cleared proposed matters can be accepted."})
+        if check.acceptance_decision != ClientMatterConflictCheck.AcceptanceDecision.PENDING:
+            raise ValidationError({"acceptance_decision": "Terminal firm acceptance decisions cannot be silently edited."})
+        reason_category = data.get("reason_category", "")
+        internal_reason = str(data.get("internal_reason", "")).strip()
+        scope_confirmation = str(data.get("scope_confirmation", "")).strip()
+        engagement_status = data.get("engagement_status") or ClientMatterConflictCheck.EngagementStatus.NOT_STARTED
+        if decision in {
+            ClientMatterConflictCheck.AcceptanceDecision.DECLINED,
+            ClientMatterConflictCheck.AcceptanceDecision.CLIENT_WITHDREW,
+        }:
+            if not reason_category:
+                raise ValidationError({"reason_category": "Record a controlled reason category."})
+            if not internal_reason:
+                raise ValidationError({"internal_reason": "Record the restricted internal reason."})
+        if decision == ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED:
+            if not scope_confirmation:
+                raise ValidationError({"scope_confirmation": "Confirm the accepted scope of work."})
+            if engagement_status == ClientMatterConflictCheck.EngagementStatus.NOT_STARTED:
+                raise ValidationError({"engagement_status": "Record the engagement or fee-arrangement status."})
+            check.accepted_by = deciding_lawyer
+            check.accepted_at = timezone.now()
+        check.acceptance_decision = decision
+        check.acceptance_reason_category = reason_category
+        check.acceptance_internal_reason = internal_reason
+        check.scope_confirmation = scope_confirmation
+        check.engagement_status = engagement_status
+        check.acceptance_decided_by = deciding_lawyer
+        check.acceptance_decided_at = timezone.now()
+        check.save()
+        FirmAcceptanceHistory.objects.create(
+            conflict_check=check,
+            from_decision=ClientMatterConflictCheck.AcceptanceDecision.PENDING,
+            to_decision=decision,
+            reason_category=reason_category,
+            internal_reason=internal_reason,
+            scope_confirmation=scope_confirmation,
+            engagement_status=engagement_status,
+            actor=user,
+            decided_by=deciding_lawyer,
+            metadata={"decided_by_id": str(deciding_lawyer.id)},
+        )
+        cls._record_history(
+            check,
+            from_status=check.status,
+            to_status=check.status,
+            action="FIRM_ACCEPTANCE_DECISION_RECORDED",
+            summary=f"Firm acceptance decision recorded: {decision}.",
+            actor=user,
+            metadata={"acceptance_decision": decision},
+        )
+        return check
+
+    @classmethod
     def validate_for_case_creation(cls, *, user, firm, client, conflict_check_id):
         if not conflict_check_id:
-            raise ValidationError({"conflict_check_id": "Complete conflict clearance before creating a case."})
+            raise ValidationError({"conflict_check_id": "Complete conflict clearance and firm acceptance before opening a matter."})
         cls._assert_admin_or_lawyer(user, firm)
         try:
             check = ClientMatterConflictCheck.objects.select_for_update().get(id=conflict_check_id)
@@ -513,13 +617,19 @@ class ClientMatterConflictService:
         if check.client_id != client.id:
             errors["conflict_check_id"] = "Conflict check belongs to another client."
         if check.status != ConflictCheckStatus.CLEARED:
-            errors["conflict_check_id"] = "Conflict check must be cleared before case creation."
+            errors["conflict_check_id"] = "Conflict check must be cleared before matter opening."
         if not check.decision_confirmation:
             errors["decision_confirmation"] = "Conflict clearance must be confirmed."
         if not check.decided_by_id or not check.decided_by.is_active or check.decided_by.law_firm_id != firm.id:
             errors["decided_by"] = "Conflict decision must be made by an active advocate in this firm."
+        if check.acceptance_decision != ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED:
+            errors["acceptance_decision"] = "Firm acceptance must be recorded before opening a matter."
+        if not check.accepted_by_id or not check.accepted_at:
+            errors["accepted_by"] = "Firm acceptance must identify the accepting advocate and time."
+        elif not check.accepted_by.is_active or check.accepted_by.law_firm_id != firm.id:
+            errors["accepted_by"] = "Firm acceptance must be made by an active advocate in this firm."
         if check.created_case_id or check.consumed_at:
-            errors["conflict_check_id"] = "This conflict check has already been consumed."
+            errors["conflict_check_id"] = "This proposed matter has already opened an internal matter."
         if errors:
             raise ValidationError(errors)
         return check

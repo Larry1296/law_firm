@@ -5,7 +5,6 @@ import { Briefcase, CheckCircle, Clock, FileText } from 'lucide-react';
 
 import useSecretaryCases from '@/modules/staff/secretary/cases/hooks/useSecretaryCases';
 
-import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
 import DataTable from '@/components/ui/DataTable';
 import Button3D from '@/components/ui/Button3D';
@@ -48,7 +47,7 @@ export default function SecretaryCasesPage() {
   }
 
   return (
-    <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
+    <div className='w-full min-w-0 space-y-6 p-4 md:p-6 animate-fadeIn'>
       <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
         <SectionHeading
           title='Secretary Cases'
@@ -91,11 +90,12 @@ export default function SecretaryCasesPage() {
         />
       </div>
 
-      <Card className='p-2 md:p-4'>
+      <div className='min-w-0'>
         <DataTable
           data={safeCases}
           mobileTitleKey='title'
           mobileSubtitleKey='case_number'
+          fitToContainer
           emptyMessage='No cases available.'
           columns={[
             { key: 'case_number', label: 'Case No' },
@@ -140,7 +140,7 @@ export default function SecretaryCasesPage() {
             </div>
           )}
         />
-      </Card>
+      </div>
     </div>
   );
 }

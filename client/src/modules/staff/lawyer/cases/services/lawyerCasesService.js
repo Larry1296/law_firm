@@ -63,6 +63,14 @@ const lawyerCasesService = {
     return data.conflict_check;
   },
 
+  async recordFirmAcceptance(clientId, checkId, payload = {}) {
+    const { data } = await axiosInstance.post(
+      `/staff/lawyer/clients/${clientId}/conflict-checks/${checkId}/acceptance/`,
+      payload,
+    );
+    return data.conflict_check;
+  },
+
   async updateLifecycleTransition(caseId, payload) {
     const { data } = await axiosInstance.post(
       `/cases/${caseId}/transitions/`,  // <-- correct endpoint

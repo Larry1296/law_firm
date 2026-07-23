@@ -673,7 +673,7 @@ const AppRoutes = () => {
 
           {/* CASES */}
           <Route path='cases' element={<AdminCasesPage />} />
-          <Route path='cases/create' element={<AdminCreateCasesPage />} />
+          <Route path='cases/create' element={<Navigate to='../clients' replace />} />
           <Route path='cases/:id' element={<AdminCaseDetailsPage />} />
           <Route path='cases/:id/ai' element={<AdminCaseAIAnalysisPage />} />
           <Route
@@ -695,6 +695,7 @@ const AppRoutes = () => {
           <Route path='clients/:id' element={<AdminClientDetailsPage />} />
           <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/conflict-checks/:checkId' element={<ClientConflictCheckPage />} />
+          <Route path='clients/:id/conflict-checks/:checkId/open-matter' element={<AdminCreateCasesPage />} />
           <Route path='clients/:id/cases' element={<AdminClientCasesPage />} />
           <Route
             path='clients/:id/documents'
@@ -794,10 +795,11 @@ const AppRoutes = () => {
           <Route path='ai' element={<LawyerAI />} />
           <Route path='research-ai' element={<LawyerResearchAI />} />
           <Route path='cases' element={<LawyerCases />} />
-          <Route path='cases/create' element={<LawyerCreateCase />} />
+          <Route path='cases/create' element={<Navigate to='../clients' replace />} />
           <Route path='cases/:id' element={<LawyerCaseDetailsPage />} />
           <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/conflict-checks/:checkId' element={<ClientConflictCheckPage />} />
+          <Route path='clients/:id/conflict-checks/:checkId/open-matter' element={<LawyerCreateCase />} />
           <Route path='documents' element={<LawyerDocumentsPage />} />
           <Route path='documents/:id' element={<LawyerTemplatesPage />} />
           <Route path='chat' element={<LawyerChat />} />

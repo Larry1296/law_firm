@@ -422,17 +422,18 @@ class CaseService:
             if court_data.get(source) not in ("", None):
                 validated_data[target] = court_data[source]
 
-        case_number = (
-            court_data.get("official_court_case_number")
-            if has_filing_identity and court_data.get("official_court_case_number")
-            else CaseService.generate_case_number(firm)
-        )
+        case_number = CaseService.generate_case_number(firm)
         case_fields = {
             field.name
             for field in Case._meta.fields
             if field.name not in {"id", "firm", "client", "created_by", "case_number"}
         }
         case_payload = {key: value for key, value in validated_data.items() if key in case_fields}
+        accepted_snapshot = CaseService.accepted_instruction_snapshot(
+            client=client,
+            conflict_check=conflict_check,
+            assigned_lawyer=assigned_lawyer,
+        )
         case_payload.update(
             {
                 "matter_status": matter_status,
@@ -441,6 +442,7 @@ class CaseService:
                 "assigned_secretary": assigned_secretary,
                 "plaintiff": plaintiff,
                 "defendant": defendant,
+                "accepted_instruction_snapshot": accepted_snapshot,
             }
         )
 
@@ -478,8 +480,8 @@ class CaseService:
             actor=user,
         )
 
-        if client.lifecycle_status == Client.LifecycleStatus.PROSPECT:
-            client.lifecycle_status = Client.LifecycleStatus.OFFICIAL_CLIENT
+        if client.lifecycle_status in {Client.LifecycleStatus.PROSPECT, Client.LifecycleStatus.PROSPECTIVE}:
+            client.lifecycle_status = Client.LifecycleStatus.OFFICIAL
             client.save(update_fields=["lifecycle_status", "updated_at"])
             if client.user_id and client.user.role == UserRole.PROSPECT:
                 client.user.role = UserRole.OFFICIAL_CLIENT
@@ -514,6 +516,54 @@ class CaseService:
         CaseService.notify_case_assignments(case, actor=user)
 
         return case
+
+
+    @staticmethod
+    def accepted_instruction_snapshot(*, client, conflict_check, assigned_lawyer):
+        parties = [
+            {
+                "name": party.name,
+                "party_type": party.party_type,
+                "role": party.role,
+                "aliases": party.aliases,
+                "identification_reference": party.identification_reference,
+            }
+            for party in conflict_check.parties.all()
+        ]
+        return {
+            "client": {
+                "id": str(client.id),
+                "legal_name": client.full_name,
+                "client_type": client.client_type,
+                "national_id": client.national_id,
+                "passport_number": client.passport_number,
+                "kra_pin": client.kra_pin,
+            },
+            "proposed_matter": {
+                "id": str(conflict_check.id),
+                "reference_number": conflict_check.reference_number,
+                "title": conflict_check.proposed_matter_title,
+                "original_instructions": conflict_check.proposed_instructions,
+                "factual_summary": conflict_check.factual_summary,
+                "desired_outcome": conflict_check.desired_outcome,
+                "urgency_level": conflict_check.urgency_level,
+                "limitation_or_deadline_date": conflict_check.limitation_or_deadline_date.isoformat() if conflict_check.limitation_or_deadline_date else None,
+            },
+            "parties_used_for_clearance": parties,
+            "conflict_decision": {
+                "status": conflict_check.status,
+                "decided_by_id": str(conflict_check.decided_by_id) if conflict_check.decided_by_id else None,
+                "decided_at": conflict_check.decided_at.isoformat() if conflict_check.decided_at else None,
+            },
+            "firm_acceptance": {
+                "decision": conflict_check.acceptance_decision,
+                "scope_confirmation": conflict_check.scope_confirmation,
+                "engagement_status": conflict_check.engagement_status,
+                "accepted_by_id": str(conflict_check.accepted_by_id) if conflict_check.accepted_by_id else None,
+                "accepted_at": conflict_check.accepted_at.isoformat() if conflict_check.accepted_at else None,
+            },
+            "responsible_advocate_id": str(assigned_lawyer.id) if assigned_lawyer else None,
+        }
 
     @staticmethod
     def _payload_for_model(model, data, aliases=None):

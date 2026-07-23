@@ -11,6 +11,7 @@ from apps.clients.serializers.admin.client_matter_conflict_check_serializer impo
     CloseWithoutDecisionSerializer,
     EscalationSerializer,
     FinalDecisionSerializer,
+    FirmAcceptanceDecisionSerializer,
     PotentialConflictSerializer,
     ProposedMatterSerializer,
     RequestInformationSerializer,
@@ -81,6 +82,46 @@ class ClientMatterConflictCheckDetailView(APIView):
         )
 
 
+class ClientMatterConflictCheckRejectedListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        checks = ClientMatterConflictService.rejected_queryset(request.user)
+        reason = request.query_params.get("reason_category")
+        advocate = request.query_params.get("advocate")
+        client_type = request.query_params.get("client_type")
+        urgency = request.query_params.get("urgency")
+        status_filter = request.query_params.get("status")
+        if reason:
+            checks = checks.filter(acceptance_reason_category=reason)
+        if advocate:
+            checks = checks.filter(responsible_lawyer_id=advocate)
+        if client_type:
+            checks = checks.filter(client__client_type=client_type)
+        if urgency:
+            checks = checks.filter(urgency_level=urgency)
+        if status_filter:
+            checks = checks.filter(status=status_filter)
+        return Response(
+            {
+                "rejected_matters": ClientMatterConflictCheckListSerializer(checks, many=True).data,
+                "metadata": ClientMatterConflictService.rejected_metadata(checks),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ClientMatterConflictCheckRejectedDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, check_id):
+        check = ClientMatterConflictService.rejected_queryset(request.user).get(id=check_id)
+        return Response(
+            {"rejected_matter": ClientMatterConflictCheckDetailSerializer(check).data},
+            status=status.HTTP_200_OK,
+        )
+
+
 class ClientMatterConflictCheckClearedUnconsumedView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -90,6 +131,9 @@ class ClientMatterConflictCheckClearedUnconsumedView(APIView):
             client_id=client_id,
         ).filter(
             status=ConflictCheckStatus.CLEARED,
+            acceptance_decision="ACCEPTED",
+            accepted_by__isnull=False,
+            accepted_at__isnull=False,
             created_case__isnull=True,
             consumed_at__isnull=True,
         )
@@ -152,3 +196,8 @@ class ClientMatterConflictCheckDecideView(ClientMatterConflictCheckActionView):
 class ClientMatterConflictCheckCloseView(ClientMatterConflictCheckActionView):
     serializer_class = CloseWithoutDecisionSerializer
     command = staticmethod(ClientMatterConflictService.close_without_decision)
+
+
+class ClientMatterConflictCheckAcceptanceView(ClientMatterConflictCheckActionView):
+    serializer_class = FirmAcceptanceDecisionSerializer
+    command = staticmethod(ClientMatterConflictService.record_acceptance_decision)

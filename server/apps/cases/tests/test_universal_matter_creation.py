@@ -94,6 +94,13 @@ class UniversalMatterCreationTests(TestCase):
             decided_at=timezone.now(),
             completed_at=timezone.now(),
             created_by=self.admin,
+            acceptance_decision=ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED,
+            scope_confirmation="Accepted scope confirmed for test matter.",
+            engagement_status=ClientMatterConflictCheck.EngagementStatus.SIGNED,
+            accepted_by=lawyer if 'lawyer' in locals() else self.lawyer,
+            accepted_at=timezone.now(),
+            acceptance_decided_by=lawyer if 'lawyer' in locals() else self.lawyer,
+            acceptance_decided_at=timezone.now(),
         )
         ConflictCheckParty.objects.create(
             conflict_check=check,
@@ -161,7 +168,8 @@ class UniversalMatterCreationTests(TestCase):
             land_details={"title_number": "NAIROBI/BLOCK/1", "property_description": "Commercial property"},
             monetary_relief={"relief_type": MonetaryRelief.ReliefType.QUANTIFIED, "currency": "KES", "principal_amount": "7500000.00"},
         ))
-        self.assertEqual(case.case_number, "ELC E012 of 2026")
+        self.assertTrue(case.case_number.startswith("MAT-2026-"))
+        self.assertNotEqual(case.case_number, case.official_court_case_number)
         self.assertEqual(case.official_court_case_number, "ELC E012 of 2026")
         self.assertEqual(case.court_stage, Case.CourtStage.FILED)
         self.assertEqual(case.matter_status, Case.MatterStatus.ACTIVE)
@@ -186,7 +194,8 @@ class UniversalMatterCreationTests(TestCase):
                 "registry": "Milimani Commercial and Tax Division Registry",
             },
         ))
-        self.assertEqual(case.case_number, "HCCOMM E014 of 2026")
+        self.assertTrue(case.case_number.startswith("MAT-2026-"))
+        self.assertNotEqual(case.case_number, case.official_court_case_number)
         self.assertEqual(case.official_court_case_number, "HCCOMM E014 of 2026")
         self.assertEqual(case.filing_date, date(2026, 7, 17))
         self.assertEqual(case.court_stage, Case.CourtStage.FILED)

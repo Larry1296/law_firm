@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import SectionHeading from '@/components/ui/SectionHeading';
@@ -10,9 +10,10 @@ import lawyerCasesService from '@/modules/staff/lawyer/cases/services/lawyerCase
 
 export default function LawyerCreateCasePage() {
   const [searchParams] = useSearchParams();
+  const routeParams = useParams();
   const navigate = useNavigate();
-  const clientId = searchParams.get('client') || searchParams.get('client_id') || '';
-  const conflictCheckId = searchParams.get('conflict_check') || '';
+  const clientId = routeParams.id || searchParams.get('client') || searchParams.get('client_id') || '';
+  const conflictCheckId = routeParams.checkId || searchParams.get('conflict_check') || '';
   const hasRequiredContext = Boolean(clientId && conflictCheckId);
   const { data: conflictCheck, isLoading: checkLoading } = useQuery({
     queryKey: ['lawyer-client-conflict-check', clientId, conflictCheckId],
@@ -64,23 +65,23 @@ export default function LawyerCreateCasePage() {
   if (hasRequiredContext && checkLoading) {
     return (
       <div className='space-y-6 p-4 md:p-6'>
-        <SectionHeading title='Create Matter' subtitle='Loading conflict clearance' />
+        <SectionHeading title='Open Matter' subtitle='Loading accepted proposed matter' />
         <Card className='p-6'>
           <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
-            Loading the cleared conflict record before case creation.
+            Loading the accepted proposed matter before opening an internal matter.
           </p>
         </Card>
       </div>
     );
   }
 
-  if (hasRequiredContext && (!conflictCheck || conflictCheck.status !== 'CLEARED' || conflictCheck.consumed_at || conflictCheck.created_case)) {
+  if (hasRequiredContext && (!conflictCheck || !conflictCheck.can_open_matter)) {
     return (
       <div className='space-y-6 p-4 md:p-6'>
-        <SectionHeading title='Create Matter' subtitle='Conflict clearance required' />
+        <SectionHeading title='Open Matter' subtitle='Accepted proposed matter required' />
         <Card className='p-6'>
           <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
-            Select a client and complete conflict clearance before creating a case.
+            Select a client, clear conflict, and record firm acceptance before opening a matter.
           </p>
           <Button3D className='mt-4' onClick={() => navigate('/lawyer/clients')}>
             Go to Clients
@@ -93,10 +94,10 @@ export default function LawyerCreateCasePage() {
   if (!hasRequiredContext) {
     return (
       <div className='space-y-6 p-4 md:p-6'>
-        <SectionHeading title='Create Matter' subtitle='Conflict clearance required' />
+        <SectionHeading title='Open Matter' subtitle='Accepted proposed matter required' />
         <Card className='p-6'>
           <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
-            Select a client and complete conflict clearance before creating a case.
+            Select a client, clear conflict, and record firm acceptance before opening a matter.
           </p>
           <Button3D className='mt-4' onClick={() => navigate('/lawyer/clients')}>
             Go to Clients
@@ -109,8 +110,8 @@ export default function LawyerCreateCasePage() {
   return (
     <div className='space-y-6 p-4 md:p-6'>
       <SectionHeading
-        title='Create Matter'
-        subtitle='Register a legal matter or an already-filed court proceeding'
+        title='Open Matter'
+        subtitle='Open an internal matter from the accepted proposed matter'
       />
 
       <CaseCreateForm

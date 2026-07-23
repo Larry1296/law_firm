@@ -172,8 +172,8 @@ export default function AdminClientDetailsPage() {
     ].filter((field) => hasValue(field.value));
 
   const actionForConflictCheck = (check) => {
-    if (check.status === 'CLEARED' && check.created_case) return { label: 'View Case', path: `/admin/cases/${check.created_case}` };
-    if (check.status === 'CLEARED') return { label: 'Create Case', path: `/admin/cases/create?client=${id}&conflict_check=${check.id}` };
+    if (check.status === 'CLEARED' && check.created_case) return { label: 'View Matter', path: `/admin/cases/${check.created_case}` };
+    if (check.can_open_matter) return { label: 'Open Matter', path: `/admin/clients/${id}/conflict-checks/${check.id}/open-matter` };
     if (check.status === 'NOT_STARTED') return { label: 'Begin Check', path: `/admin/clients/${id}/conflict-checks/${check.id}` };
     if (check.status === 'IN_PROGRESS') return { label: 'Continue Check', path: `/admin/clients/${id}/conflict-checks/${check.id}` };
     if (check.status === 'AWAITING_INFORMATION') return { label: 'Update / Resume', path: `/admin/clients/${id}/conflict-checks/${check.id}` };

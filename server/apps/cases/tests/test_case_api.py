@@ -112,6 +112,13 @@ class CaseApiTests(TestCase):
             decided_at=timezone.now(),
             completed_at=timezone.now(),
             created_by=self.admin,
+            acceptance_decision=ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED,
+            scope_confirmation="Accepted scope confirmed for test matter.",
+            engagement_status=ClientMatterConflictCheck.EngagementStatus.SIGNED,
+            accepted_by=lawyer if 'lawyer' in locals() else self.lawyer,
+            accepted_at=timezone.now(),
+            acceptance_decided_by=lawyer if 'lawyer' in locals() else self.lawyer,
+            acceptance_decided_at=timezone.now(),
         )
         ConflictCheckParty.objects.create(
             conflict_check=check,
@@ -169,7 +176,8 @@ class CaseApiTests(TestCase):
         self.assertEqual(response.data["data"]["case_owner"]["full_name"], "Mary Wanjiku")
         created = Case.objects.get(id=response.data["data"]["id"])
         self.assertEqual(created.client, self.client)
-        self.assertEqual(created.case_number, "ELC E001 of 2026")
+        self.assertTrue(created.case_number.startswith("MAT-2026-"))
+        self.assertNotEqual(created.case_number, created.official_court_case_number)
         self.assertEqual(created.official_court_case_number, "ELC E001 of 2026")
         self.assertEqual(created.court_stage, Case.CourtStage.FILED)
         self.assertEqual(created.assigned_lawyer, self.lawyer)
@@ -179,11 +187,11 @@ class CaseApiTests(TestCase):
         self.client.refresh_from_db()
         self.assertEqual(
             self.client.lifecycle_status,
-            Client.LifecycleStatus.OFFICIAL_CLIENT,
+            Client.LifecycleStatus.OFFICIAL,
         )
         self.assertEqual(
             self.client.access_type,
-            Client.AccessType.ASSISTED_CLIENT,
+            Client.AccessType.ASSISTED,
         )
         self.assertFalse(self.client.is_verified)
         self.assertTrue(

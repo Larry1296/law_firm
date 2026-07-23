@@ -22,6 +22,29 @@ class ClientMatterConflictReferenceSequence(models.Model):
 
 
 class ClientMatterConflictCheck(TimestampedModel):
+    class AcceptanceDecision(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        ACCEPTED = "ACCEPTED", "Accepted"
+        DECLINED = "DECLINED", "Declined"
+        CLIENT_WITHDREW = "CLIENT_WITHDREW", "Client withdrew"
+
+    class AcceptanceReasonCategory(models.TextChoices):
+        CONFLICT_CONFIRMED = "CONFLICT_CONFIRMED", "Conflict confirmed"
+        OUTSIDE_EXPERTISE = "OUTSIDE_EXPERTISE", "Outside firm expertise"
+        CAPACITY_CONSTRAINT = "CAPACITY_CONSTRAINT", "Capacity constraint"
+        COMMERCIAL_TERMS = "COMMERCIAL_TERMS", "Commercial terms not agreed"
+        CLIENT_WITHDREW = "CLIENT_WITHDREW", "Client withdrew"
+        CDD_RESTRICTED = "CDD_RESTRICTED", "CDD restricted"
+        OTHER = "OTHER", "Other"
+
+    class EngagementStatus(models.TextChoices):
+        NOT_STARTED = "NOT_STARTED", "Not started"
+        DRAFTING = "DRAFTING", "Drafting"
+        SENT_TO_CLIENT = "SENT_TO_CLIENT", "Sent to client"
+        SIGNED = "SIGNED", "Signed"
+        FEE_ARRANGEMENT_CONFIRMED = "FEE_ARRANGEMENT_CONFIRMED", "Fee arrangement confirmed"
+        WAIVED_OR_NOT_REQUIRED = "WAIVED_OR_NOT_REQUIRED", "Waived or not required"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     firm = models.ForeignKey(
         "firm.LawFirm",
@@ -94,6 +117,41 @@ class ClientMatterConflictCheck(TimestampedModel):
     consumed_at = models.DateTimeField(null=True, blank=True)
     no_adverse_party_currently_known = models.BooleanField(default=False)
     no_adverse_party_explanation = models.TextField(blank=True, default="")
+    acceptance_decision = models.CharField(
+        max_length=30,
+        choices=AcceptanceDecision.choices,
+        default=AcceptanceDecision.PENDING,
+        db_index=True,
+    )
+    acceptance_reason_category = models.CharField(
+        max_length=40,
+        choices=AcceptanceReasonCategory.choices,
+        blank=True,
+        default="",
+    )
+    acceptance_internal_reason = models.TextField(blank=True, default="")
+    scope_confirmation = models.TextField(blank=True, default="")
+    engagement_status = models.CharField(
+        max_length=40,
+        choices=EngagementStatus.choices,
+        default=EngagementStatus.NOT_STARTED,
+    )
+    accepted_by = models.ForeignKey(
+        "staff.Lawyer",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="accepted_client_matter_conflict_checks",
+    )
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    acceptance_decided_by = models.ForeignKey(
+        "staff.Lawyer",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="acceptance_decided_client_matter_conflict_checks",
+    )
+    acceptance_decided_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "client_matter_conflict_checks"
@@ -114,7 +172,7 @@ class ClientMatterConflictCheck(TimestampedModel):
         super().clean()
         if self.client_id and self.firm_id and self.client.firm_id != self.firm_id:
             raise ValidationError({"client": "Client must belong to the same firm as the conflict check."})
-        for field_name in ["responsible_lawyer", "review_assigned_to", "decided_by"]:
+        for field_name in ["responsible_lawyer", "review_assigned_to", "decided_by", "accepted_by", "acceptance_decided_by"]:
             lawyer = getattr(self, field_name, None)
             if lawyer and lawyer.law_firm_id != self.firm_id:
                 raise ValidationError({field_name: "Lawyer must belong to the same firm as the conflict check."})
@@ -126,6 +184,16 @@ class ClientMatterConflictCheck(TimestampedModel):
     @property
     def is_consumed(self):
         return bool(self.created_case_id or self.consumed_at)
+
+    @property
+    def can_open_matter(self):
+        return bool(
+            self.status == ConflictCheckStatus.CLEARED
+            and self.acceptance_decision == self.AcceptanceDecision.ACCEPTED
+            and self.accepted_by_id
+            and self.accepted_at
+            and not self.is_consumed
+        )
 
     def __str__(self):
         return f"{self.reference_number} - {self.proposed_matter_title}"
@@ -210,4 +278,42 @@ class ConflictCheckHistory(TimestampedModel):
         indexes = [
             models.Index(fields=["to_status"]),
             models.Index(fields=["action"]),
+        ]
+
+
+class FirmAcceptanceHistory(TimestampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conflict_check = models.ForeignKey(
+        ClientMatterConflictCheck,
+        on_delete=models.CASCADE,
+        related_name="acceptance_history",
+    )
+    from_decision = models.CharField(max_length=30, blank=True, default="")
+    to_decision = models.CharField(max_length=30, choices=ClientMatterConflictCheck.AcceptanceDecision.choices)
+    reason_category = models.CharField(max_length=40, blank=True, default="")
+    internal_reason = models.TextField(blank=True, default="")
+    scope_confirmation = models.TextField(blank=True, default="")
+    engagement_status = models.CharField(max_length=40, blank=True, default="")
+    actor = models.ForeignKey(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="client_matter_acceptance_history_entries",
+    )
+    decided_by = models.ForeignKey(
+        "staff.Lawyer",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="client_matter_acceptance_history_decisions",
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "client_matter_firm_acceptance_history"
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["to_decision"]),
+            models.Index(fields=["reason_category"]),
         ]

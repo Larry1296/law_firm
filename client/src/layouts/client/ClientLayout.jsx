@@ -43,7 +43,7 @@ export default function ClientLayout() {
       )}
 
       {/* MAIN COLUMN */}
-      <div className="flex flex-col flex-1 min-h-screen overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-hidden">
         {/* TOPBAR */}
         <ClientTopbar onMenuClick={() => setSidebarOpen(true)} />
 
@@ -63,7 +63,7 @@ export default function ClientLayout() {
           }}
         >
           {/* PAGE CONTENT */}
-          <div className="flex-1 p-0">
+          <div className="flex-1 min-w-0 w-full p-0">
             <Outlet />
           </div>
 

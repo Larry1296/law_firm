@@ -46,7 +46,7 @@ export default function AdminCasesPage() {
   }
 
   return (
-    <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
+    <div className='w-full min-w-0 space-y-6 p-4 md:p-6 animate-fadeIn'>
       {/* Header */}
       <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
         <SectionHeading
@@ -110,12 +110,14 @@ export default function AdminCasesPage() {
       </Card>
 
       {/* Table */}
-      <DataTable
-        data={cases || []}
-        mobileTitleKey='title'
-        mobileSubtitleKey='case_number'
-        emptyMessage='No cases found.'
-        columns={[
+      <div className='min-w-0'>
+        <DataTable
+          data={cases || []}
+          mobileTitleKey='title'
+          mobileSubtitleKey='case_number'
+          fitToContainer
+          emptyMessage='No cases found.'
+          columns={[
           {
             key: 'case_number',
             label: 'Case No',
@@ -195,7 +197,8 @@ export default function AdminCasesPage() {
             </Button3D>
           </div>
         )}
-      />
+        />
+      </div>
     </div>
   );
 }

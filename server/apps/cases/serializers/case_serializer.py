@@ -4,6 +4,7 @@ from apps.cases.models import Case
 
 
 class CaseSerializer(serializers.ModelSerializer):
+    internal_matter_number = serializers.CharField(source="case_number", read_only=True)
     client_name = serializers.CharField(source="client.full_name", read_only=True)
     plaintiff_name = serializers.SerializerMethodField()
     case_owner = serializers.SerializerMethodField()
@@ -38,6 +39,7 @@ class CaseSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "case_number",
+            "internal_matter_number",
             "official_court_case_number",
             "title",
             "description",

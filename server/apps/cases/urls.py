@@ -17,7 +17,7 @@ from apps.cases.views import (
 
 urlpatterns = [
     path("", CaseListCreateView.as_view(), name="case-list"),
-    path("create/", CaseListCreateView.as_view(), name="case-create"),
+    path("open/", CaseListCreateView.as_view(), name="case-create"),
     path("courtroom/today/", VirtualCourtroomTodayView.as_view(), name="virtual-courtroom-today"),
     path("events/<uuid:event_id>/courtroom-link/", VirtualCourtroomLinkUpdateView.as_view(), name="virtual-courtroom-link-update"),
     path("<uuid:case_id>/", CaseDetailView.as_view(), name="case-detail"),

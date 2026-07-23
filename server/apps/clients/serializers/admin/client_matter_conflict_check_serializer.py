@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.clients.models import ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty
+from apps.clients.models import ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty, FirmAcceptanceHistory
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus
 
 
@@ -48,14 +48,40 @@ class ConflictCheckHistorySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class FirmAcceptanceHistorySerializer(serializers.ModelSerializer):
+    actor_name = serializers.CharField(source="actor.full_name", read_only=True)
+    decided_by_name = serializers.CharField(source="decided_by.user.full_name", read_only=True)
+
+    class Meta:
+        model = FirmAcceptanceHistory
+        fields = [
+            "id",
+            "from_decision",
+            "to_decision",
+            "reason_category",
+            "internal_reason",
+            "scope_confirmation",
+            "engagement_status",
+            "actor_name",
+            "decided_by_name",
+            "metadata",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
 class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
     status_label = serializers.CharField(source="get_status_display", read_only=True)
     responsible_lawyer_name = serializers.CharField(source="responsible_lawyer.user.full_name", read_only=True)
     review_assigned_to_name = serializers.CharField(source="review_assigned_to.user.full_name", read_only=True)
     decided_by_name = serializers.CharField(source="decided_by.user.full_name", read_only=True)
     created_case_number = serializers.CharField(source="created_case.case_number", read_only=True)
+    created_internal_matter_number = serializers.CharField(source="created_case.case_number", read_only=True)
+    accepted_by_name = serializers.CharField(source="accepted_by.user.full_name", read_only=True)
+    acceptance_decided_by_name = serializers.CharField(source="acceptance_decided_by.user.full_name", read_only=True)
     adverse_parties = serializers.SerializerMethodField()
     is_consumed = serializers.BooleanField(read_only=True)
+    can_open_matter = serializers.BooleanField(read_only=True)
     permitted_next_statuses = serializers.SerializerMethodField()
 
     def get_adverse_parties(self, obj):
@@ -90,6 +116,16 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
             "decided_by_name",
             "created_case",
             "created_case_number",
+            "created_internal_matter_number",
+            "acceptance_decision",
+            "acceptance_reason_category",
+            "engagement_status",
+            "accepted_by",
+            "accepted_by_name",
+            "accepted_at",
+            "acceptance_decided_by_name",
+            "acceptance_decided_at",
+            "can_open_matter",
             "consumed_at",
             "is_consumed",
             "adverse_parties",
@@ -103,6 +139,7 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
 class ClientMatterConflictCheckDetailSerializer(ClientMatterConflictCheckListSerializer):
     parties = ConflictCheckPartySerializer(many=True, read_only=True)
     history = ConflictCheckHistorySerializer(many=True, read_only=True)
+    acceptance_history = FirmAcceptanceHistorySerializer(many=True, read_only=True)
     client_name = serializers.CharField(source="client.full_name", read_only=True)
 
     class Meta(ClientMatterConflictCheckListSerializer.Meta):
@@ -126,10 +163,13 @@ class ClientMatterConflictCheckDetailSerializer(ClientMatterConflictCheckListSer
             "decision_confirmation",
             "decided_by",
             "decided_at",
+            "acceptance_internal_reason",
+            "scope_confirmation",
             "no_adverse_party_currently_known",
             "no_adverse_party_explanation",
             "parties",
             "history",
+            "acceptance_history",
         ]
         read_only_fields = fields
 
@@ -191,6 +231,21 @@ class FinalDecisionSerializer(serializers.Serializer):
 
 class CloseWithoutDecisionSerializer(serializers.Serializer):
     closure_reason = serializers.CharField()
+
+
+class FirmAcceptanceDecisionSerializer(serializers.Serializer):
+    decision = serializers.ChoiceField(choices=ClientMatterConflictCheck.AcceptanceDecision.choices)
+    reason_category = serializers.ChoiceField(
+        choices=ClientMatterConflictCheck.AcceptanceReasonCategory.choices,
+        required=False,
+        allow_blank=True,
+    )
+    internal_reason = serializers.CharField(required=False, allow_blank=True)
+    scope_confirmation = serializers.CharField(required=False, allow_blank=True)
+    engagement_status = serializers.ChoiceField(
+        choices=ClientMatterConflictCheck.EngagementStatus.choices,
+        required=False,
+    )
 
 
 class ClearedUnconsumedConflictCheckSerializer(ClientMatterConflictCheckListSerializer):

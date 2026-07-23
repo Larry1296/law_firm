@@ -14,7 +14,7 @@ const adminCasesService = {
 
   async createCase(payload) {
     const createPayload = sanitizeCaseCreatePayload(payload);
-    const { data } = await axiosInstance.post('/cases/create/', createPayload);
+    const { data } = await axiosInstance.post('/cases/', createPayload);
     return data;
   },
 

@@ -38,7 +38,7 @@ export default function LawyerLayout() {
       )}
 
       {/* MAIN COLUMN */}
-      <div className="flex flex-col flex-1 min-h-screen">
+      <div className="flex flex-col flex-1 min-w-0 min-h-screen">
         <LawyerTopbar onMenuClick={() => setSidebarOpen(true)} />
 
         {/* SCROLLABLE CONTENT */}
@@ -55,7 +55,7 @@ export default function LawyerLayout() {
           }}
         >
           {/* CONTENT */}
-          <div className="flex-1 p-0">
+          <div className="flex-1 min-w-0 w-full p-0">
             <Outlet />
           </div>
 

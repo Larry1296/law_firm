@@ -202,7 +202,7 @@ class ClientAdminCreateService:
 
     @staticmethod
     def _create_portal_user(client, base_data, contact_data):
-        if client.access_type != Client.AccessType.PROSPECT:
+        if client.access_type not in {Client.AccessType.PORTAL_ENABLED, Client.AccessType.PROSPECT}:
             return None, None
 
         if User.objects.filter(email__iexact=client.email).exists():
@@ -271,12 +271,12 @@ class ClientAdminCreateService:
             email=base_data.get("email"),
             phone_number=base_data.get("phone_number", ""),
             client_type=client_type,
-            access_type=base_data.get("access_type", Client.AccessType.ASSISTED_CLIENT),
+            access_type=base_data.get("access_type", Client.AccessType.ASSISTED),
             national_id=base_data.get("national_id"),
             passport_number=base_data.get("passport_number"),
             kra_pin=base_data.get("kra_pin"),
             date_of_birth=base_data.get("date_of_birth"),
-            lifecycle_status=Client.LifecycleStatus.PROSPECT,
+            lifecycle_status=Client.LifecycleStatus.PROSPECTIVE,
             is_verified=True,
         )
 
@@ -342,12 +342,12 @@ class ClientAdminCreateService:
             email=base_data.get("email"),
             phone_number=base_data.get("phone_number", ""),
             client_type=client_type,
-            access_type=base_data.get("access_type", Client.AccessType.ASSISTED_CLIENT),
+            access_type=base_data.get("access_type", Client.AccessType.ASSISTED),
             national_id=base_data.get("national_id"),
             passport_number=base_data.get("passport_number"),
             kra_pin=base_data.get("kra_pin") or data.get("kra_pin") or data.get("business_kra_pin"),
             date_of_birth=base_data.get("date_of_birth"),
-            lifecycle_status=Client.LifecycleStatus.PROSPECT,
+            lifecycle_status=Client.LifecycleStatus.PROSPECTIVE,
             is_verified=False,
         )
 

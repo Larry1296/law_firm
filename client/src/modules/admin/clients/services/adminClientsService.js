@@ -140,6 +140,14 @@ const adminClientsService = {
     return data.conflict_check;
   },
 
+  async recordFirmAcceptance(clientId, checkId, payload = {}) {
+    const { data } = await axiosInstance.post(
+      `/admin/clients/${clientId}/conflict-checks/${checkId}/acceptance/`,
+      payload,
+    );
+    return data.conflict_check;
+  },
+
   /* ======================================================
      UPDATE CLIENT
   ====================================================== */

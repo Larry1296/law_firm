@@ -33,6 +33,7 @@ from apps.events.serializers import EventSerializer
 
 
 class CaseDetailSerializer(serializers.ModelSerializer):
+    internal_matter_number = serializers.CharField(source="case_number", read_only=True)
     firm = serializers.SerializerMethodField()
     client = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
@@ -211,8 +212,10 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "case_number",
+            "internal_matter_number",
             "official_court_case_number",
             "title",
+            "accepted_instruction_snapshot",
             "description",
             "firm",
             "created_by",

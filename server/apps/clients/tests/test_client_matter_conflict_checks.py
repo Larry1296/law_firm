@@ -123,6 +123,20 @@ class ClientMatterConflictCheckTests(APITestCase):
         check.refresh_from_db()
         return check
 
+    def accept_check(self, check):
+        response = self.client.post(
+            reverse("admin-client-conflict-check-acceptance", kwargs={"client_id": self.client_record.id, "check_id": check.id}),
+            {
+                "decision": ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED,
+                "scope_confirmation": "Debt recovery instructions accepted.",
+                "engagement_status": ClientMatterConflictCheck.EngagementStatus.SIGNED,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        check.refresh_from_db()
+        return check
+
     def case_payload(self, check, number="ELC E100 of 2026"):
         return {
             "client_id": str(self.client_record.id),
@@ -143,7 +157,7 @@ class ClientMatterConflictCheckTests(APITestCase):
         }
 
     def test_client_creation_state_is_prospect_and_has_no_case_or_check(self):
-        self.assertEqual(self.client_record.lifecycle_status, Client.LifecycleStatus.PROSPECT)
+        self.assertIn(self.client_record.lifecycle_status, {Client.LifecycleStatus.PROSPECT, Client.LifecycleStatus.PROSPECTIVE})
         self.assertFalse(self.client_record.is_verified)
         self.assertFalse(self.client_record.cases.exists())
         self.assertFalse(self.client_record.matter_conflict_checks.exists())
@@ -194,13 +208,16 @@ class ClientMatterConflictCheckTests(APITestCase):
 
         check = self.clear_check(uncleared)
         response = self.client.post(reverse("case-create"), self.case_payload(check), format="json")
+        self.assertEqual(response.status_code, 400, response.data)
+        check = self.accept_check(check)
+        response = self.client.post(reverse("case-create"), self.case_payload(check), format="json")
         self.assertEqual(response.status_code, 201, response.data)
         check.refresh_from_db()
         self.client_record.refresh_from_db()
         self.portal_user.refresh_from_db()
         self.assertIsNotNone(check.created_case_id)
         self.assertIsNotNone(check.consumed_at)
-        self.assertEqual(self.client_record.lifecycle_status, Client.LifecycleStatus.OFFICIAL_CLIENT)
+        self.assertEqual(self.client_record.lifecycle_status, Client.LifecycleStatus.OFFICIAL)
         self.assertEqual(self.portal_user.role, UserRole.OFFICIAL_CLIENT)
         self.assertFalse(self.client_record.is_verified)
 
@@ -227,4 +244,32 @@ class ClientMatterConflictCheckTests(APITestCase):
         response = self.client.post(reverse("case-create"), self.case_payload(check), format="json")
         self.assertEqual(response.status_code, 400, response.data)
         self.client_record.refresh_from_db()
-        self.assertEqual(self.client_record.lifecycle_status, Client.LifecycleStatus.PROSPECT)
+        self.assertIn(self.client_record.lifecycle_status, {Client.LifecycleStatus.PROSPECT, Client.LifecycleStatus.PROSPECTIVE})
+
+    def test_cleared_but_not_accepted_cannot_open_matter(self):
+        check = self.clear_check(self.create_check())
+        response = self.client.post(reverse("case-create"), self.case_payload(check), format="json")
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("acceptance_decision", response.data)
+
+    def test_rejected_matter_list_includes_conflict_confirmed_without_rejecting_client(self):
+        check = self.create_check()
+        self.client.post(
+            reverse("admin-client-conflict-check-start", kwargs={"client_id": self.client_record.id, "check_id": check.id}),
+            {},
+            format="json",
+        )
+        self.client.post(
+            reverse("admin-client-conflict-check-decide", kwargs={"client_id": self.client_record.id, "check_id": check.id}),
+            {
+                "decision": ConflictCheckStatus.CONFLICT_CONFIRMED,
+                "internal_reason": "Firm acts for the proposed adverse party.",
+                "decision_confirmation": True,
+            },
+            format="json",
+        )
+        response = self.client.get(reverse("admin-rejected-matters"))
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["metadata"]["conflict_confirmed"], 1)
+        self.client_record.refresh_from_db()
+        self.assertFalse(self.client_record.cases.exists())
