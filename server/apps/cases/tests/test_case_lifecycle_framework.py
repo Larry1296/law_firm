@@ -147,8 +147,10 @@ class CaseLifecycleFrameworkTests(TestCase):
             "assigned_secretary_membership_id": str(self.secretary.id),
             "official_court_case_number": case_number,
             "filing_date": "2026-07-17",
+            "filing_channel": "ELECTRONIC",
             "efiling_reference": f"EFILE-{case_number.replace(' ', '-').replace('/', '-')}",
             "payment_reference": f"PAY-{case_number.replace(' ', '-').replace('/', '-')}",
+            "payment_date": "2026-07-17",
             "title": "Lakeview Technologies Limited v Highland Distributors Limited",
             "description": "Debt recovery claim.",
             "case_type": Case.CaseType.DEBT_RECOVERY,
@@ -323,6 +325,7 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertEqual(str(case.filing_date), "2026-07-17")
         self.assertTrue(case.efiling_reference.startswith("EFILE-"))
         self.assertTrue(case.payment_reference.startswith("PAY-"))
+        self.assertEqual(str(case.payment_date), "2026-07-17")
 
     def test_service_completion_requires_service_evidence(self):
         case = self.case_at_filed()

@@ -53,8 +53,14 @@ const COURT_FIELDS = [
   'courtroom',
   'judicial_officer',
   'court_location',
+  'filing_channel',
   'efiling_reference',
+  'assessment_reference',
+  'assessment_date',
+  'court_fee_amount',
+  'payment_completed',
   'payment_reference',
+  'payment_date',
   'jurisdiction_notes',
   'next_court_date',
   'next_action',
@@ -324,8 +330,14 @@ export const buildCaseCreatePayload = (formData = {}, context = {}) => {
     if (route === 'NEW_INSTRUCTION') {
       delete courtProceeding.official_court_case_number;
       delete courtProceeding.filing_date;
+      delete courtProceeding.filing_channel;
       delete courtProceeding.efiling_reference;
+      delete courtProceeding.assessment_reference;
+      delete courtProceeding.assessment_date;
+      delete courtProceeding.court_fee_amount;
+      delete courtProceeding.payment_completed;
       delete courtProceeding.payment_reference;
+      delete courtProceeding.payment_date;
       delete courtProceeding.courtroom;
       delete courtProceeding.judicial_officer;
     }
@@ -393,7 +405,7 @@ export const buildCaseCreatePayload = (formData = {}, context = {}) => {
   if (defendantName && !hasDefendantParty) {
     parties.push({
       party_type: 'COMPANY',
-      role: 'DEFENDANT',
+      role: data.procedure_track === 'SMALL_CLAIM' ? 'RESPONDENT' : 'DEFENDANT',
       organization_name: defendantName,
       name: defendantName,
       is_adverse: true,

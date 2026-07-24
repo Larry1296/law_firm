@@ -77,10 +77,13 @@ class CaseCreateSerializer(serializers.Serializer):
     # Backward-compatible flat fields used by the prior filed-case create flow.
     official_court_case_number = serializers.CharField(max_length=120, required=False, allow_blank=True)
     filing_date = serializers.DateField(required=False, allow_null=True)
+    filing_channel = serializers.CharField(max_length=40, required=False, allow_blank=True)
     efiling_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)
     payment_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)
     assessment_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    assessment_date = serializers.DateField(required=False, allow_null=True)
     court_fee_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True, min_value=0)
+    payment_completed = serializers.BooleanField(required=False, default=False)
     payment_date = serializers.DateField(required=False, allow_null=True)
     court_type = serializers.ChoiceField(choices=Case.CourtType.choices, required=False, allow_blank=True)
     court_division = serializers.ChoiceField(choices=Case.CourtDivision.choices, required=False, allow_blank=True)
@@ -117,7 +120,10 @@ class CaseCreateSerializer(serializers.Serializer):
             "judicial_officer": "judicial_officer",
             "court_location": "court_location",
             "efiling_reference": "efiling_reference",
+            "assessment_reference": "assessment_reference",
+            "court_fee_amount": "court_fee_amount",
             "payment_reference": "payment_reference",
+            "payment_date": "payment_date",
             "jurisdiction_notes": "jurisdiction_notes",
             "next_court_date": "next_date",
             "next_action": "next_action",
@@ -177,6 +183,10 @@ class CaseCreateSerializer(serializers.Serializer):
 
         if court.get("filing_date") not in (None, ""):
             court["filing_date"] = self._coerce_date(court.get("filing_date"), "filing_date", errors)
+        assessment_date = attrs.get("assessment_date")
+        if assessment_date not in (None, ""):
+            assessment_date = self._coerce_date(assessment_date, "assessment_date", errors)
+            attrs["assessment_date"] = assessment_date
         if court.get("payment_date") not in (None, ""):
             court["payment_date"] = self._coerce_date(court.get("payment_date"), "payment_date", errors)
         if court.get("next_date") not in (None, ""):
@@ -199,7 +209,7 @@ class CaseCreateSerializer(serializers.Serializer):
         if filed_case_intent:
             official_number = self._clean_text(court.get("official_court_case_number"))
             if not official_number:
-                errors["official_court_case_number"] = "Case number is required for filed-case registration."
+                errors["official_court_case_number"] = "Official court case number is required for filed-case registration."
             else:
                 firm = self.context.get("firm")
                 if firm and Case.objects.filter(
@@ -211,12 +221,21 @@ class CaseCreateSerializer(serializers.Serializer):
 
             if not court.get("filing_date"):
                 errors["filing_date"] = "Filing date is required for an existing filed court case."
-            if not court.get("efiling_reference"):
-                errors["efiling_reference"] = "eFiling reference is required for an existing filed court case."
+            filing_channel = self._clean_text(attrs.get("filing_channel", "")).upper()
+            if filing_channel in {"ELECTRONIC", "EFILING", "E-FILING"} and not court.get("efiling_reference"):
+                errors["efiling_reference"] = "eFiling reference is required when filing was electronic."
+            if court.get("payment_reference") and not court.get("payment_date"):
+                errors["payment_date"] = "Payment date is required when a payment reference is recorded."
+            if attrs.get("payment_completed") and court.get("court_fee_amount") in (None, ""):
+                errors["court_fee_amount"] = "Court fee amount is required when payment is marked completed."
+            if assessment_date and court.get("payment_date") and court.get("payment_date") < assessment_date:
+                errors["payment_date"] = "Payment date cannot precede the assessment date."
             if not court.get("court_type"):
                 errors["court_proceeding.court_type"] = "Court type is required for a court proceeding."
             if not (court.get("court_station") or court.get("court_name")):
                 errors["court_proceeding.court_station"] = "Court station or court identification is required."
+            if not court.get("registry"):
+                errors["registry"] = "Registry is required for an existing filed court case."
             if not attrs.get("procedure_type"):
                 errors["procedure_type"] = "Procedure type is required for an existing filed court case."
 

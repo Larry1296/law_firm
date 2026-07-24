@@ -1638,6 +1638,13 @@ class CaseLifecycleService:
 
 
 
+    @staticmethod
+    def originating_conflict_reference(case):
+        try:
+            return case.originating_conflict_check.reference_number
+        except Exception:
+            return None
+
     # ==========================================================
     # INITIAL CASE LIFECYCLE REGISTRATION
     # ==========================================================
@@ -1670,10 +1677,12 @@ class CaseLifecycleService:
                 ),
                 actor=actor,
                 reason=(
-                    "Case opened and instructions received."
+                    "Internal firm matter opened after accepted instructions."
                 ),
                 metadata={
                     "source": "case_creation",
+                    "internal_matter_number": case.case_number,
+                    "originating_conflict_reference": cls.originating_conflict_reference(case),
                 },
             )
         )
@@ -1684,7 +1693,7 @@ class CaseLifecycleService:
             case=case,
             action="Matter Registered",
             description=(
-                "Matter lifecycle tracking started."
+                f"Internal firm matter {case.case_number} was created and lifecycle tracking started."
             ),
             created_by=actor,
         )
@@ -1707,11 +1716,15 @@ class CaseLifecycleService:
                 ),
                 actor=actor,
                 reason=(
-                    "Initial court stage recorded."
+                    "Initial external proceeding stage recorded."
                 ),
                 metadata={
                     "source":
                         "case_creation",
+                    "internal_matter_number":
+                        case.case_number,
+                    "originating_conflict_reference":
+                        cls.originating_conflict_reference(case),
                     "official_court_case_number":
                         case.official_court_case_number,
                     "filing_date":

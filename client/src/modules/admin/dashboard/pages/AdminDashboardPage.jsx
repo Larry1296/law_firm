@@ -337,7 +337,7 @@ export default function AdminDashboardPage() {
                   <div className='mt-3 grid gap-2 text-sm text-text-muted-light dark:text-text-muted-dark md:grid-cols-2'>
                     <p><span className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Matter:</span> {event.case?.title || 'Not recorded'}</p>
                     <p><span className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Client:</span> {event.case?.client?.full_name || 'Not recorded'}</p>
-                    <p><span className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Case no.:</span> {event.case?.case_number || event.case?.official_court_case_number || 'Not recorded'}</p>
+                    <p><span className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Internal matter no.:</span> {event.case?.case_number || 'Not recorded'}</p>
                     <p><span className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Lawyer:</span> {event.case?.assigned_lawyer?.full_name || 'Not assigned'}</p>
                     <p><span className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Court:</span> {event.court || event.court_station || 'Not recorded'}{event.courtroom ? ` · ${event.courtroom}` : ''}</p>
                   </div>

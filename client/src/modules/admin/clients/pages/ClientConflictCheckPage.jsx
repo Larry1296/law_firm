@@ -7,6 +7,7 @@ import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
 import Select3D from '@/components/ui/Select3D';
+import ElasticTextInput from '@/components/ui/ElasticTextInput';
 import { Input3D } from '@/components/ui/Input3D';
 import adminClientsService from '@/modules/admin/clients/services/adminClientsService';
 import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
@@ -108,18 +109,58 @@ const buildProposedMatterPayload = (draft) => {
   return payload;
 };
 
-function TextArea({ label, value, onChange, required = false, rows = 3 }) {
+function TextArea({ label, value, onChange, required = false, disabled = false, error }) {
   return (
-    <label className='block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-      {label}
-      <textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        rows={rows}
-        required={required}
-        className='mt-2 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-      />
-    </label>
+    <ElasticTextInput
+      label={label}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      required={required}
+      disabled={disabled}
+      error={error}
+      minRows={1}
+      alwaysShowLabel
+      wrapperClassName='mb-0'
+    />
+  );
+}
+
+const SOURCE_LABEL_BY_VALUE = SOURCE_OPTIONS.reduce((labels, option) => ({
+  ...labels,
+  [option.value]: option.label,
+}), {});
+
+const sourceLabel = (value) => SOURCE_LABEL_BY_VALUE[value] || enumLabel(value);
+
+const hasText = (value) => typeof value === 'string' && value.trim().length > 0;
+
+const isDirectClearance = (check) => check.status === 'CLEARED' && !hasText(check.first_reviewer_findings);
+
+function SourceCheckboxGroup({ selectedSources, onToggle, error }) {
+  return (
+    <fieldset className='space-y-3 md:col-span-2'>
+      <legend className='text-sm font-semibold text-text-primary-light dark:text-text-primary-dark'>
+        Sources checked *
+      </legend>
+      <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+        {SOURCE_OPTIONS.map((option) => (
+          <label
+            key={option.value}
+            className='flex min-h-11 items-center gap-3 rounded-xl border border-border-light bg-surface-light px-3 py-2 text-sm text-text-primary-light shadow-soft dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+          >
+            <input
+              type='checkbox'
+              value={option.value}
+              checked={selectedSources.includes(option.value)}
+              onChange={() => onToggle(option.value)}
+              className='h-4 w-4 rounded border-border-light text-brand-primary focus:ring-brand-primary dark:border-border-dark'
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+      {error && <p className='text-sm text-red-500'>{error}</p>}
+    </fieldset>
   );
 }
 
@@ -235,6 +276,39 @@ export default function ClientConflictCheckPage() {
   const canRecordAcceptance = check.status === 'CLEARED' && check.acceptance_decision === 'PENDING';
   const canViewCase = check.created_case;
   const nextOptions = check.permitted_next_statuses || [];
+  const showFirstReviewerFindings = hasText(check.first_reviewer_findings) || isDirectClearance(check);
+  const showClearanceResult = check.status === 'CLEARED' || hasText(check.result_summary);
+  const showInternalConflictReason = check.status === 'CONFLICT_CONFIRMED' || hasText(check.internal_reason);
+  const firstReviewerFindingsText = hasText(check.first_reviewer_findings)
+    ? check.first_reviewer_findings
+    : 'Not applicable — direct clearance';
+  const isClearedDecision = actionDraft.next_status === 'CLEARED';
+  const hasSourceChecked = actionDraft.source_categories_checked.length > 0;
+  const requiresOtherSourceDescription = actionDraft.source_categories_checked.includes('OTHER');
+  const missingOtherSourceDescription = requiresOtherSourceDescription && !actionDraft.other_source_description.trim();
+  const sourceValidationMessage = isClearedDecision && !hasSourceChecked
+    ? 'Select at least one source checked before recording a cleared decision.'
+    : '';
+  const isOutcomeBlocked = !actionDraft.next_status
+    || actionMutation.isPending
+    || (isClearedDecision && (!hasSourceChecked || missingOtherSourceDescription));
+
+  const toggleSourceCategory = (sourceValue) => {
+    setActionDraft((current) => {
+      const sourceIsSelected = current.source_categories_checked.includes(sourceValue);
+      const source_categories_checked = sourceIsSelected
+        ? current.source_categories_checked.filter((value) => value !== sourceValue)
+        : [...current.source_categories_checked, sourceValue];
+
+      return {
+        ...current,
+        source_categories_checked,
+        other_source_description: sourceValue === 'OTHER' && sourceIsSelected
+          ? ''
+          : current.other_source_description,
+      };
+    });
+  };
 
   return (
     <div className='space-y-6 p-4 md:p-6'>
@@ -257,10 +331,13 @@ export default function ClientConflictCheckPage() {
           <p><strong>Factual summary:</strong> {check.factual_summary || 'Not recorded'}</p>
           <p><strong>Desired outcome:</strong> {check.desired_outcome || 'Not recorded'}</p>
           <p><strong>Adverse parties:</strong> {(check.adverse_parties || []).join(', ') || 'None recorded'}</p>
+          {showFirstReviewerFindings && <p><strong>First-reviewer findings:</strong> {firstReviewerFindingsText}</p>}
+          {showClearanceResult && <p><strong>Clearance result:</strong> {check.result_summary || 'Not recorded'}</p>}
+          {showInternalConflictReason && <p><strong>Internal conflict reason:</strong> {check.internal_reason || 'Not recorded'}</p>}
           <p><strong>Names checked:</strong> {(check.names_checked || []).join(', ') || 'Not recorded'}</p>
-          <p><strong>Sources checked:</strong> {(check.source_categories_checked || []).map(enumLabel).join(', ') || 'Not recorded'}</p>
-          <p><strong>Findings:</strong> {check.first_reviewer_findings || 'Not recorded'}</p>
-          <p><strong>Result:</strong> {check.result_summary || check.internal_reason || 'Not recorded'}</p>
+          <p><strong>Sources checked:</strong> {(check.source_categories_checked || []).map(sourceLabel).join(', ') || 'Not recorded'}</p>
+          <p><strong>Deciding advocate:</strong> {check.decided_by_name || 'Not recorded'}</p>
+          <p><strong>Decision date and time:</strong> {check.decided_at ? formatDateTime(check.decided_at) : 'Not recorded'}</p>
         </div>
         <div className='mt-5 flex flex-wrap gap-3'>
           {canCreateCase && (
@@ -295,15 +372,24 @@ export default function ClientConflictCheckPage() {
       {nextOptions.length > 0 && (
         <Card className='p-6'>
           <h3 className='mb-4 text-lg font-semibold'>Next outcome</h3>
-          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); actionMutation.mutate(); }}>
+          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); if (!isOutcomeBlocked) actionMutation.mutate(); }}>
             <Select3D value={actionDraft.next_status} onChange={(e) => setActionDraft((v) => ({ ...v, next_status: e.target.value }))} options={nextOptions} placeholder='Select next outcome' />
             {actionDraft.next_status === 'AWAITING_INFORMATION' && <TextArea label='Information missing' value={actionDraft.information_missing} onChange={(value) => setActionDraft((v) => ({ ...v, information_missing: value }))} required />}
             {actionDraft.next_status === 'POTENTIAL_CONFLICT' && <TextArea label='First reviewer findings' value={actionDraft.first_reviewer_findings} onChange={(value) => setActionDraft((v) => ({ ...v, first_reviewer_findings: value }))} required />}
             {actionDraft.next_status === 'ESCALATED_FOR_REVIEW' && <Select3D label='Review advocate' value={actionDraft.review_assigned_to_id} onChange={(e) => setActionDraft((v) => ({ ...v, review_assigned_to_id: e.target.value }))} options={lawyerOptions} placeholder='Select reviewer' />}
             {actionDraft.next_status === 'ESCALATED_FOR_REVIEW' && <TextArea label='Escalation summary' value={actionDraft.summary} onChange={(value) => setActionDraft((v) => ({ ...v, summary: value }))} required />}
             {actionDraft.next_status === 'CLEARED' && <Input3D label='Names checked, comma separated' value={actionDraft.names_checked} onChange={(e) => setActionDraft((v) => ({ ...v, names_checked: e.target.value }))} required />}
-            {actionDraft.next_status === 'CLEARED' && <Select3D label='Sources checked' multiple value={actionDraft.source_categories_checked} onChange={(e) => setActionDraft((v) => ({ ...v, source_categories_checked: Array.from(e.target.selectedOptions).map((item) => item.value) }))} options={SOURCE_OPTIONS} required />}
-            {actionDraft.next_status === 'CLEARED' && <TextArea label='Result summary' value={actionDraft.result_summary} onChange={(value) => setActionDraft((v) => ({ ...v, result_summary: value }))} required />}
+            {actionDraft.next_status === 'CLEARED' && (
+              <SourceCheckboxGroup
+                selectedSources={actionDraft.source_categories_checked}
+                onToggle={toggleSourceCategory}
+                error={sourceValidationMessage}
+              />
+            )}
+            {actionDraft.next_status === 'CLEARED' && requiresOtherSourceDescription && (
+              <TextArea label='Other source description' value={actionDraft.other_source_description} onChange={(value) => setActionDraft((v) => ({ ...v, other_source_description: value }))} required />
+            )}
+            {actionDraft.next_status === 'CLEARED' && <TextArea label='Clearance summary' value={actionDraft.result_summary} onChange={(value) => setActionDraft((v) => ({ ...v, result_summary: value }))} required />}
             {actionDraft.next_status === 'CONFLICT_CONFIRMED' && <TextArea label='Internal reason' value={actionDraft.internal_reason} onChange={(value) => setActionDraft((v) => ({ ...v, internal_reason: value }))} required />}
             {actionDraft.next_status === 'CLOSED_WITHOUT_DECISION' && <TextArea label='Closure reason' value={actionDraft.closure_reason} onChange={(value) => setActionDraft((v) => ({ ...v, closure_reason: value }))} required />}
             {['CLEARED', 'CONFLICT_CONFIRMED'].includes(actionDraft.next_status) && (
@@ -312,7 +398,7 @@ export default function ClientConflictCheckPage() {
                 I confirm this professional conflict decision for these proposed instructions only.
               </label>
             )}
-            <Button3D type='submit' variant='primary' disabled={!actionDraft.next_status || actionMutation.isPending}>
+            <Button3D type='submit' variant='primary' disabled={isOutcomeBlocked}>
               {actionMutation.isPending ? 'Recording...' : 'Record Outcome'}
             </Button3D>
           </form>

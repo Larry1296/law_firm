@@ -29,6 +29,7 @@ class CaseFiling(TimestampedModel):
         RULING = "RULING", "Ruling"
         JUDGMENT = "JUDGMENT", "Judgment"
         AFFIDAVIT_OF_SERVICE = "AFFIDAVIT_OF_SERVICE", "Affidavit of Service"
+        ORIGINATING_CLAIM = "ORIGINATING_CLAIM", "Originating claim"
         OTHER = "OTHER", "Other"
 
     class FilingStatus(models.TextChoices):
@@ -47,9 +48,14 @@ class CaseFiling(TimestampedModel):
     description = models.TextField(blank=True, default="")
     filed_at = models.DateTimeField(null=True, blank=True)
     served_at = models.DateTimeField(null=True, blank=True)
+    official_court_case_number = models.CharField(max_length=120, blank=True, default="")
     efiling_reference = models.CharField(max_length=120, blank=True, default="")
+    assessment_reference = models.CharField(max_length=120, blank=True, default="")
+    court_fee_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     payment_reference = models.CharField(max_length=120, blank=True, default="")
+    payment_date = models.DateField(null=True, blank=True)
     receipt_number = models.CharField(max_length=120, blank=True, default="")
+    source = models.CharField(max_length=120, blank=True, default="")
     filed_by = models.ForeignKey(
         "users.User",
         on_delete=models.SET_NULL,

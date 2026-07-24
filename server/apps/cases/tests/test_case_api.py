@@ -155,6 +155,8 @@ class CaseApiTests(TestCase):
             "filing_date": "2026-07-17",
             "efiling_reference": "EFILE-2026-000001",
             "payment_reference": "KES-PAY-2026-000001",
+            "payment_date": "2026-07-17",
+            "registry": "Milimani Law Courts Registry",
             "title": "Land Boundary Dispute",
             "description": "Boundary dispute between neighbours.",
             "case_type": Case.CaseType.LAND,

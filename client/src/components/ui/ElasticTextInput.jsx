@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 
 const supportsWritingAssist = true;
 
@@ -12,6 +12,9 @@ export default function ElasticTextInput({
   disabled = false,
   className = '',
   minRows = 1,
+  alwaysShowLabel = false,
+  wrapperClassName = '',
+  textareaClassName = '',
   autoComplete,
   autoCorrect,
   autoCapitalize,
@@ -20,9 +23,11 @@ export default function ElasticTextInput({
   ...props
 }) {
   const [focused, setFocused] = useState(false);
+  const generatedId = useId();
+  const inputId = name || generatedId;
   const textareaRef = useRef(null);
   const hasValue = String(value ?? '').length > 0;
-  const showTopLabel = label && (focused || hasValue);
+  const showTopLabel = label && (alwaysShowLabel || focused || hasValue);
   const textareaPlaceholder = label && !focused && !hasValue ? label : placeholder;
 
   useLayoutEffect(() => {
@@ -34,11 +39,11 @@ export default function ElasticTextInput({
   }, [value]);
 
   return (
-    <div className={`w-full mb-8 ${className}`}>
+    <div className={`w-full mb-8 ${className} ${wrapperClassName}`}>
       <div className='min-h-[1.75rem]'>
         {showTopLabel && (
           <label
-            htmlFor={name}
+            htmlFor={inputId}
             className='block pb-2 text-sm font-semibold text-[color:var(--text-primary)] dark:text-slate-100'
           >
             {label}{required ? ' *' : ''}
@@ -57,7 +62,7 @@ export default function ElasticTextInput({
       >
         <textarea
           ref={textareaRef}
-          id={name}
+          id={inputId}
           name={name}
           value={value ?? ''}
           onChange={onChange}
@@ -73,8 +78,9 @@ export default function ElasticTextInput({
           spellCheck={spellCheck ?? supportsWritingAssist}
           {...props}
           className={`
-            floating-input-field block w-full resize-none overflow-hidden rounded-xl bg-transparent px-4 py-4 leading-6 outline-none
+            floating-input-field block w-full resize-none overflow-y-hidden rounded-xl bg-transparent px-4 py-4 leading-6 outline-none
             text-[color:var(--text-primary)] placeholder:font-normal placeholder:text-[color:var(--text-muted)] placeholder:opacity-70
+            ${textareaClassName}
             dark:text-slate-100 dark:placeholder:text-slate-400 dark:[color-scheme:dark]
             disabled:cursor-not-allowed
           `}

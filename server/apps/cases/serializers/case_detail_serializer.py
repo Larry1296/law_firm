@@ -75,6 +75,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     criminal_details = serializers.SerializerMethodField()
     monetary_relief = serializers.SerializerMethodField()
     conflict_record = serializers.SerializerMethodField()
+    originating_conflict_check = serializers.SerializerMethodField()
 
     def _client_visible_only(self):
         request = self.context.get("request")
@@ -299,6 +300,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "jurisdiction_warnings",
             "conflict_check",
             "conflict_record",
+            "originating_conflict_check",
             "court_proceeding",
             "tribunal_proceeding",
             "arbitration_proceeding",
@@ -336,10 +338,53 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             warnings.append("Official court case number has not been assigned.")
         return warnings
 
-    def get_conflict_check(self, obj):
-        check = CaseConflictCheckService.existing_check(obj)
+    def _originating_conflict(self, obj):
+        try:
+            return obj.originating_conflict_check
+        except Exception:
+            return None
+
+    def _originating_conflict_payload(self, check):
+        if not check:
+            return None
+        return {
+            "id": str(check.id),
+            "reference_number": check.reference_number,
+            "proposed_matter_title": check.proposed_matter_title,
+            "status": check.status,
+            "status_label": check.get_status_display(),
+            "names_checked": check.names_checked,
+            "source_categories_checked": check.source_categories_checked,
+            "result_summary": check.result_summary,
+            "decided_by_name": check.decided_by.user.full_name if check.decided_by_id else "",
+            "decided_at": check.decided_at,
+            "decision_confirmation": check.decision_confirmation,
+            "acceptance_decision": check.acceptance_decision,
+            "accepted_by_name": check.accepted_by.user.full_name if check.accepted_by_id else "",
+            "accepted_at": check.accepted_at,
+            "engagement_status": check.engagement_status,
+            "consumed_at": check.consumed_at,
+        }
+
+    def get_originating_conflict_check(self, obj):
         if self._client_visible_only():
-            return {"status": CaseConflictCheckService.client_safe_status(check)}
+            return None
+        return self._originating_conflict_payload(self._originating_conflict(obj))
+
+    def get_conflict_check(self, obj):
+        originating = self._originating_conflict(obj)
+        if self._client_visible_only():
+            return {"status": "Matter accepted" if originating else CaseConflictCheckService.client_safe_status(CaseConflictCheckService.existing_check(obj))}
+        if originating:
+            payload = self._originating_conflict_payload(originating)
+            payload.update({
+                "exists": True,
+                "source": "originating_proposed_matter",
+                "available_actions": [],
+            })
+            return payload
+
+        check = CaseConflictCheckService.existing_check(obj)
         if check:
             return CaseConflictCheckSerializer(check, context=self.context).data
 
@@ -395,6 +440,6 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         return self._related(obj, "monetary_relief", MonetaryReliefSerializer)
 
     def get_conflict_record(self, obj):
-        if self._client_visible_only():
+        if self._client_visible_only() or self._originating_conflict(obj):
             return None
         return self._related(obj, "conflict_record", ConflictRecordAtRegistrationSerializer)

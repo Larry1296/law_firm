@@ -7,6 +7,7 @@ from apps.cases.models import (
     Case,
     CaseActivity,
     CaseEvent,
+    CaseFiling,
     CaseParty,
     CaseTimeline,
     CourtProceeding,
@@ -396,11 +397,7 @@ class CaseService:
                 if entry_route == Case.EntryRoute.EXISTING_FILED_COURT_CASE or has_filing_identity
                 else Case.CourtStage.NOT_FILED
             )
-        matter_status = (
-            Case.MatterStatus.ACTIVE
-            if entry_route_explicit and entry_route != Case.EntryRoute.NEW_INSTRUCTION
-            else Case.MatterStatus.INSTRUCTIONS_RECEIVED
-        )
+        matter_status = Case.MatterStatus.MATTER_OPEN
 
         court_to_case = {
             "official_court_case_number": "official_court_case_number",
@@ -416,6 +413,9 @@ class CaseService:
             "court_location": "court_location",
             "efiling_reference": "efiling_reference",
             "payment_reference": "payment_reference",
+            "assessment_reference": "assessment_reference",
+            "court_fee_amount": "court_fee_amount",
+            "payment_date": "payment_date",
             "jurisdiction_notes": "jurisdiction_notes",
         }
         for source, target in court_to_case.items():
@@ -480,13 +480,24 @@ class CaseService:
             actor=user,
         )
 
+        client_updates = []
         if client.lifecycle_status in {Client.LifecycleStatus.PROSPECT, Client.LifecycleStatus.PROSPECTIVE}:
             client.lifecycle_status = Client.LifecycleStatus.OFFICIAL
-            client.save(update_fields=["lifecycle_status", "updated_at"])
-            if client.user_id and client.user.role == UserRole.PROSPECT:
-                client.user.role = UserRole.OFFICIAL_CLIENT
-                client.user.save(update_fields=["role", "updated_at"])
+            client_updates.append("lifecycle_status")
+        if client.access_type == Client.AccessType.PROSPECT and client.user_id:
+            client.access_type = Client.AccessType.PORTAL_ENABLED
+            client_updates.append("access_type")
+        elif client.access_type == Client.AccessType.ASSISTED_CLIENT:
+            client.access_type = Client.AccessType.ASSISTED
+            client_updates.append("access_type")
+        if client_updates:
+            client.save(update_fields=[*client_updates, "updated_at"])
+        if client.user_id and client.user.role == UserRole.PROSPECT:
+            client.user.role = UserRole.OFFICIAL_CLIENT
+            client.user.save(update_fields=["role", "updated_at"])
 
+        if case.entry_route == Case.EntryRoute.EXISTING_FILED_COURT_CASE:
+            CaseService._ensure_originating_filing(case=case, actor=user)
 
         action, timeline_title, description = CaseService.creation_event_copy(case)
         CaseService.record_activity(
@@ -504,6 +515,9 @@ class CaseService:
                 "official_court_case_number": case.official_court_case_number,
                 "filing_date": case.filing_date.isoformat() if case.filing_date else None,
                 "efiling_reference": case.efiling_reference,
+                "assessment_reference": case.assessment_reference,
+                "payment_reference": case.payment_reference,
+                "court_fee_amount": str(case.court_fee_amount) if case.court_fee_amount is not None else None,
             },
         )
         CaseLifecycleService.record_initial_case_opening(case, user)
@@ -626,7 +640,10 @@ class CaseService:
                     "court_station": court_data.get("court_station") or case.court_station,
                     "registry": court_data.get("registry") or case.registry,
                     "efiling_reference": court_data.get("efiling_reference") or case.efiling_reference,
+                    "assessment_reference": court_data.get("assessment_reference") or case.assessment_reference,
+                    "court_fee_amount": court_data.get("court_fee_amount") or case.court_fee_amount,
                     "payment_reference": court_data.get("payment_reference") or case.payment_reference,
+                    "payment_date": court_data.get("payment_date") or case.payment_date,
                     "jurisdiction_notes": court_data.get("jurisdiction_notes") or case.jurisdiction_notes,
                 },
             )
@@ -716,6 +733,14 @@ class CaseService:
 
     @staticmethod
     def _create_case_parties(*, case, client, client_party_role, plaintiff, defendant, parties_data):
+        if case.procedure_track == Case.ProcedureTrack.SMALL_CLAIM and client_party_role in {CaseParty.PartyRole.PLAINTIFF, ""}:
+            client_party_role = CaseParty.PartyRole.CLAIMANT
+        adverse_default_role = (
+            CaseParty.PartyRole.RESPONDENT
+            if case.procedure_track == Case.ProcedureTrack.SMALL_CLAIM
+            else CaseParty.PartyRole.DEFENDANT
+        )
+
         CaseParty.objects.create(
             case=case,
             client=client,
@@ -749,7 +774,7 @@ class CaseService:
             party_type = raw_party.get("party_type") or CaseParty.PartyType.OTHER
             if party_type not in CaseParty.PartyType.values:
                 party_type = CaseParty.PartyType.OTHER
-            role = raw_party.get("role") or raw_party.get("party_role") or CaseParty.PartyRole.OTHER
+            role = raw_party.get("role") or raw_party.get("party_role") or adverse_default_role
             if role not in CaseParty.PartyRole.values:
                 role = CaseParty.PartyRole.OTHER
             CaseParty.objects.create(
@@ -778,7 +803,7 @@ class CaseService:
                 case=case,
                 name=defendant.strip(),
                 organization_name=defendant.strip(),
-                party_role=CaseParty.PartyRole.DEFENDANT,
+                party_role=adverse_default_role,
                 party_type=CaseParty.PartyType.OTHER,
                 is_adverse=True,
                 party_order=order,
@@ -811,11 +836,38 @@ class CaseService:
                 "Non-Contentious Matter Registered",
                 f"The non-contentious matter was registered in Sheria Master as {case.case_number} by {actor_name}.",
             )
+        official = case.official_court_case_number or "the official court case"
         return (
             "FILED_CASE_REGISTERED",
             "Filed Case Registered",
-            f"Case number {case.case_number} was registered in Sheria Master by {actor_name}.",
+            f"Official court case {official} was registered in Sheria Master as internal matter {case.case_number} by {actor_name}.",
         )
+
+    @staticmethod
+    def _ensure_originating_filing(*, case, actor=None):
+        filed_at = timezone.make_aware(
+            timezone.datetime.combine(case.filing_date, timezone.datetime.min.time())
+        ) if case.filing_date else None
+        filing, _ = CaseFiling.objects.get_or_create(
+            case=case,
+            source="EXISTING_FILED_COURT_CASE_REGISTRATION",
+            defaults={
+                "filing_type": CaseFiling.FilingType.ORIGINATING_CLAIM,
+                "status": CaseFiling.FilingStatus.FILED,
+                "title": "Claim filed",
+                "description": "Originating claim metadata recorded from existing filed court case registration. No uploaded document was recorded with this filing.",
+                "filed_at": filed_at,
+                "official_court_case_number": case.official_court_case_number,
+                "efiling_reference": case.efiling_reference,
+                "assessment_reference": case.assessment_reference,
+                "court_fee_amount": case.court_fee_amount,
+                "payment_reference": case.payment_reference,
+                "payment_date": case.payment_date,
+                "filed_by": actor,
+                "is_client_visible": True,
+            },
+        )
+        return filing
 
     @staticmethod
     @transaction.atomic

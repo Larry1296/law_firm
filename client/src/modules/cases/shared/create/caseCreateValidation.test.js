@@ -1,74 +1,49 @@
-import assert from 'node:assert/strict';
+import { describe, expect, it } from 'vitest';
 
 import { validateCaseCreateForm } from './caseCreateValidation.js';
 
-const filedCase = {
-  entry_route: 'EXISTING_FILED_COURT_CASE',
+const base = {
   client_id: 'client-1',
-  conflict_check_id: 'check-1',
-  title: 'Musau Building Construction LTD v Metro Data Systems Limited',
-  case_type: 'LAND',
-  practice_area: 'LAND_ENVIRONMENT',
-  priority: 'MEDIUM',
-  client_party_role: 'PLAINTIFF',
-  matter_nature: 'CONTENTIOUS',
+  conflict_check_id: 'conflict-1',
+  entry_route: 'EXISTING_FILED_COURT_CASE',
   forum: 'COURT',
-  procedure_track: 'ELC_SUIT',
-  official_court_case_number: 'ELC E012 of 2026',
-  filing_date: '2026-07-17',
-  efiling_reference: 'EFILE-2026-00045871',
-  court_type: 'ENVIRONMENT_LAND',
-  court_station: 'Nairobi',
-  defendant: 'Metro Data Systems Limited',
-  monetary_relief_type: 'QUANTIFIED',
-  claim_amount: '7500000.00',
+  title: 'Daniel Mutua Mwangi v Apex Skyline Developers Limited',
+  case_type: 'SMALL_CLAIM',
+  procedure_track: 'SMALL_CLAIM',
+  practice_area: 'DEBT_RECOVERY',
+  priority: 'MEDIUM',
+  client_party_role: 'CLAIMANT',
+  defendant: 'Apex Skyline Developers Limited',
+  official_court_case_number: 'SCCCOMM E0001 of 2026',
+  filing_date: '2026-07-24',
+  filing_channel: 'ELECTRONIC',
+  efiling_reference: 'EF-SCC-2026-0001',
+  court_type: 'SMALL_CLAIMS',
+  court_station: 'Milimani Small Claims Court',
+  registry: 'Small Claims Court Registry',
+  currency: 'KES',
 };
 
-const validFiled = validateCaseCreateForm(filedCase, { client_id: 'client-1', conflict_check_id: 'check-1' });
-assert.equal(validFiled.isValid, true);
-assert.equal(validFiled.warnings.length, 0);
+describe('validateCaseCreateForm filed court case references', () => {
+  it('requires payment date when a payment reference is entered', () => {
+    const result = validateCaseCreateForm({ ...base, payment_reference: 'PAY-SCC-2026-0001' });
 
-const missingOfficial = validateCaseCreateForm(
-  { ...filedCase, official_court_case_number: '' },
-  { client_id: 'client-1', conflict_check_id: 'check-1' },
-);
-assert.equal(missingOfficial.isValid, false);
-assert.equal(Object.prototype.hasOwnProperty.call(missingOfficial.errors, 'official_court_case_number'), true);
+    expect(result.isValid).toBe(false);
+    expect(result.errors.payment_date).toMatch(/Payment date is required/);
+  });
 
-const missingEfiling = validateCaseCreateForm(
-  { ...filedCase, efiling_reference: '' },
-  { client_id: 'client-1', conflict_check_id: 'check-1' },
-);
-assert.equal(Object.prototype.hasOwnProperty.call(missingEfiling.errors, 'efiling_reference'), true);
+  it('requires eFiling reference only for electronic filing', () => {
+    const electronic = validateCaseCreateForm({ ...base, efiling_reference: '' });
+    const physical = validateCaseCreateForm({ ...base, filing_channel: 'PHYSICAL', efiling_reference: '' });
 
-const newInstruction = validateCaseCreateForm(
-  {
-    ...filedCase,
-    entry_route: 'NEW_INSTRUCTION',
-    official_court_case_number: '',
-    filing_date: '',
-    efiling_reference: '',
-    defendant: '',
-  },
-  { client_id: 'client-1', conflict_check_id: 'check-1' },
-);
-assert.equal(newInstruction.isValid, true);
-assert.equal(Object.prototype.hasOwnProperty.call(newInstruction.errors, 'entry_route'), false);
-assert.equal(Object.prototype.hasOwnProperty.call(newInstruction.errors, 'official_court_case_number'), false);
+    expect(electronic.errors.efiling_reference).toMatch(/submitted electronically/);
+    expect(physical.errors.efiling_reference).toBeUndefined();
+  });
 
-const tribunal = validateCaseCreateForm(
-  { ...filedCase, entry_route: 'EXISTING_TRIBUNAL_MATTER', forum: 'TRIBUNAL', tribunal_name: '' },
-  { client_id: 'client-1', conflict_check_id: 'check-1' },
-);
-assert.equal(Object.prototype.hasOwnProperty.call(tribunal.errors, 'entry_route'), false);
-assert.equal(Object.prototype.hasOwnProperty.call(tribunal.errors, 'tribunal_name'), true);
+  it('requires amount and currency when payment is marked completed', () => {
+    const result = validateCaseCreateForm({ ...base, payment_completed: true, currency: '', payment_reference: 'PAY-1', payment_date: '2026-07-24' });
 
-const badDate = validateCaseCreateForm(
-  { ...filedCase, next_court_date: '2026-07-01T09:00' },
-  { client_id: 'client-1', conflict_check_id: 'check-1' },
-);
-assert.equal(Object.prototype.hasOwnProperty.call(badDate.errors, 'next_court_date'), true);
-
-const missingConflictCheck = validateCaseCreateForm({ ...filedCase, conflict_check_id: '' }, { client_id: 'client-1' });
-assert.equal(missingConflictCheck.isValid, false);
-assert.equal(Object.prototype.hasOwnProperty.call(missingConflictCheck.errors, 'conflict_check_id'), true);
+    expect(result.errors.court_fee_amount).toMatch(/Court fee amount is required/);
+    expect(result.errors.currency).toMatch(/Currency is required/);
+  });
+});

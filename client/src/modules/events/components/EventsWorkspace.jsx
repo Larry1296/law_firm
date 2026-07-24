@@ -130,7 +130,7 @@ function EventRow({ event, caseBasePath, highlighted, secretaryMode, onAwareness
                 </p>
                 <p>
                   <span className='font-semibold text-slate-800 dark:text-slate-100'>Case no.:</span>{' '}
-                  {event.case?.case_number || event.case?.official_court_case_number || 'Not set'}
+                  {event.case?.case_number || 'Not set'}
                 </p>
               </div>
 

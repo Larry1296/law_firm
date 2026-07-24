@@ -37,6 +37,13 @@ class CaseConflictCheckService:
     # ==========================================================
 
     @staticmethod
+    def has_originating_intake_conflict(case):
+        try:
+            return bool(case.originating_conflict_check)
+        except Exception:
+            return False
+
+    @staticmethod
     def existing_check(case):
         return CaseConflictCheck.objects.filter(case=case).first()
 
@@ -327,6 +334,11 @@ class CaseConflictCheckService:
 
         data = data or {}
 
+        if cls.has_originating_intake_conflict(case):
+            raise ValidationError({
+                "conflict_check": "This matter already has an authoritative intake conflict check. Record supplemental searches against that proposed-matter conflict record."
+            })
+
         try:
 
             check = (
@@ -411,6 +423,11 @@ class CaseConflictCheckService:
             case,
             "INITIATE",
         )
+
+        if cls.has_originating_intake_conflict(case):
+            raise ValidationError({
+                "conflict_check": "This matter already has an authoritative intake conflict check."
+            })
 
         check = cls.get_or_create_check(
             case=case,

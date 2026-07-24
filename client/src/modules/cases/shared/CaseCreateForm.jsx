@@ -93,6 +93,20 @@ const roleOptionsForProcedure = (procedureTrack) =>
     label: role.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()),
   }));
 
+const remapSmallClaimRole = (role) => {
+  if (role === 'PLAINTIFF' || !role) return 'CLAIMANT';
+  if (role === 'DEFENDANT') return 'RESPONDENT';
+  return role;
+};
+
+const defaultAdverseRoleForProcedure = (procedureTrack) =>
+  procedureTrack === 'SMALL_CLAIM' ? 'RESPONDENT' : 'DEFENDANT';
+
+const remapPartiesForProcedure = (parties = [], procedureTrack) => {
+  if (procedureTrack !== 'SMALL_CLAIM') return parties;
+  return parties.map((party) => ({ ...party, role: remapSmallClaimRole(party.role) }));
+};
+
 const isCourtRoute = (formData) =>
   formData.forum === 'COURT' || formData.entry_route === 'EXISTING_FILED_COURT_CASE';
 
@@ -191,7 +205,7 @@ const SuccessPanel = ({ result, listPath, detailsPath, onCreateAnother }) => {
         <dl className='grid gap-3 md:grid-cols-2'>
           <div>
             <dt className='text-sm text-text-muted-light dark:text-text-muted-dark'>Internal Matter Number</dt>
-            <dd className='font-semibold'>{createdCase.case_number || createdCase.official_court_case_number || 'Generated'}</dd>
+            <dd className='font-semibold'>{createdCase.case_number || 'Generated'}</dd>
           </div>
           <div>
             <dt className='text-sm text-text-muted-light dark:text-text-muted-dark'>Client</dt>
@@ -245,7 +259,7 @@ export default function CaseCreateForm({
   const [createdResult, setCreatedResult] = useState(null);
   const [partyDraft, setPartyDraft] = useState({
     name: '',
-    role: 'DEFENDANT',
+    role: defaultAdverseRoleForProcedure(caseCreateInitialValues.procedure_track),
     party_type: 'OTHER',
     is_adverse: true,
   });
@@ -316,11 +330,32 @@ export default function CaseCreateForm({
           next.matter_nature = 'NON_CONTENTIOUS';
           next.procedure_track = 'NON_CONTENTIOUS';
         } else if (value === 'NEW_INSTRUCTION') {
+          next.filing_channel = '';
           next.official_court_case_number = '';
           next.filing_date = '';
           next.efiling_reference = '';
+          next.assessment_reference = '';
+          next.assessment_date = '';
+          next.court_fee_amount = '';
+          next.payment_completed = false;
           next.payment_reference = '';
+          next.payment_date = '';
         }
+      }
+
+      if (name === 'case_type' && value === 'SMALL_CLAIM') {
+        next.forum = 'COURT';
+        next.procedure_track = 'SMALL_CLAIM';
+        next.court_type = 'SMALL_CLAIMS';
+        next.court_level = COURT_LEVEL_BY_TYPE.SMALL_CLAIMS;
+        next.court_division = 'SMALL_CLAIMS';
+        next.client_party_role = 'CLAIMANT';
+        next.parties = remapPartiesForProcedure(next.parties || [], 'SMALL_CLAIM');
+      }
+
+      if (name === 'procedure_track' && value === 'SMALL_CLAIM') {
+        next.client_party_role = remapSmallClaimRole(next.client_party_role);
+        next.parties = remapPartiesForProcedure(next.parties || [], 'SMALL_CLAIM');
       }
 
       if (name === 'forum') {
@@ -388,6 +423,9 @@ export default function CaseCreateForm({
 
       return next;
     });
+    if ((name === 'case_type' && value === 'SMALL_CLAIM') || (name === 'procedure_track' && value === 'SMALL_CLAIM')) {
+      setPartyDraft((current) => ({ ...current, role: defaultAdverseRoleForProcedure('SMALL_CLAIM') }));
+    }
     setErrors((current) => {
       const next = { ...current };
       delete next[name];
@@ -496,7 +534,7 @@ export default function CaseCreateForm({
       ...current,
       parties: [...(current.parties || []), { ...partyDraft, name, organization_name: name }],
     }));
-    setPartyDraft({ name: '', role: 'DEFENDANT', party_type: 'OTHER', is_adverse: true });
+    setPartyDraft({ name: '', role: defaultAdverseRoleForProcedure(formData.procedure_track), party_type: 'OTHER', is_adverse: true });
   };
 
   const removeParty = (index) => {
@@ -675,10 +713,26 @@ export default function CaseCreateForm({
               <>
                 {isFiledCourtRoute(formData) && (
                   <>
-                    <MatterTextInput label='Internal Matter Number' name='official_court_case_number' value={formData.official_court_case_number} onChange={handleChange} placeholder='ELC E012 of 2026' error={errors.official_court_case_number} required />
-                    <MatterTextInput label='Date Filed in eFiling / Court' name='filing_date' type='date' value={formData.filing_date} onChange={handleChange} noFloat error={errors.filing_date} required />
-                    <MatterTextInput label='eFiling Reference' name='efiling_reference' value={formData.efiling_reference} onChange={handleChange} error={errors.efiling_reference} required />
-                    <MatterTextInput label='Court Payment Reference' name='payment_reference' value={formData.payment_reference} onChange={handleChange} />
+                    <MatterTextInput label='Official Court Case Number' name='official_court_case_number' value={formData.official_court_case_number} onChange={handleChange} placeholder='SCCCOMM E0001 of 2026' error={errors.official_court_case_number} required />
+                    <MatterTextInput label='Filing Date' name='filing_date' type='date' value={formData.filing_date} onChange={handleChange} noFloat error={errors.filing_date} required />
+                    <SelectField
+                      label='Filing Channel'
+                      name='filing_channel'
+                      value={formData.filing_channel}
+                      onChange={handleChange}
+                      options={[
+                        { value: 'ELECTRONIC', label: 'Electronic / eFiling' },
+                        { value: 'PHYSICAL', label: 'Physical registry filing' },
+                        { value: 'OTHER', label: 'Other' },
+                      ]}
+                    />
+                    <MatterTextInput label='eFiling Reference' name='efiling_reference' value={formData.efiling_reference} onChange={handleChange} error={errors.efiling_reference} required={formData.filing_channel === 'ELECTRONIC'} />
+                    <MatterTextInput label='Assessment Reference' name='assessment_reference' value={formData.assessment_reference} onChange={handleChange} />
+                    <MatterTextInput label='Assessment Date' name='assessment_date' type='date' value={formData.assessment_date} onChange={handleChange} noFloat />
+                    <MatterTextInput label='Court Fee Amount' name='court_fee_amount' type='number' value={formData.court_fee_amount} onChange={handleChange} error={errors.court_fee_amount} />
+                    <label className='flex items-center gap-2 text-sm text-text-secondary-light dark:text-text-secondary-dark'><input type='checkbox' name='payment_completed' checked={Boolean(formData.payment_completed)} onChange={handleChange} /> Court payment completed</label>
+                    <MatterTextInput label='Payment Reference' name='payment_reference' value={formData.payment_reference} onChange={handleChange} />
+                    <MatterTextInput label='Payment Date' name='payment_date' type='date' value={formData.payment_date} onChange={handleChange} noFloat error={errors.payment_date} />
                   </>
                 )}
                 <SelectField label='Court Type' name='court_type' value={formData.court_type} onChange={handleChange} options={filteredCourtTypes} error={errors.court_type} required />
@@ -688,7 +742,7 @@ export default function CaseCreateForm({
                 <MatterTextInput label='Court Name' name='court_name' value={formData.court_name} onChange={handleChange} />
                 <MatterTextInput label='Court Station' name='court_station' value={formData.court_station} onChange={handleChange} error={errors.court_station} />
                 <SelectField label='Division / Registry' name='court_division' value={formData.court_division} onChange={handleChange} options={COURT_DIVISIONS} />
-                <MatterTextInput label='Registry' name='registry' value={formData.registry} onChange={handleChange} />
+                <MatterTextInput label='Registry' name='registry' value={formData.registry} onChange={handleChange} error={errors.registry} />
                 <MatterTextInput label='Courtroom' name='courtroom' value={formData.courtroom} onChange={handleChange} />
                 <MatterTextInput label='Judicial Officer' name='judicial_officer' value={formData.judicial_officer} onChange={handleChange} />
                 <MatterTextInput label='Court Location' name='court_location' value={formData.court_location} onChange={handleChange} />
@@ -908,7 +962,8 @@ export default function CaseCreateForm({
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Client</dt><dd className='font-semibold'>{selectedClient?.full_name || selectedClient?.company_name || 'Not selected'}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Practice Area</dt><dd className='font-semibold'>{optionLabel(PRACTICE_AREAS, formData.practice_area)}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Forum</dt><dd className='font-semibold'>{optionLabel(FORUMS, formData.forum)}</dd></div>
-              <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Internal Matter Number</dt><dd className='font-semibold'>{isFiledCourtRoute(formData) ? (formData.official_court_case_number || 'Enter case number') : 'Generated automatically'}</dd></div>
+              <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Internal Matter Number</dt><dd className='font-semibold'>Generated automatically</dd></div>
+              <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Official Court Case Number</dt><dd className='font-semibold'>{isFiledCourtRoute(formData) ? (formData.official_court_case_number || 'Enter official court case number') : 'Not assigned at opening'}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Court Stage</dt><dd className='font-semibold'>{isFiledCourtRoute(formData) ? 'Filed' : 'Not yet filed / not applicable'}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>CTS Reference</dt><dd className='font-semibold'>Pending controlled verification</dd></div>
             </dl>

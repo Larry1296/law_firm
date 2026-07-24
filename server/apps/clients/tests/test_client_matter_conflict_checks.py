@@ -147,6 +147,8 @@ class ClientMatterConflictCheckTests(APITestCase):
             "filing_date": "2026-07-17",
             "efiling_reference": "EFILE-CONF-001",
             "payment_reference": "PAY-CONF-001",
+            "payment_date": "2026-07-17",
+            "registry": "Milimani Law Courts Registry",
             "title": "Conflict Client Ltd v Proposed Adverse Ltd",
             "description": "Debt recovery.",
             "case_type": Case.CaseType.DEBT_RECOVERY,

@@ -160,7 +160,7 @@ export default function SecretaryCaseDetailsPage() {
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
             <p>
-              <strong>Case Number:</strong> {safe(caseData.case_number || caseData.official_court_case_number, 'Not recorded')}
+              <strong>Internal Matter Number:</strong> {safe(caseData.case_number, 'Not recorded')}
             </p>
             <p>
               <strong>Title:</strong> {safe(caseData.title)}

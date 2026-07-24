@@ -5,6 +5,11 @@ import { fileURLToPath, URL } from 'node:url';
 export default defineConfig({
   plugins: [react()],
 
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
+
   server: {
     host: 'localhost',
     port: 5173,

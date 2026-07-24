@@ -11,6 +11,7 @@ from apps.cases.models import (
     CaseActivity,
     CaseParty,
     CaseTimeline,
+    CaseFiling,
     CourtProceeding,
     LandMatterDetails,
     MonetaryRelief,
@@ -160,6 +161,7 @@ class UniversalMatterCreationTests(TestCase):
             filing_date="2026-07-17",
             efiling_reference="EFILE-2026-00045871",
             payment_reference="KES-PAY-2026-781245",
+            payment_date="2026-07-17",
             court_type=Case.CourtType.ENVIRONMENT_LAND,
             court_name="Environment and Land Court",
             court_station="Nairobi",
@@ -172,8 +174,11 @@ class UniversalMatterCreationTests(TestCase):
         self.assertNotEqual(case.case_number, case.official_court_case_number)
         self.assertEqual(case.official_court_case_number, "ELC E012 of 2026")
         self.assertEqual(case.court_stage, Case.CourtStage.FILED)
-        self.assertEqual(case.matter_status, Case.MatterStatus.ACTIVE)
+        self.assertEqual(case.matter_status, Case.MatterStatus.MATTER_OPEN)
         self.assertEqual(case.court_proceeding.efiling_reference, "EFILE-2026-00045871")
+        self.assertEqual(case.court_proceeding.payment_reference, "KES-PAY-2026-781245")
+        self.assertEqual(case.court_proceeding.payment_date, date(2026, 7, 17))
+        self.assertTrue(CaseFiling.objects.filter(case=case, filing_type=CaseFiling.FilingType.ORIGINATING_CLAIM, official_court_case_number="ELC E012 of 2026", source="EXISTING_FILED_COURT_CASE_REGISTRATION").exists())
         self.assertEqual(case.land_details.title_number, "NAIROBI/BLOCK/1")
         self.assertEqual(str(case.monetary_relief.principal_amount), "7500000.00")
         self.assertEqual(case.parties.filter(is_adverse=True).count(), 1)
@@ -186,6 +191,7 @@ class UniversalMatterCreationTests(TestCase):
                 "filing_date": "2026-07-17",
                 "efiling_reference": "EFILE-2026-00045872",
                 "payment_reference": "KES-PAY-2026-781246",
+                "payment_date": "2026-07-17",
                 "court_type": Case.CourtType.HIGH_COURT,
                 "court_level": "SUPERIOR_COURT",
                 "court_name": "High Court of Kenya",
@@ -203,7 +209,7 @@ class UniversalMatterCreationTests(TestCase):
 
     def test_new_instruction_creates_unfiled_matter_without_court_filing_facts(self):
         case = self.post(self.base_payload(entry_route=Case.EntryRoute.NEW_INSTRUCTION))
-        self.assertEqual(case.matter_status, Case.MatterStatus.INSTRUCTIONS_RECEIVED)
+        self.assertEqual(case.matter_status, Case.MatterStatus.MATTER_OPEN)
         self.assertEqual(case.court_stage, Case.CourtStage.NOT_FILED)
         self.assertEqual(case.official_court_case_number, "")
         self.assertFalse(CourtProceeding.objects.filter(matter=case, official_court_case_number__gt="").exists())
@@ -247,8 +253,10 @@ class UniversalMatterCreationTests(TestCase):
             filing_date="2026-07-17",
             efiling_reference="EFILE-2026-00045872",
             payment_reference="KES-PAY-2026-781246",
+            payment_date="2026-07-17",
             court_type=Case.CourtType.HIGH_COURT,
             court_station="Nairobi",
+            registry="Commercial Registry",
         ))
 
         response = self.api.post(
@@ -277,6 +285,7 @@ class UniversalMatterCreationTests(TestCase):
             efiling_reference="EFILE-2026-00045873",
             court_type=Case.CourtType.HIGH_COURT,
             court_station="Nairobi",
+            registry="Commercial Registry",
         ))
 
         response = self.api.post(
@@ -294,3 +303,68 @@ class UniversalMatterCreationTests(TestCase):
         response = self.api.post(reverse("case-create"), payload, format="json")
         self.assertEqual(response.status_code, 400, response.data)
         self.assertIn("cts_reference", response.data["errors"])
+
+
+    def test_existing_filed_small_claim_uses_claimant_and_respondent(self):
+        case = self.post(self.base_payload(
+            entry_route=Case.EntryRoute.EXISTING_FILED_COURT_CASE,
+            case_type=Case.CaseType.SMALL_CLAIM,
+            procedure_type=Case.ProcedureTrack.SMALL_CLAIM,
+            procedure_track=Case.ProcedureTrack.SMALL_CLAIM,
+            client_party_role=CaseParty.PartyRole.PLAINTIFF,
+            official_court_case_number="SCCCOMM E0001 of 2026",
+            filing_date="2026-07-17",
+            efiling_reference="EFILE-SCC-2026-0001",
+            payment_reference="PAY-SCC-2026-0001",
+            payment_date="2026-07-17",
+            court_type=Case.CourtType.SMALL_CLAIMS,
+            court_level="SUBORDINATE_COURT",
+            court_station="Milimani Small Claims Court",
+            registry="Small Claims Court Registry",
+            defendant="Apex Skyline Developers Limited",
+        ))
+        represented = case.parties.get(is_our_client=True)
+        adverse = case.parties.get(is_adverse=True)
+        self.assertEqual(represented.party_role, CaseParty.PartyRole.CLAIMANT)
+        self.assertEqual(adverse.party_role, CaseParty.PartyRole.RESPONDENT)
+        self.assertEqual(case.matter_status, Case.MatterStatus.MATTER_OPEN)
+        self.assertEqual(case.court_stage, Case.CourtStage.FILED)
+
+    def test_payment_reference_requires_payment_date(self):
+        payload = self.base_payload(
+            entry_route=Case.EntryRoute.EXISTING_FILED_COURT_CASE,
+            official_court_case_number="HCCOMM E099 of 2026",
+            filing_date="2026-07-17",
+            efiling_reference="EFILE-2026-099",
+            payment_reference="PAY-099",
+            court_type=Case.CourtType.HIGH_COURT,
+            court_station="Milimani",
+            registry="Commercial Registry",
+        )
+        payload.pop("payment_date", None)
+        response = self.api.post(reverse("case-create"), payload, format="json")
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("payment_date", response.data["errors"])
+
+    def test_detail_serializer_exposes_originating_intake_conflict_without_legacy_actions(self):
+        check = self.cleared_conflict_check(title="Originating intake conflict")
+        case = self.post(self.base_payload(
+            conflict_check_id=str(check.id),
+            entry_route=Case.EntryRoute.EXISTING_FILED_COURT_CASE,
+            official_court_case_number="HCCOMM E777 of 2026",
+            filing_date="2026-07-17",
+            efiling_reference="EFILE-2026-777",
+            payment_reference="PAY-777",
+            payment_date="2026-07-17",
+            court_type=Case.CourtType.HIGH_COURT,
+            court_station="Milimani",
+            registry="Commercial Registry",
+        ))
+        response = self.api.get(reverse("case-detail", kwargs={"case_id": case.id}))
+        self.assertEqual(response.status_code, 200, response.data)
+        data = response.data["data"]
+        self.assertEqual(data["originating_conflict_check"]["reference_number"], check.reference_number)
+        self.assertEqual(data["conflict_check"]["source"], "originating_proposed_matter")
+        self.assertEqual(data["conflict_check"]["available_actions"], [])
+        self.assertIsNone(data["conflict_record"])
+        self.assertNotIn("restricted_note", data["originating_conflict_check"])

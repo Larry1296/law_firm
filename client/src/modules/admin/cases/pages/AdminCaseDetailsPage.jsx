@@ -7,6 +7,7 @@ import SectionHeading from '@/components/ui/SectionHeading';
 import BackLink from '@/components/ui/BackLink';
 import Card from '@/components/ui/Card';
 import Select3D from '@/components/ui/Select3D';
+import ElasticTextInput from '@/components/ui/ElasticTextInput';
 import { formatDate, formatDateTime } from '@/core/utils/dateFormatter';
 import { displayEnum } from '@/core/utils/textFormatter';
 
@@ -72,6 +73,20 @@ const InfoRow = ({ label, value }) => (
   </div>
 );
 
+const ElasticTextArea = ({ label, value, onChange, placeholder = '', error, className = '', required = false }) => (
+  <ElasticTextInput
+    label={label}
+    value={value}
+    onChange={onChange}
+    placeholder={placeholder}
+    error={error}
+    required={required}
+    minRows={1}
+    alwaysShowLabel
+    wrapperClassName={`mb-0 ${className}`}
+  />
+);
+
 const SectionNote = ({ children, tone = 'info' }) => {
   const toneClass =
     tone === 'warning'
@@ -117,7 +132,21 @@ const AdminCaseDetailsPage = () => {
     key: '',
     effective_at: '',
     reason: '',
-    metadata: '',
+  });
+  const [transitionMetadata, setTransitionMetadata] = useState({
+    filing_date: '',
+    official_court_case_number: '',
+    efiling_reference: '',
+    assessment_reference: '',
+    payment_reference: '',
+    payment_date: '',
+    court_fee_amount: '',
+    court_station: '',
+    registry: '',
+    sealed_documents_received: false,
+    service_package_prepared: false,
+    responsible_person: '',
+    target_service_date: '',
   });
   const [conflictDraft, setConflictDraft] = useState({
     action: '',
@@ -231,15 +260,20 @@ const AdminCaseDetailsPage = () => {
   const courtName = firstValue(caseData.court_name, caseData.court_station, caseData.registry);
   const courtLocation = firstValue(caseData.court_location, caseData.court_station, caseData.registry);
   const conflictCheckEnvelope = caseData.conflict_check;
+  const originatingConflictCheck = caseData.originating_conflict_check;
+  const hasOriginatingConflictCheck = Boolean(originatingConflictCheck?.id || conflictCheckEnvelope?.source === 'originating_proposed_matter');
   const conflictCheck = conflictCheckEnvelope?.id ? conflictCheckEnvelope : null;
   const conflictRecord = caseData.conflict_record;
   const conflictStatus = conflictCheck?.status || conflictRecord?.status || 'NOT_STARTED';
+  const intakeSourcesChecked = (originatingConflictCheck?.source_categories_checked || conflictCheckEnvelope?.source_categories_checked || []).map((source) => friendly(source));
   const conflictReviewed = Boolean(conflictCheck?.reviewed_at && conflictCheck?.reviewed_by);
-  const conflictDisplayTitle = conflictCheck
-    ? 'Conflict Check'
-    : caseData.entry_route === 'EXISTING_FILED_COURT_CASE'
-      ? 'Conflict Record Verification'
-      : 'Conflict Check';
+  const conflictDisplayTitle = hasOriginatingConflictCheck
+    ? 'Intake Conflict Check'
+    : conflictCheck
+      ? 'Conflict Check'
+      : caseData.entry_route === 'EXISTING_FILED_COURT_CASE'
+        ? 'Conflict Record Verification'
+        : 'Conflict Check';
 
   const currentLawyerId = caseData?.assigned_lawyer?.membership_id || '';
   const currentSecretaryId = caseData?.assigned_secretary?.membership_id || '';
@@ -304,8 +338,10 @@ const AdminCaseDetailsPage = () => {
   const backendActions = Array.isArray(conflictCheckEnvelope?.available_actions)
     ? conflictCheckEnvelope.available_actions
     : null;
-  const conflictActions = (backendActions || (conflictActionsByStatus[conflictStatus] || []).map((action) => action.value))
-    .map((action) => ({ value: action, label: conflictActionLabels[action] || friendly(action) }));
+  const conflictActions = hasOriginatingConflictCheck
+    ? []
+    : (backendActions || (conflictActionsByStatus[conflictStatus] || []).map((action) => action.value))
+      .map((action) => ({ value: action, label: conflictActionLabels[action] || friendly(action) }));
 
   const jurisdictionAction = hasVerifiedJurisdiction && jurisdictionDraft.action === 'VERIFY' ? 'REVOKE' : jurisdictionDraft.action;
   const shouldPrefillJurisdiction = !hasVerifiedJurisdiction && jurisdictionAction === 'VERIFY';
@@ -458,6 +494,30 @@ const AdminCaseDetailsPage = () => {
     }
   };
 
+  const selectedTransition = (caseData.available_transitions || []).find(
+    (item) => `${item.dimension}:${item.to_state}` === transitionDraft.key,
+  );
+
+  const buildTransitionMetadata = (transition) => {
+    if (!transition) return {};
+    if (transition.to_state === 'FILED') {
+      return Object.fromEntries(
+        ['filing_date', 'official_court_case_number', 'efiling_reference', 'assessment_reference', 'payment_reference', 'payment_date', 'court_fee_amount', 'court_station', 'registry']
+          .map((field) => [field, transitionMetadata[field]])
+          .filter(([, value]) => value !== '' && value !== null && value !== undefined),
+      );
+    }
+    if (transition.to_state === 'AWAITING_SERVICE') {
+      return {
+        sealed_documents_received: transitionMetadata.sealed_documents_received,
+        service_package_prepared: transitionMetadata.service_package_prepared,
+        responsible_person: transitionMetadata.responsible_person,
+        target_service_date: transitionMetadata.target_service_date || null,
+      };
+    }
+    return {};
+  };
+
   const handleTransitionSubmit = async (event) => {
     event.preventDefault();
     if (!transitionDraft.key || !transitionDraft.reason.trim()) {
@@ -469,24 +529,10 @@ const AdminCaseDetailsPage = () => {
       return;
     }
 
-    const transition = (caseData.available_transitions || []).find(
-      (item) => `${item.dimension}:${item.to_state}` === transitionDraft.key,
-    );
+    const transition = selectedTransition;
     if (!transition) return;
 
-    let metadata = {};
-    if (transitionDraft.metadata.trim()) {
-      try {
-        metadata = JSON.parse(transitionDraft.metadata);
-      } catch {
-        Swal.fire({
-          icon: 'error',
-          title: 'Invalid metadata',
-          text: 'Transition metadata must be valid JSON.',
-        });
-        return;
-      }
-    }
+    const metadata = buildTransitionMetadata(transition);
 
     try {
       await transitionCase({
@@ -499,7 +545,7 @@ const AdminCaseDetailsPage = () => {
           metadata,
         },
       });
-      setTransitionDraft({ key: '', effective_at: '', reason: '', metadata: '' });
+      setTransitionDraft({ key: '', effective_at: '', reason: '' });
       Swal.fire({
         icon: 'success',
         title: 'Lifecycle updated',
@@ -857,8 +903,8 @@ const AdminCaseDetailsPage = () => {
 
         <div className='grid gap-5 md:grid-cols-2 xl:grid-cols-4'>
           <InfoRow
-            label='Case Number'
-            value={safe(caseData.case_number || caseData.official_court_case_number)}
+            label='Internal Matter Number'
+            value={safe(caseData.case_number)}
           />
           <InfoRow
             label='Entry Route'
@@ -917,7 +963,7 @@ const AdminCaseDetailsPage = () => {
             />
             <InfoRow
               label='Portal Access'
-              value={friendly(caseData.client?.access_type)}
+              value={caseData.client?.access_type === 'PORTAL_ENABLED' ? 'Portal enabled' : friendly(caseData.client?.access_type)}
             />
             <InfoRow
               label='Conflict Position'
@@ -979,18 +1025,34 @@ const AdminCaseDetailsPage = () => {
               onChange={(event) => setTransitionDraft((current) => ({ ...current, effective_at: event.target.value }))}
               className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
             />
-            <textarea
+            <ElasticTextArea
+              label='Reason or description'
               value={transitionDraft.reason}
               onChange={(event) => setTransitionDraft((current) => ({ ...current, reason: event.target.value }))}
-              placeholder='Reason or description'
-              className='min-h-24 rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark lg:col-span-2'
+              className='lg:col-span-2'
+              required
             />
-            <textarea
-              value={transitionDraft.metadata}
-              onChange={(event) => setTransitionDraft((current) => ({ ...current, metadata: event.target.value }))}
-              placeholder='Optional JSON metadata, for example filing references'
-              className='min-h-24 rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark lg:col-span-2'
-            />
+            {selectedTransition?.to_state === 'FILED' && (
+              <div className='grid gap-4 rounded-xl border border-border-light p-4 dark:border-border-dark lg:col-span-2 md:grid-cols-2'>
+                <input type='date' value={transitionMetadata.filing_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, filing_date: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+                <input placeholder='Official court case number' value={transitionMetadata.official_court_case_number} onChange={(event) => setTransitionMetadata((current) => ({ ...current, official_court_case_number: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+                <input placeholder='eFiling reference' value={transitionMetadata.efiling_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, efiling_reference: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+                <input placeholder='Assessment reference' value={transitionMetadata.assessment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, assessment_reference: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+                <input placeholder='Payment reference' value={transitionMetadata.payment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_reference: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+                <input type='date' value={transitionMetadata.payment_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_date: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+                <input type='number' min='0' placeholder='Court fee amount' value={transitionMetadata.court_fee_amount} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_fee_amount: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+                <input placeholder='Court station' value={transitionMetadata.court_station} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_station: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+                <input placeholder='Registry' value={transitionMetadata.registry} onChange={(event) => setTransitionMetadata((current) => ({ ...current, registry: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+              </div>
+            )}
+            {selectedTransition?.to_state === 'AWAITING_SERVICE' && (
+              <div className='grid gap-4 rounded-xl border border-border-light p-4 dark:border-border-dark lg:col-span-2 md:grid-cols-2'>
+                <label className='flex items-center gap-2 text-sm'><input type='checkbox' checked={transitionMetadata.sealed_documents_received} onChange={(event) => setTransitionMetadata((current) => ({ ...current, sealed_documents_received: event.target.checked }))} /> Sealed documents received</label>
+                <label className='flex items-center gap-2 text-sm'><input type='checkbox' checked={transitionMetadata.service_package_prepared} onChange={(event) => setTransitionMetadata((current) => ({ ...current, service_package_prepared: event.target.checked }))} /> Service package prepared</label>
+                <input placeholder='Responsible person' value={transitionMetadata.responsible_person} onChange={(event) => setTransitionMetadata((current) => ({ ...current, responsible_person: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+                <input type='date' value={transitionMetadata.target_service_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, target_service_date: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+              </div>
+            )}
             <button
               type='submit'
               disabled={isTransitioning}
@@ -1001,7 +1063,7 @@ const AdminCaseDetailsPage = () => {
           </form>
         ) : (
           <p className='text-text-muted-light dark:text-text-muted-dark'>
-            No ordinary transitions are currently available for your role.
+            No lifecycle transition is currently available at this stage.
           </p>
         )}
       </Card>
@@ -1029,6 +1091,32 @@ const AdminCaseDetailsPage = () => {
           </SectionNote>
         )}
 
+        {hasOriginatingConflictCheck && (
+          <div className='grid gap-4 lg:grid-cols-3'>
+            <div className={`space-y-2 ${panelClass}`}>
+              <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Conflict Position</h4>
+              <p><strong>Reference:</strong> {safe(originatingConflictCheck?.reference_number || conflictCheckEnvelope?.reference_number)}</p>
+              <p><strong>Decision:</strong> {safe(originatingConflictCheck?.status_label || conflictCheckEnvelope?.status_label || 'Cleared for proposed instructions')}</p>
+              <p><strong>Decided by:</strong> {safe(originatingConflictCheck?.decided_by_name || conflictCheckEnvelope?.decided_by_name)}</p>
+              <p><strong>Decision date:</strong> {(originatingConflictCheck?.decided_at || conflictCheckEnvelope?.decided_at) ? formatDateTime(originatingConflictCheck?.decided_at || conflictCheckEnvelope?.decided_at) : 'Not recorded'}</p>
+            </div>
+            <div className={`space-y-2 ${panelClass}`}>
+              <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Firm Acceptance</h4>
+              <p><strong>Firm acceptance:</strong> {friendly(originatingConflictCheck?.acceptance_decision || conflictCheckEnvelope?.acceptance_decision, 'Not recorded')}</p>
+              <p><strong>Accepted by:</strong> {safe(originatingConflictCheck?.accepted_by_name || conflictCheckEnvelope?.accepted_by_name)}</p>
+              <p><strong>Acceptance date:</strong> {(originatingConflictCheck?.accepted_at || conflictCheckEnvelope?.accepted_at) ? formatDateTime(originatingConflictCheck?.accepted_at || conflictCheckEnvelope?.accepted_at) : 'Not recorded'}</p>
+              <p><strong>Engagement status:</strong> {friendly(originatingConflictCheck?.engagement_status || conflictCheckEnvelope?.engagement_status, 'Not recorded')}</p>
+            </div>
+            <div className={`space-y-2 ${panelClass}`}>
+              <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Clearance Result</h4>
+              <p><strong>Names checked:</strong> {(originatingConflictCheck?.names_checked || conflictCheckEnvelope?.names_checked || []).join(', ') || 'Not recorded'}</p>
+              <p><strong>Sources checked:</strong> {intakeSourcesChecked.join(', ') || 'Not recorded'}</p>
+              <p><strong>Safe result summary:</strong> {safe(originatingConflictCheck?.result_summary || conflictCheckEnvelope?.result_summary)}</p>
+            </div>
+          </div>
+        )}
+
+        {!hasOriginatingConflictCheck && (
         <div className='grid gap-4 lg:grid-cols-3'>
           <div className={`space-y-2 ${panelClass}`}>
             <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
@@ -1075,14 +1163,15 @@ const AdminCaseDetailsPage = () => {
             </p>
           </div>
         </div>
+        )}
 
-        {(conflictCheck?.result_summary || conflictRecord?.result_summary) && (
+        {!hasOriginatingConflictCheck && (conflictCheck?.result_summary || conflictRecord?.result_summary) && (
           <p className='mt-4 text-text-primary-light dark:text-text-primary-dark'>
             <strong>Safe result summary:</strong> {conflictCheck?.result_summary || conflictRecord?.result_summary}
           </p>
         )}
 
-        {conflictCheck?.internal_notes && (
+        {!hasOriginatingConflictCheck && conflictCheck?.internal_notes && (
           <div className='mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100'>
             <p className='font-semibold'>Internal — not visible to client</p>
             <p className='mt-1'>{conflictCheck.internal_notes}</p>
@@ -1125,66 +1214,48 @@ const AdminCaseDetailsPage = () => {
                 <p className='mt-2'><strong>Review result:</strong> {conflictCheck.result_summary}</p>
               </div>
             )}
-            <div className='lg:col-span-2'>
-              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                {conflictDraft.action === 'INITIATE' ? 'Reason or search scope' : 'Reason for action'}
-              </label>
-              <textarea
-                value={conflictDraft.reason}
-                onChange={(event) => setConflictDraft((current) => ({ ...current, reason: event.target.value }))}
-                placeholder={conflictDraft.action === 'INITIATE' ? 'Example: Firm-wide search before engagement confirmation' : 'Reason or description'}
-                className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-              />
-              {conflictErrors.reason && <p className='mt-1 text-sm text-error'>{conflictErrors.reason}</p>}
-            </div>
+            <ElasticTextArea
+              label={conflictDraft.action === 'INITIATE' ? 'Reason or search scope' : 'Reason for action'}
+              value={conflictDraft.reason}
+              onChange={(event) => setConflictDraft((current) => ({ ...current, reason: event.target.value }))}
+              placeholder={conflictDraft.action === 'INITIATE' ? 'Example: Firm-wide search before engagement confirmation' : 'Reason or description'}
+              error={conflictErrors.reason}
+              className='lg:col-span-2'
+            />
             {conflictDraft.action && !['INITIATE', 'MARK_CLEAR', 'REVIEW'].includes(conflictDraft.action) && (
               <>
-                <div>
-                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                    Result summary
-                  </label>
-                  <textarea
-                    value={conflictDraft.result_summary}
-                    onChange={(event) => setConflictDraft((current) => ({ ...current, result_summary: event.target.value }))}
-                    placeholder='Safe result summary'
-                    className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-                  />
-                  {conflictErrors.result_summary && <p className='mt-1 text-sm text-error'>{conflictErrors.result_summary}</p>}
-                </div>
-                <div>
-                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                    Internal notes — not visible to client
-                  </label>
-                  <textarea
-                    value={conflictDraft.internal_notes}
-                    onChange={(event) => setConflictDraft((current) => ({ ...current, internal_notes: event.target.value }))}
-                    placeholder='Internal notes — not visible to client'
-                    className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-                  />
-                  {conflictErrors.internal_notes && <p className='mt-1 text-sm text-error'>{conflictErrors.internal_notes}</p>}
-                </div>
-              </>
-            )}
-            {conflictDraft.action === 'REVIEW' && (
-              <div>
-                <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                  Review result summary
-                </label>
-                <textarea
+                <ElasticTextArea
+                  label='Result summary'
                   value={conflictDraft.result_summary}
                   onChange={(event) => setConflictDraft((current) => ({ ...current, result_summary: event.target.value }))}
                   placeholder='Safe result summary'
-                  className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  error={conflictErrors.result_summary}
                 />
-                {conflictErrors.result_summary && <p className='mt-1 text-sm text-error'>{conflictErrors.result_summary}</p>}
-              </div>
+                <ElasticTextArea
+                  label='Internal notes — not visible to client'
+                  value={conflictDraft.internal_notes}
+                  onChange={(event) => setConflictDraft((current) => ({ ...current, internal_notes: event.target.value }))}
+                  placeholder='Internal notes — not visible to client'
+                  error={conflictErrors.internal_notes}
+                />
+              </>
+            )}
+            {conflictDraft.action === 'REVIEW' && (
+              <ElasticTextArea
+                label='Review result summary'
+                value={conflictDraft.result_summary}
+                onChange={(event) => setConflictDraft((current) => ({ ...current, result_summary: event.target.value }))}
+                placeholder='Safe result summary'
+                error={conflictErrors.result_summary}
+              />
             )}
             {['REQUEST_WAIVER', 'RECORD_WAIVER'].includes(conflictDraft.action) && (
-              <textarea
+              <ElasticTextArea
+                label='Waiver details'
                 value={conflictDraft.waiver_details}
                 onChange={(event) => setConflictDraft((current) => ({ ...current, waiver_details: event.target.value }))}
                 placeholder='Waiver details, when applicable'
-                className='min-h-24 rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark lg:col-span-2'
+                className='lg:col-span-2'
               />
             )}
             <button
@@ -1220,8 +1291,8 @@ const AdminCaseDetailsPage = () => {
 
           <div className='grid gap-5 md:grid-cols-2 xl:grid-cols-4'>
             <InfoRow
-              label='Case Number'
-              value={safe(caseData.case_number || caseData.official_court_case_number || courtProceeding.official_court_case_number, 'Not recorded')}
+              label='Official Court Case Number'
+              value={safe(courtProceeding.official_court_case_number || caseData.official_court_case_number, 'Not recorded')}
             />
             <InfoRow
               label='Date Filed in eFiling / Court'
@@ -1249,7 +1320,7 @@ const AdminCaseDetailsPage = () => {
             <InfoRow label='eFiling Reference' value={safe(caseData.efiling_reference, 'Not recorded')} />
             <InfoRow label='Court Payment Reference' value={safe(caseData.payment_reference, 'Not recorded')} />
             <InfoRow label='Assessment Reference' value={safe(caseData.assessment_reference, 'Not recorded')} />
-            <InfoRow label='CTS Reference' value={safe(caseData.cts_reference, 'Pending verification')} />
+            <InfoRow label='CTS Reference' value={safe(caseData.cts_reference || courtProceeding.cts_reference, 'Not recorded')} />
           </div>
 
           <div className='mt-5 grid gap-4 lg:grid-cols-2'>
@@ -1319,26 +1390,20 @@ const AdminCaseDetailsPage = () => {
                   {ctsErrors.verification_source && <p className='mt-1 text-sm text-error'>{ctsErrors.verification_source}</p>}
                 </div>
                 <div className='md:col-span-2'>
-                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                    Reason for verification
-                  </label>
-                  <textarea
+                  <ElasticTextArea
+                    label='Reason for verification'
                     value={ctsDraft.reason}
                     onChange={(event) => setCtsDraft((current) => ({ ...current, reason: event.target.value }))}
                     placeholder='CTS reference confirmed against the filed court record.'
-                    className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                    error={ctsErrors.reason}
                   />
-                  {ctsErrors.reason && <p className='mt-1 text-sm text-error'>{ctsErrors.reason}</p>}
                 </div>
                 <div className='md:col-span-2'>
-                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                    Verification notes
-                  </label>
-                  <textarea
+                  <ElasticTextArea
+                    label='Verification notes'
                     value={ctsDraft.jurisdiction_notes}
                     onChange={(event) => setCtsDraft((current) => ({ ...current, jurisdiction_notes: event.target.value }))}
                     placeholder='Optional internal note on the court-record check.'
-                    className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
                   />
                 </div>
               </div>
@@ -1445,28 +1510,22 @@ const AdminCaseDetailsPage = () => {
                   />
                 </div>
                 <div className='md:col-span-2'>
-                  <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                    Jurisdiction assessment notes
-                  </label>
-                  <textarea
+                  <ElasticTextArea
+                    label='Jurisdiction assessment notes'
                     value={jurisdictionValues.jurisdiction_notes}
                     onChange={(event) => setJurisdictionDraft((current) => ({ ...current, jurisdiction_notes: event.target.value }))}
-                    className='min-h-28 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                    error={jurisdictionErrors.jurisdiction_notes}
                   />
-                  {jurisdictionErrors.jurisdiction_notes && <p className='mt-1 text-sm text-error'>{jurisdictionErrors.jurisdiction_notes}</p>}
                 </div>
               </div>
             ) : (
               <div>
-                <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                  Reason for revocation
-                </label>
-                <textarea
+                <ElasticTextArea
+                  label='Reason for revocation'
                   value={jurisdictionDraft.reason}
                   onChange={(event) => setJurisdictionDraft((current) => ({ ...current, reason: event.target.value }))}
-                  className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  error={jurisdictionErrors.reason}
                 />
-                {jurisdictionErrors.reason && <p className='mt-1 text-sm text-error'>{jurisdictionErrors.reason}</p>}
               </div>
             )}
 
@@ -2003,26 +2062,20 @@ const AdminCaseDetailsPage = () => {
             )}
 
             <div className='md:col-span-2'>
-              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                Agenda / purpose
-              </label>
-              <textarea
+              <ElasticTextArea
+                label='Agenda / purpose'
                 value={eventDraft.description}
                 onChange={(event) => setEventDraft((current) => ({ ...current, description: event.target.value }))}
-                className='min-h-24 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                error={eventErrors.description}
               />
-              {eventErrors.description && <p className='mt-1 text-sm text-error'>{eventErrors.description}</p>}
             </div>
 
             <div className='md:col-span-2'>
-              <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                Orders, directions or notes after event
-              </label>
-              <textarea
+              <ElasticTextArea
+                label='Orders, directions or notes after event'
                 value={eventDraft.orders_directions}
                 onChange={(event) => setEventDraft((current) => ({ ...current, orders_directions: event.target.value }))}
                 placeholder='Leave blank until the event has happened or directions are known'
-                className='min-h-20 w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
               />
             </div>
 

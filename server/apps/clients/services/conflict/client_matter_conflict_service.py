@@ -11,6 +11,7 @@ from apps.clients.models import (
     FirmAcceptanceHistory,
 )
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
+from apps.cases.models import Case
 from apps.staff.models import Lawyer, LawyerPermission
 
 
@@ -46,6 +47,62 @@ class ClientMatterConflictService:
         ConflictCheckStatus.CLEARED,
         ConflictCheckStatus.CONFLICT_CONFIRMED,
     }
+    AUTOMATIC_SEARCH_MINIMUM_RECORDS = 5
+
+
+    @classmethod
+    def _search_mode_for_firm(cls, firm):
+        record_count = (
+            Client.objects.filter(firm=firm, is_active=True).count()
+            + Case.objects.filter(firm=firm).count()
+            + ClientMatterConflictCheck.objects.filter(firm=firm).count()
+        )
+        mode = "AUTOMATIC" if record_count >= cls.AUTOMATIC_SEARCH_MINIMUM_RECORDS else "MANUAL"
+        return mode, record_count
+
+    @staticmethod
+    def _normalized_terms(values):
+        terms = []
+        for value in values or []:
+            text = " ".join(str(value or "").strip().lower().split())
+            if text:
+                terms.append(text)
+        return terms
+
+    @classmethod
+    def _run_automatic_search(cls, *, firm, check, names_checked, source_categories):
+        terms = cls._normalized_terms(names_checked)
+        if not terms:
+            return []
+        matches = []
+
+        def contains_term(value):
+            text = " ".join(str(value or "").strip().lower().split())
+            return bool(text and any(term in text or text in term for term in terms))
+
+        if ConflictCheckSourceCategory.CURRENT_CLIENTS in source_categories:
+            for client in Client.objects.filter(firm=firm, is_active=True).exclude(id=check.client_id):
+                if contains_term(client.full_name):
+                    matches.append({"source": ConflictCheckSourceCategory.CURRENT_CLIENTS, "record_type": "client", "record_id": str(client.id), "name": client.full_name})
+        if ConflictCheckSourceCategory.FORMER_CLIENTS in source_categories:
+            for client in Client.objects.filter(firm=firm, is_active=False):
+                if contains_term(client.full_name):
+                    matches.append({"source": ConflictCheckSourceCategory.FORMER_CLIENTS, "record_type": "client", "record_id": str(client.id), "name": client.full_name})
+        if ConflictCheckSourceCategory.OPEN_MATTERS in source_categories:
+            for matter in Case.objects.filter(firm=firm, matter_status=Case.MatterStatus.MATTER_OPEN):
+                if contains_term(matter.title) or contains_term(matter.plaintiff) or contains_term(matter.defendant):
+                    matches.append({"source": ConflictCheckSourceCategory.OPEN_MATTERS, "record_type": "matter", "record_id": str(matter.id), "name": matter.case_number})
+        if ConflictCheckSourceCategory.CLOSED_MATTERS in source_categories:
+            for matter in Case.objects.filter(firm=firm, matter_status=Case.MatterStatus.CLOSED):
+                if contains_term(matter.title) or contains_term(matter.plaintiff) or contains_term(matter.defendant):
+                    matches.append({"source": ConflictCheckSourceCategory.CLOSED_MATTERS, "record_type": "matter", "record_id": str(matter.id), "name": matter.case_number})
+        if ConflictCheckSourceCategory.PROSPECTIVE_CLIENTS in source_categories:
+            for candidate in ClientMatterConflictCheck.objects.filter(firm=firm).exclude(id=check.id):
+                candidate_terms = [candidate.proposed_matter_title, candidate.proposed_instructions, candidate.factual_summary]
+                candidate_terms.extend(candidate.parties.values_list("name", flat=True))
+                if any(contains_term(value) for value in candidate_terms):
+                    matches.append({"source": ConflictCheckSourceCategory.PROSPECTIVE_CLIENTS, "record_type": "proposed_matter", "record_id": str(candidate.id), "name": candidate.reference_number})
+        return matches
 
     @staticmethod
     def get_user_firm(user):
@@ -493,6 +550,19 @@ class ClientMatterConflictService:
             result_summary = str(data.get("result_summary", "")).strip()
             if not result_summary:
                 raise ValidationError({"result_summary": "Record the clearance result summary."})
+            search_mode, searchable_record_count = cls._search_mode_for_firm(firm)
+            automatic_matches = []
+            if search_mode == "AUTOMATIC":
+                automatic_matches = cls._run_automatic_search(
+                    firm=firm,
+                    check=check,
+                    names_checked=names_checked,
+                    source_categories=sources,
+                )
+                if automatic_matches:
+                    raise ValidationError({
+                        "source_categories_checked": "The system conflict search found possible matches. Record a potential conflict or escalate for review instead of clearing directly."
+                    })
             check.names_checked = names_checked
             check.source_categories_checked = sources
             check.other_source_description = data.get("other_source_description", check.other_source_description)
@@ -515,7 +585,12 @@ class ClientMatterConflictService:
             action="FINAL_DECISION_RECORDED",
             summary=summary,
             actor=user,
-            metadata={"decided_by_id": str(deciding_lawyer.id)},
+            metadata={
+                "decided_by_id": str(deciding_lawyer.id),
+                "search_mode": locals().get("search_mode", "MANUAL"),
+                "searchable_record_count": locals().get("searchable_record_count"),
+                "automatic_match_count": len(locals().get("automatic_matches", [])),
+            },
         )
         check.save()
         return check

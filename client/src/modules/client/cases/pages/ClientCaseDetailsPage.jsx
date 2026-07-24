@@ -61,7 +61,7 @@ export default function ClientCaseDetailsPage() {
     values.find((value) => value !== null && value !== undefined && value !== '') || '';
   const pageTitle = safe(caseData.title, safe(caseData.case_number, 'Case Details'));
   const courtProceeding = caseData.court_proceeding || {};
-  const officialCourtNumber = firstValue(caseData.official_court_case_number, courtProceeding.official_court_case_number);
+  const officialCourtNumber = firstValue(courtProceeding.official_court_case_number, caseData.official_court_case_number);
   const courtStage = firstValue(caseData.court_stage_label, caseData.court_stage, courtProceeding.court_stage);
   const matterStatus = firstValue(caseData.matter_status_label, caseData.matter_status);
   const courtName = firstValue(caseData.court_name, courtProceeding.court_name, caseData.court_station, courtProceeding.court_station, caseData.registry, courtProceeding.registry);
@@ -94,7 +94,10 @@ export default function ClientCaseDetailsPage() {
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
             <p>
-              <strong>Case Number:</strong> {safe(caseData.case_number || officialCourtNumber, 'Not recorded')}
+              <strong>Internal Matter Number:</strong> {safe(caseData.case_number, 'Not recorded')}
+            </p>
+            <p>
+              <strong>Official Court Case Number:</strong> {safe(officialCourtNumber, 'Not recorded')}
             </p>
             <p>
               <strong>Title:</strong> {safe(caseData.title)}

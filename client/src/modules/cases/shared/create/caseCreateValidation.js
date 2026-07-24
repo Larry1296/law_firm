@@ -1,6 +1,9 @@
 import { COURT_TYPES, ENTRY_ROUTES, PROCEDURE_TRACKS } from './caseCreateOptions.js';
 
 const isBlank = (value) => value === undefined || value === null || String(value).trim() === '';
+const isElectronicFiling = (value) => ['ELECTRONIC', 'EFILING', 'E-FILING'].includes(String(value || '').trim().toUpperCase());
+const isPaymentCompleted = (value) => value === true || String(value || '').trim().toUpperCase() === 'COMPLETED';
+const isNegative = (value) => !isBlank(value) && Number(value) < 0;
 
 const addError = (errors, field, message) => {
   if (!errors[field]) errors[field] = message;
@@ -41,8 +44,23 @@ export const validateCaseCreateForm = (formData = {}, context = {}) => {
     if (isBlank(formData.filing_date)) {
       addError(errors, 'filing_date', 'Date filed is required for an existing filed court case.');
     }
-    if (isBlank(formData.efiling_reference)) {
-      addError(errors, 'efiling_reference', 'eFiling reference is required for an existing filed court case.');
+    if (isBlank(formData.registry)) {
+      addError(errors, 'registry', 'Registry is required for an existing filed court case.');
+    }
+    if (isElectronicFiling(formData.filing_channel) && isBlank(formData.efiling_reference)) {
+      addError(errors, 'efiling_reference', 'eFiling reference is required when the filed case was submitted electronically.');
+    }
+    if (!isBlank(formData.payment_reference) && isBlank(formData.payment_date)) {
+      addError(errors, 'payment_date', 'Payment date is required when a payment reference is recorded.');
+    }
+    if (isPaymentCompleted(formData.payment_completed)) {
+      if (isBlank(formData.court_fee_amount)) addError(errors, 'court_fee_amount', 'Court fee amount is required when payment is marked completed.');
+      if (isBlank(formData.currency)) addError(errors, 'currency', 'Currency is required when payment is marked completed.');
+    }
+    if (isNegative(formData.court_fee_amount)) addError(errors, 'court_fee_amount', 'Court fee amount cannot be negative.');
+    if (isNegative(formData.claim_amount)) addError(errors, 'claim_amount', 'Monetary amounts cannot be negative.');
+    if (!isBlank(formData.assessment_date) && !isBlank(formData.payment_date) && new Date(formData.payment_date) < new Date(formData.assessment_date)) {
+      addError(errors, 'payment_date', 'Payment date cannot be earlier than the assessment date.');
     }
     if (isBlank(formData.court_type)) {
       addError(errors, 'court_type', 'Court type is required for a court proceeding.');
@@ -101,7 +119,7 @@ export const validateCaseCreateForm = (formData = {}, context = {}) => {
   ) {
     addError(errors, 'claim_amount', 'Enter the quantified monetary claim amount.');
   }
-  if (!isBlank(formData.claim_amount) && Number(formData.claim_amount) < 0) {
+  if (isNegative(formData.claim_amount)) {
     addError(errors, 'claim_amount', 'Monetary amounts cannot be negative.');
   }
 

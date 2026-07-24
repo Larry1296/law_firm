@@ -26,7 +26,10 @@ class CourtProceeding(TimestampedModel):
     judicial_officer = models.CharField(max_length=255, blank=True, default="")
     court_location = models.CharField(max_length=255, blank=True, default="")
     efiling_reference = models.CharField(max_length=120, blank=True, default="")
+    assessment_reference = models.CharField(max_length=120, blank=True, default="")
+    court_fee_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     payment_reference = models.CharField(max_length=120, blank=True, default="")
+    payment_date = models.DateField(null=True, blank=True)
     cts_reference = models.CharField(max_length=120, blank=True, default="")
     court_stage = models.CharField(max_length=50, blank=True, default="")
     jurisdiction_verification_status = models.CharField(
