@@ -1,3 +1,5 @@
+const OFFICIAL_STATUSES = ['OFFICIAL', 'OFFICIAL_CLIENT'];
+
 export const getEffectiveRole = (user, firmRole) => {
   const role = user?.role;
 
@@ -7,7 +9,7 @@ export const getEffectiveRole = (user, firmRole) => {
 
   if (
     role === 'PROSPECT' &&
-    user?.client?.lifecycle_status === 'OFFICIAL_CLIENT'
+    OFFICIAL_STATUSES.includes(user?.client?.lifecycle_status)
   ) {
     return 'OFFICIAL_CLIENT';
   }
@@ -16,7 +18,7 @@ export const getEffectiveRole = (user, firmRole) => {
 };
 
 export const getClientDashboardPath = (user) => (
-  user?.client?.lifecycle_status === 'OFFICIAL_CLIENT'
+  OFFICIAL_STATUSES.includes(user?.client?.lifecycle_status)
     ? '/client/dashboard'
     : '/portal/dashboard'
 );

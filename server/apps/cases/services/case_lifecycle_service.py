@@ -1544,6 +1544,43 @@ class CaseLifecycleService:
                 data=metadata,
             )
 
+        # ======================================================
+        # NOTIFY CLIENT OF LIFECYCLE TRANSITION
+        # ======================================================
+
+        if not is_correction:
+            try:
+                from apps.notifications.services import NotificationService
+                from apps.notifications.models import Notification
+
+                client_user = getattr(case.client, "user", None)
+                
+                if client_user:
+                    dimension_label = {
+                        CaseLifecycleTransition.Dimension.MATTER_STATUS: "Matter status",
+                        CaseLifecycleTransition.Dimension.COURT_STAGE: "Court stage",
+                        CaseLifecycleTransition.Dimension.OUTCOME_STATUS: "Outcome",
+                        CaseLifecycleTransition.Dimension.ENFORCEMENT_STATUS: "Enforcement",
+                        CaseLifecycleTransition.Dimension.APPEAL_STATUS: "Appeal",
+                    }.get(dimension, str(dimension))
+
+                    to_label = cls.state_label(dimension, to_state)
+
+                    NotificationService.create(
+                        firm=case.firm,
+                        recipient=client_user,
+                        actor=actor,
+                        case=case,
+                        notification_type=Notification.NotificationType.CASE_STATUS_UPDATE,
+                        title=f"Case update: {case.case_number}",
+                        message=f"{dimension_label} updated to {to_label}. {reason}",
+                        action_url=f"/client/cases/{case.id}",
+                    )
+            except Exception:
+                # Don't let notification failure break the transition
+                pass
+
+
 
         return transition
 

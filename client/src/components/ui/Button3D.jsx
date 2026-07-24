@@ -10,7 +10,8 @@ export default function Button3D({
   size = "md", // sm, md, lg
   disabled = false,
 }) {
-  const { theme } = useContext(ThemeContext); // get current theme
+  const context = useContext(ThemeContext);
+  const theme = context?.theme ?? "light";
 
   const base = `
     rounded-xl font-semibold shadow-[0_6px_0_rgba(0,0,0,0.2)]
