@@ -13,6 +13,7 @@ import { displayEnum } from '@/core/utils/textFormatter';
 
 import useCaseDetails from '@/modules/admin/cases/hooks/useAdminCaseDetails';
 import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
+import CreateNextCaseEventPanel from '@/modules/admin/cases/components/CreateNextCaseEventPanel';
 import { COURT_LEVELS, COURT_TYPES } from '@/modules/cases/shared/create/caseCreateOptions';
 
 const PRIORITIES = [
@@ -1657,6 +1658,14 @@ const AdminCaseDetailsPage = () => {
       </Card>
 
       <CaseProcedurePanels caseData={caseData} />
+            {/* =========================================================
+                CREATE NEXT CASE EVENT (chained from previous event)
+            ========================================================= */}
+            <CreateNextCaseEventPanel
+              caseData={caseData}
+              onCreateEvent={createCaseEvent}
+              isCreating={isCreatingCaseEvent}
+            />
 
       <Card className='p-6'>
         <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>

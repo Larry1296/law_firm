@@ -153,7 +153,10 @@ class EventCreateSerializer(serializers.Serializer):
     virtual_courtroom_available_from = serializers.DateTimeField(required=False, allow_null=True)
     virtual_courtroom_available_until = serializers.DateTimeField(required=False, allow_null=True)
     is_virtual_courtroom_enabled = serializers.BooleanField(required=False, default=False)
+    next_action = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    next_date = serializers.DateTimeField(required=False, allow_null=True)
     notify_participants = serializers.BooleanField(required=False, default=True)
+
 
     def validate(self, attrs):
         starts_at = attrs.get("starts_at")

@@ -30,7 +30,7 @@ from apps.cases.serializers.matter_detail_serializers import (
 from apps.cases.services.case_conflict_check_service import CaseConflictCheckService
 from apps.cases.services.case_lifecycle_service import CaseLifecycleService
 from apps.events.serializers import EventSerializer
-
+from apps.events.services import EventService
 
 class CaseDetailSerializer(serializers.ModelSerializer):
     internal_matter_number = serializers.CharField(source="case_number", read_only=True)
@@ -76,6 +76,8 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     monetary_relief = serializers.SerializerMethodField()
     conflict_record = serializers.SerializerMethodField()
     originating_conflict_check = serializers.SerializerMethodField()
+    next_event_suggestion = serializers.SerializerMethodField()
+    valid_event_types = serializers.SerializerMethodField()
 
     def _client_visible_only(self):
         request = self.context.get("request")
@@ -312,6 +314,8 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "criminal_details",
             "monetary_relief",
             "analytics",
+            "next_event_suggestion",
+            "valid_event_types",
         ]
         read_only_fields = fields
 
@@ -438,6 +442,17 @@ class CaseDetailSerializer(serializers.ModelSerializer):
 
     def get_monetary_relief(self, obj):
         return self._related(obj, "monetary_relief", MonetaryReliefSerializer)
+
+    def get_next_event_suggestion(self, obj):
+        if self._client_visible_only():
+            return None
+        return EventService.get_next_event_suggestion(obj)
+
+    def get_valid_event_types(self, obj):
+        if self._client_visible_only():
+            return []
+        valid = EventService.get_valid_event_types(obj)
+        return sorted([vt.value for vt in valid])
 
     def get_conflict_record(self, obj):
         if self._client_visible_only() or self._originating_conflict(obj):
