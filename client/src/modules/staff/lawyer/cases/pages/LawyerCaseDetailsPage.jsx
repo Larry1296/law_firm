@@ -92,7 +92,8 @@ const STATUS_EVENT_TYPE = {
   ON_HOLD: 'OTHER',
 };
 
-const TERMINAL_STATUSES = new Set(['SETTLED', 'WITHDRAWN', 'DISMISSED', 'CLOSED']);
+const panelClass =
+  'rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark';
 
 const toIsoDateTime = (value) => {
   if (!value) return '';
@@ -109,8 +110,10 @@ export default function LawyerCaseDetailsPage() {
   const lawyerMessagesQuery = useThreadMessages(lawyerThread?.id);
   const sendThreadMessage = useSendThreadMessage();
   const updateLifecycle = useUpdateLifecycleTransition(id);
+
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
+
   const [nextEvent, setNextEvent] = useState({
     event_type: 'OTHER',
     title: '',
@@ -124,16 +127,36 @@ export default function LawyerCaseDetailsPage() {
 
   const handleTransitionSelect = (value) => {
     setSelectedStatus(value);
-    if (!value || !data) return;
-    const eventType = STATUS_EVENT_TYPE[value] || 'OTHER';
-    const statusLabel = CASE_STATUS_OPTIONS.find((item) => item.value === value)?.label || 'Next Event';
+
+    const caseSnapshot = data?.data || data;
+    if (!value || !caseSnapshot) return;
+
+    const [, toState] = value.split(':');
+    const eventType = STATUS_EVENT_TYPE[toState] || 'OTHER';
+    const selectedTransition = (caseSnapshot.available_transitions || []).find(
+      (item) => `${item.dimension}:${item.to_state}` === value,
+    );
+
+    const statusLabel =
+      selectedTransition?.label ||
+      CASE_STATUS_OPTIONS.find((item) => item.value === toState)?.label ||
+      displayEnum(toState || value);
+
     setNextEvent((current) => ({
       ...current,
       event_type: eventType,
-      title: current.title && current.starts_at ? current.title : `${statusLabel} - ${data.case_number}`,
-      court_station: current.court_station || data.court_station || data.court_name || '',
-      courtroom: current.courtroom || data.courtroom || '',
-      judicial_officer: current.judicial_officer || data.judicial_officer || '',
+      title:
+        current.title && current.starts_at
+          ? current.title
+          : `${statusLabel} - ${caseSnapshot.case_number}`,
+      court_station:
+        current.court_station ||
+        caseSnapshot.court_station ||
+        caseSnapshot.court_name ||
+        '',
+      courtroom: current.courtroom || caseSnapshot.courtroom || '',
+      judicial_officer:
+        current.judicial_officer || caseSnapshot.judicial_officer || '',
     }));
   };
 
@@ -161,7 +184,7 @@ export default function LawyerCaseDetailsPage() {
     );
   }
 
-  const caseData = data;
+  const caseData = data?.data || data;
 
   if (!caseData) {
     return (
@@ -177,27 +200,139 @@ export default function LawyerCaseDetailsPage() {
 
   const safe = (value, fallback = 'N/A') =>
     value !== null && value !== undefined && value !== '' ? value : fallback;
+
   const friendly = (value, fallback = 'N/A') =>
     value !== null && value !== undefined && value !== ''
       ? displayEnum(value)
       : fallback;
+
   const firstValue = (...values) =>
-    values.find((value) => value !== null && value !== undefined && value !== '') || '';
-  const pageTitle = safe(caseData.title, safe(caseData.case_number, 'Case Details'));
-  const courtName = firstValue(caseData.court_name, caseData.court_station, caseData.registry);
-  const courtLocation = firstValue(caseData.court_location, caseData.court_station, caseData.registry);
+    values.find(
+      (value) => value !== null && value !== undefined && value !== '',
+    ) || '';
+
+  const pageTitle = safe(
+    caseData.title,
+    safe(caseData.case_number, 'Case Details'),
+  );
+
+  const courtName = firstValue(
+    caseData.court_name,
+    caseData.court_station,
+    caseData.registry,
+  );
+
+  const courtLocation = firstValue(
+    caseData.court_location,
+    caseData.court_station,
+    caseData.registry,
+  );
+
   const lawyerThreads = lawyerThread ? [lawyerThread] : [];
+
+  /*
+   * IMPORTANT:
+   * Conflict clearance is a matter/intake-level record.
+   * It must not be recomputed per assigned lawyer.
+   *
+   * Correct priority:
+   * 1. caseData.conflict_check.status
+   * 2. caseData.originating_conflict_check.status
+   * 3. caseData.accepted_instruction_snapshot.conflict_decision.status
+   * 4. caseData.conflict_status only as fallback
+   */
+  const conflictCheckEnvelope = caseData.conflict_check;
+  const originatingConflictCheck = caseData.originating_conflict_check;
+  const acceptedInstructionSnapshot =
+    caseData.accepted_instruction_snapshot || {};
+  const acceptedConflictDecision =
+    acceptedInstructionSnapshot.conflict_decision;
+  const firmAcceptance = acceptedInstructionSnapshot.firm_acceptance;
+  const proposedMatter = acceptedInstructionSnapshot.proposed_matter;
+
+  const conflictRecord =
+    conflictCheckEnvelope?.id
+      ? conflictCheckEnvelope
+      : originatingConflictCheck?.id
+        ? originatingConflictCheck
+        : acceptedConflictDecision || null;
+
+  const conflictStatus =
+    conflictRecord?.status ||
+    acceptedConflictDecision?.status ||
+    caseData.conflict_status ||
+    'UNKNOWN';
+
+  const normalizedConflictStatus = String(conflictStatus || '').toUpperCase();
+
+  const isConflictCleared = ['CLEARED', 'CLEAR'].includes(
+    normalizedConflictStatus,
+  );
+
+  const conflictStatusLabel =
+    conflictRecord?.status_label ||
+    (isConflictCleared
+      ? 'Cleared for proposed instructions'
+      : friendly(conflictStatus));
+
+  const conflictReference =
+    conflictRecord?.reference_number ||
+    proposedMatter?.reference_number ||
+    'Not recorded';
+
+  const conflictDecisionDate =
+    conflictRecord?.decided_at || acceptedConflictDecision?.decided_at || null;
+
+  const conflictDecidedBy =
+    conflictRecord?.decided_by_name ||
+    caseData.created_by?.full_name ||
+    caseData.created_by_name ||
+    'Not recorded';
+
+  const conflictSummary =
+    conflictRecord?.result_summary || 'No conflict summary recorded.';
+
+  const namesChecked =
+    conflictRecord?.names_checked ||
+    acceptedInstructionSnapshot.parties_used_for_clearance?.map(
+      (party) => party.name,
+    ) ||
+    [];
+
+  const sourceCategoriesChecked =
+    conflictRecord?.source_categories_checked || [];
+
+  const acceptanceDecision =
+    conflictRecord?.acceptance_decision ||
+    firmAcceptance?.decision ||
+    'Not recorded';
+
+  const acceptedBy = conflictRecord?.accepted_by_name || 'Not recorded';
+
+  const acceptedAt = conflictRecord?.accepted_at || firmAcceptance?.accepted_at;
+
+  const engagementStatus =
+    conflictRecord?.engagement_status ||
+    firmAcceptance?.engagement_status ||
+    'Not recorded';
+
+  const conflictBadgeClass = isConflictCleared
+    ? 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-200'
+    : 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200';
 
   const handleSendLawyerMessage = async (body) => {
     if (!lawyerThread?.id) return;
-    await sendThreadMessage.mutateAsync({ threadId: lawyerThread.id, body });
+    await sendThreadMessage.mutateAsync({
+      threadId: lawyerThread.id,
+      body,
+    });
   };
 
   const handleStatusUpdate = async () => {
     if (!selectedStatus || selectedStatus === '') return;
 
-    // Parse lifecycle transition format: DIMENSION:TO_STATE
     const [dimension, toState] = selectedStatus.split(':');
+
     if (!dimension || !toState) {
       Swal.fire({
         icon: 'error',
@@ -214,29 +349,34 @@ export default function LawyerCaseDetailsPage() {
         reason: statusNote || `Lifecycle transition to ${toState}`,
         metadata: {},
       };
+
       await updateLifecycle.mutateAsync(payload);
 
-      // Trigger event execution if event data was entered
       if (nextEvent.starts_at) {
         const eventPayload = {
           case_id: id,
           event_type: nextEvent.event_type || 'OTHER',
-          title: nextEvent.title || `Next Event - ${data.case_number}`,
+          title: nextEvent.title || `Next Event - ${caseData.case_number}`,
           description: nextEvent.description || '',
           starts_at: toIsoDateTime(nextEvent.starts_at),
-          court_station: nextEvent.court_station || data.court_station || '',
-          courtroom: nextEvent.courtroom || data.courtroom || '',
-          judicial_officer: nextEvent.judicial_officer || data.judicial_officer || '',
+          court_station:
+            nextEvent.court_station || caseData.court_station || '',
+          courtroom: nextEvent.courtroom || caseData.courtroom || '',
+          judicial_officer:
+            nextEvent.judicial_officer || caseData.judicial_officer || '',
           is_client_visible: nextEvent.is_client_visible,
         };
+
         try {
           await axiosInstance.post(`/cases/${id}/events/`, eventPayload);
         } catch (evtError) {
           console.error('Event execution failed:', evtError);
         }
       }
+
       setStatusNote('');
       setSelectedStatus('');
+
       await Swal.fire({
         icon: 'success',
         title: 'Case Updated',
@@ -244,11 +384,14 @@ export default function LawyerCaseDetailsPage() {
         timer: 1600,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (err) {
       Swal.fire({
         icon: 'error',
         title: 'Lifecycle Update Failed',
-        text: error?.response?.data?.detail || error?.message || 'Could not apply transition.',
+        text:
+          err?.response?.data?.detail ||
+          err?.message ||
+          'Could not apply transition.',
       });
     }
   };
@@ -266,13 +409,15 @@ export default function LawyerCaseDetailsPage() {
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
             <p>
-              <strong>Internal Matter Number:</strong> {safe(caseData.case_number, 'Not recorded')}
+              <strong>Internal Matter Number:</strong>{' '}
+              {safe(caseData.case_number, 'Not recorded')}
             </p>
             <p>
               <strong>Title:</strong> {safe(caseData.title)}
             </p>
             <p>
-              <strong>Status:</strong> {friendly(caseData.matter_status)} ({friendly(caseData.court_stage)})
+              <strong>Status:</strong> {friendly(caseData.matter_status)} (
+              {friendly(caseData.court_stage)})
             </p>
             <p>
               <strong>Priority:</strong> {friendly(caseData.priority)}
@@ -287,10 +432,14 @@ export default function LawyerCaseDetailsPage() {
 
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
             <p>
-              <strong>Court Location:</strong> {safe(courtLocation, 'Not Set')}
+              <strong>Court Location:</strong>{' '}
+              {safe(courtLocation, 'Not Set')}
             </p>
             <p>
-              <strong>Filing Date:</strong> {caseData.filing_date ? formatDate(caseData.filing_date) : 'Not Set'}
+              <strong>Filing Date:</strong>{' '}
+              {caseData.filing_date
+                ? formatDate(caseData.filing_date)
+                : 'Not Set'}
             </p>
             <p>
               <strong>Assigned Lawyer:</strong>{' '}
@@ -326,23 +475,57 @@ export default function LawyerCaseDetailsPage() {
 
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p><strong>Procedure Track:</strong> {friendly(caseData.procedure_track, 'Not Set')}</p>
-            <p><strong>Court Division:</strong> {friendly(caseData.court_division, 'Not Set')}</p>
-            <p><strong>Court Station:</strong> {safe(caseData.court_station, 'Not Set')}</p>
-            <p><strong>Registry:</strong> {safe(caseData.registry, 'Not Set')}</p>
+            <p>
+              <strong>Procedure Track:</strong>{' '}
+              {friendly(caseData.procedure_track, 'Not Set')}
+            </p>
+            <p>
+              <strong>Court Division:</strong>{' '}
+              {friendly(caseData.court_division, 'Not Set')}
+            </p>
+            <p>
+              <strong>Court Station:</strong>{' '}
+              {safe(caseData.court_station, 'Not Set')}
+            </p>
+            <p>
+              <strong>Registry:</strong> {safe(caseData.registry, 'Not Set')}
+            </p>
           </div>
+
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p><strong>Courtroom:</strong> {safe(caseData.courtroom, 'Not Set')}</p>
-            <p><strong>Judicial Officer:</strong> {safe(caseData.judicial_officer, 'Not Set')}</p>
-            <p><strong>Next Court Date:</strong> {caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not Set'}</p>
-            <p><strong>Next Action:</strong> {safe(caseData.next_action, 'Not Set')}</p>
+            <p>
+              <strong>Courtroom:</strong> {safe(caseData.courtroom, 'Not Set')}
+            </p>
+            <p>
+              <strong>Judicial Officer:</strong>{' '}
+              {safe(caseData.judicial_officer, 'Not Set')}
+            </p>
+            <p>
+              <strong>Next Court Date:</strong>{' '}
+              {caseData.next_court_date
+                ? formatDateTime(caseData.next_court_date)
+                : 'Not Set'}
+            </p>
+            <p>
+              <strong>Next Action:</strong>{' '}
+              {safe(caseData.next_action, 'Not Set')}
+            </p>
           </div>
         </div>
 
         <div className='mt-4 grid gap-6 md:grid-cols-3'>
-          <p><strong>eFiling Ref:</strong> {safe(caseData.efiling_reference, 'Not Set')}</p>
-          <p><strong>CTS Ref:</strong> {safe(caseData.cts_reference, 'Pending verification')}</p>
-          <p><strong>Payment Ref:</strong> {safe(caseData.payment_reference, 'Not Set')}</p>
+          <p>
+            <strong>eFiling Ref:</strong>{' '}
+            {safe(caseData.efiling_reference, 'Not Set')}
+          </p>
+          <p>
+            <strong>CTS Ref:</strong>{' '}
+            {safe(caseData.cts_reference, 'Pending verification')}
+          </p>
+          <p>
+            <strong>Payment Ref:</strong>{' '}
+            {safe(caseData.payment_reference, 'Not Set')}
+          </p>
         </div>
       </Card>
 
@@ -354,20 +537,28 @@ export default function LawyerCaseDetailsPage() {
         {caseData.parties?.length ? (
           <div className='grid gap-4 md:grid-cols-2'>
             {caseData.parties.map((party) => (
-              <div key={party.id} className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
-                <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>{safe(party.name)}</p>
+              <div
+                key={party.id}
+                className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'
+              >
+                <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
+                  {safe(party.name)}
+                </p>
                 <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
                   {party.role_label || friendly(party.party_role)}
                   {party.is_our_client ? ' • Firm Client' : ''}
                 </p>
                 <p className='mt-2 text-sm text-text-muted-light dark:text-text-muted-dark'>
-                  {safe(party.email)} {party.phone_number ? `• ${party.phone_number}` : ''}
+                  {safe(party.email)}{' '}
+                  {party.phone_number ? `• ${party.phone_number}` : ''}
                 </p>
               </div>
             ))}
           </div>
         ) : (
-          <p className='text-text-muted-light dark:text-text-muted-dark'>No structured party records yet.</p>
+          <p className='text-text-muted-light dark:text-text-muted-dark'>
+            No structured party records yet.
+          </p>
         )}
       </Card>
 
@@ -420,10 +611,14 @@ export default function LawyerCaseDetailsPage() {
               wrapperClassName='mb-0'
               placeholder='Select lifecycle transition...'
               options={(caseData?.available_transitions || [])
-                .filter((t) => t.dimension === 'MATTER_STATUS')
-                .map((t) => ({
-                  value: `${t.dimension}:${t.to_state}`,
-                  label: t.label || `${t.dimension} -> ${t.to_state}`,
+                .filter((transition) => transition.dimension === 'MATTER_STATUS')
+                .map((transition) => ({
+                  value: `${transition.dimension}:${transition.to_state}`,
+                  label:
+                    transition.label ||
+                    `${friendly(transition.dimension)} → ${friendly(
+                      transition.to_state,
+                    )}`,
                 }))}
             />
           </div>
@@ -444,13 +639,13 @@ export default function LawyerCaseDetailsPage() {
             type='button'
             onClick={handleStatusUpdate}
             disabled={
-              updateLifecycle.isPending ||
-              !selectedStatus ||
-              selectedStatus === ''
+              updateLifecycle.isPending || !selectedStatus || selectedStatus === ''
             }
             className='rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
           >
-            {updateLifecycle.isPending ? 'Updating...' : 'Apply Lifecycle Transition'}
+            {updateLifecycle.isPending
+              ? 'Updating...'
+              : 'Apply Lifecycle Transition'}
           </button>
         </div>
 
@@ -460,7 +655,8 @@ export default function LawyerCaseDetailsPage() {
               Next Event
             </h4>
             <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
-              Active lifecycle updates should include the next date the firm, client, or court must act on.
+              Active lifecycle updates should include the next date the firm,
+              client, or court must act on.
             </p>
           </div>
 
@@ -471,7 +667,12 @@ export default function LawyerCaseDetailsPage() {
               </label>
               <Select3D
                 value={nextEvent.event_type}
-                onChange={(event) => setNextEvent((current) => ({ ...current, event_type: event.target.value }))}
+                onChange={(event) =>
+                  setNextEvent((current) => ({
+                    ...current,
+                    event_type: event.target.value,
+                  }))
+                }
                 wrapperClassName='mb-0'
                 options={EVENT_TYPE_OPTIONS}
               />
@@ -484,7 +685,12 @@ export default function LawyerCaseDetailsPage() {
               <input
                 type='datetime-local'
                 value={nextEvent.starts_at}
-                onChange={(event) => setNextEvent((current) => ({ ...current, starts_at: event.target.value }))}
+                onChange={(event) =>
+                  setNextEvent((current) => ({
+                    ...current,
+                    starts_at: event.target.value,
+                  }))
+                }
                 className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
               />
             </div>
@@ -495,7 +701,12 @@ export default function LawyerCaseDetailsPage() {
               </label>
               <input
                 value={nextEvent.title}
-                onChange={(event) => setNextEvent((current) => ({ ...current, title: event.target.value }))}
+                onChange={(event) =>
+                  setNextEvent((current) => ({
+                    ...current,
+                    title: event.target.value,
+                  }))
+                }
                 placeholder='Mention, hearing, filing follow-up...'
                 className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition placeholder:text-text-muted-light focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:placeholder:text-text-muted-dark'
               />
@@ -507,7 +718,12 @@ export default function LawyerCaseDetailsPage() {
               </label>
               <input
                 value={nextEvent.court_station}
-                onChange={(event) => setNextEvent((current) => ({ ...current, court_station: event.target.value }))}
+                onChange={(event) =>
+                  setNextEvent((current) => ({
+                    ...current,
+                    court_station: event.target.value,
+                  }))
+                }
                 className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
               />
             </div>
@@ -518,7 +734,12 @@ export default function LawyerCaseDetailsPage() {
               </label>
               <input
                 value={nextEvent.courtroom}
-                onChange={(event) => setNextEvent((current) => ({ ...current, courtroom: event.target.value }))}
+                onChange={(event) =>
+                  setNextEvent((current) => ({
+                    ...current,
+                    courtroom: event.target.value,
+                  }))
+                }
                 className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
               />
             </div>
@@ -529,7 +750,12 @@ export default function LawyerCaseDetailsPage() {
               </label>
               <input
                 value={nextEvent.judicial_officer}
-                onChange={(event) => setNextEvent((current) => ({ ...current, judicial_officer: event.target.value }))}
+                onChange={(event) =>
+                  setNextEvent((current) => ({
+                    ...current,
+                    judicial_officer: event.target.value,
+                  }))
+                }
                 className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
               />
             </div>
@@ -538,7 +764,12 @@ export default function LawyerCaseDetailsPage() {
           <div className='mt-4 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center'>
             <textarea
               value={nextEvent.description}
-              onChange={(event) => setNextEvent((current) => ({ ...current, description: event.target.value }))}
+              onChange={(event) =>
+                setNextEvent((current) => ({
+                  ...current,
+                  description: event.target.value,
+                }))
+              }
               placeholder='Optional event notes'
               rows={3}
               className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition placeholder:text-text-muted-light focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:placeholder:text-text-muted-dark'
@@ -548,7 +779,12 @@ export default function LawyerCaseDetailsPage() {
               <input
                 type='checkbox'
                 checked={nextEvent.is_client_visible}
-                onChange={(event) => setNextEvent((current) => ({ ...current, is_client_visible: event.target.checked }))}
+                onChange={(event) =>
+                  setNextEvent((current) => ({
+                    ...current,
+                    is_client_visible: event.target.checked,
+                  }))
+                }
                 className='h-4 w-4'
               />
               Notify client
@@ -558,89 +794,94 @@ export default function LawyerCaseDetailsPage() {
       </Card>
 
       <Card className='p-6'>
-        <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-          Conflict Check
-        </h3>
-        <div className='space-y-4'>
-          <div>
-            <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-              Conflict Action
-            </label>
-            <Select3D
-              value={nextEvent.event_type}
-              onChange={(event) => setNextEvent((current) => ({ ...current, event_type: event.target.value }))}
-              wrapperClassName='mb-0'
-              placeholder='Select action...'
-              options={[
-                { value: 'REVIEW', label: 'Review' },
-                { value: 'MARK_CLEAR', label: 'Mark Clear' },
-                { value: 'POTENTIAL_CONFLICT', label: 'Potential Conflict' },
-                { value: 'CONFIRM_CONFLICT', label: 'Confirm Conflict' },
-                { value: 'REQUEST_WAIVER', label: 'Request Waiver' },
-                { value: 'RECORD_WAIVER', label: 'Record Waiver' },
-              ]}
-            />
-          </div>
-          <div>
-            <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-              Effective At
-            </label>
-            <input
-              type='datetime-local'
-              value={nextEvent.starts_at}
-              onChange={(event) => setNextEvent((current) => ({ ...current, starts_at: event.target.value }))}
-              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-            />
-          </div>
-          <div>
-            <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-              Reason
-            </label>
-            <input
-              value={statusNote}
-              onChange={(event) => setStatusNote(event.target.value)}
-              placeholder='Required reason for conflict action...'
-              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition placeholder:text-text-muted-light focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:placeholder:text-text-muted-dark'
-            />
-          </div>
-          <div>
-            <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-              Result Summary
-            </label>
-            <input
-              value={nextEvent.title || ''}
-              onChange={(event) => setNextEvent((current) => ({ ...current, title: event.target.value }))}
-              placeholder='Result summary (required for review/clear)...'
-              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition placeholder:text-text-muted-light focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:placeholder:text-text-muted-dark'
-            />
-          </div>
-          <button
-            type='button'
-            onClick={async () => {
-              const action = nextEvent.event_type;
-              if (!action || !statusNote || !nextEvent.starts_at) {
-                Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select action, reason, effective date, and result summary.' });
-                return;
-              }
-              try {
-                await axiosInstance.post(`/cases/${id}/conflict-check/actions/`, {
-                  action,
-                  effective_at: toIsoDateTime(nextEvent.starts_at),
-                  reason: statusNote,
-                  data: { result_summary: nextEvent.title || '' },
-                });
-                setStatusNote('');
-                setNextEvent({ ...nextEvent, event_type: '', starts_at: '', title: '' });
-                Swal.fire({ icon: 'success', title: 'Conflict Action Applied', timer: 1600, showConfirmButton: false });
-              } catch (err) {
-                Swal.fire({ icon: 'error', title: 'Failed', text: err?.response?.data?.detail || err?.message || 'Could not apply conflict action.' });
-              }
-            }}
-            className='rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
+        <div className='mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
+          <h3 className='text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+            Conflict Clearance
+          </h3>
+
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${conflictBadgeClass}`}
           >
-            Apply Conflict Action
-          </button>
+            {friendly(conflictStatus)}
+          </span>
         </div>
+
+        <div className='grid gap-4 lg:grid-cols-3'>
+          <div className={panelClass}>
+            <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
+              Conflict Position
+            </h4>
+
+            <p className='mt-2 text-sm text-text-primary-light dark:text-text-primary-dark'>
+              <strong>Reference:</strong> {safe(conflictReference)}
+            </p>
+
+            <p className='mt-1 text-sm text-text-primary-light dark:text-text-primary-dark'>
+              <strong>Decision:</strong> {safe(conflictStatusLabel)}
+            </p>
+
+            <p className='mt-1 text-sm text-text-primary-light dark:text-text-primary-dark'>
+              <strong>Decided by:</strong> {safe(conflictDecidedBy)}
+            </p>
+
+            <p className='mt-1 text-sm text-text-primary-light dark:text-text-primary-dark'>
+              <strong>Decision date:</strong>{' '}
+              {conflictDecisionDate
+                ? formatDateTime(conflictDecisionDate)
+                : 'Not recorded'}
+            </p>
+          </div>
+
+          <div className={panelClass}>
+            <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
+              Firm Acceptance
+            </h4>
+
+            <p className='mt-2 text-sm text-text-primary-light dark:text-text-primary-dark'>
+              <strong>Firm acceptance:</strong> {friendly(acceptanceDecision)}
+            </p>
+
+            <p className='mt-1 text-sm text-text-primary-light dark:text-text-primary-dark'>
+              <strong>Accepted by:</strong> {safe(acceptedBy)}
+            </p>
+
+            <p className='mt-1 text-sm text-text-primary-light dark:text-text-primary-dark'>
+              <strong>Acceptance date:</strong>{' '}
+              {acceptedAt ? formatDateTime(acceptedAt) : 'Not recorded'}
+            </p>
+
+            <p className='mt-1 text-sm text-text-primary-light dark:text-text-primary-dark'>
+              <strong>Engagement status:</strong> {friendly(engagementStatus)}
+            </p>
+          </div>
+
+          <div className={panelClass}>
+            <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
+              Clearance Result
+            </h4>
+
+            <p className='mt-2 text-sm text-text-primary-light dark:text-text-primary-dark'>
+              <strong>Names checked:</strong>{' '}
+              {namesChecked.length ? namesChecked.join(', ') : 'Not recorded'}
+            </p>
+
+            <p className='mt-1 text-sm text-text-primary-light dark:text-text-primary-dark'>
+              <strong>Sources checked:</strong>{' '}
+              {sourceCategoriesChecked.length
+                ? sourceCategoriesChecked.map((item) => friendly(item)).join(', ')
+                : 'Not recorded'}
+            </p>
+
+            <p className='mt-1 text-sm text-text-primary-light dark:text-text-primary-dark'>
+              <strong>Summary:</strong> {safe(conflictSummary)}
+            </p>
+          </div>
+        </div>
+
+        <p className='mt-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+          Conflict clearance is an intake and firm-acceptance record. No
+          conflict-check actions are available from the lawyer case view.
+        </p>
       </Card>
 
       <ChatWorkspace
@@ -668,9 +909,9 @@ export default function LawyerCaseDetailsPage() {
 
         {timeline.length ? (
           <div className='space-y-3'>
-            {timeline.map((item, i) => (
+            {timeline.map((item, index) => (
               <div
-                key={item.id || i}
+                key={item.id || index}
                 className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'
               >
                 <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
@@ -699,13 +940,13 @@ export default function LawyerCaseDetailsPage() {
 
         {documents.length ? (
           <div className='space-y-2'>
-            {documents.map((doc, i) => (
+            {documents.map((doc, index) => (
               <div
-                key={doc.id || i}
+                key={doc.id || index}
                 className='rounded-lg border border-border-light bg-surface-light p-3 dark:border-border-dark dark:bg-surface-dark'
               >
                 <p className='text-text-primary-light dark:text-text-primary-dark'>
-                  {doc.name || 'Document'}
+                  {doc.name || doc.title || 'Document'}
                 </p>
               </div>
             ))}
