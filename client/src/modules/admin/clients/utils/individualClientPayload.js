@@ -29,6 +29,28 @@ const normalizePhone = (value) => {
   return next;
 };
 const isValidPhone = (value) => !value || /^\+?[1-9]\d{7,14}$/.test(normalizePhone(value));
+const parseDateOnly = (value) => {
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+export const getIndividualClientAge = (dateOfBirth) => {
+  const dob = parseDateOnly(dateOfBirth);
+  if (!dob) return null;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const birthdayPassed =
+    today.getMonth() > dob.getMonth() ||
+    (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate());
+  if (!birthdayPassed) age -= 1;
+  return age;
+};
+
+export const isMinorIndividualClient = (dateOfBirth) => {
+  const age = getIndividualClientAge(dateOfBirth);
+  return age !== null && age < 18;
+};
 
 export const buildIndividualClientPayload = (formData, mode = 'portal') => {
   const accessType = individualAccessTypeForMode(mode);
@@ -41,9 +63,6 @@ export const buildIndividualClientPayload = (formData, mode = 'portal') => {
 
   return clean({
     full_name: collapse(formData.full_name),
-    first_name: collapse(formData.first_name),
-    middle_name: collapse(formData.middle_name),
-    last_name: collapse(formData.last_name),
     preferred_name: collapse(formData.preferred_name),
     email: lower(formData.email),
     phone_number: normalizePhone(formData.phone_number),
@@ -104,17 +123,18 @@ export const validateIndividualClientForm = (formData, mode = 'portal') => {
   if (!trim(formData.identification_country) && identificationType !== 'NATIONAL_ID') errors.identification_country = 'Identification country is required.';
   if (identificationType === 'PASSPORT' && !formData.identification_expiry_date) errors.identification_expiry_date = 'Passport expiry date is required.';
   if (identificationType === 'PASSPORT' && formData.identification_expiry_date) {
-    const expiry = new Date(`${formData.identification_expiry_date}T00:00:00`);
+    const expiry = parseDateOnly(formData.identification_expiry_date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (expiry <= today) errors.identification_expiry_date = 'Passport expiry date must be in the future.';
+    if (!expiry) errors.identification_expiry_date = 'Enter a valid passport expiry date.';
+    else if (expiry <= today) errors.identification_expiry_date = 'Passport expiry date must be in the future.';
   }
   if (!formData.date_of_birth) errors.date_of_birth = 'Date of birth is required.';
   if (formData.date_of_birth) {
-    const dob = new Date(`${formData.date_of_birth}T00:00:00`);
+    const dob = parseDateOnly(formData.date_of_birth);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (Number.isNaN(dob.getTime())) errors.date_of_birth = 'Enter a valid date of birth.';
+    if (!dob) errors.date_of_birth = 'Enter a valid date of birth.';
     else if (dob >= today) errors.date_of_birth = 'Date of birth must be in the past.';
   }
   if (!trim(formData.nationality)) errors.nationality = 'Nationality is required.';
@@ -134,6 +154,12 @@ export const validateIndividualClientForm = (formData, mode = 'portal') => {
   if (['PHONE', 'SMS', 'WHATSAPP'].includes(formData.preferred_contact_channel) && !trim(formData.phone_number)) errors.preferred_contact_channel = 'Phone number is required for this preferred channel.';
   if (!trim(formData.privacy_notice_version)) errors.privacy_notice_version = 'Privacy notice version is required.';
   if (!formData.personal_data_source) errors.personal_data_source = 'Personal data source is required.';
+  if (isMinorIndividualClient(formData.date_of_birth)) {
+    if (!collapse(formData.guardian_name)) errors.guardian_name = 'Guardian or legal representative name is required for minor clients.';
+    if (!trim(formData.guardian_phone) && !trim(formData.guardian_email)) errors.guardian_contact = 'Guardian phone or guardian email is required for minor clients.';
+  }
+  if (!isValidPhone(formData.guardian_phone)) errors.guardian_phone = 'Enter a valid guardian phone number.';
+  if (!isValidEmail(trim(formData.guardian_email))) errors.guardian_email = 'Enter a valid guardian email address.';
   if (!isValidEmail(trim(formData.next_of_kin_email))) errors.next_of_kin_email = 'Enter a valid next-of-kin email address.';
 
   return { isValid: Object.keys(errors).length === 0, errors };

@@ -58,6 +58,9 @@ const portalPayload = buildIndividualClientPayload(baseIndividual, 'portal');
 assert.deepEqual(baseIndividual, original, 'individual payload builder must not mutate form state');
 assert.equal(portalPayload.access_type, 'PORTAL_ENABLED');
 assert.equal(portalPayload.full_name, 'Peter Mwangi Kamau');
+assert.equal(Object.prototype.hasOwnProperty.call(portalPayload, 'first_name'), false);
+assert.equal(Object.prototype.hasOwnProperty.call(portalPayload, 'middle_name'), false);
+assert.equal(Object.prototype.hasOwnProperty.call(portalPayload, 'last_name'), false);
 assert.equal(portalPayload.email, 'peter.mwangi.ui@example.com');
 assert.equal(portalPayload.next_of_kin_email, 'mary.wanjiku@example.com');
 assert.equal(portalPayload.identification_type, 'NATIONAL_ID');
@@ -121,6 +124,16 @@ const assistedWithoutEmail = validateIndividualClientForm(
 );
 assert.equal(assistedWithoutEmail.isValid, true);
 
+const assistedWithoutAnyContact = validateIndividualClientForm(
+  { ...baseIndividual, email: '', phone_number: '', preferred_contact_channel: 'PHONE' },
+  'assisted',
+);
+assert.equal(assistedWithoutAnyContact.isValid, false);
+assert.equal(
+  assistedWithoutAnyContact.errors.contact_method,
+  'At least one reliable contact method is required.',
+);
+
 const futureDob = validateIndividualClientForm(
   { ...baseIndividual, date_of_birth: '2999-01-01' },
   'portal',
@@ -134,6 +147,35 @@ const noIdentity = validateIndividualClientForm(
 );
 assert.equal(noIdentity.isValid, false);
 assert.equal(noIdentity.errors.identification_number, 'Identification number is required.');
+
+const missingRequiredPortalFields = validateIndividualClientForm(
+  {
+    ...baseIndividual,
+    full_name: '',
+    date_of_birth: '',
+    nationality: '',
+    occupation_status: '',
+    preferred_contact_channel: '',
+    country: '',
+    city_or_town: '',
+    street_or_locality: '',
+    address_description: '',
+    privacy_notice_version: '',
+    personal_data_source: '',
+  },
+  'portal',
+);
+assert.equal(missingRequiredPortalFields.isValid, false);
+assert.equal(missingRequiredPortalFields.errors.full_name, 'Full legal name is required.');
+assert.equal(missingRequiredPortalFields.errors.date_of_birth, 'Date of birth is required.');
+assert.equal(missingRequiredPortalFields.errors.nationality, 'Nationality is required.');
+assert.equal(missingRequiredPortalFields.errors.occupation_status, 'Occupation status is required.');
+assert.equal(missingRequiredPortalFields.errors.preferred_contact_channel, 'Preferred contact channel is required.');
+assert.equal(missingRequiredPortalFields.errors.country, 'Residential country is required.');
+assert.equal(missingRequiredPortalFields.errors.city_or_town, 'Residential city, town or locality is required.');
+assert.equal(missingRequiredPortalFields.errors.address_description, 'Residential address description is required.');
+assert.equal(missingRequiredPortalFields.errors.privacy_notice_version, 'Privacy notice version is required.');
+assert.equal(missingRequiredPortalFields.errors.personal_data_source, 'Personal data source is required.');
 
 const passportPayload = buildIndividualClientPayload(
   {
@@ -152,3 +194,61 @@ assert.equal(passportPayload.identification_type, 'PASSPORT');
 assert.equal(passportPayload.identification_number, 'AB123456');
 assert.equal(passportPayload.passport_number, 'AB123456');
 assert.equal(Object.prototype.hasOwnProperty.call(passportPayload, 'national_id'), false);
+
+const passportWithoutExpiry = validateIndividualClientForm(
+  {
+    ...baseIndividual,
+    identification_type: 'PASSPORT',
+    identification_number: 'AB123456',
+    identification_country: 'Uganda',
+    identification_expiry_date: '',
+  },
+  'portal',
+);
+assert.equal(passportWithoutExpiry.isValid, false);
+assert.equal(passportWithoutExpiry.errors.identification_expiry_date, 'Passport expiry date is required.');
+
+const passportWithPastExpiry = validateIndividualClientForm(
+  {
+    ...baseIndividual,
+    identification_type: 'PASSPORT',
+    identification_number: 'AB123456',
+    identification_country: 'Uganda',
+    identification_expiry_date: '2000-01-01',
+  },
+  'portal',
+);
+assert.equal(passportWithPastExpiry.isValid, false);
+assert.equal(passportWithPastExpiry.errors.identification_expiry_date, 'Passport expiry date must be in the future.');
+
+const minorWithoutGuardian = validateIndividualClientForm(
+  {
+    ...baseIndividual,
+    date_of_birth: '2012-01-01',
+    guardian_name: '',
+    guardian_phone: '',
+    guardian_email: '',
+  },
+  'portal',
+);
+assert.equal(minorWithoutGuardian.isValid, false);
+assert.equal(
+  minorWithoutGuardian.errors.guardian_name,
+  'Guardian or legal representative name is required for minor clients.',
+);
+assert.equal(
+  minorWithoutGuardian.errors.guardian_contact,
+  'Guardian phone or guardian email is required for minor clients.',
+);
+
+const minorWithGuardian = validateIndividualClientForm(
+  {
+    ...baseIndividual,
+    date_of_birth: '2012-01-01',
+    guardian_name: 'Grace Mwangi',
+    guardian_phone: '+254722000111',
+    guardian_email: '',
+  },
+  'assisted',
+);
+assert.equal(minorWithGuardian.isValid, true);

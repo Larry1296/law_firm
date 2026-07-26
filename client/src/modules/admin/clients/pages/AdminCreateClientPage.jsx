@@ -12,6 +12,7 @@ import adminClientsService from '@/modules/admin/clients/services/adminClientsSe
 import secretaryClientsService from '@/modules/staff/secretary/clients/services/secretaryClientServices';
 import {
   buildIndividualClientPayload,
+  isMinorIndividualClient,
   validateIndividualClientForm,
 } from '@/modules/admin/clients/utils/individualClientPayload';
 import {
@@ -320,8 +321,16 @@ export default function AdminCreateClientPage() {
       ...prev,
       [name]: nextValue,
       ...(name === 'identification_type'
-        ? { identification_number: '', national_id: '', passport_number: '', identification_country: nextValue === 'NATIONAL_ID' ? 'Kenya' : '' }
+        ? {
+            identification_number: '',
+            identification_expiry_date: '',
+            national_id: '',
+            passport_number: '',
+            identification_country: nextValue === 'NATIONAL_ID' ? 'Kenya' : '',
+          }
         : {}),
+      ...(name === 'occupation_status' && nextValue !== 'EMPLOYED' ? { employer: '' } : {}),
+      ...(name === 'occupation_status' && nextValue !== 'BUSINESS_OWNER' ? { business_name: '' } : {}),
     }));
     setFieldErrors((prev) => ({
       ...prev,
@@ -332,6 +341,12 @@ export default function AdminCreateClientPage() {
             national_id: undefined,
             passport_number: undefined,
           }
+        : {}),
+      ...(name === 'identification_type'
+        ? { identification_expiry_date: undefined, identification_country: undefined }
+        : {}),
+      ...(name === 'date_of_birth'
+        ? { guardian_name: undefined, guardian_contact: undefined }
         : {}),
     }));
     setGeneralError('');
@@ -654,6 +669,10 @@ export default function AdminCreateClientPage() {
       ? selectedClientMode === 'portal'
       : selectedEntityAccessType === 'PROSPECT';
   const isAssistedIndividual = isIndividual && !isProspect;
+  const isMinorIndividual = isIndividual && isMinorIndividualClient(formData.date_of_birth);
+  const individualSubtitle = isIndividual
+    ? `Individual Client / ${selectedClientMode === 'portal' ? 'Portal Access' : 'Fully Assisted'}`
+    : `${requestedClientType} / ${isProspect ? 'prospect' : 'assisted'}`;
   const createdClient = successData?.client;
   const createdProfile = successData?.profile;
   const createdPortalUser = successData?.portal_user;
@@ -859,12 +878,19 @@ export default function AdminCreateClientPage() {
       middle_name: '',
       last_name: '',
       preferred_name: '',
+      identification_type: 'NATIONAL_ID',
+      identification_number: '',
+      identification_country: 'Kenya',
+      identification_expiry_date: '',
+      identification_document_reference: '',
       national_id: '',
       passport_number: '',
       date_of_birth: '',
       gender: '',
+      occupation_status: '',
       occupation: '',
       employer: '',
+      business_name: '',
       marital_status: '',
       nationality: '',
       citizenship: 'Kenya',
@@ -878,16 +904,27 @@ export default function AdminCreateClientPage() {
       next_of_kin_relationship: '',
       next_of_kin_phone: '',
       next_of_kin_email: '',
+      next_of_kin_identification_number: '',
       next_of_kin_national_id: '',
+      next_of_kin_address: '',
       next_of_kin_physical_address: '',
+      guardian_name: '',
+      guardian_relationship: '',
+      guardian_phone: '',
+      guardian_email: '',
+      privacy_notice_version: '',
+      personal_data_source: '',
       notes: '',
       country: 'Kenya',
       county: '',
+      county_or_region: '',
       city: '',
+      city_or_town: '',
       street: '',
+      street_or_locality: '',
       postal_code: '',
       full_address: '',
-    address_description: '',
+      address_description: '',
     }));
   };
 
@@ -935,7 +972,7 @@ export default function AdminCreateClientPage() {
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
       <SectionHeading
         title='Create Client'
-        subtitle={`${requestedClientType} / ${isProspect ? 'prospect' : 'assisted'}`}
+        subtitle={individualSubtitle}
       />
 
       {successData && (
@@ -1793,344 +1830,167 @@ export default function AdminCreateClientPage() {
             </div>
           )}
 
-	          {isIndividual && (
-	            <>
-	              <section className='space-y-4'>
-	                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-	                  Personal identity
-	                </h3>
-	                {fieldErrors.identification && (
-	                  <div className='rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200'>
-	                    {fieldErrors.identification}
-	                  </div>
-	                )}
-	                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-	                  <FloatingInput
-	                    label='Full Legal Name'
-	                    name='full_name'
-	                    value={formData.full_name}
-	                    onChange={handleChange}
-	                    error={fieldErrors.full_name}
-	                    required
-	                  />
-	                  <FloatingInput
-	                    label='Preferred Name'
-	                    name='preferred_name'
-	                    value={formData.preferred_name}
-	                    onChange={handleChange}
-	                    error={fieldErrors.preferred_name}
-	                  />
-	                  <FloatingInput
-	                    label='First Name'
-	                    name='first_name'
-	                    value={formData.first_name}
-	                    onChange={handleChange}
-	                    error={fieldErrors.first_name}
-	                  />
-	                  <FloatingInput
-	                    label='Middle Name'
-	                    name='middle_name'
-	                    value={formData.middle_name}
-	                    onChange={handleChange}
-	                    error={fieldErrors.middle_name}
-	                  />
-	                  <FloatingInput
-	                    label='Last Name'
-	                    name='last_name'
-	                    value={formData.last_name}
-	                    onChange={handleChange}
-	                    error={fieldErrors.last_name}
-	                  />
-	                  <Select3D
-	                    label='Identification Type'
-	                    name='identification_type'
-	                    value={formData.identification_type}
-	                    onChange={handleChange}
-	                    error={fieldErrors.identification_type}
-	                    options={[
-	                      { value: 'NATIONAL_ID', label: 'National ID' },
-	                      { value: 'PASSPORT', label: 'Passport' },
-	                      { value: 'ALIEN_ID', label: 'Alien ID' },
-	                      { value: 'REFUGEE_ID', label: 'Refugee ID' },
-	                      { value: 'BIRTH_CERTIFICATE', label: 'Birth Certificate' },
-	                      { value: 'OTHER_GOVERNMENT_ID', label: 'Other Government ID' },
-	                    ]}
-	                  />
-	                  <FloatingInput
-	                    label='Identification Number'
-	                    name='identification_number'
-	                    value={formData.identification_number}
-	                    onChange={handleChange}
-	                    error={fieldErrors.identification_number || fieldErrors.identification}
-	                    required
-	                  />
-	                  <FloatingInput
-	                    label='Issuing Country'
-	                    name='identification_country'
-	                    value={formData.identification_country}
-	                    onChange={handleChange}
-	                    error={fieldErrors.identification_country}
-	                    required
-	                  />
-	                  {formData.identification_type === 'PASSPORT' && (
-	                    <FloatingInput
-	                      label='Passport Expiry Date'
-	                      name='identification_expiry_date'
-	                      type='date'
-	                      value={formData.identification_expiry_date}
-	                      onChange={handleChange}
-	                      error={fieldErrors.identification_expiry_date}
-	                      required
-	                    />
-	                  )}
-	                  <FloatingInput
-	                    label='Document Reference'
-	                    name='identification_document_reference'
-	                    value={formData.identification_document_reference}
-	                    onChange={handleChange}
-	                    error={fieldErrors.identification_document_reference}
-	                  />
-	                  <FloatingInput
-	                    label='KRA PIN'
-	                    name='kra_pin'
-	                    value={formData.kra_pin}
-	                    onChange={handleChange}
-	                    error={fieldErrors.kra_pin}
-	                  />
-	                  <FloatingInput
-	                    label='Date of Birth'
-	                    name='date_of_birth'
-	                    type='date'
-	                    value={formData.date_of_birth}
-	                    onChange={handleChange}
-	                    error={fieldErrors.date_of_birth}
-	                  />
-	                </div>
-	              </section>
+          {isIndividual && (
+            <>
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Legal identity
+                </h3>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Full Legal Name' name='full_name' value={formData.full_name} onChange={handleChange} error={fieldErrors.full_name} required />
+                  <Select3D label='Identification Type' name='identification_type' value={formData.identification_type} onChange={handleChange} error={fieldErrors.identification_type} required options={[
+                    { value: 'NATIONAL_ID', label: 'National ID' },
+                    { value: 'PASSPORT', label: 'Passport' },
+                    { value: 'ALIEN_ID', label: 'Alien ID' },
+                    { value: 'REFUGEE_ID', label: 'Refugee ID' },
+                    { value: 'BIRTH_CERTIFICATE', label: 'Birth Certificate' },
+                    { value: 'OTHER_GOVERNMENT_ID', label: 'Other Government ID' },
+                  ]} />
+                  <FloatingInput label='Identification Number' name='identification_number' value={formData.identification_number} onChange={handleChange} error={fieldErrors.identification_number || fieldErrors.identification} required />
+                  <FloatingInput label='Issuing Country' name='identification_country' value={formData.identification_country} onChange={handleChange} error={fieldErrors.identification_country} required />
+                  {formData.identification_type === 'PASSPORT' && (
+                    <FloatingInput label='Passport Expiry Date' name='identification_expiry_date' type='date' value={formData.identification_expiry_date} onChange={handleChange} error={fieldErrors.identification_expiry_date} required />
+                  )}
+                  <FloatingInput label='Date of Birth' name='date_of_birth' type='date' value={formData.date_of_birth} onChange={handleChange} error={fieldErrors.date_of_birth} required />
+                  <FloatingInput label='Nationality' name='nationality' value={formData.nationality} onChange={handleChange} error={fieldErrors.nationality} required />
+                  <FloatingInput label='Document Reference' name='identification_document_reference' value={formData.identification_document_reference} onChange={handleChange} error={fieldErrors.identification_document_reference} />
+                  <FloatingInput label='Preferred Name' name='preferred_name' value={formData.preferred_name} onChange={handleChange} error={fieldErrors.preferred_name} />
+                  <FloatingInput label='KRA PIN' name='kra_pin' value={formData.kra_pin} onChange={handleChange} error={fieldErrors.kra_pin} />
+                  <Select3D label='Gender' name='gender' value={formData.gender} onChange={handleChange} error={fieldErrors.gender} options={[
+                    { value: 'MALE', label: 'Male' },
+                    { value: 'FEMALE', label: 'Female' },
+                    { value: 'OTHER', label: 'Other' },
+                  ]} />
+                  <Select3D label='Marital Status' name='marital_status' value={formData.marital_status} onChange={handleChange} error={fieldErrors.marital_status} options={[
+                    { value: 'SINGLE', label: 'Single' },
+                    { value: 'MARRIED', label: 'Married' },
+                    { value: 'DIVORCED', label: 'Divorced' },
+                    { value: 'WIDOWED', label: 'Widowed' },
+                  ]} />
+                  <FloatingInput label='Citizenship' name='citizenship' value={formData.citizenship} onChange={handleChange} error={fieldErrors.citizenship} />
+                </div>
+              </section>
 
-	              <section className='space-y-4'>
-	                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-	                  Contact information
-	                </h3>
-	                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-	                  <FloatingInput
-	                    label={isProspect ? 'Portal Login Email' : 'Email'}
-	                    name='email'
-	                    value={formData.email}
-	                    onChange={handleChange}
-	                    error={fieldErrors.email}
-	                    required={isProspect}
-	                  />
-	                  <FloatingInput
-	                    label='Phone Number'
-	                    name='phone_number'
-	                    value={formData.phone_number}
-	                    onChange={handleChange}
-	                    error={fieldErrors.phone_number}
-	                    required={isProspect}
-	                  />
-	                  <Select3D
-	                    label='Preferred Communication Channel'
-	                    name='preferred_contact_channel'
-	                    value={formData.preferred_contact_channel}
-	                    onChange={handleChange}
-	                    options={[
-	                      { value: 'PHONE', label: 'Phone' },
-	                      { value: 'EMAIL', label: 'Email' },
-	                      { value: 'SMS', label: 'SMS' },
-	                      { value: 'WHATSAPP', label: 'WhatsApp' },
-	                      { value: 'OTHER', label: 'Other' },
-	                    ]}
-	                  />
-	                  <Select3D
-	                    label='Preferred Language'
-	                    name='preferred_language'
-	                    value={formData.preferred_language}
-	                    onChange={handleChange}
-	                    error={fieldErrors.preferred_language}
-	                    options={[
-	                      { value: 'English', label: 'English' },
-	                      { value: 'Kiswahili', label: 'Kiswahili / Swahili' },
-	                    ]}
-	                  />
-	                </div>
-	              </section>
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Contact information
+                </h3>
+                {fieldErrors.contact_method && <p className='text-sm text-red-500'>{fieldErrors.contact_method}</p>}
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label={isProspect ? 'Portal Login Email' : 'Email'} name='email' value={formData.email} onChange={handleChange} error={fieldErrors.email} required={isProspect} />
+                  <FloatingInput label='Phone Number' name='phone_number' value={formData.phone_number} onChange={handleChange} error={fieldErrors.phone_number} required={isProspect} />
+                  <Select3D label='Preferred Communication Channel' name='preferred_contact_channel' value={formData.preferred_contact_channel} onChange={handleChange} error={fieldErrors.preferred_contact_channel} required options={[
+                    { value: 'PHONE', label: 'Phone' },
+                    { value: 'EMAIL', label: 'Email' },
+                    { value: 'SMS', label: 'SMS' },
+                    { value: 'WHATSAPP', label: 'WhatsApp' },
+                    { value: 'OTHER', label: 'Other' },
+                  ]} />
+                  <Select3D label='Preferred Language' name='preferred_language' value={formData.preferred_language} onChange={handleChange} error={fieldErrors.preferred_language} options={[
+                    { value: 'English', label: 'English' },
+                    { value: 'Kiswahili', label: 'Kiswahili / Swahili' },
+                  ]} />
+                </div>
+              </section>
 
-	              <section className='space-y-4'>
-	                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-	                  Employment and personal details
-	                </h3>
-	                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-	                  <Select3D
-	                    label='Gender'
-	                    name='gender'
-	                    value={formData.gender}
-	                    onChange={handleChange}
-	                    options={[
-	                      { value: 'MALE', label: 'Male' },
-	                      { value: 'FEMALE', label: 'Female' },
-	                      { value: 'OTHER', label: 'Other' },
-	                    ]}
-	                  />
-	                  <Select3D
-	                    label='Marital Status'
-	                    name='marital_status'
-	                    value={formData.marital_status}
-	                    onChange={handleChange}
-	                    options={[
-	                      { value: 'SINGLE', label: 'Single' },
-	                      { value: 'MARRIED', label: 'Married' },
-	                      { value: 'DIVORCED', label: 'Divorced' },
-	                      { value: 'WIDOWED', label: 'Widowed' },
-	                    ]}
-	                  />
-	                  <Select3D
-	                    label='Occupation Status'
-	                    name='occupation_status'
-	                    value={formData.occupation_status}
-	                    onChange={handleChange}
-	                    error={fieldErrors.occupation_status}
-	                    options={[
-	                      { value: 'EMPLOYED', label: 'Employed' },
-	                      { value: 'SELF_EMPLOYED', label: 'Self-employed' },
-	                      { value: 'BUSINESS_OWNER', label: 'Business owner' },
-	                      { value: 'STUDENT', label: 'Student' },
-	                      { value: 'UNEMPLOYED', label: 'Unemployed' },
-	                      { value: 'RETIRED', label: 'Retired' },
-	                      { value: 'HOMEMAKER', label: 'Homemaker' },
-	                      { value: 'OTHER', label: 'Other' },
-	                      { value: 'NOT_DISCLOSED', label: 'Not disclosed' },
-	                    ]}
-	                  />
-	                  <FloatingInput
-	                    label='Occupation'
-	                    name='occupation'
-	                    value={formData.occupation}
-	                    onChange={handleChange}
-	                    error={fieldErrors.occupation}
-	                  />
-	                  <FloatingInput
-	                    label='Employer'
-	                    name='employer'
-	                    value={formData.employer}
-	                    onChange={handleChange}
-	                    error={fieldErrors.employer}
-	                  />
-	                  <FloatingInput
-	                    label='Business Name'
-	                    name='business_name'
-	                    value={formData.business_name}
-	                    onChange={handleChange}
-	                    error={fieldErrors.business_name}
-	                  />
-	                  <FloatingInput
-	                    label='Nationality'
-	                    name='nationality'
-	                    value={formData.nationality}
-	                    onChange={handleChange}
-	                    error={fieldErrors.nationality}
-	                  />
-	                  <FloatingInput
-	                    label='Citizenship'
-	                    name='citizenship'
-	                    value={formData.citizenship}
-	                    onChange={handleChange}
-	                    error={fieldErrors.citizenship}
-	                  />
-	                  <FloatingInput
-	                    label='Accessibility Notes'
-	                    name='disability_or_accessibility_notes'
-	                    value={formData.disability_or_accessibility_notes}
-	                    onChange={handleChange}
-	                    error={fieldErrors.disability_or_accessibility_notes}
-	                  />
-	                  <FloatingInput
-	                    label='Internal Notes'
-	                    name='notes'
-	                    value={formData.notes}
-	                    onChange={handleChange}
-	                    error={fieldErrors.notes}
-	                  />
-	                </div>
-	              </section>
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Residential address
+                </h3>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Residential Country' name='country' value={formData.country} onChange={handleChange} error={fieldErrors.country} required />
+                  <FloatingInput label='County or Region' name='county_or_region' value={formData.county_or_region} onChange={handleChange} error={fieldErrors.county_or_region || fieldErrors.county} />
+                  <FloatingInput label='City, Town or Locality' name='city_or_town' value={formData.city_or_town} onChange={handleChange} error={fieldErrors.city_or_town || fieldErrors.city} required />
+                  <FloatingInput label='Street or Locality' name='street_or_locality' value={formData.street_or_locality} onChange={handleChange} error={fieldErrors.street_or_locality || fieldErrors.street} />
+                  <FloatingInput label='Postal Code' name='postal_code' value={formData.postal_code} onChange={handleChange} error={fieldErrors.postal_code} />
+                  <FloatingInput label='Address Description' name='address_description' value={formData.address_description} onChange={handleChange} error={fieldErrors.address_description || fieldErrors.full_address} required />
+                </div>
+              </section>
 
-	              <section className='space-y-4'>
-	                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-	                  Next of kin / alternate contact
-	                </h3>
-	                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-	                  <FloatingInput
-	                    label='Full Name'
-	                    name='next_of_kin_name'
-	                    value={formData.next_of_kin_name}
-	                    onChange={handleChange}
-	                    error={fieldErrors.next_of_kin_name}
-	                  />
-	                  <Select3D
-	                    label='Relationship'
-	                    name='next_of_kin_relationship'
-	                    value={formData.next_of_kin_relationship}
-	                    onChange={handleChange}
-	                    error={fieldErrors.next_of_kin_relationship}
-	                    options={nextOfKinRelationshipOptions}
-	                  />
-	                  <FloatingInput
-	                    label='Phone'
-	                    name='next_of_kin_phone'
-	                    value={formData.next_of_kin_phone}
-	                    onChange={handleChange}
-	                    error={fieldErrors.next_of_kin_phone}
-	                  />
-	                  <FloatingInput
-	                    label='Email'
-	                    name='next_of_kin_email'
-	                    value={formData.next_of_kin_email}
-	                    onChange={handleChange}
-	                    error={fieldErrors.next_of_kin_email}
-	                  />
-	                  <FloatingInput
-	                    label='Identification Number'
-	                    name='next_of_kin_identification_number'
-	                    value={formData.next_of_kin_identification_number}
-	                    onChange={handleChange}
-	                    error={fieldErrors.next_of_kin_identification_number}
-	                  />
-	                  <FloatingInput
-	                    label='Address'
-	                    name='next_of_kin_address'
-	                    value={formData.next_of_kin_address}
-	                    onChange={handleChange}
-	                    error={fieldErrors.next_of_kin_address}
-	                  />
-	                </div>
-	              </section>
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Employment information
+                </h3>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <Select3D label='Occupation Status' name='occupation_status' value={formData.occupation_status} onChange={handleChange} error={fieldErrors.occupation_status} required options={[
+                    { value: 'EMPLOYED', label: 'Employed' },
+                    { value: 'SELF_EMPLOYED', label: 'Self-employed' },
+                    { value: 'BUSINESS_OWNER', label: 'Business owner' },
+                    { value: 'STUDENT', label: 'Student' },
+                    { value: 'UNEMPLOYED', label: 'Unemployed' },
+                    { value: 'RETIRED', label: 'Retired' },
+                    { value: 'HOMEMAKER', label: 'Homemaker' },
+                    { value: 'OTHER', label: 'Other' },
+                    { value: 'NOT_DISCLOSED', label: 'Not disclosed' },
+                  ]} />
+                  <FloatingInput label='Occupation' name='occupation' value={formData.occupation} onChange={handleChange} error={fieldErrors.occupation} />
+                  {formData.occupation_status === 'EMPLOYED' && (
+                    <FloatingInput label='Employer' name='employer' value={formData.employer} onChange={handleChange} error={fieldErrors.employer} required />
+                  )}
+                  {formData.occupation_status === 'BUSINESS_OWNER' && (
+                    <FloatingInput label='Business Name' name='business_name' value={formData.business_name} onChange={handleChange} error={fieldErrors.business_name} required />
+                  )}
+                  <FloatingInput label='Accessibility Notes' name='disability_or_accessibility_notes' value={formData.disability_or_accessibility_notes} onChange={handleChange} error={fieldErrors.disability_or_accessibility_notes} />
+                </div>
+              </section>
 
-	              <section className='space-y-4'>
-	                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-	                  Guardian or legal representative
-	                </h3>
-	                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-	                  <FloatingInput label='Guardian Name' name='guardian_name' value={formData.guardian_name} onChange={handleChange} error={fieldErrors.guardian_name} />
-	                  <FloatingInput label='Relationship' name='guardian_relationship' value={formData.guardian_relationship} onChange={handleChange} error={fieldErrors.guardian_relationship} />
-	                  <FloatingInput label='Guardian Phone' name='guardian_phone' value={formData.guardian_phone} onChange={handleChange} error={fieldErrors.guardian_phone} />
-	                  <FloatingInput label='Guardian Email' name='guardian_email' value={formData.guardian_email} onChange={handleChange} error={fieldErrors.guardian_email} />
-	                </div>
-	              </section>
+              {isMinorIndividual && (
+                <section className='space-y-4 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/20'>
+                  <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                    Guardian or legal representative
+                  </h3>
+                  <p className='text-sm text-[color:var(--text-secondary)]'>
+                    The date of birth shows this client is under 18, so guardian or legal-representative details are required.
+                  </p>
+                  {fieldErrors.guardian_contact && <p className='text-sm text-red-500'>{fieldErrors.guardian_contact}</p>}
+                  <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                    <FloatingInput label='Guardian Name' name='guardian_name' value={formData.guardian_name} onChange={handleChange} error={fieldErrors.guardian_name} required />
+                    <FloatingInput label='Relationship' name='guardian_relationship' value={formData.guardian_relationship} onChange={handleChange} error={fieldErrors.guardian_relationship} />
+                    <FloatingInput label='Guardian Phone' name='guardian_phone' value={formData.guardian_phone} onChange={handleChange} error={fieldErrors.guardian_phone} required={!formData.guardian_email} />
+                    <FloatingInput label='Guardian Email' name='guardian_email' value={formData.guardian_email} onChange={handleChange} error={fieldErrors.guardian_email} required={!formData.guardian_phone} />
+                  </div>
+                </section>
+              )}
 
-	              <section className='space-y-4'>
-	                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-	                  Privacy notice
-	                </h3>
-	                <p className='text-sm text-[color:var(--text-secondary)]'>
-	                  The firm collects identity, contact, address and service-related information to provide legal services, meet legal obligations, protect legal claims and preserve advocate-client confidentiality. Access is limited to authorised firm users and records are retained according to firm and legal requirements. Clients may request access to and correction of their personal information.
-	                </p>
-	                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-	                  <FloatingInput label='Privacy Notice Version' name='privacy_notice_version' value={formData.privacy_notice_version} onChange={handleChange} error={fieldErrors.privacy_notice_version} required />
-	                  <Select3D label='Personal Data Source' name='personal_data_source' value={formData.personal_data_source} onChange={handleChange} error={fieldErrors.personal_data_source} options={[{ value: 'CLIENT', label: 'Client' }, { value: 'AUTHORIZED_REPRESENTATIVE', label: 'Authorized representative' }, { value: 'OTHER', label: 'Other' }]} />
-	                </div>
-	              </section>
-	            </>
-	          )}
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Optional next of kin
+                </h3>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Full Name' name='next_of_kin_name' value={formData.next_of_kin_name} onChange={handleChange} error={fieldErrors.next_of_kin_name} />
+                  <Select3D label='Relationship' name='next_of_kin_relationship' value={formData.next_of_kin_relationship} onChange={handleChange} error={fieldErrors.next_of_kin_relationship} options={nextOfKinRelationshipOptions} />
+                  <FloatingInput label='Phone' name='next_of_kin_phone' value={formData.next_of_kin_phone} onChange={handleChange} error={fieldErrors.next_of_kin_phone} />
+                  <FloatingInput label='Email' name='next_of_kin_email' value={formData.next_of_kin_email} onChange={handleChange} error={fieldErrors.next_of_kin_email} />
+                  <FloatingInput label='Identification Number' name='next_of_kin_identification_number' value={formData.next_of_kin_identification_number} onChange={handleChange} error={fieldErrors.next_of_kin_identification_number} />
+                  <FloatingInput label='Address' name='next_of_kin_address' value={formData.next_of_kin_address} onChange={handleChange} error={fieldErrors.next_of_kin_address} />
+                </div>
+              </section>
+
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Privacy notice
+                </h3>
+                <p className='text-sm text-[color:var(--text-secondary)]'>
+                  The firm collects identity, contact, address and service-related information to provide legal services, meet legal obligations, protect legal claims and preserve advocate-client confidentiality. Access is limited to authorised firm users and records are retained according to firm and legal requirements. Clients may request access to and correction of their personal information.
+                </p>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Privacy Notice Version' name='privacy_notice_version' value={formData.privacy_notice_version} onChange={handleChange} error={fieldErrors.privacy_notice_version} required />
+                  <Select3D label='Personal Data Source' name='personal_data_source' value={formData.personal_data_source} onChange={handleChange} error={fieldErrors.personal_data_source} required options={[
+                    { value: 'CLIENT', label: 'Client' },
+                    { value: 'AUTHORIZED_REPRESENTATIVE', label: 'Authorized representative' },
+                    { value: 'OTHER', label: 'Other' },
+                  ]} />
+                </div>
+              </section>
+
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Internal notes
+                </h3>
+                <FloatingInput label='Internal Notes' name='notes' value={formData.notes} onChange={handleChange} error={fieldErrors.notes} />
+              </section>
+            </>
+          )}
 
           {isCompanyClient && (
             <>
@@ -2387,68 +2247,22 @@ export default function AdminCreateClientPage() {
             </>
           )}
 
-	          {isCompanyClient && (
-	            <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-	              Registered office
-	            </h3>
-	          )}
+		          {!isIndividual && isCompanyClient && (
+		            <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+		              Registered office
+		            </h3>
+		          )}
 
-	          {isIndividual && (
-	            <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-	              Residential address
-	            </h3>
-	          )}
-
-          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-            <FloatingInput
-              label='Country'
-              name='country'
-              value={formData.country}
-              onChange={handleChange}
-              error={fieldErrors.country}
-            />
-
-            <FloatingInput
-              label={isIndividual ? 'County or Region' : 'County'}
-              name={isIndividual ? 'county_or_region' : 'county'}
-              value={isIndividual ? formData.county_or_region : formData.county}
-              onChange={handleChange}
-              error={fieldErrors.county}
-            />
-
-            <FloatingInput
-              label={isIndividual ? 'City or Town' : 'City'}
-              name={isIndividual ? 'city_or_town' : 'city'}
-              value={isIndividual ? formData.city_or_town : formData.city}
-              onChange={handleChange}
-              error={fieldErrors.city}
-            />
-
-            <FloatingInput
-              label={isIndividual ? 'Street or Locality' : 'Street'}
-              name={isIndividual ? 'street_or_locality' : 'street'}
-              value={isIndividual ? formData.street_or_locality : formData.street}
-              onChange={handleChange}
-              error={fieldErrors.street}
-            />
-
-            <FloatingInput
-              label='Postal Code'
-              name='postal_code'
-              value={formData.postal_code}
-              onChange={handleChange}
-              error={fieldErrors.postal_code}
-            />
-
-            <FloatingInput
-	              label={isIndividual ? 'Address Description' : 'Full Address'}
-              name={isIndividual ? 'address_description' : 'full_address'}
-              value={isIndividual ? formData.address_description : formData.full_address}
-              onChange={handleChange}
-              error={fieldErrors.full_address}
-	              required={isCompanyClient || isProspect}
-	            />
-          </div>
+          {!isIndividual && (
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+              <FloatingInput label='Country' name='country' value={formData.country} onChange={handleChange} error={fieldErrors.country} />
+              <FloatingInput label='County' name='county' value={formData.county} onChange={handleChange} error={fieldErrors.county} />
+              <FloatingInput label='City' name='city' value={formData.city} onChange={handleChange} error={fieldErrors.city} />
+              <FloatingInput label='Street' name='street' value={formData.street} onChange={handleChange} error={fieldErrors.street} />
+              <FloatingInput label='Postal Code' name='postal_code' value={formData.postal_code} onChange={handleChange} error={fieldErrors.postal_code} />
+              <FloatingInput label='Full Address' name='full_address' value={formData.full_address} onChange={handleChange} error={fieldErrors.full_address} required={isCompanyClient || isProspect} />
+            </div>
+          )}
 
           <div className='flex gap-3 pt-4'>
             <Button3D
