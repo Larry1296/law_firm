@@ -1,7 +1,7 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.clients.models import Client, IndividualClient
+from apps.clients.models import Client, CommunicationChannel, IndividualClient
 from apps.clients.serializers.admin.admin_client_base_create_serializer import (
     AdminClientBaseCreateSerializer,
 )
@@ -10,6 +10,13 @@ from apps.users.models import User
 
 class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
     full_name = serializers.CharField(max_length=255)
+    access_type = serializers.ChoiceField(
+        choices=(
+            Client.AccessType.PORTAL_ENABLED,
+            Client.AccessType.ASSISTED,
+        ),
+        default=Client.AccessType.ASSISTED,
+    )
     first_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     middle_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
@@ -94,14 +101,14 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
         attrs = self._normalize(attrs)
         attrs = super().validate(attrs)
         firm = self.context.get("firm")
-        access_type = attrs.get("access_type", Client.AccessType.ASSISTED_CLIENT)
+        access_type = attrs.get("access_type", Client.AccessType.ASSISTED)
 
         if access_type not in {
-            Client.AccessType.PROSPECT,
-            Client.AccessType.ASSISTED_CLIENT,
+            Client.AccessType.PORTAL_ENABLED,
+            Client.AccessType.ASSISTED,
         }:
             raise serializers.ValidationError(
-                {"access_type": "Individual clients must be portal or assisted clients."}
+                {"access_type": "Individual clients must be portal enabled or assisted."}
             )
 
         if not attrs.get("full_name", "").strip():
@@ -111,7 +118,7 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             raise serializers.ValidationError(
                 {"identification": "Either national_id or passport_number is required."}
             )
-        if access_type == Client.AccessType.PROSPECT:
+        if access_type == Client.AccessType.PORTAL_ENABLED:
             if not attrs.get("email"):
                 raise serializers.ValidationError(
                     {"email": "Portal individual clients require a login email address."}
@@ -128,6 +135,12 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
 
         if attrs.get("kra_pin") and len(attrs["kra_pin"]) < 8:
             raise serializers.ValidationError({"kra_pin": "Enter a valid KRA PIN."})
+
+        preferred_contact_channel = attrs.get("preferred_contact_channel")
+        if preferred_contact_channel and preferred_contact_channel not in CommunicationChannel.values:
+            raise serializers.ValidationError(
+                {"preferred_contact_channel": "Select a valid preferred contact channel."}
+            )
 
         if firm:
             duplicate_checks = [
@@ -149,7 +162,7 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
                     errors[field] = message
 
             email = attrs.get("email")
-            if access_type == Client.AccessType.PROSPECT and email:
+            if access_type == Client.AccessType.PORTAL_ENABLED and email:
                 if User.objects.filter(email__iexact=email).exists():
                     errors["email"] = "This email already has portal access."
                 elif Client.objects.filter(

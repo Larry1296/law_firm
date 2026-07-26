@@ -187,7 +187,7 @@ class ClientAdminCreateService:
             role_or_designation=individual_data.get("next_of_kin_relationship", ""),
             national_id_number=individual_data.get("next_of_kin_national_id", ""),
             email=email,
-            phone_number=phone_number or client.phone_number,
+            phone_number=phone_number,
             preferred_channel=CommunicationChannel.PHONE,
             is_primary=False,
             notes=individual_data.get("next_of_kin_physical_address", ""),
@@ -202,7 +202,7 @@ class ClientAdminCreateService:
 
     @staticmethod
     def _create_portal_user(client, base_data, contact_data):
-        if client.access_type not in {Client.AccessType.PORTAL_ENABLED, Client.AccessType.PROSPECT}:
+        if client.access_type != Client.AccessType.PORTAL_ENABLED:
             return None, None
 
         if User.objects.filter(email__iexact=client.email).exists():
@@ -277,7 +277,7 @@ class ClientAdminCreateService:
             kra_pin=base_data.get("kra_pin"),
             date_of_birth=base_data.get("date_of_birth"),
             lifecycle_status=Client.LifecycleStatus.PROSPECTIVE,
-            is_verified=True,
+            is_verified=False,
         )
 
         profile = ClientAdminCreateService._create_profile(

@@ -1,7 +1,7 @@
 const EMPTY_VALUES = new Set(['', null, undefined]);
 
 export const individualAccessTypeForMode = (mode) =>
-  mode === 'assisted' ? 'ASSISTED_CLIENT' : 'PROSPECT';
+  mode === 'assisted' ? 'ASSISTED' : 'PORTAL_ENABLED';
 
 const trim = (value) => (typeof value === 'string' ? value.trim() : value);
 
@@ -68,7 +68,7 @@ export const buildIndividualClientPayload = (formData, mode = 'portal') => {
 
 export const validateIndividualClientForm = (formData, mode = 'portal') => {
   const errors = {};
-  const isPortal = individualAccessTypeForMode(mode) === 'PROSPECT';
+  const isPortal = individualAccessTypeForMode(mode) === 'PORTAL_ENABLED';
 
   if (!trim(formData.full_name)) {
     errors.full_name = 'Full legal name is required.';

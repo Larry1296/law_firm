@@ -41,7 +41,7 @@ const original = structuredClone(baseIndividual);
 const portalPayload = buildIndividualClientPayload(baseIndividual, 'portal');
 
 assert.deepEqual(baseIndividual, original, 'individual payload builder must not mutate form state');
-assert.equal(portalPayload.access_type, 'PROSPECT');
+assert.equal(portalPayload.access_type, 'PORTAL_ENABLED');
 assert.equal(portalPayload.full_name, 'Peter Mwangi Kamau');
 assert.equal(portalPayload.email, 'peter.mwangi.ui@example.com');
 assert.equal(portalPayload.next_of_kin_email, 'mary.wanjiku@example.com');
@@ -60,7 +60,7 @@ const assistedPayload = buildIndividualClientPayload(
   'assisted',
 );
 
-assert.equal(assistedPayload.access_type, 'ASSISTED_CLIENT');
+assert.equal(assistedPayload.access_type, 'ASSISTED');
 assert.equal(Object.prototype.hasOwnProperty.call(assistedPayload, 'email'), false);
 assert.equal(assistedPayload.phone_number, '+254733456789');
 

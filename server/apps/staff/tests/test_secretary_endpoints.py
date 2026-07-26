@@ -156,7 +156,7 @@ class SecretaryEndpointTests(TestCase):
             email="client-viewer@example.com",
             phone_number="+254711000005",
             client_type=Client.ClientType.INDIVIDUAL,
-            access_type=Client.AccessType.ASSISTED_CLIENT,
+            access_type=Client.AccessType.ASSISTED,
             lifecycle_status=Client.LifecycleStatus.OFFICIAL_CLIENT,
         )
         Case.objects.create(
@@ -205,7 +205,7 @@ class SecretaryEndpointTests(TestCase):
                 "full_name": "Denied Client",
                 "national_id": "711000010",
                 "phone_number": "+254711000010",
-                "access_type": Client.AccessType.ASSISTED_CLIENT,
+                "access_type": Client.AccessType.ASSISTED,
             },
             format="json",
         )
@@ -242,7 +242,7 @@ class SecretaryEndpointTests(TestCase):
                 "full_name": "Secretary Created Client",
                 "national_id": "711000012",
                 "phone_number": "+254711000012",
-                "access_type": Client.AccessType.ASSISTED_CLIENT,
+                "access_type": Client.AccessType.ASSISTED,
             },
             format="json",
         )
@@ -259,7 +259,7 @@ class SecretaryEndpointTests(TestCase):
                 "email": "secretary-portal-client@example.com",
                 "national_id": "711000013",
                 "phone_number": "+254711000013",
-                "access_type": Client.AccessType.PROSPECT,
+                "access_type": Client.AccessType.PORTAL_ENABLED,
             },
             format="json",
         )
@@ -348,7 +348,7 @@ class SecretaryEndpointTests(TestCase):
             email="visible-client@example.com",
             phone_number="+254711000007",
             client_type=Client.ClientType.INDIVIDUAL,
-            access_type=Client.AccessType.ASSISTED_CLIENT,
+            access_type=Client.AccessType.ASSISTED,
             lifecycle_status=Client.LifecycleStatus.OFFICIAL_CLIENT,
         )
         hidden_client = Client.objects.create(
@@ -358,7 +358,7 @@ class SecretaryEndpointTests(TestCase):
             email="hidden-client@example.com",
             phone_number="+254711000008",
             client_type=Client.ClientType.INDIVIDUAL,
-            access_type=Client.AccessType.ASSISTED_CLIENT,
+            access_type=Client.AccessType.ASSISTED,
             lifecycle_status=Client.LifecycleStatus.OFFICIAL_CLIENT,
         )
         visible_case = Case.objects.create(

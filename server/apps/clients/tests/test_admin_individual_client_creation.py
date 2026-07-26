@@ -47,7 +47,7 @@ class AdminIndividualClientCreationTests(TestCase):
             "last_name": "Otieno",
             "phone_number": "+254733456789",
             "email": "",
-            "access_type": Client.AccessType.ASSISTED_CLIENT,
+            "access_type": Client.AccessType.ASSISTED,
             "national_id": "23456789",
             "kra_pin": "a098765432c",
             "date_of_birth": "1979-02-11",
@@ -76,7 +76,7 @@ class AdminIndividualClientCreationTests(TestCase):
             "preferred_name": "Peter",
             "email": " PETER.MWANGI.UI@EXAMPLE.COM ",
             "phone_number": "+254712345678",
-            "access_type": Client.AccessType.PROSPECT,
+            "access_type": Client.AccessType.PORTAL_ENABLED,
             "national_id": "12345678",
             "passport_number": "",
             "kra_pin": "a012345678b",
@@ -113,7 +113,7 @@ class AdminIndividualClientCreationTests(TestCase):
         profile = IndividualClient.objects.get(client=client)
 
         self.assertEqual(client.client_type, Client.ClientType.INDIVIDUAL)
-        self.assertEqual(client.access_type, Client.AccessType.ASSISTED_CLIENT)
+        self.assertEqual(client.access_type, Client.AccessType.ASSISTED)
         self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
         self.assertIsNone(client.user_id)
         self.assertEqual(User.objects.count(), user_count)
@@ -149,7 +149,7 @@ class AdminIndividualClientCreationTests(TestCase):
         client = Client.objects.select_related("user").get(full_name="Peter Mwangi Kamau")
         profile = IndividualClient.objects.get(client=client)
 
-        self.assertEqual(client.access_type, Client.AccessType.PROSPECT)
+        self.assertEqual(client.access_type, Client.AccessType.PORTAL_ENABLED)
         self.assertIsNotNone(client.user_id)
         self.assertEqual(client.user.email, "peter.mwangi.ui@example.com")
         self.assertEqual(client.user.role, UserRole.PROSPECT)
@@ -333,3 +333,192 @@ class AdminIndividualClientCreationTests(TestCase):
         self.assertEqual(client.client_type, Client.ClientType.INDIVIDUAL)
         self.assertIsNone(response.data["portal_user"])
         self.assertIsNone(response.data["temp_password"])
+
+
+    def create_secretary_user(self, *, can_manage=True, email="secretary-extra@example.com"):
+        secretary_user = User.objects.create_user(
+            email=email,
+            password="strong-pass123",
+            first_name="Extra",
+            last_name="Secretary",
+            phone_number="+254712000099",
+            national_id_number=email.upper()[:20],
+            role=UserRole.STAFF,
+        )
+        secretary = Secretary.objects.create(
+            user=secretary_user,
+            law_firm=self.firm,
+            staff_number=email.upper()[:20],
+            date_hired=date(2026, 7, 7),
+        )
+        if can_manage:
+            SecretaryPermissionGrant.objects.create(
+                secretary=secretary,
+                code=SecretaryPermission.MANAGE_CLIENTS,
+                granted_by=self.admin,
+            )
+        return secretary_user
+
+    def test_secretary_creates_portal_individual(self):
+        secretary_user = self.create_secretary_user(email="secretary-portal@example.com")
+        self.api_client.force_authenticate(user=secretary_user)
+
+        response = self.api_client.post(
+            reverse("secretary-client-create", kwargs={"client_type": "individuals"}),
+            self.portal_payload(
+                email="secretary.portal.client@example.com",
+                national_id="42345678",
+                kra_pin="A212345678B",
+            ),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["client"]["access_type"], Client.AccessType.PORTAL_ENABLED)
+        self.assertTrue(response.data["temp_password"])
+        self.assertEqual(response.data["portal_user"]["email"], "secretary.portal.client@example.com")
+
+    def test_secretary_without_manage_clients_permission_receives_403(self):
+        secretary_user = self.create_secretary_user(can_manage=False, email="secretary-denied@example.com")
+        self.api_client.force_authenticate(user=secretary_user)
+
+        response = self.api_client.post(
+            reverse("secretary-client-create", kwargs={"client_type": "individuals"}),
+            self.assisted_payload(national_id="43456789", kra_pin="A298765432C"),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403, response.data)
+
+    def test_lawyer_cannot_use_admin_individual_creation_route(self):
+        lawyer_user = User.objects.create_user(
+            email="lawyer-client-create@example.com",
+            password="strong-pass123",
+            first_name="No",
+            last_name="Access",
+            phone_number="+254712000077",
+            national_id_number="LAW-NO-CLIENTS",
+            role=UserRole.STAFF,
+        )
+        self.api_client.force_authenticate(user=lawyer_user)
+
+        response = self.api_client.post(self.url, self.assisted_payload(), format="json")
+
+        self.assertEqual(response.status_code, 403, response.data)
+
+    def test_national_id_or_passport_is_required(self):
+        response = self.api_client.post(
+            self.url,
+            self.assisted_payload(national_id="", passport_number=""),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("identification", response.data["errors"])
+
+    def test_duplicate_passport_is_rejected(self):
+        self.api_client.post(
+            self.url,
+            self.assisted_payload(national_id="", passport_number="AA123456"),
+            format="json",
+        )
+
+        response = self.api_client.post(
+            self.url,
+            self.assisted_payload(
+                full_name="Passport Duplicate",
+                national_id="",
+                passport_number="aa123456",
+                kra_pin="A398765432C",
+            ),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("passport_number", response.data["errors"])
+
+    def test_next_of_kin_missing_phone_is_not_replaced_with_client_phone(self):
+        response = self.api_client.post(
+            self.url,
+            self.assisted_payload(next_of_kin_phone=""),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.get(full_name="Jane Akinyi Otieno")
+        next_of_kin = ClientContact.objects.get(client=client, contact_type=ContactType.EMERGENCY)
+        self.assertEqual(next_of_kin.phone_number, "")
+
+    def test_identification_is_not_automatically_verified(self):
+        response = self.api_client.post(self.url, self.assisted_payload(), format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.get(full_name="Jane Akinyi Otieno")
+        profile = IndividualClient.objects.get(client=client)
+        self.assertFalse(client.is_verified)
+        self.assertFalse(profile.identification_verified)
+
+    def test_temporary_password_is_not_exposed_on_list(self):
+        create_response = self.api_client.post(self.url, self.portal_payload(), format="json")
+        self.assertEqual(create_response.status_code, 201, create_response.data)
+
+        list_response = self.api_client.get(reverse("admin-client-list"))
+
+        self.assertEqual(list_response.status_code, 200, list_response.data)
+        self.assertNotIn("temp_password", str(list_response.data))
+
+    def test_admin_and_secretary_individual_responses_have_identical_keys(self):
+        admin_response = self.api_client.post(self.url, self.assisted_payload(), format="json")
+        secretary_user = self.create_secretary_user(email="secretary-shape@example.com")
+        self.api_client.force_authenticate(user=secretary_user)
+        secretary_response = self.api_client.post(
+            reverse("secretary-client-create", kwargs={"client_type": "individuals"}),
+            self.assisted_payload(
+                full_name="Secretary Shape Individual",
+                national_id="53456789",
+                kra_pin="A498765432C",
+            ),
+            format="json",
+        )
+
+        self.assertEqual(admin_response.status_code, 201, admin_response.data)
+        self.assertEqual(secretary_response.status_code, 201, secretary_response.data)
+        self.assertEqual(set(admin_response.data.keys()), set(secretary_response.data.keys()))
+
+    def test_legacy_individual_access_values_are_migrated(self):
+        from importlib import import_module
+
+        migration = import_module("apps.clients.migrations.0009_migrate_individual_access_type_values")
+        legacy_portal = Client.objects.create(
+            firm=self.firm,
+            created_by=self.admin,
+            full_name="Legacy Portal Individual",
+            client_type=Client.ClientType.INDIVIDUAL,
+            access_type=Client.AccessType.PROSPECT,
+            lifecycle_status=Client.LifecycleStatus.PROSPECTIVE,
+        )
+        legacy_assisted = Client.objects.create(
+            firm=self.firm,
+            created_by=self.admin,
+            full_name="Legacy Assisted Individual",
+            client_type=Client.ClientType.INDIVIDUAL,
+            access_type=Client.AccessType.ASSISTED_CLIENT,
+            lifecycle_status=Client.LifecycleStatus.PROSPECTIVE,
+        )
+
+        class Apps:
+            @staticmethod
+            def get_model(app_label, model_name):
+                return Client
+
+        migration.forwards(Apps, None)
+        legacy_portal.refresh_from_db()
+        legacy_assisted.refresh_from_db()
+        self.assertEqual(legacy_portal.access_type, Client.AccessType.PORTAL_ENABLED)
+        self.assertEqual(legacy_assisted.access_type, Client.AccessType.ASSISTED)
+
+        migration.backwards(Apps, None)
+        legacy_portal.refresh_from_db()
+        legacy_assisted.refresh_from_db()
+        self.assertEqual(legacy_portal.access_type, Client.AccessType.PROSPECT)
+        self.assertEqual(legacy_assisted.access_type, Client.AccessType.ASSISTED_CLIENT)

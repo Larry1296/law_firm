@@ -885,6 +885,7 @@ const AdminCaseDetailsPage = () => {
       <SectionHeading
         title={pageTitle}
         subtitle='Matter record, court proceeding, parties and activity'
+        align='center'
       />
 
       <Card className='p-6'>

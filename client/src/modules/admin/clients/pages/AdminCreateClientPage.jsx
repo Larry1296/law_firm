@@ -61,7 +61,7 @@ export default function AdminCreateClientPage() {
     'EDUCATIONAL_INSTITUTION',
   ];
   const canonicalEntityTypes = canonicalLegalEntityTypes;
-  const clientMode = searchParams.get('mode'); // prospect | assisted | null
+  const clientMode = searchParams.get('mode'); // portal | assisted | null
   const isIndividualClientType = clientType === 'INDIVIDUAL';
   const [selectedClientMode, setSelectedClientMode] = useState(
     isIndividualClientType && clientMode === 'assisted' ? 'assisted' : 'portal',
@@ -952,13 +952,13 @@ export default function AdminCreateClientPage() {
 	                {[
 	                  {
 	                    value: 'portal',
-	                    title: 'Portal Client',
-	                    description: 'Creates login credentials for the client.',
+	                    title: 'Portal access',
+	                    description: 'Creates a login account and temporary password.',
 	                  },
 	                  {
 	                    value: 'assisted',
-	                    title: 'Assisted Client',
-	                    description: 'No login account is created. Firm staff manage the client record.',
+	                    title: 'Fully assisted',
+	                    description: 'Does not create a login account. The firm manages the client information.',
 	                  },
 	                ].map((option) => (
 	                  <button
@@ -981,11 +981,11 @@ export default function AdminCreateClientPage() {
 	              </div>
 	              {isProspect ? (
 	                <div className='rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-100'>
-	                  A portal login will be created using this client email address. A temporary password will be shown once after creation.
+	                  Portal access creates a login account and temporary password.
 	                </div>
 	              ) : (
 	                <div className='rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800 dark:border-[color:var(--border)] dark:bg-[color:var(--surface-raised)] dark:text-[color:var(--text-primary)]'>
-	                  No portal account or login credentials will be created. Portal access can be added later through a controlled action.
+	                  Fully assisted does not create a login account. The firm manages the client information.
 	                </div>
 	              )}
 	            </section>
