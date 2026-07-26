@@ -61,6 +61,30 @@ class SecretaryEndpointTests(TestCase):
             date_hired=date(2026, 7, 6),
         )
 
+    def individual_payload(self, *, full_name, identification_number, phone_number, access_type, **overrides):
+        payload = {
+            "full_name": full_name,
+            "identification_type": "NATIONAL_ID",
+            "identification_number": identification_number,
+            "identification_country": "Kenya",
+            "national_id": identification_number,
+            "phone_number": phone_number,
+            "date_of_birth": "1990-01-01",
+            "nationality": "Kenyan",
+            "occupation_status": "EMPLOYED",
+            "employer": "Test Employer",
+            "preferred_contact_channel": "PHONE",
+            "country": "Kenya",
+            "county_or_region": "Nairobi",
+            "city_or_town": "Nairobi",
+            "address_description": "Nairobi",
+            "privacy_notice_version": "2026-07",
+            "personal_data_source": "CLIENT",
+            "access_type": access_type,
+        }
+        payload.update(overrides)
+        return payload
+
     def test_admin_can_create_secretary(self):
         self.client.force_authenticate(user=self.admin_user)
 
@@ -201,12 +225,12 @@ class SecretaryEndpointTests(TestCase):
         self.client.force_authenticate(user=secretary_user)
         response = self.client.post(
             reverse("secretary-client-create", kwargs={"client_type": "individuals"}),
-            {
-                "full_name": "Denied Client",
-                "national_id": "711000010",
-                "phone_number": "+254711000010",
-                "access_type": Client.AccessType.ASSISTED,
-            },
+            self.individual_payload(
+                full_name="Denied Client",
+                identification_number="711000010",
+                phone_number="+254711000010",
+                access_type=Client.AccessType.ASSISTED,
+            ),
             format="json",
         )
 
@@ -238,12 +262,12 @@ class SecretaryEndpointTests(TestCase):
         self.client.force_authenticate(user=secretary_user)
         response = self.client.post(
             reverse("secretary-client-create", kwargs={"client_type": "individuals"}),
-            {
-                "full_name": "Secretary Created Client",
-                "national_id": "711000012",
-                "phone_number": "+254711000012",
-                "access_type": Client.AccessType.ASSISTED,
-            },
+            self.individual_payload(
+                full_name="Secretary Created Client",
+                identification_number="711000012",
+                phone_number="+254711000012",
+                access_type=Client.AccessType.ASSISTED,
+            ),
             format="json",
         )
 
@@ -254,13 +278,14 @@ class SecretaryEndpointTests(TestCase):
 
         portal_response = self.client.post(
             reverse("secretary-client-create", kwargs={"client_type": "individuals"}),
-            {
-                "full_name": "Secretary Portal Client",
-                "email": "secretary-portal-client@example.com",
-                "national_id": "711000013",
-                "phone_number": "+254711000013",
-                "access_type": Client.AccessType.PORTAL_ENABLED,
-            },
+            self.individual_payload(
+                full_name="Secretary Portal Client",
+                identification_number="711000013",
+                phone_number="+254711000013",
+                access_type=Client.AccessType.PORTAL_ENABLED,
+                email="secretary-portal-client@example.com",
+                preferred_contact_channel="EMAIL",
+            ),
             format="json",
         )
 

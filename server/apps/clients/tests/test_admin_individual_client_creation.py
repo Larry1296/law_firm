@@ -48,10 +48,14 @@ class AdminIndividualClientCreationTests(TestCase):
             "phone_number": "+254733456789",
             "email": "",
             "access_type": Client.AccessType.ASSISTED,
+            "identification_type": IndividualClient.IdentificationType.NATIONAL_ID,
+            "identification_number": "23456789",
+            "identification_country": "Kenya",
             "national_id": "23456789",
             "kra_pin": "a098765432c",
             "date_of_birth": "1979-02-11",
             "gender": IndividualClient.Gender.FEMALE,
+            "occupation_status": IndividualClient.OccupationStatus.SELF_EMPLOYED,
             "occupation": "Trader",
             "nationality": "Kenyan",
             "citizenship": "Kenya",
@@ -61,7 +65,10 @@ class AdminIndividualClientCreationTests(TestCase):
             "county": "Kisumu",
             "city": "Kisumu",
             "street": "Milimani",
+            "address_description": "Milimani, Kisumu",
             "full_address": "Milimani, Kisumu",
+            "privacy_notice_version": "2026-07",
+            "personal_data_source": IndividualClient.PersonalDataSource.CLIENT,
             "next_of_kin_name": "Mary Anyango Otieno",
             "next_of_kin_relationship": "Sister",
             "next_of_kin_phone": "+254723456781",
@@ -77,12 +84,16 @@ class AdminIndividualClientCreationTests(TestCase):
             "email": " PETER.MWANGI.UI@EXAMPLE.COM ",
             "phone_number": "+254712345678",
             "access_type": Client.AccessType.PORTAL_ENABLED,
+            "identification_type": IndividualClient.IdentificationType.NATIONAL_ID,
+            "identification_number": "12345678",
+            "identification_country": "Kenya",
             "national_id": "12345678",
             "passport_number": "",
             "kra_pin": "a012345678b",
             "date_of_birth": "1988-06-17",
             "gender": IndividualClient.Gender.MALE,
             "marital_status": IndividualClient.MaritalStatus.MARRIED,
+            "occupation_status": IndividualClient.OccupationStatus.EMPLOYED,
             "occupation": "Civil Engineer",
             "employer": "Metro Engineering Limited",
             "nationality": "Kenyan",
@@ -94,7 +105,10 @@ class AdminIndividualClientCreationTests(TestCase):
             "city": "Nairobi",
             "street": "South B",
             "postal_code": "00100",
+            "address_description": "South B, Nairobi",
             "full_address": "South B, Nairobi",
+            "privacy_notice_version": "2026-07",
+            "personal_data_source": IndividualClient.PersonalDataSource.CLIENT,
             "next_of_kin_name": "Mary Wanjiku Kamau",
             "next_of_kin_relationship": "Spouse",
             "next_of_kin_phone": "+254723456789",
@@ -173,7 +187,7 @@ class AdminIndividualClientCreationTests(TestCase):
             self.portal_payload(
                 email="peter.mwangi.two@example.test",
                 phone_number="",
-                national_id="12345679",
+                national_id="12345679", identification_number="12345679",
             ),
             format="json",
         )
@@ -199,14 +213,14 @@ class AdminIndividualClientCreationTests(TestCase):
             self.url,
             self.assisted_payload(
                 full_name="Jane KRA Duplicate",
-                national_id="23456780",
+                national_id="23456780", identification_number="23456780",
                 phone_number="+254733456781",
             ),
             format="json",
         )
 
         self.assertEqual(national_response.status_code, 400, national_response.data)
-        self.assertIn("national_id", national_response.data["errors"])
+        self.assertIn("identification_number", national_response.data["errors"])
         self.assertEqual(kra_response.status_code, 400, kra_response.data)
         self.assertIn("kra_pin", kra_response.data["errors"])
         self.assertFalse(Client.objects.filter(full_name="Jane Duplicate").exists())
@@ -251,7 +265,7 @@ class AdminIndividualClientCreationTests(TestCase):
             self.portal_payload(
                 email="peter.mwangi.shape@example.test",
                 phone_number="+254712345680",
-                national_id="12345680",
+                national_id="12345680", identification_number="12345680",
                 kra_pin="A012345679B",
             ),
             format="json",
@@ -320,7 +334,7 @@ class AdminIndividualClientCreationTests(TestCase):
             reverse("secretary-client-create", kwargs={"client_type": "individuals"}),
             self.assisted_payload(
                 full_name="Secretary Created Individual",
-                national_id="33456789",
+                national_id="33456789", identification_number="33456789",
                 phone_number="+254733456782",
                 kra_pin="A198765432C",
             ),
@@ -367,7 +381,7 @@ class AdminIndividualClientCreationTests(TestCase):
             reverse("secretary-client-create", kwargs={"client_type": "individuals"}),
             self.portal_payload(
                 email="secretary.portal.client@example.com",
-                national_id="42345678",
+                national_id="42345678", identification_number="42345678",
                 kra_pin="A212345678B",
             ),
             format="json",
@@ -384,7 +398,7 @@ class AdminIndividualClientCreationTests(TestCase):
 
         response = self.api_client.post(
             reverse("secretary-client-create", kwargs={"client_type": "individuals"}),
-            self.assisted_payload(national_id="43456789", kra_pin="A298765432C"),
+            self.assisted_payload(national_id="43456789", identification_number="43456789", kra_pin="A298765432C"),
             format="json",
         )
 
@@ -409,17 +423,17 @@ class AdminIndividualClientCreationTests(TestCase):
     def test_national_id_or_passport_is_required(self):
         response = self.api_client.post(
             self.url,
-            self.assisted_payload(national_id="", passport_number=""),
+            self.assisted_payload(national_id="", passport_number="", identification_type="", identification_number=""),
             format="json",
         )
 
         self.assertEqual(response.status_code, 400, response.data)
-        self.assertIn("identification", response.data["errors"])
+        self.assertIn("identification_type", response.data["errors"])
 
     def test_duplicate_passport_is_rejected(self):
         self.api_client.post(
             self.url,
-            self.assisted_payload(national_id="", passport_number="AA123456"),
+            self.assisted_payload(national_id="", passport_number="AA123456", identification_type=IndividualClient.IdentificationType.PASSPORT, identification_number="AA123456", identification_country="Uganda", identification_expiry_date=(timezone.localdate() + timedelta(days=365)).isoformat()),
             format="json",
         )
 
@@ -429,13 +443,17 @@ class AdminIndividualClientCreationTests(TestCase):
                 full_name="Passport Duplicate",
                 national_id="",
                 passport_number="aa123456",
+                identification_type=IndividualClient.IdentificationType.PASSPORT,
+                identification_number="aa123456",
+                identification_country="Uganda",
+                identification_expiry_date=(timezone.localdate() + timedelta(days=365)).isoformat(),
                 kra_pin="A398765432C",
             ),
             format="json",
         )
 
         self.assertEqual(response.status_code, 400, response.data)
-        self.assertIn("passport_number", response.data["errors"])
+        self.assertIn("identification_number", response.data["errors"])
 
     def test_next_of_kin_missing_phone_is_not_replaced_with_client_phone(self):
         response = self.api_client.post(
@@ -475,7 +493,7 @@ class AdminIndividualClientCreationTests(TestCase):
             reverse("secretary-client-create", kwargs={"client_type": "individuals"}),
             self.assisted_payload(
                 full_name="Secretary Shape Individual",
-                national_id="53456789",
+                national_id="53456789", identification_number="53456789",
                 kra_pin="A498765432C",
             ),
             format="json",

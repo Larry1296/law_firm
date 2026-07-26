@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.common.choices import UserRole
@@ -6,6 +7,7 @@ from apps.clients.models import (
     Client,
     ClientAddress,
     ClientContact,
+    ClientDueDiligence,
     ClientRepresentative,
     CompanyClient,
     CommunicationChannel,
@@ -62,7 +64,7 @@ class ClientAdminCreateService:
         "kra_pin",
         "date_of_birth",
     }
-    ADDRESS_FIELDS = {"country", "county", "city", "street", "postal_code", "full_address"}
+    ADDRESS_FIELDS = {"country", "county", "city", "street", "postal_code", "full_address", "county_or_region", "city_or_town", "street_or_locality", "address_description"}
     CONTACT_FIELDS = {
         "contact_full_name",
         "contact_role_or_designation",
@@ -71,14 +73,23 @@ class ClientAdminCreateService:
         "contact_national_id_number",
     }
     INDIVIDUAL_PROFILE_FIELDS = {
+        "identification_type",
+        "identification_number",
+        "identification_country",
+        "identification_expiry_date",
+        "identification_document_reference",
+        "verification_method",
+        "verification_notes",
         "first_name",
         "middle_name",
         "last_name",
         "preferred_name",
         "gender",
+        "occupation_status",
         "occupation",
         "marital_status",
         "employer",
+        "business_name",
         "nationality",
         "citizenship",
         "county_of_residence",
@@ -87,12 +98,23 @@ class ClientAdminCreateService:
         "preferred_language",
         "preferred_contact_channel",
         "disability_or_accessibility_notes",
+        "guardian_name",
+        "guardian_relationship",
+        "guardian_phone",
+        "guardian_email",
+        "is_minor",
         "next_of_kin_name",
         "next_of_kin_relationship",
         "next_of_kin_phone",
         "next_of_kin_email",
         "next_of_kin_national_id",
+        "next_of_kin_identification_number",
         "next_of_kin_physical_address",
+        "next_of_kin_address",
+        "privacy_notice_version",
+        "privacy_notice_given_at",
+        "privacy_notice_given_by",
+        "personal_data_source",
         "notes",
     }
     NEXT_OF_KIN_FIELDS = {
@@ -139,15 +161,22 @@ class ClientAdminCreateService:
         if not address_data.get("full_address"):
             return None
 
+        country = address_data.get("country", "")
+        county = address_data.get("county_or_region") or address_data.get("county", "")
+        city = address_data.get("city_or_town") or address_data.get("city", "")
+        street = address_data.get("street_or_locality") or address_data.get("street", "")
+        description = address_data.get("address_description") or address_data.get("full_address")
+        generated = ", ".join([part for part in [street, city, county, country] if part])
+
         return ClientAddress.objects.create(
             client=client,
             address_type=default_type,
-            country=address_data.get("country", ""),
-            county=address_data.get("county", ""),
-            city=address_data.get("city", ""),
-            street=address_data.get("street", ""),
+            country=country,
+            county=county,
+            city=city,
+            street=street,
             postal_code=address_data.get("postal_code", ""),
-            full_address=address_data["full_address"],
+            full_address=description or generated,
             is_primary=True,
         )
 
@@ -185,12 +214,12 @@ class ClientAdminCreateService:
             contact_type=ContactType.EMERGENCY,
             full_name=full_name,
             role_or_designation=individual_data.get("next_of_kin_relationship", ""),
-            national_id_number=individual_data.get("next_of_kin_national_id", ""),
+            national_id_number=individual_data.get("next_of_kin_identification_number") or individual_data.get("next_of_kin_national_id", ""),
             email=email,
             phone_number=phone_number,
             preferred_channel=CommunicationChannel.PHONE,
             is_primary=False,
-            notes=individual_data.get("next_of_kin_physical_address", ""),
+            notes=individual_data.get("next_of_kin_address") or individual_data.get("next_of_kin_physical_address", ""),
         )
 
     @staticmethod
@@ -280,6 +309,10 @@ class ClientAdminCreateService:
             is_verified=False,
         )
 
+        if client_type == Client.ClientType.INDIVIDUAL:
+            individual_data["privacy_notice_given_at"] = timezone.now()
+            individual_data["privacy_notice_given_by"] = created_by
+
         profile = ClientAdminCreateService._create_profile(
             client,
             client_type,
@@ -304,6 +337,9 @@ class ClientAdminCreateService:
             if client_type == Client.ClientType.INDIVIDUAL
             else None
         )
+        if client_type == Client.ClientType.INDIVIDUAL:
+            ClientDueDiligence.objects.get_or_create(client=client)
+
         user, temp_password = ClientAdminCreateService._create_portal_user(
             client,
             base_data,
@@ -713,30 +749,44 @@ class ClientAdminCreateService:
                 middle_name=middle_name,
                 last_name=last_name,
                 preferred_name=data.get("preferred_name", ""),
+                identification_type=data.get("identification_type", ""),
+                identification_number=data.get("identification_number", ""),
+                identification_country=data.get("identification_country", ""),
+                identification_expiry_date=data.get("identification_expiry_date"),
+                identification_document_reference=data.get("identification_document_reference", ""),
+                verification_method=data.get("verification_method", ""),
+                verification_notes=data.get("verification_notes", ""),
                 gender=data.get("gender"),
+                occupation_status=data.get("occupation_status", ""),
                 occupation=data.get("occupation"),
                 marital_status=data.get("marital_status"),
                 employer=data.get("employer", ""),
-                nationality=data.get("nationality", "Kenyan"),
-                citizenship=data.get("citizenship", "Kenya"),
+                business_name=data.get("business_name", ""),
+                nationality=data.get("nationality", ""),
+                citizenship=data.get("citizenship", ""),
                 county_of_residence=data.get("county_of_residence", ""),
                 physical_address=data.get("physical_address", ""),
                 postal_address=data.get("postal_address", ""),
                 preferred_language=data.get("preferred_language", ""),
                 preferred_contact_channel=data.get("preferred_contact_channel", ""),
-                disability_or_accessibility_notes=data.get(
-                    "disability_or_accessibility_notes",
-                    "",
-                ),
+                disability_or_accessibility_notes=data.get("disability_or_accessibility_notes", ""),
+                is_minor=data.get("is_minor", False),
+                guardian_name=data.get("guardian_name", ""),
+                guardian_relationship=data.get("guardian_relationship", ""),
+                guardian_phone=data.get("guardian_phone", ""),
+                guardian_email=data.get("guardian_email", "") or "",
                 next_of_kin_name=data.get("next_of_kin_name", ""),
                 next_of_kin_relationship=data.get("next_of_kin_relationship", ""),
                 next_of_kin_phone=data.get("next_of_kin_phone", ""),
                 next_of_kin_email=data.get("next_of_kin_email", "") or "",
                 next_of_kin_national_id=data.get("next_of_kin_national_id", ""),
-                next_of_kin_physical_address=data.get(
-                    "next_of_kin_physical_address",
-                    "",
-                ),
+                next_of_kin_identification_number=data.get("next_of_kin_identification_number", ""),
+                next_of_kin_physical_address=data.get("next_of_kin_physical_address", ""),
+                next_of_kin_address=data.get("next_of_kin_address", ""),
+                privacy_notice_version=data.get("privacy_notice_version", ""),
+                privacy_notice_given_at=data.get("privacy_notice_given_at"),
+                privacy_notice_given_by=data.get("privacy_notice_given_by"),
+                personal_data_source=data.get("personal_data_source", ""),
                 notes=data.get("notes", ""),
             )
 

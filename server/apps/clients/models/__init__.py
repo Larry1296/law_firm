@@ -1,6 +1,6 @@
 from .client import Client
 
-from .individual_client import IndividualClient
+from .individual_client import ClientDueDiligence, IndividualClient
 from .company_client import CompanyClient
 from .partnership_client import PartnershipClient, PartnershipPartner
 from .ngo_client import NGOClient
@@ -40,6 +40,7 @@ __all__ = [
     "Client",
 
     "IndividualClient",
+    "ClientDueDiligence",
     "CompanyClient",
     "PartnershipClient",
     "PartnershipPartner",

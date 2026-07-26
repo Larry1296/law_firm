@@ -1,3 +1,6 @@
+import re
+from datetime import date
+
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -9,170 +12,224 @@ from apps.users.models import User
 
 
 class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
+    IDENTIFICATION_TYPES = tuple(value for value, _ in IndividualClient.IdentificationType.choices)
+    OCCUPATION_STATUSES = tuple(value for value, _ in IndividualClient.OccupationStatus.choices)
+    PERSONAL_DATA_SOURCES = tuple(value for value, _ in IndividualClient.PersonalDataSource.choices)
+
     full_name = serializers.CharField(max_length=255)
     access_type = serializers.ChoiceField(
-        choices=(
-            Client.AccessType.PORTAL_ENABLED,
-            Client.AccessType.ASSISTED,
-        ),
+        choices=(Client.AccessType.PORTAL_ENABLED, Client.AccessType.ASSISTED),
         default=Client.AccessType.ASSISTED,
     )
+    identification_type = serializers.ChoiceField(choices=IndividualClient.IdentificationType.choices, required=False)
+    identification_number = serializers.CharField(max_length=80, required=False, allow_blank=True)
+    identification_country = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    identification_expiry_date = serializers.DateField(required=False, allow_null=True)
+    identification_document_reference = serializers.CharField(max_length=255, required=False, allow_blank=True)
     first_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     middle_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     preferred_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    gender = serializers.ChoiceField(
-        choices=IndividualClient.Gender.choices,
-        required=False,
-        allow_null=True,
-        allow_blank=True,
-    )
+    gender = serializers.ChoiceField(choices=IndividualClient.Gender.choices, required=False, allow_null=True, allow_blank=True)
+    occupation_status = serializers.ChoiceField(choices=IndividualClient.OccupationStatus.choices, required=False, allow_blank=True)
     occupation = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    marital_status = serializers.ChoiceField(
-        choices=IndividualClient.MaritalStatus.choices,
-        required=False,
-        allow_null=True,
-        allow_blank=True,
-    )
     employer = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    business_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    marital_status = serializers.ChoiceField(choices=IndividualClient.MaritalStatus.choices, required=False, allow_null=True, allow_blank=True)
     nationality = serializers.CharField(max_length=100, required=False, allow_blank=True)
     citizenship = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    county_of_residence = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    physical_address = serializers.CharField(required=False, allow_blank=True)
     postal_address = serializers.CharField(required=False, allow_blank=True)
     preferred_language = serializers.CharField(max_length=50, required=False, allow_blank=True)
-    preferred_contact_channel = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    preferred_contact_channel = serializers.ChoiceField(choices=CommunicationChannel.choices, required=False, allow_blank=True)
     disability_or_accessibility_notes = serializers.CharField(required=False, allow_blank=True)
+    guardian_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    guardian_relationship = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    guardian_phone = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    guardian_email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
     next_of_kin_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
     next_of_kin_relationship = serializers.CharField(max_length=100, required=False, allow_blank=True)
     next_of_kin_phone = serializers.CharField(max_length=30, required=False, allow_blank=True)
     next_of_kin_email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
-    next_of_kin_national_id = serializers.CharField(max_length=50, required=False, allow_blank=True)
-    next_of_kin_physical_address = serializers.CharField(required=False, allow_blank=True)
+    next_of_kin_identification_number = serializers.CharField(max_length=80, required=False, allow_blank=True)
+    next_of_kin_address = serializers.CharField(required=False, allow_blank=True)
+    privacy_notice_version = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    personal_data_source = serializers.ChoiceField(choices=IndividualClient.PersonalDataSource.choices, required=False, allow_blank=True)
     notes = serializers.CharField(required=False, allow_blank=True)
 
+    # Compatibility inputs retained while the frontend/API migrate.
+    national_id = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    passport_number = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    country = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    county_or_region = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    city_or_town = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    street_or_locality = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    address_description = serializers.CharField(required=False, allow_blank=True)
+    county = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    city = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    street = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    full_address = serializers.CharField(required=False, allow_blank=True)
+    next_of_kin_national_id = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    next_of_kin_physical_address = serializers.CharField(required=False, allow_blank=True)
+    county_of_residence = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    physical_address = serializers.CharField(required=False, allow_blank=True)
+
+    @staticmethod
+    def _collapse_spaces(value):
+        return re.sub(r"\s+", " ", str(value).strip()) if value is not None else value
+
+    def _normalize_phone(self, value):
+        if not value:
+            return value
+        raw = str(value).strip().replace(" ", "").replace("-", "")
+        if raw.startswith("07") and len(raw) == 10:
+            return "+254" + raw[1:]
+        if raw.startswith("01") and len(raw) == 10:
+            return "+254" + raw[1:]
+        if raw.startswith("254") and len(raw) == 12:
+            return "+" + raw
+        return raw
+
     def _normalize(self, attrs):
+        name_fields = ["full_name", "first_name", "middle_name", "last_name", "preferred_name", "next_of_kin_name", "guardian_name"]
+        upper_fields = ["identification_number", "passport_number", "kra_pin", "next_of_kin_identification_number", "next_of_kin_national_id"]
         string_fields = [
-            "full_name",
-            "first_name",
-            "middle_name",
-            "last_name",
-            "preferred_name",
-            "national_id",
-            "passport_number",
-            "kra_pin",
-            "phone_number",
-            "occupation",
-            "employer",
-            "nationality",
-            "citizenship",
-            "county_of_residence",
-            "physical_address",
-            "postal_address",
-            "preferred_language",
-            "preferred_contact_channel",
-            "next_of_kin_name",
-            "next_of_kin_relationship",
-            "next_of_kin_phone",
-            "next_of_kin_national_id",
-            "next_of_kin_physical_address",
+            "identification_country", "identification_document_reference", "phone_number", "occupation", "employer",
+            "business_name", "nationality", "citizenship", "postal_address", "preferred_language", "preferred_contact_channel",
+            "disability_or_accessibility_notes", "guardian_relationship", "next_of_kin_relationship", "country",
+            "county_or_region", "city_or_town", "street_or_locality", "postal_code", "address_description", "county", "city",
+            "street", "full_address", "notes", "privacy_notice_version", "personal_data_source",
         ]
+        for field in name_fields:
+            if field in attrs and attrs[field] is not None:
+                attrs[field] = self._collapse_spaces(attrs[field])
         for field in string_fields:
             if field in attrs and attrs[field] is not None:
                 attrs[field] = str(attrs[field]).strip()
-
-        for field in ["email", "contact_email", "next_of_kin_email"]:
+        for field in upper_fields:
+            if attrs.get(field):
+                attrs[field] = str(attrs[field]).strip().upper()
+        for field in ["email", "contact_email", "next_of_kin_email", "guardian_email"]:
             if attrs.get(field):
                 attrs[field] = attrs[field].strip().lower()
+        for field in ["phone_number", "contact_phone_number", "next_of_kin_phone", "guardian_phone"]:
+            if attrs.get(field):
+                attrs[field] = self._normalize_phone(attrs[field])
+        return attrs
 
-        if attrs.get("kra_pin"):
-            attrs["kra_pin"] = attrs["kra_pin"].upper()
-        if attrs.get("passport_number"):
-            attrs["passport_number"] = attrs["passport_number"].upper()
+    def _apply_identification_compatibility(self, attrs):
+        if not attrs.get("identification_type"):
+            if attrs.get("national_id"):
+                attrs["identification_type"] = IndividualClient.IdentificationType.NATIONAL_ID
+                attrs["identification_number"] = attrs.get("national_id")
+            elif attrs.get("passport_number"):
+                attrs["identification_type"] = IndividualClient.IdentificationType.PASSPORT
+                attrs["identification_number"] = attrs.get("passport_number")
+        if attrs.get("identification_type") == IndividualClient.IdentificationType.NATIONAL_ID and not attrs.get("identification_country"):
+            attrs["identification_country"] = "Kenya"
+        if attrs.get("identification_type") == IndividualClient.IdentificationType.NATIONAL_ID:
+            attrs["national_id"] = attrs.get("identification_number")
+            attrs["passport_number"] = ""
+        elif attrs.get("identification_type") == IndividualClient.IdentificationType.PASSPORT:
+            attrs["passport_number"] = attrs.get("identification_number")
+            attrs["national_id"] = ""
+        return attrs
 
-        if not attrs.get("nationality"):
-            attrs["nationality"] = "Kenyan"
-        if not attrs.get("citizenship"):
-            attrs["citizenship"] = "Kenya"
-
+    def _apply_address_compatibility(self, attrs):
+        attrs["county_or_region"] = attrs.get("county_or_region") or attrs.get("county") or attrs.get("county_of_residence") or ""
+        attrs["city_or_town"] = attrs.get("city_or_town") or attrs.get("city") or ""
+        attrs["street_or_locality"] = attrs.get("street_or_locality") or attrs.get("street") or attrs.get("physical_address") or ""
+        attrs["address_description"] = attrs.get("address_description") or attrs.get("full_address") or attrs.get("physical_address") or ""
+        attrs["county"] = attrs["county_or_region"]
+        attrs["city"] = attrs["city_or_town"]
+        attrs["street"] = attrs["street_or_locality"]
+        parts = [attrs.get("street_or_locality"), attrs.get("city_or_town"), attrs.get("county_or_region"), attrs.get("country")]
+        generated = ", ".join([part for part in parts if part])
+        attrs["full_address"] = attrs.get("address_description") or generated
         return attrs
 
     def validate(self, attrs):
         attrs = self._normalize(attrs)
+        attrs = self._apply_identification_compatibility(attrs)
+        attrs = self._apply_address_compatibility(attrs)
         attrs = super().validate(attrs)
         firm = self.context.get("firm")
         access_type = attrs.get("access_type", Client.AccessType.ASSISTED)
+        errors = {}
 
-        if access_type not in {
-            Client.AccessType.PORTAL_ENABLED,
-            Client.AccessType.ASSISTED,
-        }:
-            raise serializers.ValidationError(
-                {"access_type": "Individual clients must be portal enabled or assisted."}
-            )
-
-        if not attrs.get("full_name", "").strip():
-            raise serializers.ValidationError({"full_name": "Full legal name is required."})
-
-        if not attrs.get("national_id") and not attrs.get("passport_number"):
-            raise serializers.ValidationError(
-                {"identification": "Either national_id or passport_number is required."}
-            )
+        if access_type not in {Client.AccessType.PORTAL_ENABLED, Client.AccessType.ASSISTED}:
+            errors["access_type"] = "Individual clients must be portal enabled or assisted."
+        if not attrs.get("full_name"):
+            errors["full_name"] = "Full legal name as displayed on the identification document is required."
+        if not attrs.get("identification_type"):
+            errors["identification_type"] = "Identification type is required."
+        if not attrs.get("identification_number"):
+            errors["identification_number"] = "Identification number is required."
+        if not attrs.get("identification_country"):
+            errors["identification_country"] = "Identification country is required."
+        if attrs.get("identification_type") == IndividualClient.IdentificationType.PASSPORT:
+            if not attrs.get("identification_expiry_date"):
+                errors["identification_expiry_date"] = "Passport expiry date is required."
+            elif attrs["identification_expiry_date"] <= timezone.localdate():
+                errors["identification_expiry_date"] = "Passport expiry date must be in the future."
+        if not attrs.get("date_of_birth"):
+            errors["date_of_birth"] = "Date of birth is required."
+        elif attrs["date_of_birth"] >= timezone.localdate():
+            errors["date_of_birth"] = "Date of birth must be in the past."
+        else:
+            today = timezone.localdate()
+            age = today.year - attrs["date_of_birth"].year - ((today.month, today.day) < (attrs["date_of_birth"].month, attrs["date_of_birth"].day))
+            attrs["is_minor"] = age < 18
+            if attrs["is_minor"] and not (attrs.get("guardian_name") and (attrs.get("guardian_phone") or attrs.get("guardian_email"))):
+                errors["guardian_name"] = "Minor clients require guardian or legal-representative details."
+        if not attrs.get("nationality"):
+            errors["nationality"] = "Nationality is required."
+        if not attrs.get("occupation_status"):
+            errors["occupation_status"] = "Occupation status is required."
+        elif attrs.get("occupation_status") == IndividualClient.OccupationStatus.EMPLOYED and not attrs.get("employer"):
+            errors["employer"] = "Employer is required for employed clients."
+        elif attrs.get("occupation_status") == IndividualClient.OccupationStatus.BUSINESS_OWNER and not attrs.get("business_name"):
+            errors["business_name"] = "Business name is required for business owners."
+        if not attrs.get("preferred_contact_channel"):
+            errors["preferred_contact_channel"] = "Preferred contact channel is required."
+        if not attrs.get("phone_number") and not attrs.get("email"):
+            errors["contact_method"] = "At least one reliable client contact method is required."
         if access_type == Client.AccessType.PORTAL_ENABLED:
             if not attrs.get("email"):
-                raise serializers.ValidationError(
-                    {"email": "Portal individual clients require a login email address."}
-                )
+                errors["email"] = "Portal individual clients require a login email address."
             if not attrs.get("phone_number"):
-                raise serializers.ValidationError(
-                    {"phone_number": "Portal individual clients require a phone number."}
-                )
-
-        if attrs.get("date_of_birth") and attrs["date_of_birth"] > timezone.localdate():
-            raise serializers.ValidationError(
-                {"date_of_birth": "Date of birth cannot be in the future."}
-            )
+                errors["phone_number"] = "Portal individual clients require a phone number."
+        if attrs.get("preferred_contact_channel") == CommunicationChannel.EMAIL and not attrs.get("email"):
+            errors["preferred_contact_channel"] = "Email is required when preferred contact channel is email."
+        if attrs.get("preferred_contact_channel") in {CommunicationChannel.PHONE, CommunicationChannel.SMS, CommunicationChannel.WHATSAPP} and not attrs.get("phone_number"):
+            errors["preferred_contact_channel"] = "A phone number is required for this preferred contact channel."
+        if attrs.get("phone_number") and not re.match(r"^\+?[1-9]\d{7,14}$", attrs["phone_number"]):
+            errors["phone_number"] = "Enter a valid Kenyan or international phone number."
+        if not attrs.get("country"):
+            errors["country"] = "Residential address country is required."
+        if not attrs.get("city_or_town") and not attrs.get("street_or_locality"):
+            errors["city_or_town"] = "Residential city, town or locality is required."
+        if not attrs.get("address_description"):
+            errors["address_description"] = "Residential address description is required."
+        if (attrs.get("country") or "").lower() == "kenya" and not attrs.get("county_or_region"):
+            errors["county_or_region"] = "County is required for Kenyan residential addresses when known."
+        if not attrs.get("privacy_notice_version"):
+            errors["privacy_notice_version"] = "Privacy notice version is required."
+        if not attrs.get("personal_data_source"):
+            errors["personal_data_source"] = "Personal data source is required."
 
         if attrs.get("kra_pin") and len(attrs["kra_pin"]) < 8:
-            raise serializers.ValidationError({"kra_pin": "Enter a valid KRA PIN."})
-
-        preferred_contact_channel = attrs.get("preferred_contact_channel")
-        if preferred_contact_channel and preferred_contact_channel not in CommunicationChannel.values:
-            raise serializers.ValidationError(
-                {"preferred_contact_channel": "Select a valid preferred contact channel."}
-            )
-
+            errors["kra_pin"] = "Enter a valid KRA PIN."
         if firm:
-            duplicate_checks = [
-                ("national_id", "An individual client with this National ID already exists."),
-                ("passport_number", "An individual client with this passport number already exists."),
-                ("kra_pin", "An individual client with this KRA PIN already exists."),
-            ]
-            errors = {}
-            for field, message in duplicate_checks:
-                value = attrs.get(field)
-                if not value:
-                    continue
-                exists = Client.objects.filter(
-                    firm=firm,
-                    client_type=Client.ClientType.INDIVIDUAL,
-                    **{f"{field}__iexact": value},
-                ).exists()
-                if exists:
-                    errors[field] = message
-
+            ident_type = attrs.get("identification_type")
+            ident_number = attrs.get("identification_number")
+            if ident_type and ident_number:
+                if IndividualClient.objects.filter(client__firm=firm, identification_type=ident_type, identification_number__iexact=ident_number).exists():
+                    errors["identification_number"] = "An individual client with this identification type and number already exists."
+            if attrs.get("kra_pin") and Client.objects.filter(firm=firm, client_type=Client.ClientType.INDIVIDUAL, kra_pin__iexact=attrs["kra_pin"]).exists():
+                errors["kra_pin"] = "An individual client with this KRA PIN already exists."
             email = attrs.get("email")
-            if access_type == Client.AccessType.PORTAL_ENABLED and email:
-                if User.objects.filter(email__iexact=email).exists():
-                    errors["email"] = "This email already has portal access."
-                elif Client.objects.filter(
-                    firm=firm,
-                    email__iexact=email,
-                    user__isnull=False,
-                ).exists():
-                    errors["email"] = "This email is already linked to a portal client."
-
-            if errors:
-                raise serializers.ValidationError(errors)
-
+            if access_type == Client.AccessType.PORTAL_ENABLED and email and User.objects.filter(email__iexact=email).exists():
+                errors["email"] = "This email already has portal access."
+        if errors:
+            raise serializers.ValidationError(errors)
         return attrs
