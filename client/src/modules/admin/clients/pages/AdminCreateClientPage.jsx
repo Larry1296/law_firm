@@ -338,6 +338,8 @@ export default function AdminCreateClientPage() {
     license_number: '',
     license_status: '',
     common_name: '',
+    association_official_name: '',
+    association_official_identifier: '',
     registration_status: 'UNKNOWN',
     constitution_reference: '',
     objectives: '',
@@ -1036,6 +1038,8 @@ export default function AdminCreateClientPage() {
       license_number: '',
       license_status: '',
       common_name: '',
+      association_official_name: '',
+      association_official_identifier: '',
       registration_status: 'UNKNOWN',
       constitution_reference: '',
       objectives: '',
@@ -1493,6 +1497,8 @@ export default function AdminCreateClientPage() {
               {clientType === 'SOCIETY_OR_ASSOCIATION' && (
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                   <FloatingInput label='Society / Association Legal Name' name='legal_name' value={formData.legal_name} onChange={handleChange} required />
+                  <FloatingInput label='Authorized Association Official' name='association_official_name' value={formData.association_official_name} onChange={handleChange} required />
+                  <FloatingInput label='Official ID / Passport' name='association_official_identifier' value={formData.association_official_identifier} onChange={handleChange} required />
                   <Select3D label='Registration Status' name='registration_status' value={formData.registration_status} onChange={handleChange} options={[
                     { value: 'REGISTERED', label: 'Registered' },
                     { value: 'UNREGISTERED', label: 'Unregistered' },

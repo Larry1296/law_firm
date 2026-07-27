@@ -172,6 +172,13 @@ class AdminLegalEntityClientCreationTests(TestCase):
                     "constitution_reference": "CONST-2026-001",
                 }
             )
+            data["representatives"][0].update(
+                {
+                    "representative_category": "SOCIETY_OFFICIAL",
+                    "role_title": "Association Official",
+                    "national_id_or_passport": "ASSOCIATION-OFFICIAL-ID-001",
+                }
+            )
         elif client_type in {
             Client.ClientType.NON_PROFIT_ORGANIZATION,
             Client.ClientType.NGO,
@@ -650,6 +657,53 @@ class AdminLegalEntityClientCreationTests(TestCase):
 
     def test_cooperative_requires_identified_authorized_officer(self):
         payload = self.payload_for(Client.ClientType.COOPERATIVE)
+        payload["representatives"][0]["national_id_or_passport"] = ""
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("representatives", response.data["errors"])
+
+    def test_portal_association_creates_login_for_authorized_official(self):
+        payload = self.payload_for(
+            Client.ClientType.SOCIETY_OR_ASSOCIATION,
+            access_type=Client.AccessType.PORTAL_ENABLED,
+            email="portal-association@example.test",
+            phone_number="+254700910047",
+            contact_full_name="Mercy Wanjiku Njeri",
+            contact_national_id_number="ASSOCIATION-OFFICIAL-ID-001",
+        )
+        payload["representatives"][0].update(
+            {
+                "email": payload["email"],
+                "telephone": payload["phone_number"],
+                "is_portal_contact": True,
+            }
+        )
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.select_related("user").get(
+            id=response.data["client"]["id"]
+        )
+        self.assertEqual(
+            client.client_type,
+            Client.ClientType.SOCIETY_OR_ASSOCIATION,
+        )
+        self.assertEqual(client.full_name, "Milimani Residents Association")
+        self.assertEqual(client.access_type, Client.AccessType.PORTAL_ENABLED)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
+        self.assertEqual(client.phone_number, "+254700910047")
+        self.assertEqual(client.user.email, "portal-association@example.test")
+        self.assertEqual(
+            response.data["representatives"][0]["representative_category"],
+            "SOCIETY_OFFICIAL",
+        )
+        self.assertTrue(response.data["temp_password"])
+
+    def test_association_requires_identified_authorized_official(self):
+        payload = self.payload_for(Client.ClientType.SOCIETY_OR_ASSOCIATION)
         payload["representatives"][0]["national_id_or_passport"] = ""
 
         response = self.api_client.post(self.url, payload, format="json")

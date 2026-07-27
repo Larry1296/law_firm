@@ -48,6 +48,7 @@ export const buildLegalEntityClientPayload = (
   const isSacco = clientType === 'SACCO';
   const isCooperative = clientType === 'COOPERATIVE' || isSacco;
   const isNgo = clientType === 'NGO';
+  const isSocietyOrAssociation = clientType === 'SOCIETY_OR_ASSOCIATION';
   const proprietorName = trim(formData.proprietor_name);
   const proprietorIdentifier = trim(formData.proprietor_identifier);
   const firstPartnerName = trim(formData.partner_one_name);
@@ -72,6 +73,10 @@ export const buildLegalEntityClientPayload = (
   const nonprofitOfficialIdentifier = trim(
     formData.nonprofit_official_identifier,
   );
+  const associationOfficialName = trim(formData.association_official_name);
+  const associationOfficialIdentifier = trim(
+    formData.association_official_identifier,
+  );
   const personalRepresentativeType =
     formData.grant_type === 'PROBATE'
       ? 'EXECUTOR'
@@ -94,16 +99,28 @@ export const buildLegalEntityClientPayload = (
                 ? cooperativeOfficerName
                 : isNgo
                   ? nonprofitOfficialName
-                  : '');
+                  : isSocietyOrAssociation
+                    ? associationOfficialName
+                    : '');
   const contactEmail = isProspect
     ? lower(formData.contact_email) ||
-      (isSoleProprietorship || isTrust || isEstate || isCooperative || isNgo
+      (isSoleProprietorship ||
+      isTrust ||
+      isEstate ||
+      isCooperative ||
+      isNgo ||
+      isSocietyOrAssociation
         ? lower(formData.email)
         : '')
     : '';
   const contactPhone =
     trim(formData.contact_phone_number) ||
-    (isSoleProprietorship || isTrust || isEstate || isCooperative || isNgo
+    (isSoleProprietorship ||
+    isTrust ||
+    isEstate ||
+    isCooperative ||
+    isNgo ||
+    isSocietyOrAssociation
       ? trim(formData.phone_number)
       : '');
   const contactIdentifier =
@@ -122,7 +139,9 @@ export const buildLegalEntityClientPayload = (
                 ? cooperativeOfficerIdentifier
                 : isNgo
                   ? nonprofitOfficialIdentifier
-                  : '');
+                  : isSocietyOrAssociation
+                    ? associationOfficialIdentifier
+                    : '');
   const email = isProspect
     ? lower(formData.email) || contactEmail || lower(formData.contact_person_email)
     : '';
@@ -157,7 +176,10 @@ export const buildLegalEntityClientPayload = (
                         ? 'COOPERATIVE_OFFICER'
                         : isNgo && !trim(formData.contact_full_name)
                           ? 'PBO_OFFICIAL'
-                          : 'AUTHORIZED_AGENT',
+                          : isSocietyOrAssociation &&
+                              !trim(formData.contact_full_name)
+                            ? 'SOCIETY_OFFICIAL'
+                            : 'AUTHORIZED_AGENT',
           role_title:
             trim(formData.contact_role_or_designation) ||
             (isSoleProprietorship
@@ -180,7 +202,9 @@ export const buildLegalEntityClientPayload = (
                           : 'Cooperative Officer'
                         : isNgo
                           ? 'NGO Official'
-                          : ''),
+                          : isSocietyOrAssociation
+                            ? 'Association Official'
+                            : ''),
           national_id_or_passport: contactIdentifier,
           ...(isProspect && contactEmail ? { email: contactEmail } : {}),
           telephone: contactPhone,
@@ -283,7 +307,9 @@ export const buildLegalEntityClientPayload = (
                     : 'Cooperative Officer'
                   : isNgo
                     ? 'NGO Official'
-                    : ''),
+                    : isSocietyOrAssociation
+                      ? 'Association Official'
+                      : ''),
     contact_email: contactEmail,
     contact_phone_number: contactPhone,
     contact_national_id_number: contactIdentifier,

@@ -363,6 +363,32 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
                 )
         elif client_type == Client.ClientType.SOCIETY_OR_ASSOCIATION:
             self._require(attrs, "legal_name", "registration_status")
+            association_officials = [
+                representative
+                for representative in attrs.get("representatives") or []
+                if representative.get("representative_category")
+                == ClientRepresentative.RepresentativeCategory.SOCIETY_OFFICIAL
+            ]
+            if not association_officials:
+                raise serializers.ValidationError(
+                    {
+                        "representatives": (
+                            "Record an authorized society or association official."
+                        )
+                    }
+                )
+            if any(
+                not official.get("national_id_or_passport")
+                for official in association_officials
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "representatives": (
+                            "Record an ID or passport number for every "
+                            "authorized association official."
+                        )
+                    }
+                )
         elif client_type in {
             Client.ClientType.NON_PROFIT_ORGANIZATION,
             Client.ClientType.NGO,

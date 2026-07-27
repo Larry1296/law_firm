@@ -228,6 +228,43 @@ assert.equal(
 );
 assert.equal(ngoPayload.representatives[0].is_portal_contact, true);
 
+const associationPayload = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    legal_name: ' Milimani Residents Association ',
+    registration_status: 'REGISTERED',
+    association_official_name: ' Mercy Wanjiku ',
+    association_official_identifier: ' ASSOCIATION-OFFICIAL-ID-001 ',
+    contact_full_name: '',
+    contact_email: '',
+    contact_phone_number: '',
+    contact_national_id_number: '',
+    email: 'association.official@example.com',
+    phone_number: '+254700000027',
+  },
+  {
+    clientType: 'SOCIETY_OR_ASSOCIATION',
+    requestedClientType: 'ASSOCIATION',
+    accessType: 'PORTAL_ENABLED',
+  },
+);
+
+assert.equal(associationPayload.client_type, 'SOCIETY_OR_ASSOCIATION');
+assert.equal(
+  associationPayload.legal_name,
+  'Milimani Residents Association',
+);
+assert.equal(associationPayload.contact_full_name, 'Mercy Wanjiku');
+assert.equal(
+  associationPayload.contact_national_id_number,
+  'ASSOCIATION-OFFICIAL-ID-001',
+);
+assert.equal(
+  associationPayload.representatives[0].representative_category,
+  'SOCIETY_OFFICIAL',
+);
+assert.equal(associationPayload.representatives[0].is_portal_contact, true);
+
 const partnershipPayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,
