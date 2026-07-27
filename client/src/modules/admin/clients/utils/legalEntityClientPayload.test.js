@@ -265,6 +265,49 @@ assert.equal(
 );
 assert.equal(associationPayload.representatives[0].is_portal_contact, true);
 
+const associationWithAuthorizedContactPayload =
+  buildLegalEntityClientPayload(
+    {
+      ...baseEntity,
+      registered_name: 'Kenya Legal Association',
+      association_official_name: 'Mercy Wanjiku',
+      association_official_identifier: 'ASSOCIATION-OFFICIAL-ID-001',
+      contact_full_name: 'Mercy Wanjiku',
+      contact_role_or_designation: 'Association Secretary',
+      contact_email: 'secretary@association.example',
+      contact_phone_number: '+254700000027',
+      contact_national_id_number: 'ASSOCIATION-OFFICIAL-ID-001',
+    },
+    {
+      clientType: 'SOCIETY_OR_ASSOCIATION',
+      requestedClientType: 'SOCIETY_OR_ASSOCIATION',
+      accessType: 'PORTAL_ENABLED',
+    },
+  );
+
+assert.equal(
+  associationWithAuthorizedContactPayload.representatives[0]
+    .representative_category,
+  'SOCIETY_OFFICIAL',
+);
+assert.equal(
+  associationWithAuthorizedContactPayload.representatives[0].role_title,
+  'Association Secretary',
+);
+assert.equal(
+  associationWithAuthorizedContactPayload.representatives[0].email,
+  'secretary@association.example',
+);
+assert.equal(
+  associationWithAuthorizedContactPayload.representatives[0].telephone,
+  '+254700000027',
+);
+assert.equal(
+  associationWithAuthorizedContactPayload.representatives[0]
+    .is_portal_contact,
+  true,
+);
+
 const publicEntityPayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,

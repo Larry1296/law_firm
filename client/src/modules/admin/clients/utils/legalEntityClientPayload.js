@@ -212,6 +212,8 @@ export const buildLegalEntityClientPayload = (
           representative_category:
             isPublicEntity
               ? 'AUTHORIZED_PUBLIC_OFFICER'
+              : isSocietyOrAssociation
+                ? 'SOCIETY_OFFICIAL'
               : isSoleProprietorship && !trim(formData.contact_full_name)
               ? 'PROPRIETOR'
               : isPartnership && !trim(formData.contact_full_name)
@@ -227,10 +229,7 @@ export const buildLegalEntityClientPayload = (
                         ? 'COOPERATIVE_OFFICER'
                         : isNgo && !trim(formData.contact_full_name)
                           ? 'PBO_OFFICIAL'
-                          : isSocietyOrAssociation &&
-                              !trim(formData.contact_full_name)
-                            ? 'SOCIETY_OFFICIAL'
-                            : 'AUTHORIZED_AGENT',
+                        : 'AUTHORIZED_AGENT',
           role_title:
             trim(formData.contact_role_or_designation) ||
             (isSoleProprietorship
