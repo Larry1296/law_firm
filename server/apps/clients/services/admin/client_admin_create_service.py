@@ -497,7 +497,11 @@ class ClientAdminCreateService:
         trustees_data = data.pop("trustees", [])
         personal_representatives_data = data.pop("personal_representatives", [])
 
-        full_name = data.get("full_name") or ClientAdminCreateService._display_name(client_type, data)
+        full_name = (
+            base_data.get("full_name")
+            or data.get("full_name")
+            or ClientAdminCreateService._display_name(client_type, data)
+        )
 
         client = Client.objects.create(
             firm=firm,

@@ -37,28 +37,49 @@ export const buildLegalEntityClientPayload = (
   } = {},
 ) => {
   const isProspect = accessType === 'PORTAL_ENABLED';
+  const isSoleProprietorship = clientType === 'SOLE_PROPRIETORSHIP';
+  const proprietorName = trim(formData.proprietor_name);
+  const proprietorIdentifier = trim(formData.proprietor_identifier);
+  const contactName =
+    trim(formData.contact_full_name) ||
+    (isSoleProprietorship ? proprietorName : '');
+  const contactEmail =
+    lower(formData.contact_email) ||
+    (isSoleProprietorship ? lower(formData.email) : '');
+  const contactPhone =
+    trim(formData.contact_phone_number) ||
+    (isSoleProprietorship ? trim(formData.phone_number) : '');
+  const contactIdentifier =
+    trim(formData.contact_national_id_number) ||
+    (isSoleProprietorship ? proprietorIdentifier : '');
   const email = isProspect
-    ? lower(formData.email) || lower(formData.contact_email) || lower(formData.contact_person_email)
+    ? lower(formData.email) || contactEmail || lower(formData.contact_person_email)
     : lower(formData.email);
-  const phoneNumber = isProspect
-    ? trim(formData.phone_number) ||
-      trim(formData.contact_phone_number) ||
-      trim(formData.contact_person_phone) ||
+  const phoneNumber =
+    trim(formData.phone_number) ||
+    contactPhone ||
+    (isProspect
+      ? trim(formData.contact_person_phone) ||
       trim(formData.primary_trustee_contact) ||
       trim(formData.executor_contact) ||
       trim(formData.administrator_contact) ||
       trim(formData.director_contact)
-    : trim(formData.phone_number);
+      : '');
 
-  const representatives = trim(formData.contact_full_name)
+  const representatives = contactName
     ? [
         {
-          full_legal_name: trim(formData.contact_full_name),
-          representative_category: 'AUTHORIZED_AGENT',
-          role_title: trim(formData.contact_role_or_designation),
-          national_id_or_passport: trim(formData.contact_national_id_number),
-          email: lower(formData.contact_email),
-          telephone: trim(formData.contact_phone_number),
+          full_legal_name: contactName,
+          representative_category:
+            isSoleProprietorship && !trim(formData.contact_full_name)
+              ? 'PROPRIETOR'
+              : 'AUTHORIZED_AGENT',
+          role_title:
+            trim(formData.contact_role_or_designation) ||
+            (isSoleProprietorship ? 'Proprietor' : ''),
+          national_id_or_passport: contactIdentifier,
+          email: contactEmail,
+          telephone: contactPhone,
           is_primary: true,
           is_portal_contact: isProspect,
           is_litigation_representative: true,
@@ -126,6 +147,13 @@ export const buildLegalEntityClientPayload = (
     street: trim(formData.street),
     postal_code: trim(formData.postal_code),
     full_address: trim(formData.full_address),
+    contact_full_name: contactName,
+    contact_role_or_designation:
+      trim(formData.contact_role_or_designation) ||
+      (isSoleProprietorship ? 'Proprietor' : ''),
+    contact_email: contactEmail,
+    contact_phone_number: contactPhone,
+    contact_national_id_number: contactIdentifier,
 
     client_type: clientType,
     legal_name: trim(formData.legal_name) || trim(formData.company_name),
@@ -145,8 +173,8 @@ export const buildLegalEntityClientPayload = (
 
     registered_business_name: trim(formData.registered_business_name) || trim(formData.company_name),
     business_registration_number: upper(formData.business_registration_number || formData.registration_number),
-    proprietor_name: trim(formData.proprietor_name) || trim(formData.contact_full_name),
-    proprietor_identifier: trim(formData.proprietor_identifier) || trim(formData.contact_national_id_number),
+    proprietor_name: proprietorName || contactName,
+    proprietor_identifier: proprietorIdentifier || contactIdentifier,
     proprietor_kra_pin: upper(formData.proprietor_kra_pin),
     business_kra_pin: upper(formData.business_kra_pin || formData.kra_pin),
     trading_name: trim(formData.trading_name),

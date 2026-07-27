@@ -281,6 +281,77 @@ class AdminLegalEntityClientCreationTests(TestCase):
         self.assertEqual(response.data["portal_user"]["email"], client.user.email)
         self.assertTrue(response.data["temp_password"])
 
+    def test_assisted_sole_proprietorship_uses_proprietor_contact_without_login(self):
+        payload = self.payload_for(
+            Client.ClientType.SOLE_PROPRIETORSHIP,
+            email="",
+            phone_number="",
+            contact_phone_number="+254700910031",
+            access_type=Client.AccessType.ASSISTED,
+        )
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.get(id=response.data["client"]["id"])
+        self.assertEqual(client.access_type, Client.AccessType.ASSISTED)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
+        self.assertEqual(client.full_name, "Wanjiku Hardware Stores")
+        self.assertEqual(client.phone_number, "+254700910031")
+        self.assertIsNone(client.user_id)
+        self.assertIsNone(response.data["portal_user"])
+        self.assertIsNone(response.data["temp_password"])
+
+    def test_portal_sole_proprietorship_creates_login_for_proprietor(self):
+        payload = self.payload_for(
+            Client.ClientType.SOLE_PROPRIETORSHIP,
+            access_type=Client.AccessType.PORTAL_ENABLED,
+            email="wanjiku-hardware@example.test",
+            phone_number="+254700910032",
+        )
+        payload["contact_full_name"] = payload["proprietor_name"]
+        payload["contact_national_id_number"] = payload["proprietor_identifier"]
+        payload["representatives"][0].update(
+            {
+                "full_legal_name": payload["proprietor_name"],
+                "representative_category": "PROPRIETOR",
+                "national_id_or_passport": payload["proprietor_identifier"],
+                "email": payload["email"],
+                "telephone": payload["phone_number"],
+                "is_portal_contact": True,
+            }
+        )
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.select_related("user").get(
+            id=response.data["client"]["id"]
+        )
+        self.assertEqual(client.access_type, Client.AccessType.PORTAL_ENABLED)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
+        self.assertEqual(client.phone_number, "+254700910032")
+        self.assertIsNotNone(client.user_id)
+        self.assertEqual(client.user.email, "wanjiku-hardware@example.test")
+        self.assertEqual(client.user.first_name, "Mercy")
+        self.assertEqual(
+            response.data["representatives"][0]["representative_category"],
+            "PROPRIETOR",
+        )
+        self.assertTrue(response.data["temp_password"])
+
+    def test_sole_proprietorship_requires_proprietor_identification(self):
+        payload = self.payload_for(Client.ClientType.SOLE_PROPRIETORSHIP)
+        payload["proprietor_identifier"] = ""
+        response = self.api_client.post(
+            self.url,
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("proprietor_identifier", response.data["errors"])
+
     def test_detail_endpoint_exposes_profile_and_representatives(self):
         create_response = self.api_client.post(
             self.url,

@@ -256,7 +256,12 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             raise serializers.ValidationError({"date_of_death": "Date of death cannot be in the future."})
 
         if client_type == Client.ClientType.SOLE_PROPRIETORSHIP:
-            self._require(attrs, "registered_business_name", "proprietor_name")
+            self._require(
+                attrs,
+                "registered_business_name",
+                "proprietor_name",
+                "proprietor_identifier",
+            )
         elif client_type == Client.ClientType.PARTNERSHIP:
             self._require(attrs, "partnership_name", "subtype")
             partners = attrs.get("partners") or []

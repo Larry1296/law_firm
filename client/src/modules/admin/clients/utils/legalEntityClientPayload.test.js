@@ -64,6 +64,64 @@ assert.equal(assistedEntity.access_type, 'ASSISTED');
 assert.equal(Object.prototype.hasOwnProperty.call(assistedEntity, 'email'), false);
 assert.equal(assistedEntity.representatives[0].email, 'secretary@example.com');
 
+const portalSoleProprietorship = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    email: 'proprietor@example.com',
+    phone_number: '+254700000010',
+    contact_full_name: '',
+    contact_email: '',
+    contact_phone_number: '',
+    contact_national_id_number: '',
+    registered_business_name: 'Wanjiku Hardware',
+    proprietor_name: 'Mercy Wanjiku Njeri',
+    proprietor_identifier: '24567891',
+    proprietor_kra_pin: 'a001234567b',
+  },
+  {
+    clientType: 'SOLE_PROPRIETORSHIP',
+    accessType: 'PORTAL_ENABLED',
+  },
+);
+
+assert.equal(portalSoleProprietorship.access_type, 'PORTAL_ENABLED');
+assert.equal(portalSoleProprietorship.phone_number, '+254700000010');
+assert.equal(portalSoleProprietorship.contact_full_name, 'Mercy Wanjiku Njeri');
+assert.equal(portalSoleProprietorship.contact_national_id_number, '24567891');
+assert.equal(portalSoleProprietorship.representatives.length, 1);
+assert.equal(
+  portalSoleProprietorship.representatives[0].representative_category,
+  'PROPRIETOR',
+);
+assert.equal(portalSoleProprietorship.representatives[0].is_portal_contact, true);
+assert.equal(
+  portalSoleProprietorship.representatives[0].email,
+  'proprietor@example.com',
+);
+
+const assistedSoleProprietorship = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    email: '',
+    phone_number: '',
+    contact_phone_number: '+254700000011',
+    registered_business_name: 'Wanjiku Hardware',
+    proprietor_name: 'Mercy Wanjiku Njeri',
+    proprietor_identifier: '24567891',
+  },
+  {
+    clientType: 'SOLE_PROPRIETORSHIP',
+    accessType: 'ASSISTED',
+  },
+);
+
+assert.equal(assistedSoleProprietorship.access_type, 'ASSISTED');
+assert.equal(assistedSoleProprietorship.phone_number, '+254700000011');
+assert.equal(
+  Object.prototype.hasOwnProperty.call(assistedSoleProprietorship, 'email'),
+  false,
+);
+
 const saccoPayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,

@@ -1399,7 +1399,7 @@ export default function AdminCreateClientPage() {
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                   <FloatingInput label='Registered Business Name' name='registered_business_name' value={formData.registered_business_name} onChange={handleChange} required />
                   <FloatingInput label='Proprietor Full Legal Name' name='proprietor_name' value={formData.proprietor_name} onChange={handleChange} required />
-                  <FloatingInput label='Proprietor ID / Passport' name='proprietor_identifier' value={formData.proprietor_identifier} onChange={handleChange} />
+                  <FloatingInput label='Proprietor ID / Passport' name='proprietor_identifier' value={formData.proprietor_identifier} onChange={handleChange} required />
                   <FloatingInput label='Business KRA PIN' name='business_kra_pin' value={formData.business_kra_pin} onChange={handleChange} />
                 </div>
               )}
