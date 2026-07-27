@@ -125,9 +125,16 @@ class AdminLegalEntityClientCreationTests(TestCase):
                     "partners": [
                         {
                             "legal_name": "Peter Ben",
+                            "identifier": "LLP-PARTNER-ID-001",
                             "is_designated_partner": True,
                             "partner_type": "INDIVIDUAL",
-                        }
+                        },
+                        {
+                            "legal_name": "Mercy Wanjiku",
+                            "identifier": "LLP-PARTNER-ID-002",
+                            "is_designated_partner": False,
+                            "partner_type": "INDIVIDUAL",
+                        },
                     ],
                 }
             )
@@ -256,7 +263,7 @@ class AdminLegalEntityClientCreationTests(TestCase):
         )
 
         self.assertEqual(PartnershipPartner.objects.count(), 2)
-        self.assertEqual(LLPPartner.objects.count(), 1)
+        self.assertEqual(LLPPartner.objects.count(), 2)
         self.assertEqual(TrustTrustee.objects.count(), 1)
         self.assertEqual(EstatePersonalRepresentative.objects.count(), 1)
 
@@ -315,6 +322,56 @@ class AdminLegalEntityClientCreationTests(TestCase):
             "PARTNER",
         )
         self.assertTrue(response.data["temp_password"])
+
+    def test_portal_llp_creates_login_for_designated_partner(self):
+        payload = self.payload_for(
+            Client.ClientType.LIMITED_LIABILITY_PARTNERSHIP,
+            access_type=Client.AccessType.PORTAL_ENABLED,
+            email="portal-llp@example.test",
+            phone_number="+254700910041",
+            contact_full_name="Peter Ben",
+            contact_national_id_number="LLP-PARTNER-ID-001",
+        )
+        payload["representatives"][0].update(
+            {
+                "full_legal_name": "Peter Ben",
+                "representative_category": "DESIGNATED_PARTNER",
+                "national_id_or_passport": "LLP-PARTNER-ID-001",
+                "email": payload["email"],
+                "telephone": payload["phone_number"],
+                "is_portal_contact": True,
+            }
+        )
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.select_related("user").get(
+            id=response.data["client"]["id"]
+        )
+        self.assertEqual(client.full_name, "Nairobi Works LLP")
+        self.assertEqual(client.access_type, Client.AccessType.PORTAL_ENABLED)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
+        self.assertEqual(client.phone_number, "+254700910041")
+        self.assertEqual(client.user.email, "portal-llp@example.test")
+        self.assertEqual(client.user.first_name, "Peter")
+        self.assertEqual(client.llp_profile.partners.count(), 2)
+        self.assertEqual(
+            response.data["representatives"][0]["representative_category"],
+            "DESIGNATED_PARTNER",
+        )
+        self.assertTrue(response.data["temp_password"])
+
+    def test_llp_requires_two_identified_active_partners(self):
+        payload = self.payload_for(
+            Client.ClientType.LIMITED_LIABILITY_PARTNERSHIP,
+        )
+        payload["partners"] = payload["partners"][:1]
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("partners", response.data["errors"])
 
     def test_portal_legal_entity_returns_stable_credentials_shape(self):
         response = self.api_client.post(

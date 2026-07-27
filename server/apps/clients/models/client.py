@@ -193,6 +193,10 @@ class Client(models.Model):
         null=True,
         blank=True,
     )
+    previous_user_is_active = models.BooleanField(
+        null=True,
+        blank=True,
+    )
 
     soft_deleted_at = models.DateTimeField(
         null=True,

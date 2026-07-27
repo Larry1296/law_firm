@@ -29,5 +29,4 @@ class SecretaryClientService:
 
         return Client.objects.filter(
             firm=secretary.law_firm,
-            is_active=True,
         ).order_by("-created_at")

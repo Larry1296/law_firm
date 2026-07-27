@@ -136,11 +136,24 @@ export default function AdminClientsPage() {
       .toLowerCase()
       .replace(/\b\w/g, (c) => c.toUpperCase());
 
-  const renderStatus = (value) =>
-    value
+  const renderStatus = (value) => {
+    const label = value
       ?.replace(/_/g, ' ')
       .toLowerCase()
       .replace(/\b\w/g, (c) => c.toUpperCase());
+
+    return (
+      <span
+        className={
+          value === 'ARCHIVED'
+            ? 'rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-800 dark:bg-red-950/40 dark:text-red-200'
+            : ''
+        }
+      >
+        {label}
+      </span>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -384,7 +397,7 @@ export default function AdminClientsPage() {
           {
             key: 'is_active',
             label: 'Status',
-            render: (value) => (
+            render: (value, client) => (
               <span
                 className={
                   value
@@ -392,7 +405,11 @@ export default function AdminClientsPage() {
                     : 'text-error font-semibold'
                 }
               >
-                {value ? 'Active' : 'Inactive'}
+                {value
+                  ? 'Active'
+                  : client.lifecycle_status === 'ARCHIVED'
+                    ? 'Archived'
+                    : 'Inactive'}
               </span>
             ),
           },

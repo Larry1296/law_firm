@@ -324,6 +324,7 @@ export default function AdminCreateClientPage() {
     partner_two_name: '',
     partner_two_identifier: '',
     designated_partner_name: '',
+    designated_partner_identifier: '',
     trustee_name: '',
     personal_representative_name: '',
     cooperative_subtype: 'PRIMARY_COOPERATIVE',
@@ -1015,6 +1016,7 @@ export default function AdminCreateClientPage() {
       partner_two_name: '',
       partner_two_identifier: '',
       designated_partner_name: '',
+      designated_partner_identifier: '',
       trustee_name: '',
       personal_representative_name: '',
       cooperative_subtype: 'PRIMARY_COOPERATIVE',
@@ -1451,6 +1453,9 @@ export default function AdminCreateClientPage() {
                   <FloatingInput label='Registered LLP Name' name='registered_name' value={formData.registered_name} onChange={handleChange} required />
                   <FloatingInput label='LLP Registration Number' name='llp_registration_number' value={formData.llp_registration_number} onChange={handleChange} required />
                   <FloatingInput label='Designated Partner Legal Name' name='designated_partner_name' value={formData.designated_partner_name} onChange={handleChange} required />
+                  <FloatingInput label='Designated Partner ID / Passport' name='designated_partner_identifier' value={formData.designated_partner_identifier} onChange={handleChange} required />
+                  <FloatingInput label='Second Partner Legal Name' name='partner_two_name' value={formData.partner_two_name} onChange={handleChange} required />
+                  <FloatingInput label='Second Partner ID / Passport' name='partner_two_identifier' value={formData.partner_two_identifier} onChange={handleChange} required />
                   <FloatingInput label='Registered Office' name='registered_office' value={formData.registered_office} onChange={handleChange} />
                   <FloatingInput label='Principal Business Address' name='principal_business_address' value={formData.principal_business_address} onChange={handleChange} />
                 </div>

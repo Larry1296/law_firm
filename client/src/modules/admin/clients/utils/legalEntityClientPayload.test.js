@@ -207,6 +207,49 @@ assert.equal(
   'partner.portal@example.com',
 );
 
+const portalLlp = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    email: 'designated.partner@example.com',
+    phone_number: '+254700000021',
+    contact_full_name: '',
+    contact_email: '',
+    contact_phone_number: '',
+    contact_national_id_number: '',
+    registered_name: 'Nairobi Works LLP',
+    llp_registration_number: 'LLP-2026-001',
+    designated_partner_name: 'Peter Ben',
+    designated_partner_identifier: 'LLP-ID-001',
+    partner_two_name: 'Mercy Wanjiku',
+    partner_two_identifier: 'LLP-ID-002',
+  },
+  {
+    clientType: 'LIMITED_LIABILITY_PARTNERSHIP',
+    accessType: 'PORTAL_ENABLED',
+  },
+);
+
+const designatedPartner = portalLlp.partners.find(
+  (partner) => partner.is_designated_partner,
+);
+
+assert.equal(portalLlp.access_type, 'PORTAL_ENABLED');
+assert.equal(portalLlp.registered_name, 'Nairobi Works LLP');
+assert.equal(portalLlp.partners.length, 2);
+assert.equal(designatedPartner.legal_name, 'Peter Ben');
+assert.equal(designatedPartner.identifier, 'LLP-ID-001');
+assert.equal(portalLlp.contact_full_name, 'Peter Ben');
+assert.equal(portalLlp.contact_national_id_number, 'LLP-ID-001');
+assert.equal(
+  portalLlp.representatives[0].representative_category,
+  'DESIGNATED_PARTNER',
+);
+assert.equal(portalLlp.representatives[0].is_portal_contact, true);
+assert.equal(
+  portalLlp.representatives[0].email,
+  'designated.partner@example.com',
+);
+
 const estatePayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,

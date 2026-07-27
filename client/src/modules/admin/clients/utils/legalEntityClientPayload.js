@@ -39,16 +39,24 @@ export const buildLegalEntityClientPayload = (
   const isProspect = accessType === 'PORTAL_ENABLED';
   const isSoleProprietorship = clientType === 'SOLE_PROPRIETORSHIP';
   const isPartnership = clientType === 'PARTNERSHIP';
+  const isLimitedLiabilityPartnership =
+    clientType === 'LIMITED_LIABILITY_PARTNERSHIP';
   const proprietorName = trim(formData.proprietor_name);
   const proprietorIdentifier = trim(formData.proprietor_identifier);
   const firstPartnerName = trim(formData.partner_one_name);
   const firstPartnerIdentifier = trim(formData.partner_one_identifier);
+  const designatedPartnerName = trim(formData.designated_partner_name);
+  const designatedPartnerIdentifier = trim(
+    formData.designated_partner_identifier,
+  );
   const contactName =
     trim(formData.contact_full_name) ||
     (isSoleProprietorship
       ? proprietorName
       : isPartnership
         ? firstPartnerName
+        : isLimitedLiabilityPartnership
+          ? designatedPartnerName
         : '');
   const contactEmail = isProspect
     ? lower(formData.contact_email) ||
@@ -63,6 +71,8 @@ export const buildLegalEntityClientPayload = (
       ? proprietorIdentifier
       : isPartnership
         ? firstPartnerIdentifier
+        : isLimitedLiabilityPartnership
+          ? designatedPartnerIdentifier
         : '');
   const email = isProspect
     ? lower(formData.email) || contactEmail || lower(formData.contact_person_email)
@@ -87,6 +97,9 @@ export const buildLegalEntityClientPayload = (
               ? 'PROPRIETOR'
               : isPartnership && !trim(formData.contact_full_name)
                 ? 'PARTNER'
+                : isLimitedLiabilityPartnership &&
+                    !trim(formData.contact_full_name)
+                  ? 'DESIGNATED_PARTNER'
               : 'AUTHORIZED_AGENT',
           role_title:
             trim(formData.contact_role_or_designation) ||
@@ -94,6 +107,8 @@ export const buildLegalEntityClientPayload = (
               ? 'Proprietor'
               : isPartnership
                 ? 'Partner'
+                : isLimitedLiabilityPartnership
+                  ? 'Designated Partner'
                 : ''),
           national_id_or_passport: contactIdentifier,
           ...(isProspect && contactEmail ? { email: contactEmail } : {}),
@@ -129,6 +144,7 @@ export const buildLegalEntityClientPayload = (
       partner_type: 'INDIVIDUAL',
       partner_kind: 'INDIVIDUAL',
       legal_name: trim(formData.designated_partner_name),
+      identifier: trim(formData.designated_partner_identifier),
       designation: 'GENERAL_PARTNER',
       is_designated_partner: true,
       authority_to_instruct: true,
@@ -174,6 +190,8 @@ export const buildLegalEntityClientPayload = (
         ? 'Proprietor'
         : isPartnership
           ? 'Partner'
+          : isLimitedLiabilityPartnership
+            ? 'Designated Partner'
           : ''),
     contact_email: contactEmail,
     contact_phone_number: contactPhone,

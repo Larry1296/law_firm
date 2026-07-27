@@ -379,6 +379,23 @@ class Case(TimestampedModel):
     )
 
     is_active = models.BooleanField(default=True)
+    archived_with_client = models.BooleanField(default=False)
+    previous_status_before_client_archive = models.CharField(
+        max_length=40,
+        choices=Status.choices,
+        null=True,
+        blank=True,
+    )
+    previous_matter_status_before_client_archive = models.CharField(
+        max_length=50,
+        choices=MatterStatus.choices,
+        null=True,
+        blank=True,
+    )
+    previous_is_active_before_client_archive = models.BooleanField(
+        null=True,
+        blank=True,
+    )
     closed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

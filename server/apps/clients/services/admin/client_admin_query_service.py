@@ -34,7 +34,13 @@ class ClientAdminQueryService:
             )
             .order_by("-created_at")
         )
-        if tab != "archived":
+        if tab in {
+            "active",
+            "prospective",
+            "official",
+            "pending_proposed_matters",
+            "awaiting_acceptance",
+        }:
             queryset = queryset.filter(is_active=True).exclude(lifecycle_status__in=[
                 Client.LifecycleStatus.ARCHIVED,
             ])

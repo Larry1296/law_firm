@@ -292,9 +292,31 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
         elif client_type == Client.ClientType.LIMITED_LIABILITY_PARTNERSHIP:
             self._require(attrs, "registered_name", "llp_registration_number")
             partners = attrs.get("partners") or []
-            if not any(p.get("is_designated_partner") for p in partners):
+            active_partners = [p for p in partners if p.get("is_active", True)]
+            if len(active_partners) < 2:
+                raise serializers.ValidationError(
+                    {"partners": "Record at least two active LLP partners."}
+                )
+            if not any(p.get("is_designated_partner") for p in active_partners):
                 raise serializers.ValidationError(
                     {"partners": "Record at least one designated partner for an LLP."}
+                )
+            if any(
+                (
+                    partner.get("partner_type")
+                    or partner.get("partner_kind")
+                    or "INDIVIDUAL"
+                ) == "INDIVIDUAL"
+                and not partner.get("identifier")
+                for partner in active_partners
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "partners": (
+                            "Record an ID or passport number for every active "
+                            "individual LLP partner."
+                        )
+                    }
                 )
         elif client_type == Client.ClientType.COOPERATIVE:
             self._require(attrs, "registered_name", "registration_number", "cooperative_subtype")

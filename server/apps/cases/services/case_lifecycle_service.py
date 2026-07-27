@@ -899,6 +899,16 @@ class CaseLifecycleService:
         is_correction=False,
     ):
 
+        if case.archived_with_client:
+            raise ValidationError(
+                {
+                    "case": (
+                        "This matter was archived with its client. Restore the "
+                        "client to restore the matter."
+                    )
+                }
+            )
+
         if dimension not in cls.FIELD_BY_DIMENSION:
 
             raise ValidationError(

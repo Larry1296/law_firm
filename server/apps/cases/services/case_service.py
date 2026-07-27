@@ -903,6 +903,11 @@ class CaseService:
     @staticmethod
     @transaction.atomic
     def change_status(*, case, status, actor, note="", next_event=None):
+        if case.archived_with_client:
+            raise PermissionError(
+                "This case was archived with its client. Restore the client "
+                "to restore the case."
+            )
         is_owner_admin = actor.role == UserRole.ADMIN and case.firm.owner_id == actor.id
         is_assigned_lawyer = (
             getattr(actor, "lawyer_profile", None) is not None
