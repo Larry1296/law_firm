@@ -320,7 +320,9 @@ export default function AdminCreateClientPage() {
     principal_place_of_business: '',
     partnership_agreement_reference: '',
     partner_one_name: '',
+    partner_one_identifier: '',
     partner_two_name: '',
+    partner_two_identifier: '',
     designated_partner_name: '',
     trustee_name: '',
     personal_representative_name: '',
@@ -524,7 +526,7 @@ export default function AdminCreateClientPage() {
         ? formData.email ||
           formData.contact_email ||
           formData.contact_person_email
-        : formData.email,
+        : '',
       phone_number: isProspect
         ? formData.phone_number ||
           formData.contact_phone_number ||
@@ -630,7 +632,9 @@ export default function AdminCreateClientPage() {
           role_title: formData.contact_role_or_designation,
           national_id_or_passport: formData.contact_national_id_number,
           telephone: formData.contact_phone_number || formData.phone_number,
-          email: formData.contact_email || formData.email,
+          ...(portalEnabled
+            ? { email: formData.contact_email || formData.email }
+            : {}),
           authority_type: formData.representative_authority_type,
           authority_document_reference: formData.representative_authority_reference,
           authority_verified: formData.representative_authority_verified,
@@ -638,7 +642,7 @@ export default function AdminCreateClientPage() {
           is_portal_contact: portalEnabled,
         }],
         contact_full_name: formData.contact_full_name,
-        contact_email: formData.contact_email,
+        contact_email: portalEnabled ? formData.contact_email : '',
         contact_phone_number: formData.contact_phone_number,
         contact_national_id_number: formData.contact_national_id_number,
         contact_role_or_designation: formData.contact_role_or_designation,
@@ -1007,7 +1011,9 @@ export default function AdminCreateClientPage() {
       principal_place_of_business: '',
       partnership_agreement_reference: '',
       partner_one_name: '',
+      partner_one_identifier: '',
       partner_two_name: '',
+      partner_two_identifier: '',
       designated_partner_name: '',
       trustee_name: '',
       personal_representative_name: '',
@@ -1179,9 +1185,13 @@ export default function AdminCreateClientPage() {
         { label: 'National ID', value: createdClient?.national_id || 'Not recorded' },
         { label: 'Passport', value: createdClient?.passport_number || 'Not recorded' },
         { label: 'Phone', value: createdClient?.phone_number || 'Not recorded' },
-        { label: 'Email', value: createdClient?.email || 'Not recorded' },
+        ...(createdPortalAccess
+          ? [{ label: 'Email', value: createdClient?.email }]
+          : []),
         { label: 'Portal access', value: createdPortalAccess ? 'Created' : 'Not created' },
-        { label: 'Portal login email', value: createdPortalLoginEmail || 'N/A' },
+        ...(createdPortalAccess
+          ? [{ label: 'Portal login email', value: createdPortalLoginEmail }]
+          : []),
       ]
     : [
         { label: 'Client name', value: createdClientName },
@@ -1193,9 +1203,13 @@ export default function AdminCreateClientPage() {
           ? [{ label: 'Reference', value: createdPrimaryReference }]
           : []),
         { label: 'Phone', value: createdClient?.phone_number || 'Not recorded' },
-        { label: 'Email', value: createdClient?.email || 'Not recorded' },
+        ...(createdPortalAccess
+          ? [{ label: 'Email', value: createdClient?.email }]
+          : []),
         { label: 'Portal access', value: createdPortalAccess ? 'Created' : 'Not created' },
-        { label: 'Portal login email', value: createdPortalLoginEmail || 'N/A' },
+        ...(createdPortalAccess
+          ? [{ label: 'Portal login email', value: createdPortalLoginEmail }]
+          : []),
       ];
 
   return (
@@ -1312,7 +1326,16 @@ export default function AdminCreateClientPage() {
                 name='entity_access_type'
                 value={selectedEntityAccessType}
                 onChange={(event) => {
-                  setSelectedEntityAccessType(event.target.value);
+                  const accessType = event.target.value;
+                  setSelectedEntityAccessType(accessType);
+                  if (accessType === 'ASSISTED') {
+                    setFormData((current) => ({
+                      ...current,
+                      email: '',
+                      contact_email: '',
+                      contact_person_email: '',
+                    }));
+                  }
                   setGeneralError('');
                 }}
                 options={[
@@ -1326,17 +1349,19 @@ export default function AdminCreateClientPage() {
                 </div>
               ) : (
                 <div className='rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800 dark:border-[color:var(--border)] dark:bg-[color:var(--surface-raised)] dark:text-[color:var(--text-primary)]'>
-                  No portal account or login credentials will be created. Email is optional contact information only.
+                  No portal account or email credentials will be created. The firm manages contact by phone or in person.
                 </div>
               )}
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                <FloatingInput
-                  label={isProspect ? 'Portal Login Email' : 'Contact Email'}
-                  name='email'
-                  value={formData.email}
-                  onChange={handleChange}
-                  required={isProspect}
-                />
+                {isProspect && (
+                  <FloatingInput
+                    label='Portal Login Email'
+                    name='email'
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                  />
+                )}
 
                 <FloatingInput
                   label={isProspect ? 'Portal Contact Phone Number' : 'Contact Phone Number'}
@@ -1413,7 +1438,9 @@ export default function AdminCreateClientPage() {
                     { value: 'FOREIGN_PARTNERSHIP', label: 'Foreign Partnership' },
                   ]} />
                   <FloatingInput label='Partner 1 Legal Name' name='partner_one_name' value={formData.partner_one_name} onChange={handleChange} required />
+                  <FloatingInput label='Partner 1 ID / Passport' name='partner_one_identifier' value={formData.partner_one_identifier} onChange={handleChange} required />
                   <FloatingInput label='Partner 2 Legal Name' name='partner_two_name' value={formData.partner_two_name} onChange={handleChange} required />
+                  <FloatingInput label='Partner 2 ID / Passport' name='partner_two_identifier' value={formData.partner_two_identifier} onChange={handleChange} required />
                   <FloatingInput label='Partnership Agreement Reference' name='partnership_agreement_reference' value={formData.partnership_agreement_reference} onChange={handleChange} />
                   <FloatingInput label='Principal Place of Business' name='principal_place_of_business' value={formData.principal_place_of_business} onChange={handleChange} />
                 </div>
@@ -1536,12 +1563,14 @@ export default function AdminCreateClientPage() {
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 <FloatingInput label='Authorized Contact Full Name' name='contact_full_name' value={formData.contact_full_name} onChange={handleChange} required={isProspect} />
                 <FloatingInput label='Authorized Contact Role / Title' name='contact_role_or_designation' value={formData.contact_role_or_designation} onChange={handleChange} />
-                <FloatingInput
-                  label={isProspect ? 'Authorized Contact Email (optional if login email is above)' : 'Authorized Contact Email'}
-                  name='contact_email'
-                  value={formData.contact_email}
-                  onChange={handleChange}
-                />
+                {isProspect && (
+                  <FloatingInput
+                    label='Authorized Contact Email (optional if login email is above)'
+                    name='contact_email'
+                    value={formData.contact_email}
+                    onChange={handleChange}
+                  />
+                )}
                 <FloatingInput label='Authorized Contact Phone' name='contact_phone_number' value={formData.contact_phone_number} onChange={handleChange} />
               </div>
             </section>
@@ -2599,14 +2628,16 @@ export default function AdminCreateClientPage() {
                   Company contact details
                 </h3>
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                  <FloatingInput
-                    label='Company Email'
-                    name='email'
-                    value={formData.email}
-                    onChange={handleChange}
-                    error={fieldErrors.email}
-                    required={isProspect}
-                  />
+                  {isProspect && (
+                    <FloatingInput
+                      label='Company Email'
+                      name='email'
+                      value={formData.email}
+                      onChange={handleChange}
+                      error={fieldErrors.email}
+                      required
+                    />
+                  )}
                   <FloatingInput
                     label='Company Phone Number'
                     name='phone_number'
@@ -2675,7 +2706,7 @@ export default function AdminCreateClientPage() {
 
               <section className='space-y-4'>
                 <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-                  Authorised portal contact
+                  {isProspect ? 'Authorised portal contact' : 'Authorised representative'}
                 </h3>
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                   <FloatingInput
@@ -2693,13 +2724,15 @@ export default function AdminCreateClientPage() {
                     onChange={handleChange}
                     error={fieldErrors.contact_role_or_designation}
                   />
-                  <FloatingInput
-                    label='Email'
-                    name='contact_email'
-                    value={formData.contact_email}
-                    onChange={handleChange}
-                    error={fieldErrors.contact_email}
-                  />
+                  {isProspect && (
+                    <FloatingInput
+                      label='Email'
+                      name='contact_email'
+                      value={formData.contact_email}
+                      onChange={handleChange}
+                      error={fieldErrors.contact_email}
+                    />
+                  )}
                   <FloatingInput
                     label='Phone Number'
                     name='contact_phone_number'
@@ -2727,7 +2760,16 @@ export default function AdminCreateClientPage() {
                   name='access_type'
                   value={selectedEntityAccessType}
                   onChange={(event) => {
-                    setSelectedEntityAccessType(event.target.value);
+                    const accessType = event.target.value;
+                    setSelectedEntityAccessType(accessType);
+                    if (accessType === 'ASSISTED') {
+                      setFormData((current) => ({
+                        ...current,
+                        email: '',
+                        contact_email: '',
+                        contact_person_email: '',
+                      }));
+                    }
                     setGeneralError('');
                   }}
                   options={[

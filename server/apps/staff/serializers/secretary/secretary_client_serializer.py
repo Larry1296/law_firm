@@ -50,6 +50,8 @@ class SecretaryClientSerializer(serializers.ModelSerializer):
             "portal_access_exists",
             "portal_login_email",
             "representatives",
+            "is_verified",
+            "is_active",
             "created_at",
             "last_updated",
         ]

@@ -76,7 +76,7 @@ export default function SecretaryClients() {
       <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
         <SectionHeading
           title='Firm Clients'
-          subtitle='Official clients represented by the firm'
+          subtitle='Portal-enabled and staff-assisted clients managed by the firm'
         />
 
         <div className='flex flex-wrap gap-3'>
@@ -264,6 +264,20 @@ export default function SecretaryClients() {
             key: 'client_type',
             label: 'Type',
             render: renderClientType,
+          },
+          {
+            key: 'access_type',
+            label: 'Access',
+            render: renderClientType,
+          },
+          {
+            key: 'portal_access_exists',
+            label: 'Portal',
+            render: (value) => (
+              <span className={value ? 'text-success' : 'text-text-muted-dark'}>
+                {value ? 'Enabled' : 'Not enabled'}
+              </span>
+            ),
           },
           {
             key: 'lifecycle_status',

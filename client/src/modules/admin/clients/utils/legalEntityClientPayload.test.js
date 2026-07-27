@@ -62,7 +62,14 @@ const assistedEntity = buildLegalEntityClientPayload(
 
 assert.equal(assistedEntity.access_type, 'ASSISTED');
 assert.equal(Object.prototype.hasOwnProperty.call(assistedEntity, 'email'), false);
-assert.equal(assistedEntity.representatives[0].email, 'secretary@example.com');
+assert.equal(
+  Object.prototype.hasOwnProperty.call(assistedEntity, 'contact_email'),
+  false,
+);
+assert.equal(
+  Object.prototype.hasOwnProperty.call(assistedEntity.representatives[0], 'email'),
+  false,
+);
 
 const portalSoleProprietorship = buildLegalEntityClientPayload(
   {
@@ -121,6 +128,13 @@ assert.equal(
   Object.prototype.hasOwnProperty.call(assistedSoleProprietorship, 'email'),
   false,
 );
+assert.equal(
+  Object.prototype.hasOwnProperty.call(
+    assistedSoleProprietorship.representatives[0],
+    'email',
+  ),
+  false,
+);
 
 const saccoPayload = buildLegalEntityClientPayload(
   {
@@ -144,7 +158,9 @@ const partnershipPayload = buildLegalEntityClientPayload(
     ...baseEntity,
     partnership_name: ' Nairobi Works Partnership ',
     partner_one_name: ' Peter Ben ',
+    partner_one_identifier: ' PARTNER-ID-001 ',
     partner_two_name: ' Mercy Wanjiku ',
+    partner_two_identifier: ' PARTNER-ID-002 ',
   },
   {
     clientType: 'PARTNERSHIP',
@@ -155,6 +171,41 @@ const partnershipPayload = buildLegalEntityClientPayload(
 assert.equal(partnershipPayload.partnership_name, 'Nairobi Works Partnership');
 assert.equal(partnershipPayload.partners.length, 2);
 assert.equal(partnershipPayload.partners[0].legal_name, 'Peter Ben');
+assert.equal(partnershipPayload.partners[0].identifier, 'PARTNER-ID-001');
+
+const portalPartnership = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    email: 'partner.portal@example.com',
+    phone_number: '+254700000020',
+    contact_full_name: '',
+    contact_email: '',
+    contact_phone_number: '',
+    contact_national_id_number: '',
+    partnership_name: 'Nairobi Works Partnership',
+    partner_one_name: 'Peter Ben',
+    partner_one_identifier: 'PARTNER-ID-001',
+    partner_two_name: 'Mercy Wanjiku',
+    partner_two_identifier: 'PARTNER-ID-002',
+  },
+  {
+    clientType: 'PARTNERSHIP',
+    accessType: 'PORTAL_ENABLED',
+  },
+);
+
+assert.equal(portalPartnership.access_type, 'PORTAL_ENABLED');
+assert.equal(portalPartnership.contact_full_name, 'Peter Ben');
+assert.equal(portalPartnership.contact_national_id_number, 'PARTNER-ID-001');
+assert.equal(
+  portalPartnership.representatives[0].representative_category,
+  'PARTNER',
+);
+assert.equal(portalPartnership.representatives[0].is_portal_contact, true);
+assert.equal(
+  portalPartnership.representatives[0].email,
+  'partner.portal@example.com',
+);
 
 const estatePayload = buildLegalEntityClientPayload(
   {

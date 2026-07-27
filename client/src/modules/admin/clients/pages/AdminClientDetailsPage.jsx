@@ -59,7 +59,8 @@ export default function AdminClientDetailsPage() {
     if (value === null || value === undefined) return false;
 
     if (typeof value === 'string') {
-      return value.trim() !== '';
+      const normalized = value.trim().toUpperCase();
+      return normalized !== '' && normalized !== 'UNKNOWN' && normalized !== 'N/A';
     }
 
     return true;
@@ -137,7 +138,11 @@ export default function AdminClientDetailsPage() {
 
   const profileFields = client.type_profile
     ? Object.entries(client.type_profile)
-        .filter(([key, value]) => key !== 'id' && hasValue(value))
+        .filter(
+          ([key, value]) =>
+            !['id', 'client', 'created_at', 'updated_at'].includes(key) &&
+            hasValue(value),
+        )
         .map(([key, value]) => ({
           label: formatProfileLabel(key),
           value: formatProfileValue(value),

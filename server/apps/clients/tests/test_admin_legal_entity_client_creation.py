@@ -104,8 +104,16 @@ class AdminLegalEntityClientCreationTests(TestCase):
                     "partnership_name": "Nairobi Works Partnership",
                     "subtype": PartnershipClient.PartnershipSubtype.GENERAL_PARTNERSHIP,
                     "partners": [
-                        {"legal_name": "Peter Ben", "partner_designation": "GENERAL_PARTNER"},
-                        {"legal_name": "Mercy Wanjiku", "partner_designation": "GENERAL_PARTNER"},
+                        {
+                            "legal_name": "Peter Ben",
+                            "identifier": "PARTNER-ID-001",
+                            "partner_designation": "GENERAL_PARTNER",
+                        },
+                        {
+                            "legal_name": "Mercy Wanjiku",
+                            "identifier": "PARTNER-ID-002",
+                            "partner_designation": "GENERAL_PARTNER",
+                        },
                     ],
                 }
             )
@@ -261,6 +269,53 @@ class AdminLegalEntityClientCreationTests(TestCase):
         self.assertEqual(response.status_code, 400, response.data)
         self.assertIn("partners", response.data["errors"])
 
+    def test_partnership_requires_identification_for_each_individual_partner(self):
+        payload = self.payload_for(Client.ClientType.PARTNERSHIP)
+        payload["partners"][1]["identifier"] = ""
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("partners", response.data["errors"])
+
+    def test_portal_partnership_creates_login_for_primary_partner(self):
+        payload = self.payload_for(
+            Client.ClientType.PARTNERSHIP,
+            access_type=Client.AccessType.PORTAL_ENABLED,
+            email="portal-partnership@example.test",
+            phone_number="+254700910040",
+            contact_full_name="Peter Ben",
+            contact_national_id_number="PARTNER-ID-001",
+        )
+        payload["representatives"][0].update(
+            {
+                "full_legal_name": "Peter Ben",
+                "representative_category": "PARTNER",
+                "national_id_or_passport": "PARTNER-ID-001",
+                "email": payload["email"],
+                "telephone": payload["phone_number"],
+                "is_portal_contact": True,
+            }
+        )
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.select_related("user").get(
+            id=response.data["client"]["id"]
+        )
+        self.assertEqual(client.full_name, "Nairobi Works Partnership")
+        self.assertEqual(client.access_type, Client.AccessType.PORTAL_ENABLED)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
+        self.assertEqual(client.phone_number, "+254700910040")
+        self.assertEqual(client.user.email, "portal-partnership@example.test")
+        self.assertEqual(client.user.first_name, "Peter")
+        self.assertEqual(
+            response.data["representatives"][0]["representative_category"],
+            "PARTNER",
+        )
+        self.assertTrue(response.data["temp_password"])
+
     def test_portal_legal_entity_returns_stable_credentials_shape(self):
         response = self.api_client.post(
             self.url,
@@ -375,7 +430,7 @@ class AdminLegalEntityClientCreationTests(TestCase):
             "Mercy Wanjiku Njeri",
         )
 
-    def test_secretary_legal_entity_creation_uses_same_response_contract(self):
+    def test_secretary_portal_sole_proprietorship_matches_admin_client_data(self):
         secretary_user = User.objects.create_user(
             email="canonical-secretary@example.com",
             password="strong-pass123",
@@ -398,9 +453,27 @@ class AdminLegalEntityClientCreationTests(TestCase):
         )
 
         self.api_client.force_authenticate(user=secretary_user)
+        payload = self.payload_for(
+            Client.ClientType.SOLE_PROPRIETORSHIP,
+            access_type=Client.AccessType.PORTAL_ENABLED,
+            email="secretary-sole-portal@example.test",
+            phone_number="+254700910021",
+        )
+        payload["contact_full_name"] = payload["proprietor_name"]
+        payload["contact_national_id_number"] = payload["proprietor_identifier"]
+        payload["representatives"][0].update(
+            {
+                "full_legal_name": payload["proprietor_name"],
+                "representative_category": "PROPRIETOR",
+                "national_id_or_passport": payload["proprietor_identifier"],
+                "email": payload["email"],
+                "telephone": payload["phone_number"],
+                "is_portal_contact": True,
+            }
+        )
         response = self.api_client.post(
             reverse("secretary-client-create", kwargs={"client_type": "legal-entities"}),
-            self.payload_for(Client.ClientType.SOCIETY_OR_ASSOCIATION),
+            payload,
             format="json",
         )
 
@@ -417,6 +490,28 @@ class AdminLegalEntityClientCreationTests(TestCase):
                 "temp_password",
             },
         )
+        listed_response = self.api_client.get(reverse("secretary-clients"))
+        self.assertEqual(listed_response.status_code, 200, listed_response.data)
+        listed_client = next(
+            item
+            for item in listed_response.data["clients"]
+            if item["id"] == response.data["client"]["id"]
+        )
+        self.assertEqual(
+            listed_client["access_type"],
+            Client.AccessType.PORTAL_ENABLED,
+        )
+        self.assertEqual(
+            listed_client["lifecycle_status"],
+            Client.LifecycleStatus.PROSPECTIVE,
+        )
+        self.assertEqual(listed_client["phone_number"], "+254700910021")
+        self.assertTrue(listed_client["portal_access_exists"])
+        self.assertEqual(
+            listed_client["portal_login_email"],
+            "secretary-sole-portal@example.test",
+        )
+        self.assertTrue(listed_client["is_active"])
 
     def test_creation_rolls_back_when_profile_creation_fails(self):
         with patch(

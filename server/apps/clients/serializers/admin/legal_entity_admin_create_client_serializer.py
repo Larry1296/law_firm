@@ -270,6 +270,25 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
                 raise serializers.ValidationError(
                     {"partners": "At least two active partners are required for a partnership record."}
                 )
+            unidentified_partners = [
+                partner
+                for partner in active_partners
+                if (
+                    partner.get("partner_type")
+                    or partner.get("partner_kind")
+                    or "INDIVIDUAL"
+                ) == "INDIVIDUAL"
+                and not partner.get("identifier")
+            ]
+            if unidentified_partners:
+                raise serializers.ValidationError(
+                    {
+                        "partners": (
+                            "Record an ID or passport number for every active "
+                            "individual partner."
+                        )
+                    }
+                )
         elif client_type == Client.ClientType.LIMITED_LIABILITY_PARTNERSHIP:
             self._require(attrs, "registered_name", "llp_registration_number")
             partners = attrs.get("partners") or []
