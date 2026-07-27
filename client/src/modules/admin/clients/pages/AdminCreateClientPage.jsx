@@ -824,10 +824,20 @@ export default function AdminCreateClientPage() {
   const individualSubtitle = isIndividual
     ? `Individual Client / ${selectedClientMode === 'portal' ? 'Portal Access' : 'Fully Assisted'}`
     : `${requestedClientType} / ${isProspect ? 'prospect' : 'assisted'}`;
-  const createdClient = successData?.client;
-  const createdProfile = successData?.profile;
-  const createdPortalUser = successData?.portal_user;
-  const createdTempPassword = successData?.temp_password;
+  const successPayload = successData?.data || successData;
+  const createdClientResponse = successPayload?.client;
+  const createdClient = createdClientResponse?.detail
+    ? {
+        ...createdClientResponse.detail,
+        id: createdClientResponse.id || createdClientResponse.detail.id,
+        full_name:
+          createdClientResponse.full_name ||
+          createdClientResponse.detail.full_name,
+      }
+    : createdClientResponse;
+  const createdProfile = successPayload?.profile;
+  const createdPortalUser = successPayload?.portal_user;
+  const createdTempPassword = successPayload?.temp_password;
   const createdClientId = createdClient?.id;
   const clientsPath = isSecretaryCreate ? '/secretary/clients' : '/admin/clients';
   const createMatterPath = createdClientId ? `/admin/clients/${createdClientId}/conflict-checks/new` : '/admin/clients';

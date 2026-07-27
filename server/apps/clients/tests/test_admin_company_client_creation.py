@@ -154,6 +154,15 @@ class AdminCompanyClientCreationTests(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         client = Client.objects.get(email="assisted-rv@example.test")
         self.assertIsNone(client.user)
+        self.assertEqual(client.access_type, Client.AccessType.ASSISTED)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
+        self.assertEqual(client.phone_number, "+254700200012")
+        self.assertEqual(response.data["client"]["access_type"], Client.AccessType.ASSISTED)
+        self.assertEqual(
+            response.data["client"]["lifecycle_status"],
+            Client.LifecycleStatus.PROSPECTIVE,
+        )
+        self.assertEqual(response.data["client"]["phone_number"], "+254700200012")
         self.assertIsNone(response.data["portal_user"])
         self.assertIsNone(response.data["temp_password"])
 

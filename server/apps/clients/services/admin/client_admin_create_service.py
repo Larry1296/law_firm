@@ -360,7 +360,11 @@ class ClientAdminCreateService:
             created_by=created_by,
             full_name=full_name,
             email=base_data.get("email"),
-            phone_number=base_data.get("phone_number", ""),
+            phone_number=(
+                base_data.get("phone_number")
+                or contact_data.get("contact_phone_number")
+                or ""
+            ),
             client_type=client_type,
             access_type=base_data.get("access_type", Client.AccessType.ASSISTED),
             national_id=base_data.get("national_id"),
@@ -500,7 +504,11 @@ class ClientAdminCreateService:
             created_by=created_by,
             full_name=full_name,
             email=base_data.get("email"),
-            phone_number=base_data.get("phone_number", ""),
+            phone_number=(
+                base_data.get("phone_number")
+                or contact_data.get("contact_phone_number")
+                or ""
+            ),
             client_type=client_type,
             access_type=base_data.get("access_type", Client.AccessType.ASSISTED),
             national_id=base_data.get("national_id"),

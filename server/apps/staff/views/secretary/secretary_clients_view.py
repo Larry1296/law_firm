@@ -9,7 +9,6 @@ from apps.clients.views.admin.legal_entity_admin_create_client_view import (
     build_legal_entity_create_response,
 )
 from apps.clients.serializers.admin import (
-    ClientAdminDetailSerializer,
     CompanyAdminCreateClientSerializer,
     EstateAdminCreateClientSerializer,
     GovernmentAdminCreateClientSerializer,
@@ -19,6 +18,7 @@ from apps.clients.serializers.admin import (
     PartnershipAdminCreateClientSerializer,
     TrustAdminCreateClientSerializer,
 )
+from apps.clients.serializers.client_detail_serializer import ClientDetailSerializer
 from apps.clients.services.admin.client_admin_create_service import (
     ClientAdminCreateService,
 )
@@ -94,7 +94,7 @@ class SecretaryClientsView(SecretaryBaseView):
         elif serializer_class is LegalEntityAdminCreateClientSerializer:
             response = build_legal_entity_create_response(result)
         else:
-            response = {"client": ClientAdminDetailSerializer(result["client"]).data}
+            response = {"client": ClientDetailSerializer(result["client"]).data}
             if result.get("temp_password"):
                 response["temp_password"] = result["temp_password"]
 
