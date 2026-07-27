@@ -210,7 +210,9 @@ export const buildLegalEntityClientPayload = (
         {
           full_legal_name: contactName,
           representative_category:
-            isSoleProprietorship && !trim(formData.contact_full_name)
+            isPublicEntity
+              ? 'AUTHORIZED_PUBLIC_OFFICER'
+              : isSoleProprietorship && !trim(formData.contact_full_name)
               ? 'PROPRIETOR'
               : isPartnership && !trim(formData.contact_full_name)
                 ? 'PARTNER'
@@ -228,10 +230,7 @@ export const buildLegalEntityClientPayload = (
                           : isSocietyOrAssociation &&
                               !trim(formData.contact_full_name)
                             ? 'SOCIETY_OFFICIAL'
-                            : isPublicEntity &&
-                                !trim(formData.contact_full_name)
-                              ? 'AUTHORIZED_PUBLIC_OFFICER'
-                              : 'AUTHORIZED_AGENT',
+                            : 'AUTHORIZED_AGENT',
           role_title:
             trim(formData.contact_role_or_designation) ||
             (isSoleProprietorship
