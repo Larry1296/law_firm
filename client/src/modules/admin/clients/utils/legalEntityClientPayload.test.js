@@ -163,6 +163,37 @@ assert.equal(
   'COOPERATIVE_OFFICER',
 );
 
+const ngoPayload = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    registered_name: ' Nairobi Justice Initiative ',
+    nonprofit_official_name: ' Mercy Wanjiku ',
+    nonprofit_official_identifier: ' NGO-OFFICIAL-ID-001 ',
+    contact_full_name: '',
+    contact_email: '',
+    contact_phone_number: '',
+    contact_national_id_number: '',
+    email: 'ngo.official@example.com',
+    phone_number: '+254700000025',
+  },
+  {
+    clientType: 'NGO',
+    requestedClientType: 'NGO',
+    accessType: 'PORTAL_ENABLED',
+  },
+);
+
+assert.equal(ngoPayload.client_type, 'NGO');
+assert.equal(ngoPayload.registered_name, 'Nairobi Justice Initiative');
+assert.equal(ngoPayload.nonprofit_form, 'LEGACY_NGO_OR_TRANSITIONAL');
+assert.equal(ngoPayload.contact_full_name, 'Mercy Wanjiku');
+assert.equal(ngoPayload.contact_national_id_number, 'NGO-OFFICIAL-ID-001');
+assert.equal(
+  ngoPayload.representatives[0].representative_category,
+  'PBO_OFFICIAL',
+);
+assert.equal(ngoPayload.representatives[0].is_portal_contact, true);
+
 const partnershipPayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,

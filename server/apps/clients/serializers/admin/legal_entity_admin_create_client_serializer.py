@@ -25,6 +25,7 @@ CANONICAL_ENTITY_TYPES = {
     Client.ClientType.SACCO,
     Client.ClientType.SOCIETY_OR_ASSOCIATION,
     Client.ClientType.NON_PROFIT_ORGANIZATION,
+    Client.ClientType.NGO,
     Client.ClientType.TRUST,
     Client.ClientType.ESTATE,
     Client.ClientType.PUBLIC_ENTITY,
@@ -225,6 +226,7 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             Client.ClientType.COOPERATIVE,
             Client.ClientType.SACCO,
             Client.ClientType.NON_PROFIT_ORGANIZATION,
+            Client.ClientType.NGO,
         }:
             return attrs.get("registered_name") or attrs.get("legal_name")
         if client_type == Client.ClientType.SOCIETY_OR_ASSOCIATION:
@@ -362,8 +364,47 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
                     )
         elif client_type == Client.ClientType.SOCIETY_OR_ASSOCIATION:
             self._require(attrs, "legal_name", "registration_status")
-        elif client_type == Client.ClientType.NON_PROFIT_ORGANIZATION:
+        elif client_type in {
+            Client.ClientType.NON_PROFIT_ORGANIZATION,
+            Client.ClientType.NGO,
+        }:
             self._require(attrs, "registered_name", "nonprofit_form")
+            if (
+                client_type == Client.ClientType.NGO
+                and attrs.get("nonprofit_form")
+                != NonProfitOrganizationClient.NonProfitForm.LEGACY_NGO_OR_TRANSITIONAL
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "nonprofit_form": (
+                            "An NGO client must use the NGO/transitional "
+                            "non-profit form."
+                        )
+                    }
+                )
+            if client_type == Client.ClientType.NGO:
+                ngo_officials = [
+                    representative
+                    for representative in attrs.get("representatives") or []
+                    if representative.get("representative_category")
+                    == ClientRepresentative.RepresentativeCategory.PBO_OFFICIAL
+                ]
+                if not ngo_officials:
+                    raise serializers.ValidationError(
+                        {"representatives": "Record an authorized NGO official."}
+                    )
+                if any(
+                    not official.get("national_id_or_passport")
+                    for official in ngo_officials
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "representatives": (
+                                "Record an ID or passport number for every "
+                                "authorized NGO official."
+                            )
+                        }
+                    )
         elif client_type == Client.ClientType.TRUST:
             self._require(attrs, "trust_name", "trust_type")
             trustees = attrs.get("trustees") or []

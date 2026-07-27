@@ -168,6 +168,7 @@ class ClientAdminCreateService:
         Client.ClientType.SACCO,
         Client.ClientType.SOCIETY_OR_ASSOCIATION,
         Client.ClientType.NON_PROFIT_ORGANIZATION,
+        Client.ClientType.NGO,
         Client.ClientType.TRUST,
         Client.ClientType.ESTATE,
         Client.ClientType.PUBLIC_ENTITY,
@@ -752,7 +753,10 @@ class ClientAdminCreateService:
                 status=data.get("status") or "UNKNOWN",
             )
 
-        if client_type == Client.ClientType.NON_PROFIT_ORGANIZATION:
+        if client_type in {
+            Client.ClientType.NON_PROFIT_ORGANIZATION,
+            Client.ClientType.NGO,
+        }:
             return NonProfitOrganizationClient.objects.create(
                 client=client,
                 registered_name=data["registered_name"],

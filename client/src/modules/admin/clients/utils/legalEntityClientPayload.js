@@ -8,6 +8,7 @@ export const canonicalLegalEntityTypes = [
   'SACCO',
   'SOCIETY_OR_ASSOCIATION',
   'NON_PROFIT_ORGANIZATION',
+  'NGO',
   'TRUST',
   'ESTATE',
   'PUBLIC_ENTITY',
@@ -45,6 +46,7 @@ export const buildLegalEntityClientPayload = (
   const isTrust = clientType === 'TRUST';
   const isEstate = clientType === 'ESTATE';
   const isSacco = clientType === 'SACCO';
+  const isNgo = clientType === 'NGO';
   const proprietorName = trim(formData.proprietor_name);
   const proprietorIdentifier = trim(formData.proprietor_identifier);
   const firstPartnerName = trim(formData.partner_one_name);
@@ -64,6 +66,10 @@ export const buildLegalEntityClientPayload = (
   const cooperativeOfficerName = trim(formData.cooperative_officer_name);
   const cooperativeOfficerIdentifier = trim(
     formData.cooperative_officer_identifier,
+  );
+  const nonprofitOfficialName = trim(formData.nonprofit_official_name);
+  const nonprofitOfficialIdentifier = trim(
+    formData.nonprofit_official_identifier,
   );
   const personalRepresentativeType =
     formData.grant_type === 'PROBATE'
@@ -85,16 +91,18 @@ export const buildLegalEntityClientPayload = (
               ? personalRepresentativeName
               : isSacco
                 ? cooperativeOfficerName
-                : '');
+                : isNgo
+                  ? nonprofitOfficialName
+                  : '');
   const contactEmail = isProspect
     ? lower(formData.contact_email) ||
-      (isSoleProprietorship || isTrust || isEstate || isSacco
+      (isSoleProprietorship || isTrust || isEstate || isSacco || isNgo
         ? lower(formData.email)
         : '')
     : '';
   const contactPhone =
     trim(formData.contact_phone_number) ||
-    (isSoleProprietorship || isTrust || isEstate || isSacco
+    (isSoleProprietorship || isTrust || isEstate || isSacco || isNgo
       ? trim(formData.phone_number)
       : '');
   const contactIdentifier =
@@ -111,7 +119,9 @@ export const buildLegalEntityClientPayload = (
               ? personalRepresentativeIdentifier
               : isSacco
                 ? cooperativeOfficerIdentifier
-                : '');
+                : isNgo
+                  ? nonprofitOfficialIdentifier
+                  : '');
   const email = isProspect
     ? lower(formData.email) || contactEmail || lower(formData.contact_person_email)
     : '';
@@ -144,7 +154,9 @@ export const buildLegalEntityClientPayload = (
                       ? personalRepresentativeType
                       : isSacco && !trim(formData.contact_full_name)
                         ? 'COOPERATIVE_OFFICER'
-                        : 'AUTHORIZED_AGENT',
+                        : isNgo && !trim(formData.contact_full_name)
+                          ? 'PBO_OFFICIAL'
+                          : 'AUTHORIZED_AGENT',
           role_title:
             trim(formData.contact_role_or_designation) ||
             (isSoleProprietorship
@@ -163,7 +175,9 @@ export const buildLegalEntityClientPayload = (
                           : 'Administrator'
                       : isSacco
                         ? 'SACCO Officer'
-                        : ''),
+                        : isNgo
+                          ? 'NGO Official'
+                          : ''),
           national_id_or_passport: contactIdentifier,
           ...(isProspect && contactEmail ? { email: contactEmail } : {}),
           telephone: contactPhone,
@@ -262,7 +276,9 @@ export const buildLegalEntityClientPayload = (
                     : 'Administrator'
                 : isSacco
                   ? 'SACCO Officer'
-                  : ''),
+                  : isNgo
+                    ? 'NGO Official'
+                    : ''),
     contact_email: contactEmail,
     contact_phone_number: contactPhone,
     contact_national_id_number: contactIdentifier,
@@ -319,7 +335,12 @@ export const buildLegalEntityClientPayload = (
     objectives: trim(formData.objectives),
     principal_office: trim(formData.principal_office),
     litigation_authority_reference: trim(formData.litigation_authority_reference),
-    nonprofit_form: requestedClientType === 'RELIGIOUS' ? 'FAITH_BASED_ORGANIZATION' : formData.nonprofit_form,
+    nonprofit_form:
+      requestedClientType === 'RELIGIOUS'
+        ? 'FAITH_BASED_ORGANIZATION'
+        : requestedClientType === 'NGO' || clientType === 'NGO'
+          ? 'LEGACY_NGO_OR_TRANSITIONAL'
+          : formData.nonprofit_form,
     canonical_legal_form: formData.canonical_legal_form,
     pbo_or_ngo_status: formData.pbo_or_ngo_status,
     operational_scope: trim(formData.operational_scope) || trim(formData.operational_regions),

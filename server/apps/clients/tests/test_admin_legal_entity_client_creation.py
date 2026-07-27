@@ -169,14 +169,29 @@ class AdminLegalEntityClientCreationTests(TestCase):
                     "constitution_reference": "CONST-2026-001",
                 }
             )
-        elif client_type == Client.ClientType.NON_PROFIT_ORGANIZATION:
+        elif client_type in {
+            Client.ClientType.NON_PROFIT_ORGANIZATION,
+            Client.ClientType.NGO,
+        }:
             data.update(
                 {
                     "registered_name": "Nairobi Public Benefit Initiative",
-                    "nonprofit_form": NonProfitOrganizationClient.NonProfitForm.PUBLIC_BENEFIT_ORGANIZATION,
+                    "nonprofit_form": (
+                        NonProfitOrganizationClient.NonProfitForm.LEGACY_NGO_OR_TRANSITIONAL
+                        if client_type == Client.ClientType.NGO
+                        else NonProfitOrganizationClient.NonProfitForm.PUBLIC_BENEFIT_ORGANIZATION
+                    ),
                     "objectives": "Public-interest community legal awareness.",
                 }
             )
+            if client_type == Client.ClientType.NGO:
+                data["representatives"][0].update(
+                    {
+                        "representative_category": "PBO_OFFICIAL",
+                        "role_title": "NGO Official",
+                        "national_id_or_passport": "NGO-OFFICIAL-ID-001",
+                    }
+                )
         elif client_type == Client.ClientType.TRUST:
             data.update(
                 {
@@ -239,6 +254,7 @@ class AdminLegalEntityClientCreationTests(TestCase):
             Client.ClientType.SACCO: CooperativeClient,
             Client.ClientType.SOCIETY_OR_ASSOCIATION: SocietyAssociationClient,
             Client.ClientType.NON_PROFIT_ORGANIZATION: NonProfitOrganizationClient,
+            Client.ClientType.NGO: NonProfitOrganizationClient,
             Client.ClientType.TRUST: TrustClient,
             Client.ClientType.ESTATE: EstateClient,
             Client.ClientType.PUBLIC_ENTITY: PublicEntityClient,
@@ -533,6 +549,54 @@ class AdminLegalEntityClientCreationTests(TestCase):
 
     def test_sacco_requires_identified_authorized_officer(self):
         payload = self.payload_for(Client.ClientType.SACCO)
+        payload["representatives"][0]["national_id_or_passport"] = ""
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("representatives", response.data["errors"])
+
+    def test_portal_ngo_preserves_ngo_category_and_creates_official_login(self):
+        payload = self.payload_for(
+            Client.ClientType.NGO,
+            access_type=Client.AccessType.PORTAL_ENABLED,
+            email="portal-ngo@example.test",
+            phone_number="+254700910045",
+            contact_full_name="Mercy Wanjiku Njeri",
+            contact_national_id_number="NGO-OFFICIAL-ID-001",
+        )
+        payload["representatives"][0].update(
+            {
+                "email": payload["email"],
+                "telephone": payload["phone_number"],
+                "is_portal_contact": True,
+            }
+        )
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.select_related("user").get(
+            id=response.data["client"]["id"]
+        )
+        self.assertEqual(client.client_type, Client.ClientType.NGO)
+        self.assertEqual(
+            client.nonprofit_profile.nonprofit_form,
+            NonProfitOrganizationClient.NonProfitForm.LEGACY_NGO_OR_TRANSITIONAL,
+        )
+        self.assertEqual(client.access_type, Client.AccessType.PORTAL_ENABLED)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
+        self.assertEqual(client.phone_number, "+254700910045")
+        self.assertEqual(client.user.email, "portal-ngo@example.test")
+        self.assertEqual(client.user.first_name, "Mercy")
+        self.assertEqual(
+            response.data["representatives"][0]["representative_category"],
+            "PBO_OFFICIAL",
+        )
+        self.assertTrue(response.data["temp_password"])
+
+    def test_ngo_requires_identified_authorized_official(self):
+        payload = self.payload_for(Client.ClientType.NGO)
         payload["representatives"][0]["national_id_or_passport"] = ""
 
         response = self.api_client.post(self.url, payload, format="json")

@@ -38,7 +38,7 @@ export default function AdminCreateClientPage() {
     COOPERATIVE: 'COOPERATIVE',
     ASSOCIATION: 'SOCIETY_OR_ASSOCIATION',
     NGO_ASSOCIATION: 'SOCIETY_OR_ASSOCIATION',
-    NGO: 'NON_PROFIT_ORGANIZATION',
+    NGO: 'NGO',
     RELIGIOUS: 'NON_PROFIT_ORGANIZATION',
     RELIGIOUS_ORGANIZATION: 'NON_PROFIT_ORGANIZATION',
     GOVERNMENT: 'PUBLIC_ENTITY',
@@ -344,6 +344,8 @@ export default function AdminCreateClientPage() {
     principal_office: '',
     litigation_authority_reference: '',
     nonprofit_form: 'PUBLIC_BENEFIT_ORGANIZATION',
+    nonprofit_official_name: '',
+    nonprofit_official_identifier: '',
     canonical_legal_form: '',
     pbo_or_ngo_status: '',
     operational_scope: '',
@@ -1040,6 +1042,8 @@ export default function AdminCreateClientPage() {
       principal_office: '',
       litigation_authority_reference: '',
       nonprofit_form: 'PUBLIC_BENEFIT_ORGANIZATION',
+      nonprofit_official_name: '',
+      nonprofit_official_identifier: '',
       canonical_legal_form: '',
       pbo_or_ngo_status: '',
       operational_scope: '',
@@ -1504,10 +1508,10 @@ export default function AdminCreateClientPage() {
                 </div>
               )}
 
-              {clientType === 'NON_PROFIT_ORGANIZATION' && (
+              {(clientType === 'NON_PROFIT_ORGANIZATION' || clientType === 'NGO') && (
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                   <FloatingInput label='Registered Non-Profit Name' name='registered_name' value={formData.registered_name} onChange={handleChange} required />
-                  <Select3D label='Non-Profit Form' name='nonprofit_form' value={formData.nonprofit_form} onChange={handleChange} options={[
+                  <Select3D label='Non-Profit Form' name='nonprofit_form' value={clientType === 'NGO' ? 'LEGACY_NGO_OR_TRANSITIONAL' : formData.nonprofit_form} onChange={handleChange} options={[
                     { value: 'PUBLIC_BENEFIT_ORGANIZATION', label: 'Public Benefit Organization' },
                     { value: 'LEGACY_NGO_OR_TRANSITIONAL', label: 'Legacy NGO / Transitional' },
                     { value: 'COMPANY_LIMITED_BY_GUARANTEE', label: 'Company Limited by Guarantee' },
@@ -1516,6 +1520,12 @@ export default function AdminCreateClientPage() {
                     { value: 'FAITH_BASED_ORGANIZATION', label: 'Faith Based Organization' },
                     { value: 'OTHER_NON_PROFIT', label: 'Other Non-Profit' },
                   ]} />
+                  {clientType === 'NGO' && (
+                    <>
+                      <FloatingInput label='Authorized NGO Official' name='nonprofit_official_name' value={formData.nonprofit_official_name} onChange={handleChange} required />
+                      <FloatingInput label='NGO Official ID / Passport' name='nonprofit_official_identifier' value={formData.nonprofit_official_identifier} onChange={handleChange} required />
+                    </>
+                  )}
                   <FloatingInput label='PBO / NGO Status' name='pbo_or_ngo_status' value={formData.pbo_or_ngo_status} onChange={handleChange} />
                   <FloatingInput label='Objectives' name='objectives' value={formData.objectives} onChange={handleChange} />
                 </div>
