@@ -326,8 +326,22 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             self._require(attrs, "registered_name", "nonprofit_form")
         elif client_type == Client.ClientType.TRUST:
             self._require(attrs, "trust_name", "trust_type")
-            if not attrs.get("trustees"):
+            trustees = attrs.get("trustees") or []
+            if not trustees:
                 raise serializers.ValidationError({"trustees": "Record at least one trustee."})
+            if any(
+                trustee.get("trustee_type", "INDIVIDUAL") == "INDIVIDUAL"
+                and not trustee.get("identifier")
+                for trustee in trustees
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "trustees": (
+                            "Record an ID or passport number for every "
+                            "individual trustee."
+                        )
+                    }
+                )
         elif client_type == Client.ClientType.ESTATE:
             self._require(attrs, "estate_name", "deceased_full_name")
             if attrs.get("grant_status") in {"ISSUED", "CONFIRMED"} and not attrs.get("personal_representatives"):

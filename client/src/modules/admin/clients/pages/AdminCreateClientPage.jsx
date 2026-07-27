@@ -326,6 +326,7 @@ export default function AdminCreateClientPage() {
     designated_partner_name: '',
     designated_partner_identifier: '',
     trustee_name: '',
+    trustee_identifier: '',
     personal_representative_name: '',
     cooperative_subtype: 'PRIMARY_COOPERATIVE',
     area_of_operation: '',
@@ -1018,6 +1019,7 @@ export default function AdminCreateClientPage() {
       designated_partner_name: '',
       designated_partner_identifier: '',
       trustee_name: '',
+      trustee_identifier: '',
       personal_representative_name: '',
       cooperative_subtype: 'PRIMARY_COOPERATIVE',
       area_of_operation: '',
@@ -1518,6 +1520,7 @@ export default function AdminCreateClientPage() {
                     { value: 'OTHER', label: 'Other' },
                   ]} />
                   <FloatingInput label='Trustee Legal Name' name='trustee_name' value={formData.trustee_name} onChange={handleChange} required />
+                  <FloatingInput label='Trustee ID / Passport' name='trustee_identifier' value={formData.trustee_identifier} onChange={handleChange} required />
                   <FloatingInput label='Trust Deed Reference' name='trust_deed_reference' value={formData.trust_deed_reference} onChange={handleChange} />
                 </div>
               )}

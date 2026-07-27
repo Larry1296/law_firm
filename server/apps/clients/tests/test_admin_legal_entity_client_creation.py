@@ -168,7 +168,14 @@ class AdminLegalEntityClientCreationTests(TestCase):
                     "trust_name": "Wanjiku Family Trust",
                     "trust_type": TrustClient.TrustSubtype.PRIVATE_TRUST,
                     "trust_deed_reference": "TRUST-DEED-001",
-                    "trustees": [{"legal_name": "Mercy Wanjiku", "is_primary": True}],
+                    "trustees": [
+                        {
+                            "legal_name": "Mercy Wanjiku",
+                            "identifier": "TRUSTEE-ID-001",
+                            "is_primary_contact": True,
+                            "authority_to_instruct": True,
+                        }
+                    ],
                 }
             )
         elif client_type == Client.ClientType.ESTATE:
@@ -372,6 +379,55 @@ class AdminLegalEntityClientCreationTests(TestCase):
 
         self.assertEqual(response.status_code, 400, response.data)
         self.assertIn("partners", response.data["errors"])
+
+    def test_portal_trust_creates_login_for_primary_trustee(self):
+        payload = self.payload_for(
+            Client.ClientType.TRUST,
+            access_type=Client.AccessType.PORTAL_ENABLED,
+            email="portal-trustee@example.test",
+            phone_number="+254700910042",
+            contact_full_name="Mercy Wanjiku",
+            contact_national_id_number="TRUSTEE-ID-001",
+        )
+        payload["representatives"][0].update(
+            {
+                "full_legal_name": "Mercy Wanjiku",
+                "representative_category": "TRUSTEE",
+                "role_title": "Trustee",
+                "national_id_or_passport": "TRUSTEE-ID-001",
+                "email": payload["email"],
+                "telephone": payload["phone_number"],
+                "is_portal_contact": True,
+            }
+        )
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.select_related("user").get(
+            id=response.data["client"]["id"]
+        )
+        self.assertEqual(client.full_name, "Wanjiku Family Trust")
+        self.assertEqual(client.access_type, Client.AccessType.PORTAL_ENABLED)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
+        self.assertEqual(client.phone_number, "+254700910042")
+        self.assertEqual(client.user.email, "portal-trustee@example.test")
+        self.assertEqual(client.user.first_name, "Mercy")
+        self.assertEqual(TrustTrustee.objects.filter(trust=client.trust_profile).count(), 1)
+        self.assertEqual(
+            response.data["representatives"][0]["representative_category"],
+            "TRUSTEE",
+        )
+        self.assertTrue(response.data["temp_password"])
+
+    def test_trust_requires_identified_individual_trustee(self):
+        payload = self.payload_for(Client.ClientType.TRUST)
+        payload["trustees"][0]["identifier"] = ""
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("trustees", response.data["errors"])
 
     def test_portal_legal_entity_returns_stable_credentials_shape(self):
         response = self.api_client.post(

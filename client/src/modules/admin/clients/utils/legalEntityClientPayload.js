@@ -41,6 +41,7 @@ export const buildLegalEntityClientPayload = (
   const isPartnership = clientType === 'PARTNERSHIP';
   const isLimitedLiabilityPartnership =
     clientType === 'LIMITED_LIABILITY_PARTNERSHIP';
+  const isTrust = clientType === 'TRUST';
   const proprietorName = trim(formData.proprietor_name);
   const proprietorIdentifier = trim(formData.proprietor_identifier);
   const firstPartnerName = trim(formData.partner_one_name);
@@ -49,6 +50,8 @@ export const buildLegalEntityClientPayload = (
   const designatedPartnerIdentifier = trim(
     formData.designated_partner_identifier,
   );
+  const trusteeName = trim(formData.trustee_name);
+  const trusteeIdentifier = trim(formData.trustee_identifier);
   const contactName =
     trim(formData.contact_full_name) ||
     (isSoleProprietorship
@@ -57,14 +60,16 @@ export const buildLegalEntityClientPayload = (
         ? firstPartnerName
         : isLimitedLiabilityPartnership
           ? designatedPartnerName
-        : '');
+          : isTrust
+            ? trusteeName
+            : '');
   const contactEmail = isProspect
     ? lower(formData.contact_email) ||
-      (isSoleProprietorship ? lower(formData.email) : '')
+      (isSoleProprietorship || isTrust ? lower(formData.email) : '')
     : '';
   const contactPhone =
     trim(formData.contact_phone_number) ||
-    (isSoleProprietorship ? trim(formData.phone_number) : '');
+    (isSoleProprietorship || isTrust ? trim(formData.phone_number) : '');
   const contactIdentifier =
     trim(formData.contact_national_id_number) ||
     (isSoleProprietorship
@@ -73,7 +78,9 @@ export const buildLegalEntityClientPayload = (
         ? firstPartnerIdentifier
         : isLimitedLiabilityPartnership
           ? designatedPartnerIdentifier
-        : '');
+          : isTrust
+            ? trusteeIdentifier
+            : '');
   const email = isProspect
     ? lower(formData.email) || contactEmail || lower(formData.contact_person_email)
     : '';
@@ -100,7 +107,9 @@ export const buildLegalEntityClientPayload = (
                 : isLimitedLiabilityPartnership &&
                     !trim(formData.contact_full_name)
                   ? 'DESIGNATED_PARTNER'
-              : 'AUTHORIZED_AGENT',
+                  : isTrust && !trim(formData.contact_full_name)
+                    ? 'TRUSTEE'
+                    : 'AUTHORIZED_AGENT',
           role_title:
             trim(formData.contact_role_or_designation) ||
             (isSoleProprietorship
@@ -109,7 +118,9 @@ export const buildLegalEntityClientPayload = (
                 ? 'Partner'
                 : isLimitedLiabilityPartnership
                   ? 'Designated Partner'
-                : ''),
+                  : isTrust
+                    ? 'Trustee'
+                    : ''),
           national_id_or_passport: contactIdentifier,
           ...(isProspect && contactEmail ? { email: contactEmail } : {}),
           telephone: contactPhone,
@@ -151,11 +162,12 @@ export const buildLegalEntityClientPayload = (
     },
   ].filter(Boolean);
 
-  const trustees = trim(formData.trustee_name)
+  const trustees = trusteeName
     ? [
         {
           trustee_type: 'INDIVIDUAL',
-          legal_name: trim(formData.trustee_name),
+          legal_name: trusteeName,
+          identifier: trusteeIdentifier,
           is_primary_contact: true,
           authority_to_instruct: true,
         },
@@ -192,7 +204,9 @@ export const buildLegalEntityClientPayload = (
           ? 'Partner'
           : isLimitedLiabilityPartnership
             ? 'Designated Partner'
-          : ''),
+            : isTrust
+              ? 'Trustee'
+              : ''),
     contact_email: contactEmail,
     contact_phone_number: contactPhone,
     contact_national_id_number: contactIdentifier,

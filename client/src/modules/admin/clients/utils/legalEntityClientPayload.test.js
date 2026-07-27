@@ -250,6 +250,43 @@ assert.equal(
   'designated.partner@example.com',
 );
 
+const portalTrust = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    email: 'primary.trustee@example.com',
+    phone_number: '+254700000022',
+    contact_full_name: '',
+    contact_email: '',
+    contact_phone_number: '',
+    contact_national_id_number: '',
+    trust_name: 'Wanjiku Family Trust',
+    trust_type: 'PRIVATE_TRUST',
+    trustee_name: 'Mercy Wanjiku',
+    trustee_identifier: 'TRUSTEE-ID-001',
+    trust_deed_reference: 'TRUST-DEED-001',
+  },
+  {
+    clientType: 'TRUST',
+    accessType: 'PORTAL_ENABLED',
+  },
+);
+
+assert.equal(portalTrust.access_type, 'PORTAL_ENABLED');
+assert.equal(portalTrust.trustees.length, 1);
+assert.equal(portalTrust.trustees[0].legal_name, 'Mercy Wanjiku');
+assert.equal(portalTrust.trustees[0].identifier, 'TRUSTEE-ID-001');
+assert.equal(portalTrust.contact_full_name, 'Mercy Wanjiku');
+assert.equal(portalTrust.contact_national_id_number, 'TRUSTEE-ID-001');
+assert.equal(
+  portalTrust.representatives[0].representative_category,
+  'TRUSTEE',
+);
+assert.equal(portalTrust.representatives[0].is_portal_contact, true);
+assert.equal(
+  portalTrust.representatives[0].email,
+  'primary.trustee@example.com',
+);
+
 const estatePayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,
