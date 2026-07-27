@@ -163,6 +163,40 @@ assert.equal(
   'COOPERATIVE_OFFICER',
 );
 
+const cooperativePayload = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    registered_name: ' Nairobi Farmers Cooperative ',
+    cooperative_subtype: 'PRIMARY_COOPERATIVE',
+    cooperative_officer_name: ' Mercy Wanjiku ',
+    cooperative_officer_identifier: ' COOPERATIVE-OFFICER-ID-001 ',
+    contact_full_name: '',
+    contact_email: '',
+    contact_phone_number: '',
+    contact_national_id_number: '',
+    email: 'cooperative.officer@example.com',
+    phone_number: '+254700000026',
+  },
+  {
+    clientType: 'COOPERATIVE',
+    requestedClientType: 'COOPERATIVE',
+    accessType: 'PORTAL_ENABLED',
+  },
+);
+
+assert.equal(cooperativePayload.client_type, 'COOPERATIVE');
+assert.equal(cooperativePayload.cooperative_subtype, 'PRIMARY_COOPERATIVE');
+assert.equal(cooperativePayload.contact_full_name, 'Mercy Wanjiku');
+assert.equal(
+  cooperativePayload.contact_national_id_number,
+  'COOPERATIVE-OFFICER-ID-001',
+);
+assert.equal(
+  cooperativePayload.representatives[0].representative_category,
+  'COOPERATIVE_OFFICER',
+);
+assert.equal(cooperativePayload.representatives[0].is_portal_contact, true);
+
 const ngoPayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,

@@ -46,6 +46,7 @@ export const buildLegalEntityClientPayload = (
   const isTrust = clientType === 'TRUST';
   const isEstate = clientType === 'ESTATE';
   const isSacco = clientType === 'SACCO';
+  const isCooperative = clientType === 'COOPERATIVE' || isSacco;
   const isNgo = clientType === 'NGO';
   const proprietorName = trim(formData.proprietor_name);
   const proprietorIdentifier = trim(formData.proprietor_identifier);
@@ -89,20 +90,20 @@ export const buildLegalEntityClientPayload = (
             ? trusteeName
             : isEstate
               ? personalRepresentativeName
-              : isSacco
+              : isCooperative
                 ? cooperativeOfficerName
                 : isNgo
                   ? nonprofitOfficialName
                   : '');
   const contactEmail = isProspect
     ? lower(formData.contact_email) ||
-      (isSoleProprietorship || isTrust || isEstate || isSacco || isNgo
+      (isSoleProprietorship || isTrust || isEstate || isCooperative || isNgo
         ? lower(formData.email)
         : '')
     : '';
   const contactPhone =
     trim(formData.contact_phone_number) ||
-    (isSoleProprietorship || isTrust || isEstate || isSacco || isNgo
+    (isSoleProprietorship || isTrust || isEstate || isCooperative || isNgo
       ? trim(formData.phone_number)
       : '');
   const contactIdentifier =
@@ -117,7 +118,7 @@ export const buildLegalEntityClientPayload = (
             ? trusteeIdentifier
             : isEstate
               ? personalRepresentativeIdentifier
-              : isSacco
+              : isCooperative
                 ? cooperativeOfficerIdentifier
                 : isNgo
                   ? nonprofitOfficialIdentifier
@@ -152,7 +153,7 @@ export const buildLegalEntityClientPayload = (
                     ? 'TRUSTEE'
                     : isEstate && !trim(formData.contact_full_name)
                       ? personalRepresentativeType
-                      : isSacco && !trim(formData.contact_full_name)
+                      : isCooperative && !trim(formData.contact_full_name)
                         ? 'COOPERATIVE_OFFICER'
                         : isNgo && !trim(formData.contact_full_name)
                           ? 'PBO_OFFICIAL'
@@ -173,8 +174,10 @@ export const buildLegalEntityClientPayload = (
                         : personalRepresentativeType === 'PUBLIC_TRUSTEE'
                           ? 'Public Trustee'
                           : 'Administrator'
-                      : isSacco
-                        ? 'SACCO Officer'
+                      : isCooperative
+                        ? isSacco
+                          ? 'SACCO Officer'
+                          : 'Cooperative Officer'
                         : isNgo
                           ? 'NGO Official'
                           : ''),
@@ -274,8 +277,10 @@ export const buildLegalEntityClientPayload = (
                   : personalRepresentativeType === 'PUBLIC_TRUSTEE'
                     ? 'Public Trustee'
                     : 'Administrator'
-                : isSacco
-                  ? 'SACCO Officer'
+                : isCooperative
+                  ? isSacco
+                    ? 'SACCO Officer'
+                    : 'Cooperative Officer'
                   : isNgo
                     ? 'NGO Official'
                     : ''),

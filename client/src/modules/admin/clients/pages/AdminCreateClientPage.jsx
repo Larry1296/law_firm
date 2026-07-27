@@ -1483,12 +1483,8 @@ export default function AdminCreateClientPage() {
                     { value: 'SACCO', label: 'SACCO' },
                     { value: 'OTHER_COOPERATIVE', label: 'Other Co-operative' },
                   ]} />
-                  {clientType === 'SACCO' && (
-                    <>
-                      <FloatingInput label='SACCO Officer Legal Name' name='cooperative_officer_name' value={formData.cooperative_officer_name} onChange={handleChange} required />
-                      <FloatingInput label='SACCO Officer ID / Passport' name='cooperative_officer_identifier' value={formData.cooperative_officer_identifier} onChange={handleChange} required />
-                    </>
-                  )}
+                  <FloatingInput label={clientType === 'SACCO' ? 'SACCO Officer Legal Name' : 'Cooperative Officer Legal Name'} name='cooperative_officer_name' value={formData.cooperative_officer_name} onChange={handleChange} required />
+                  <FloatingInput label={clientType === 'SACCO' ? 'SACCO Officer ID / Passport' : 'Cooperative Officer ID / Passport'} name='cooperative_officer_identifier' value={formData.cooperative_officer_identifier} onChange={handleChange} required />
                   <FloatingInput label='Area of Operation' name='area_of_operation' value={formData.area_of_operation} onChange={handleChange} />
                   <FloatingInput label='Regulator / License Status' name='license_status' value={formData.license_status} onChange={handleChange} />
                 </div>
