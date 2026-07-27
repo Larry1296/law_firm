@@ -15,8 +15,11 @@ import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { Input3D } from '@/components/ui/Input3D';
+import Select3D from '@/components/ui/Select3D';
 import Button3D from '@/components/ui/Button3D';
+import ResponsiveFilterTabs from '@/components/ui/ResponsiveFilterTabs';
 import useSecretaryDashboard from '@/modules/staff/secretary/dashboard/hooks/useSecretaryDashboard';
+import { CLIENT_CATEGORY_TABS } from '@/modules/clients/shared/clientListTabs';
 
 const hasPermission = (permissions, permission) =>
   permissions.map((item) => String(item).toUpperCase()).includes(permission);
@@ -24,6 +27,8 @@ const hasPermission = (permissions, permission) =>
 export default function SecretaryClients() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [searchBy, setSearchBy] = useState('NAME');
+  const [activeCategoryTab, setActiveCategoryTab] = useState('ALL');
 
   const { clients = [], loading, refetch } = useSecretaryClients();
   const { data: dashboardData } = useSecretaryDashboard();
@@ -34,19 +39,63 @@ export default function SecretaryClients() {
     navigate(`/secretary/clients/create?type=${type}&mode=${mode || ''}`);
   };
 
+  const categoryCounts = useMemo(
+    () =>
+      clients.reduce((counts, client) => {
+        if (client.client_type) {
+          counts[client.client_type] = (counts[client.client_type] || 0) + 1;
+        }
+        return counts;
+      }, {}),
+    [clients],
+  );
+
   const filteredClients = useMemo(() => {
-    if (!search.trim()) return clients;
+    const term = search.trim().toLowerCase();
+    const matches = (values) =>
+      values.some((value) =>
+        String(value || '').toLowerCase().includes(term),
+      );
 
-    const term = search.toLowerCase();
+    return clients
+      .filter(
+        (client) =>
+          activeCategoryTab === 'ALL' ||
+          client.client_type === activeCategoryTab,
+      )
+      .filter((client) => {
+      if (!term) return true;
+      const names = [
+        client.full_name,
+        client.preferred_name,
+        client.company_name,
+        client.trading_name,
+        client.primary_contact_name,
+      ];
+      const gender = [client.gender];
+      const category = [
+        client.client_type,
+        client.client_type?.replace(/_/g, ' '),
+      ];
+      const status = [
+        client.lifecycle_status,
+        client.lifecycle_status?.replace(/_/g, ' '),
+        client.lifecycle_status === 'ARCHIVED'
+          ? 'archived'
+          : client.is_active
+            ? 'active'
+            : 'inactive',
+      ];
 
-    return clients.filter(
-      (client) =>
-        client.full_name?.toLowerCase().includes(term) ||
-        client.email?.toLowerCase().includes(term) ||
-        client.phone_number?.toLowerCase().includes(term) ||
-        client.national_id?.toLowerCase().includes(term),
-    );
-  }, [clients, search]);
+      if (searchBy === 'GENDER') return matches(gender);
+      if (searchBy === 'CATEGORY') return matches(category);
+      if (searchBy === 'STATUS') return matches(status);
+      if (searchBy === 'ALL') {
+        return matches([...names, ...gender, ...category, ...status]);
+      }
+      return matches(names);
+      });
+  }, [activeCategoryTab, clients, search, searchBy]);
 
   const renderClientType = (value) => {
     if (!value) return 'Not Set';
@@ -236,12 +285,57 @@ export default function SecretaryClients() {
       </div>
 
       <Card className='p-4'>
-        <Input3D
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder='Search clients...'
-        />
+        <div className='grid grid-cols-1 gap-3 md:grid-cols-[220px_1fr] md:items-start'>
+          <Select3D
+            label='Search by'
+            name='secretary_client_search_by'
+            value={searchBy}
+            onChange={(event) => setSearchBy(event.target.value)}
+            wrapperClassName='mb-0'
+            options={[
+              { value: 'NAME', label: 'Name' },
+              { value: 'GENDER', label: 'Gender' },
+              { value: 'CATEGORY', label: 'Category' },
+              { value: 'STATUS', label: 'Status' },
+              { value: 'ALL', label: 'All fields' },
+            ]}
+          />
+          <div>
+            <label
+              htmlFor='secretary-client-search'
+              className='block pb-2 text-sm font-semibold text-text-primary-light dark:text-text-primary-dark'
+            >
+              Search Clients
+            </label>
+            <Input3D
+              id='secretary-client-search'
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={
+                searchBy === 'GENDER'
+                  ? 'Search by gender...'
+                  : searchBy === 'CATEGORY'
+                    ? 'Search by category...'
+                    : searchBy === 'STATUS'
+                      ? 'Search by status...'
+                      : searchBy === 'ALL'
+                        ? 'Search names, gender, category, or status...'
+                        : 'Search clients by name...'
+              }
+            />
+          </div>
+        </div>
       </Card>
+
+      <ResponsiveFilterTabs
+        tabs={CLIENT_CATEGORY_TABS}
+        activeKey={activeCategoryTab}
+        onChange={setActiveCategoryTab}
+        getCount={(tab) =>
+          tab.key === 'ALL' ? clients.length : categoryCounts[tab.key] || 0
+        }
+        ariaLabel='Client categories'
+      />
 
       <DataTable
         data={filteredClients}

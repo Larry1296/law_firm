@@ -169,6 +169,7 @@ class ClientAdminCreateService:
         Client.ClientType.SOCIETY_OR_ASSOCIATION,
         Client.ClientType.NON_PROFIT_ORGANIZATION,
         Client.ClientType.NGO,
+        Client.ClientType.RELIGIOUS_ORGANIZATION,
         Client.ClientType.TRUST,
         Client.ClientType.ESTATE,
         Client.ClientType.PUBLIC_ENTITY,
@@ -757,6 +758,7 @@ class ClientAdminCreateService:
         if client_type in {
             Client.ClientType.NON_PROFIT_ORGANIZATION,
             Client.ClientType.NGO,
+            Client.ClientType.RELIGIOUS_ORGANIZATION,
         }:
             return NonProfitOrganizationClient.objects.create(
                 client=client,

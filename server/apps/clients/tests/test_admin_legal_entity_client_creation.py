@@ -183,6 +183,7 @@ class AdminLegalEntityClientCreationTests(TestCase):
         elif client_type in {
             Client.ClientType.NON_PROFIT_ORGANIZATION,
             Client.ClientType.NGO,
+            Client.ClientType.RELIGIOUS_ORGANIZATION,
         }:
             data.update(
                 {
@@ -190,6 +191,8 @@ class AdminLegalEntityClientCreationTests(TestCase):
                     "nonprofit_form": (
                         NonProfitOrganizationClient.NonProfitForm.LEGACY_NGO_OR_TRANSITIONAL
                         if client_type == Client.ClientType.NGO
+                        else NonProfitOrganizationClient.NonProfitForm.FAITH_BASED_ORGANIZATION
+                        if client_type == Client.ClientType.RELIGIOUS_ORGANIZATION
                         else NonProfitOrganizationClient.NonProfitForm.PUBLIC_BENEFIT_ORGANIZATION
                     ),
                     "objectives": "Public-interest community legal awareness.",
@@ -201,6 +204,14 @@ class AdminLegalEntityClientCreationTests(TestCase):
                         "representative_category": "PBO_OFFICIAL",
                         "role_title": "NGO Official",
                         "national_id_or_passport": "NGO-OFFICIAL-ID-001",
+                    }
+                )
+            elif client_type == Client.ClientType.RELIGIOUS_ORGANIZATION:
+                data["representatives"][0].update(
+                    {
+                        "representative_category": "AUTHORIZED_AGENT",
+                        "role_title": "Authorized Religious Organization Official",
+                        "national_id_or_passport": "RELIGIOUS-OFFICIAL-ID-001",
                     }
                 )
         elif client_type == Client.ClientType.TRUST:
@@ -295,6 +306,7 @@ class AdminLegalEntityClientCreationTests(TestCase):
             Client.ClientType.SOCIETY_OR_ASSOCIATION: SocietyAssociationClient,
             Client.ClientType.NON_PROFIT_ORGANIZATION: NonProfitOrganizationClient,
             Client.ClientType.NGO: NonProfitOrganizationClient,
+            Client.ClientType.RELIGIOUS_ORGANIZATION: NonProfitOrganizationClient,
             Client.ClientType.TRUST: TrustClient,
             Client.ClientType.ESTATE: EstateClient,
             Client.ClientType.PUBLIC_ENTITY: PublicEntityClient,
@@ -888,6 +900,59 @@ class AdminLegalEntityClientCreationTests(TestCase):
 
     def test_school_requires_identified_authorized_representative(self):
         payload = self.payload_for(Client.ClientType.EDUCATIONAL_INSTITUTION)
+        payload["representatives"][0]["national_id_or_passport"] = ""
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("representatives", response.data["errors"])
+
+    def test_portal_religious_organization_preserves_category_and_login(self):
+        payload = self.payload_for(
+            Client.ClientType.RELIGIOUS_ORGANIZATION,
+            access_type=Client.AccessType.PORTAL_ENABLED,
+            email="portal-religious-official@example.test",
+            phone_number="+254700910051",
+            contact_full_name="Mercy Wanjiku Njeri",
+            contact_national_id_number="RELIGIOUS-OFFICIAL-ID-001",
+        )
+        payload["representatives"][0].update(
+            {
+                "email": payload["email"],
+                "telephone": payload["phone_number"],
+                "is_portal_contact": True,
+            }
+        )
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.select_related("user").get(
+            id=response.data["client"]["id"]
+        )
+        self.assertEqual(
+            client.client_type,
+            Client.ClientType.RELIGIOUS_ORGANIZATION,
+        )
+        self.assertEqual(
+            client.nonprofit_profile.nonprofit_form,
+            NonProfitOrganizationClient.NonProfitForm.FAITH_BASED_ORGANIZATION,
+        )
+        self.assertEqual(client.access_type, Client.AccessType.PORTAL_ENABLED)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
+        self.assertEqual(client.phone_number, "+254700910051")
+        self.assertEqual(
+            client.user.email,
+            "portal-religious-official@example.test",
+        )
+        self.assertEqual(
+            response.data["representatives"][0]["representative_category"],
+            "AUTHORIZED_AGENT",
+        )
+        self.assertTrue(response.data["temp_password"])
+
+    def test_religious_organization_requires_identified_official(self):
+        payload = self.payload_for(Client.ClientType.RELIGIOUS_ORGANIZATION)
         payload["representatives"][0]["national_id_or_passport"] = ""
 
         response = self.api_client.post(self.url, payload, format="json")

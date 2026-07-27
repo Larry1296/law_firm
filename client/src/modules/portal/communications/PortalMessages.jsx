@@ -27,6 +27,13 @@ const dummyMessages = [
 export default function PortalMessages() {
   const [selectedChat, setSelectedChat] = useState(dummyChats[0]);
   const [message, setMessage] = useState("");
+  const [search, setSearch] = useState("");
+
+  const filteredChats = dummyChats.filter((chat) =>
+    [chat.name, chat.lastMessage].some((value) =>
+      value.toLowerCase().includes(search.trim().toLowerCase()),
+    ),
+  );
 
   const sendMessage = () => {
     if (!message.trim()) return;
@@ -53,6 +60,8 @@ export default function PortalMessages() {
             className="absolute top-3 left-3 text-text-muted-dark"
           />
           <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder="Search chats..."
             autoComplete="on"
             autoCorrect="on"
@@ -63,7 +72,7 @@ export default function PortalMessages() {
         </div>
 
         <div className="space-y-2 overflow-y-auto">
-          {dummyChats.map((chat) => (
+          {filteredChats.map((chat) => (
             <div
               key={chat.id}
               onClick={() => setSelectedChat(chat)}

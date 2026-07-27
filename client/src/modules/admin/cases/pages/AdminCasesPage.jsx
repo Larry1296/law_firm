@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import Swal from '@/core/utils/themedSwal';
@@ -17,8 +17,15 @@ import DataTable from '@/components/ui/DataTable';
 import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
 import { Input3D } from '@/components/ui/Input3D';
+import Select3D from '@/components/ui/Select3D';
 import Button3D from '@/components/ui/Button3D';
 import SectionHeading from '@/components/ui/SectionHeading';
+import ResponsiveFilterTabs from '@/components/ui/ResponsiveFilterTabs';
+import {
+  CASE_STATUS_TABS,
+  caseStatusGroup,
+  countCasesByStatus,
+} from '@/modules/cases/shared/caseListTabs';
 import {
   casePartyLabel,
   casePartyName,
@@ -32,10 +39,53 @@ export default function AdminCasesPage() {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
+  const [searchBy, setSearchBy] = useState('ALL');
+  const [activeStatusTab, setActiveStatusTab] = useState('ALL');
 
-  const { cases, summary, isLoading, isFetching, refetch } = useAdminCases({
-    search,
-  });
+  const { cases, summary, isLoading, isFetching, refetch } = useAdminCases();
+  const safeCases = cases || [];
+  const statusCounts = useMemo(() => countCasesByStatus(safeCases), [safeCases]);
+
+  const filteredCases = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    return safeCases
+      .filter(
+        (caseItem) =>
+          activeStatusTab === 'ALL' ||
+          caseStatusGroup(caseItem) === activeStatusTab,
+      )
+      .filter((caseItem) => {
+      if (!term) return true;
+      const caseNumber = [caseItem.case_number];
+      const title = [caseItem.title];
+      const client = [casePartyName(caseItem), casePartyLabel(caseItem)];
+      const status = [
+        caseItem.matter_status,
+        caseItem.matter_status_label,
+        caseItem.court_stage,
+        caseItem.court_stage_label,
+      ];
+      const priority = [caseItem.priority];
+      const matches = (values) =>
+        values.some((value) =>
+          String(value || '').toLowerCase().includes(term),
+        );
+
+      if (searchBy === 'CASE_NUMBER') return matches(caseNumber);
+      if (searchBy === 'TITLE') return matches(title);
+      if (searchBy === 'CLIENT') return matches(client);
+      if (searchBy === 'STATUS') return matches(status);
+      if (searchBy === 'PRIORITY') return matches(priority);
+      return matches([
+        ...caseNumber,
+        ...title,
+        ...client,
+        ...status,
+        ...priority,
+      ]);
+      });
+  }, [activeStatusTab, safeCases, search, searchBy]);
 
   if (isLoading) {
     return (
@@ -102,17 +152,51 @@ export default function AdminCasesPage() {
 
       {/* Search */}
       <Card className='p-4'>
-        <Input3D
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder='Search cases...'
-        />
+        <div className='grid grid-cols-1 gap-3 md:grid-cols-[220px_1fr] md:items-start'>
+          <Select3D
+            label='Search by'
+            name='case_search_by'
+            value={searchBy}
+            onChange={(event) => setSearchBy(event.target.value)}
+            wrapperClassName='mb-0'
+            options={[
+              { value: 'ALL', label: 'All fields' },
+              { value: 'CASE_NUMBER', label: 'Case number' },
+              { value: 'TITLE', label: 'Title' },
+              { value: 'CLIENT', label: 'Client / party' },
+              { value: 'STATUS', label: 'Status / stage' },
+              { value: 'PRIORITY', label: 'Priority' },
+            ]}
+          />
+          <div>
+            <label
+              htmlFor='case-search'
+              className='block pb-2 text-sm font-semibold text-text-primary-light dark:text-text-primary-dark'
+            >
+              Search Cases
+            </label>
+            <Input3D
+              id='case-search'
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={`Search by ${searchBy.toLowerCase().replace(/_/g, ' ')}...`}
+            />
+          </div>
+        </div>
       </Card>
+
+      <ResponsiveFilterTabs
+        tabs={CASE_STATUS_TABS}
+        activeKey={activeStatusTab}
+        onChange={setActiveStatusTab}
+        getCount={(tab) => statusCounts[tab.key]}
+        ariaLabel='Case statuses'
+      />
 
       {/* Table */}
       <div className='min-w-0'>
         <DataTable
-          data={cases || []}
+          data={filteredCases}
           mobileTitleKey='title'
           mobileSubtitleKey='case_number'
           fitToContainer

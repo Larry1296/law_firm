@@ -20,8 +20,10 @@ import DataTable from '@/components/ui/DataTable';
 import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
 import { Input3D } from '@/components/ui/Input3D';
+import Select3D from '@/components/ui/Select3D';
 import Button3D from '@/components/ui/Button3D';
 import SectionHeading from '@/components/ui/SectionHeading';
+import ResponsiveFilterTabs from '@/components/ui/ResponsiveFilterTabs';
 
 const STAFF_ROLE_TABS = [
   { key: 'ALL', label: 'All Staff', countKey: 'total_staff' },
@@ -36,6 +38,7 @@ export default function AdminStaffPage() {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
+  const [searchBy, setSearchBy] = useState('ALL');
   const [activeRoleTab, setActiveRoleTab] = useState('ALL');
 
   const {
@@ -55,16 +58,26 @@ export default function AdminStaffPage() {
         return member.role === activeRoleTab;
       })
       .filter((member) => {
-      const term = search.toLowerCase();
+      const term = search.trim().toLowerCase();
+      if (!term) return true;
 
-      return (
-        member.full_name?.toLowerCase().includes(term) ||
-        member.email?.toLowerCase().includes(term) ||
-        member.role?.toLowerCase().includes(term)
-      );
+      const names = [member.full_name];
+      const emails = [member.email];
+      const roles = [member.role, member.role?.replace(/_/g, ' ')];
+      const statuses = [member.is_active ? 'active' : 'inactive'];
+      const matches = (values) =>
+        values.some((value) =>
+          String(value || '').toLowerCase().includes(term),
+        );
+
+      if (searchBy === 'NAME') return matches(names);
+      if (searchBy === 'EMAIL') return matches(emails);
+      if (searchBy === 'ROLE') return matches(roles);
+      if (searchBy === 'STATUS') return matches(statuses);
+      return matches([...names, ...emails, ...roles, ...statuses]);
     })
       .map((m) => ({ ...m, id: m.user_id }));
-  }, [activeRoleTab, search, staff]);
+  }, [activeRoleTab, search, searchBy, staff]);
 
   const activeRoleLabel =
     STAFF_ROLE_TABS.find((tab) => tab.key === activeRoleTab)?.label || 'Staff';
@@ -304,44 +317,44 @@ export default function AdminStaffPage() {
 
       {/* Search */}
       <Card className='space-y-4 p-4'>
-        <div className='overflow-x-auto'>
-          <div className='flex min-w-max gap-2'>
-            {STAFF_ROLE_TABS.map((tab) => {
-              const isActive = activeRoleTab === tab.key;
-              const count = summary?.[tab.countKey] ?? 0;
+        <ResponsiveFilterTabs
+          tabs={STAFF_ROLE_TABS}
+          activeKey={activeRoleTab}
+          onChange={setActiveRoleTab}
+          ariaLabel='Staff roles'
+          getCount={(tab) => summary?.[tab.countKey] ?? 0}
+        />
 
-              return (
-                <button
-                  key={tab.key}
-                  type='button'
-                  onClick={() => setActiveRoleTab(tab.key)}
-                  className={`flex min-h-11 items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-                    isActive
-                      ? 'border-brand-primary bg-brand-primary text-white shadow-sm'
-                      : 'border-border-light bg-surface-light text-text-primary-light hover:border-brand-primary dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      isActive
-                        ? 'bg-white/20 text-white'
-                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+        <div className='grid grid-cols-1 gap-3 md:grid-cols-[220px_1fr] md:items-start'>
+          <Select3D
+            label='Search by'
+            name='staff_search_by'
+            value={searchBy}
+            onChange={(event) => setSearchBy(event.target.value)}
+            wrapperClassName='mb-0'
+            options={[
+              { value: 'ALL', label: 'All fields' },
+              { value: 'NAME', label: 'Name' },
+              { value: 'EMAIL', label: 'Email' },
+              { value: 'ROLE', label: 'Role' },
+              { value: 'STATUS', label: 'Status' },
+            ]}
+          />
+          <div>
+            <label
+              htmlFor='staff-search'
+              className='block pb-2 text-sm font-semibold text-text-primary-light dark:text-text-primary-dark'
+            >
+              Search {activeRoleLabel}
+            </label>
+            <Input3D
+              id='staff-search'
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={`Search ${activeRoleLabel.toLowerCase()}...`}
+            />
           </div>
         </div>
-
-        <Input3D
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={`Search ${activeRoleLabel.toLowerCase()}...`}
-        />
       </Card>
 
       {/* Table */}

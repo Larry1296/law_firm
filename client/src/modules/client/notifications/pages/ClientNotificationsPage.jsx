@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/core/api/axios';
 import Card from '@/components/ui/Card';
 import Button3D from '@/components/ui/Button3D';
+import ResponsiveFilterTabs from '@/components/ui/ResponsiveFilterTabs';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 
@@ -104,22 +105,15 @@ export default function ClientNotificationsPage() {
         </Card>
       </div>
 
-      <div className='flex gap-2'>
-        {['all', 'unread'].map((item) => (
-          <button
-            key={item}
-            type='button'
-            onClick={() => setFilter(item)}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              filter === item
-                ? 'bg-brand-primary text-white'
-                : 'bg-surface-light text-text-primary-light hover:bg-background-light dark:bg-surface-dark dark:text-text-primary-dark dark:hover:bg-background-dark'
-            }`}
-          >
-            {item === 'all' ? 'All' : 'Unread'}
-          </button>
-        ))}
-      </div>
+      <ResponsiveFilterTabs
+        tabs={[
+          { key: 'all', label: 'All', count: notifications.length },
+          { key: 'unread', label: 'Unread', count: unreadCount },
+        ]}
+        activeKey={filter}
+        onChange={setFilter}
+        ariaLabel='Notification status'
+      />
 
       {isLoading && <Card className='p-6'>Loading notifications...</Card>}
 

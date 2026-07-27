@@ -384,6 +384,51 @@ assert.equal(
 );
 assert.equal(schoolPayload.representatives[0].is_portal_contact, true);
 
+const religiousOrganizationPayload = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    registered_name: ' Nairobi Faith Community ',
+    religious_official_name: ' Mercy Wanjiku ',
+    religious_official_identifier: ' RELIGIOUS-OFFICIAL-ID-001 ',
+    contact_full_name: '',
+    contact_email: '',
+    contact_phone_number: '',
+    contact_national_id_number: '',
+    email: 'religious.official@example.com',
+    phone_number: '+254700000031',
+  },
+  {
+    clientType: 'RELIGIOUS_ORGANIZATION',
+    requestedClientType: 'RELIGIOUS',
+    accessType: 'PORTAL_ENABLED',
+  },
+);
+
+assert.equal(
+  religiousOrganizationPayload.client_type,
+  'RELIGIOUS_ORGANIZATION',
+);
+assert.equal(
+  religiousOrganizationPayload.nonprofit_form,
+  'FAITH_BASED_ORGANIZATION',
+);
+assert.equal(
+  religiousOrganizationPayload.contact_full_name,
+  'Mercy Wanjiku',
+);
+assert.equal(
+  religiousOrganizationPayload.contact_national_id_number,
+  'RELIGIOUS-OFFICIAL-ID-001',
+);
+assert.equal(
+  religiousOrganizationPayload.representatives[0].representative_category,
+  'AUTHORIZED_AGENT',
+);
+assert.equal(
+  religiousOrganizationPayload.representatives[0].is_portal_contact,
+  true,
+);
+
 const partnershipPayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,

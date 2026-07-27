@@ -26,6 +26,7 @@ CANONICAL_ENTITY_TYPES = {
     Client.ClientType.SOCIETY_OR_ASSOCIATION,
     Client.ClientType.NON_PROFIT_ORGANIZATION,
     Client.ClientType.NGO,
+    Client.ClientType.RELIGIOUS_ORGANIZATION,
     Client.ClientType.TRUST,
     Client.ClientType.ESTATE,
     Client.ClientType.PUBLIC_ENTITY,
@@ -228,6 +229,7 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             Client.ClientType.SACCO,
             Client.ClientType.NON_PROFIT_ORGANIZATION,
             Client.ClientType.NGO,
+            Client.ClientType.RELIGIOUS_ORGANIZATION,
         }:
             return attrs.get("registered_name") or attrs.get("legal_name")
         if client_type == Client.ClientType.SOCIETY_OR_ASSOCIATION:
@@ -394,6 +396,7 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
         elif client_type in {
             Client.ClientType.NON_PROFIT_ORGANIZATION,
             Client.ClientType.NGO,
+            Client.ClientType.RELIGIOUS_ORGANIZATION,
         }:
             self._require(attrs, "registered_name", "nonprofit_form")
             if (
@@ -429,6 +432,48 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
                             "representatives": (
                                 "Record an ID or passport number for every "
                                 "authorized NGO official."
+                            )
+                        }
+                    )
+            if client_type == Client.ClientType.RELIGIOUS_ORGANIZATION:
+                if (
+                    attrs.get("nonprofit_form")
+                    != NonProfitOrganizationClient.NonProfitForm.FAITH_BASED_ORGANIZATION
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "nonprofit_form": (
+                                "A religious organization must use the "
+                                "faith-based organization form."
+                            )
+                        }
+                    )
+                religious_officials = [
+                    representative
+                    for representative in attrs.get("representatives") or []
+                    if representative.get("representative_category")
+                    in {
+                        ClientRepresentative.RepresentativeCategory.AUTHORIZED_AGENT,
+                        ClientRepresentative.RepresentativeCategory.OTHER,
+                    }
+                ]
+                if not religious_officials:
+                    raise serializers.ValidationError(
+                        {
+                            "representatives": (
+                                "Record an authorized religious organization official."
+                            )
+                        }
+                    )
+                if any(
+                    not official.get("national_id_or_passport")
+                    for official in religious_officials
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "representatives": (
+                                "Record an ID or passport number for every "
+                                "authorized religious organization official."
                             )
                         }
                     )

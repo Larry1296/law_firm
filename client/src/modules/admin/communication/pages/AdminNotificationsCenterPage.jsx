@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
+import ResponsiveFilterTabs from '@/components/ui/ResponsiveFilterTabs';
 import SectionHeading from '@/components/ui/SectionHeading';
 import axiosInstance from '@/core/api/axios';
 import { formatDateTime } from '@/core/utils/dateFormatter';
@@ -70,25 +71,15 @@ export default function AdminNotificationsCenterPage() {
         </Button3D>
       </div>
 
-      <div className='flex gap-2'>
-        {[
-          ['received', 'Received'],
-          ['sent', 'Sent'],
-        ].map(([key, label]) => (
-          <button
-            key={key}
-            type='button'
-            onClick={() => setView(key)}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              view === key
-                ? 'bg-[color:var(--brand-primary)] text-white'
-                : 'bg-[color:var(--surface)] text-[color:var(--text-primary)] hover:bg-[color:var(--surface-muted)]'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <ResponsiveFilterTabs
+        tabs={[
+          { key: 'received', label: 'Received' },
+          { key: 'sent', label: 'Sent' },
+        ]}
+        activeKey={view}
+        onChange={setView}
+        ariaLabel='Notification mailbox'
+      />
 
       {isLoading && <Card className='p-6'>Loading notifications...</Card>}
 

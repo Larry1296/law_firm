@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Briefcase, CheckCircle, Clock, FileText } from 'lucide-react';
@@ -11,6 +11,12 @@ import StatsCard from '@/components/ui/StatsCard';
 import DataTable from '@/components/ui/DataTable';
 import Button3D from '@/components/ui/Button3D';
 import SectionHeading from '@/components/ui/SectionHeading';
+import ResponsiveFilterTabs from '@/components/ui/ResponsiveFilterTabs';
+import {
+  CASE_STATUS_TABS,
+  caseStatusGroup,
+  countCasesByStatus,
+} from '@/modules/cases/shared/caseListTabs';
 import {
   casePartyLabel,
   casePartyName,
@@ -22,10 +28,21 @@ import {
 
 export default function ClientCasesPage() {
   const navigate = useNavigate();
+  const [activeStatusTab, setActiveStatusTab] = useState('ALL');
 
   const { data: cases = [], isLoading: loading, refetch } = useClientCases();
 
   const safeCases = Array.isArray(cases) ? cases : [];
+  const statusCounts = useMemo(() => countCasesByStatus(safeCases), [safeCases]);
+  const filteredCases = useMemo(
+    () =>
+      activeStatusTab === 'ALL'
+        ? safeCases
+        : safeCases.filter(
+            (caseItem) => caseStatusGroup(caseItem) === activeStatusTab,
+          ),
+    [activeStatusTab, safeCases],
+  );
 
   const normalize = (s) => (s || '').toLowerCase();
 
@@ -88,9 +105,17 @@ export default function ClientCasesPage() {
         />
       </div>
 
+      <ResponsiveFilterTabs
+        tabs={CASE_STATUS_TABS}
+        activeKey={activeStatusTab}
+        onChange={setActiveStatusTab}
+        getCount={(tab) => statusCounts[tab.key]}
+        ariaLabel='Case statuses'
+      />
+
       <Card className='p-2 md:p-4'>
         <DataTable
-          data={safeCases}
+          data={filteredCases}
           mobileTitleKey='title'
           mobileSubtitleKey='case_number'
           emptyMessage='No cases available.'

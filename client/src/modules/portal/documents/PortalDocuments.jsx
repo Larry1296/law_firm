@@ -8,6 +8,14 @@ import {
   Clock,
   XCircle,
 } from "lucide-react";
+import ResponsiveFilterTabs from "@/components/ui/ResponsiveFilterTabs";
+
+const documentTabs = [
+  { key: "all", label: "All" },
+  { key: "Identity", label: "Identity" },
+  { key: "Legal Contract", label: "Legal Contract" },
+  { key: "Evidence", label: "Evidence" },
+];
 
 const dummyDocs = [
   {
@@ -60,21 +68,17 @@ export default function PortalDocuments() {
       </div>
 
       {/* FILTERS */}
-      <div className="flex flex-wrap gap-2">
-        {["all", "Identity", "Legal Contract", "Evidence"].map((type) => (
-          <button
-            key={type}
-            onClick={() => setFilter(type)}
-            className={`px-4 py-2 rounded-xl text-sm transition ${
-              filter === type
-                ? "bg-brand-primary text-white"
-                : "bg-surface-dark text-text-muted-dark"
-            }`}
-          >
-            {type}
-          </button>
-        ))}
-      </div>
+      <ResponsiveFilterTabs
+        tabs={documentTabs}
+        activeKey={filter}
+        onChange={setFilter}
+        getCount={(tab) =>
+          tab.key === "all"
+            ? docs.length
+            : docs.filter((document) => document.type === tab.key).length
+        }
+        ariaLabel="Document categories"
+      />
 
       {/* GRID */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -19,6 +19,7 @@ import ThemeContext from "@/core/store/ThemeContext";
 
 import Card from "@/components/ui/Card";
 import Button3D from "@/components/ui/Button3D";
+import ResponsiveFilterTabs from "@/components/ui/ResponsiveFilterTabs";
 
 const notificationsData = [
   {
@@ -63,6 +64,14 @@ const notificationsData = [
   },
 ];
 
+const notificationTabs = [
+  { key: "all", label: "All" },
+  { key: "unread", label: "Unread" },
+  { key: "consultation", label: "Consultations" },
+  { key: "documents", label: "Documents" },
+  { key: "messages", label: "Messages" },
+];
+
 export default function PortalNotifications() {
   const { theme } = useContext(ThemeContext);
 
@@ -80,14 +89,6 @@ export default function PortalNotifications() {
     : "bg-surface-light border-border-light";
 
   const mutedText = isDark ? "text-text-muted-dark" : "text-slate-500";
-
-  const filters = [
-    { key: "all", label: "All" },
-    { key: "unread", label: "Unread" },
-    { key: "consultation", label: "Consultations" },
-    { key: "documents", label: "Documents" },
-    { key: "messages", label: "Messages" },
-  ];
 
   const filteredNotifications = useMemo(() => {
     return notificationsData.filter((item) => {
@@ -235,23 +236,21 @@ export default function PortalNotifications() {
           </div>
 
           {/* FILTERS */}
-          <div className="flex flex-wrap gap-3">
-            {filters.map((filter) => (
-              <button
-                key={filter.key}
-                onClick={() => setActiveFilter(filter.key)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                  activeFilter === filter.key
-                    ? "bg-brand-primary text-white"
-                    : isDark
-                      ? "bg-black/20 text-slate-300 hover:bg-black/40"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
+          <ResponsiveFilterTabs
+            tabs={notificationTabs}
+            activeKey={activeFilter}
+            onChange={setActiveFilter}
+            getCount={(tab) =>
+              tab.key === "all"
+                ? notificationsData.length
+                : tab.key === "unread"
+                  ? notificationsData.filter((item) => !item.read).length
+                  : notificationsData.filter((item) => item.type === tab.key)
+                      .length
+            }
+            ariaLabel="Notification categories"
+            className="lg:justify-end"
+          />
         </div>
       </Card>
 

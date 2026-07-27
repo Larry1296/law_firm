@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from '@/core/utils/themedSwal';
 
@@ -20,12 +20,17 @@ import DataTable from '@/components/ui/DataTable';
 import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
 import { Input3D } from '@/components/ui/Input3D';
+import Select3D from '@/components/ui/Select3D';
 import Button3D from '@/components/ui/Button3D';
 import SectionHeading from '@/components/ui/SectionHeading';
+import ResponsiveFilterTabs from '@/components/ui/ResponsiveFilterTabs';
+import { CLIENT_CATEGORY_TABS } from '@/modules/clients/shared/clientListTabs';
 
 export default function AdminClientsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [searchBy, setSearchBy] = useState('NAME');
+  const [activeCategoryTab, setActiveCategoryTab] = useState('ALL');
 
   const {
     analytics,
@@ -36,7 +41,71 @@ export default function AdminClientsPage() {
     deleteClient,
     archiveClient,
     restoreClient,
-  } = useAdminClients({ search });
+  } = useAdminClients();
+
+  const categoryCounts = useMemo(
+    () =>
+      clients.reduce((counts, client) => {
+        if (client.client_type) {
+          counts[client.client_type] =
+            (counts[client.client_type] || 0) + 1;
+        }
+        return counts;
+      }, {}),
+    [clients],
+  );
+
+  const filteredClients = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    return clients
+      .filter(
+        (client) =>
+          activeCategoryTab === 'ALL' ||
+          client.client_type === activeCategoryTab,
+      )
+      .filter((client) => {
+        if (!term) return true;
+
+        const nameValues = [
+          client.full_name,
+          client.preferred_name,
+          client.company_name,
+          client.trading_name,
+          client.primary_contact_name,
+        ];
+        const categoryValues = [
+          client.client_type,
+          client.client_type?.replace(/_/g, ' '),
+        ];
+        const genderValues = [client.gender];
+        const statusValues = [
+          client.lifecycle_status,
+          client.lifecycle_status?.replace(/_/g, ' '),
+          client.lifecycle_status === 'ARCHIVED'
+            ? 'archived'
+            : client.is_active
+              ? 'active'
+              : 'inactive',
+        ];
+
+        const matches = (values) =>
+          values.some((value) => String(value || '').toLowerCase().includes(term));
+
+        if (searchBy === 'GENDER') return matches(genderValues);
+        if (searchBy === 'CATEGORY') return matches(categoryValues);
+        if (searchBy === 'STATUS') return matches(statusValues);
+        if (searchBy === 'ALL') {
+          return matches([
+            ...nameValues,
+            ...genderValues,
+            ...categoryValues,
+            ...statusValues,
+          ]);
+        }
+        return matches(nameValues);
+      });
+  }, [activeCategoryTab, clients, search, searchBy]);
 
   const handleDelete = async (clientId) => {
     const result = await Swal.fire({
@@ -369,16 +438,63 @@ export default function AdminClientsPage() {
         />
       </div>
 
-      <Card className='p-4'>
-        <Input3D
-          placeholder='Search clients...'
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+      <Card className='space-y-4 p-4'>
+        <ResponsiveFilterTabs
+          tabs={CLIENT_CATEGORY_TABS}
+          activeKey={activeCategoryTab}
+          onChange={setActiveCategoryTab}
+          ariaLabel='Client categories'
+          getCount={(tab) =>
+            tab.key === 'ALL'
+              ? clients.length
+              : categoryCounts[tab.key] ?? 0
+          }
         />
+
+        <div className='grid grid-cols-1 gap-3 md:grid-cols-[220px_1fr] md:items-start'>
+          <Select3D
+            label='Search by'
+            name='client_search_by'
+            value={searchBy}
+            onChange={(event) => setSearchBy(event.target.value)}
+            wrapperClassName='mb-0'
+            options={[
+              { value: 'NAME', label: 'Name' },
+              { value: 'GENDER', label: 'Gender' },
+              { value: 'CATEGORY', label: 'Category' },
+              { value: 'STATUS', label: 'Status' },
+              { value: 'ALL', label: 'All fields' },
+            ]}
+          />
+          <div>
+            <label
+              htmlFor='client-search'
+              className='block pb-2 text-sm font-semibold text-text-primary-light dark:text-text-primary-dark'
+            >
+              Search Clients
+            </label>
+            <Input3D
+              id='client-search'
+              placeholder={
+                searchBy === 'GENDER'
+                  ? 'Search by gender...'
+                  : searchBy === 'CATEGORY'
+                    ? 'Search by category...'
+                    : searchBy === 'STATUS'
+                      ? 'Search active, inactive, archived, prospective, or official...'
+                    : searchBy === 'ALL'
+                      ? 'Search names, gender, category, or status...'
+                      : 'Search clients by name...'
+              }
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
       </Card>
 
       <DataTable
-        data={clients}
+        data={filteredClients}
         emptyMessage='No clients found.'
         mobileTitleKey='full_name'
         mobileSubtitleKey='client_type'
