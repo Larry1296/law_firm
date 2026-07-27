@@ -314,6 +314,17 @@ class AdminCompanyClientCreationTests(TestCase):
         self.assertEqual(response.status_code, 400, response.data)
         self.assertIn("authorised_representatives", response.data["errors"])
 
+    def test_blank_authorised_representative_role_is_accepted(self):
+        payload = self.payload()
+        payload["authorised_representatives"][0]["role_title"] = ""
+        payload["contact_role_or_designation"] = ""
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        representative = response.data["authorised_representatives"][0]
+        self.assertEqual(representative["role_title"], "")
+
     def test_future_incorporation_date_is_rejected(self):
         future_date = timezone.localdate() + timedelta(days=1)
 

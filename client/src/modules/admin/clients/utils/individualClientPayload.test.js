@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
+import { test } from 'vitest';
 
 import {
   buildIndividualClientPayload,
   validateIndividualClientForm,
 } from './individualClientPayload.js';
 
+test('builds and validates individual client payloads', () => {
 const baseIndividual = {
   full_name: ' Peter Mwangi Kamau ',
   first_name: ' Peter ',
@@ -177,6 +179,7 @@ assert.equal(missingRequiredPortalFields.errors.city_or_town, 'Residential city,
 assert.equal(missingRequiredPortalFields.errors.address_description, 'Residential address description is required.');
 assert.equal(missingRequiredPortalFields.errors.privacy_notice_version, 'Privacy notice version is required.');
 assert.equal(missingRequiredPortalFields.errors.personal_data_source, 'Personal data source is required.');
+});
 
 const passportPayload = buildIndividualClientPayload(
   {

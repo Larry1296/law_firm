@@ -50,7 +50,11 @@ class BeneficialOwnerInputSerializer(serializers.Serializer):
 
 class CompanyRepresentativeInputSerializer(serializers.Serializer):
     full_legal_name = serializers.CharField(max_length=255)
-    role_title = serializers.CharField(max_length=255)
+    role_title = serializers.CharField(
+        max_length=255,
+        required=False,
+        allow_blank=True,
+    )
     national_id_or_passport = serializers.CharField(max_length=100)
     telephone = serializers.CharField(max_length=30)
     email = serializers.EmailField(required=False, allow_blank=True)

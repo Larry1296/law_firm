@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
+import { test } from 'vitest';
 
 import {
   buildLegalEntityClientPayload,
   canonicalLegalEntityTypes,
 } from './legalEntityClientPayload.js';
 
+test('builds canonical legal entity client payloads', () => {
 const baseEntity = {
   legal_name: ' Nairobi Public Benefit Initiative ',
   registration_number: ' pbo-2026-001 ',
@@ -115,3 +117,4 @@ assert.equal(
   estatePayload.personal_representatives[0].full_legal_name,
   'Mary Wanjiku Kamau',
 );
+});

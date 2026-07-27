@@ -327,6 +327,9 @@ export const buildCaseCreatePayload = (formData = {}, context = {}) => {
 
   if (forum === 'COURT' || route === 'EXISTING_FILED_COURT_CASE' || route === 'NEW_INSTRUCTION') {
     const courtProceeding = pickSection(data, COURT_FIELDS, COURT_ALIASES);
+    if (courtProceeding.court_fee_amount === 0) {
+      delete courtProceeding.court_fee_amount;
+    }
     if (route === 'NEW_INSTRUCTION') {
       delete courtProceeding.official_court_case_number;
       delete courtProceeding.filing_date;
