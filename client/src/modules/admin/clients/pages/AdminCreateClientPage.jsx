@@ -69,7 +69,7 @@ export default function AdminCreateClientPage() {
     isIndividualClientType && clientMode === 'assisted' ? 'assisted' : 'portal',
   );
   const [selectedEntityAccessType, setSelectedEntityAccessType] = useState(
-    clientMode === 'assisted' ? 'ASSISTED_CLIENT' : 'PROSPECT',
+    clientMode === 'assisted' ? 'ASSISTED' : 'PORTAL_ENABLED',
   );
   const partnershipAgreementTypes = [
     {
@@ -127,6 +127,7 @@ export default function AdminCreateClientPage() {
     middle_name: '',
     last_name: '',
     preferred_name: '',
+    onboarding_method: 'STAFF_ASSISTED',
     identification_type: 'NATIONAL_ID',
     identification_number: '',
     identification_country: 'Kenya',
@@ -167,18 +168,29 @@ export default function AdminCreateClientPage() {
     privacy_notice_version: INDIVIDUAL_PRIVACY_NOTICE_VERSION,
     privacy_notice_delivery_method: 'PORTAL',
     privacy_notice_acknowledged: false,
+    privacy_acknowledgement_reference: '',
+    privacy_lawful_basis: 'CONTRACT_AND_LEGAL_OBLIGATION',
+    privacy_data_sharing_explanation: 'Courts, tribunals, opposing counsel and authorised service providers where necessary for the legal service.',
+    privacy_retention_category: 'CLIENT_AND_MATTER_RECORD',
     personal_data_source: '',
     acting_for_self: true,
     represented_person: '',
+    representation_capacity: '',
     authority_document_reference: '',
+    authority_verified: false,
     purpose_and_nature_of_relationship: '',
     pep_status: 'PENDING',
     pep_details: '',
     sanctions_screening_status: 'PENDING',
+    screening_date: '',
+    screening_method: '',
+    screening_result: '',
     risk_rating: 'NOT_ASSESSED',
+    risk_assessment_reason: '',
     source_of_funds: '',
     source_of_wealth: '',
     enhanced_due_diligence_required: false,
+    enhanced_due_diligence_reason: '',
     next_review_date: '',
     notes: '',
 
@@ -186,13 +198,51 @@ export default function AdminCreateClientPage() {
     trading_name: '',
     registration_number: '',
     kra_pin: '',
-    company_type: 'PRIVATE_LIMITED',
+    company_type: 'PRIVATE_LIMITED_COMPANY',
     incorporation_date: '',
     country_of_incorporation: 'Kenya',
     industry: '',
     nature_of_business: '',
     website: '',
     company_status: 'ACTIVE',
+    company_registration_authority: 'Business Registration Service',
+    registration_document_reference: '',
+    registration_verification_source: 'BRS_ECITIZEN',
+    registration_verified: false,
+    onboarding_method_company: 'STAFF_ASSISTED',
+    preferred_contact_channel_company: 'PHONE',
+    company_privacy_notice_version: INDIVIDUAL_PRIVACY_NOTICE_VERSION,
+    company_privacy_notice_delivery_method: 'PAPER',
+    company_privacy_notice_acknowledged: false,
+    company_personal_data_source: 'AUTHORISED_REPRESENTATIVE',
+    company_privacy_lawful_basis: 'LEGAL_SERVICE_AND_CONTRACT',
+    company_purpose_and_nature: '',
+    company_pep_status: 'PENDING',
+    company_sanctions_status: 'PENDING',
+    company_risk_rating: 'NOT_ASSESSED',
+    company_source_of_funds: '',
+    company_source_of_wealth: '',
+    company_edd_required: false,
+    company_edd_reason: '',
+    client_instructions_confirmed: false,
+    director_full_legal_name: '',
+    director_identifier: '',
+    director_nationality: 'Kenyan',
+    director_identity_verified: false,
+    director_verification_reference: '',
+    director_authority_to_instruct: false,
+    owner_full_legal_name: '',
+    owner_identifier: '',
+    owner_nationality: 'Kenyan',
+    owner_ownership_percentage: '',
+    owner_voting_percentage: '',
+    owner_control_method: 'SHAREHOLDING',
+    owner_identity_verified: false,
+    owner_evidence_reference: '',
+    beneficial_ownership_verified: false,
+    representative_authority_type: 'BOARD_RESOLUTION',
+    representative_authority_reference: '',
+    representative_authority_verified: false,
     director_count: '',
     employee_count: '',
     beneficial_ownership_declared: false,
@@ -398,6 +448,25 @@ export default function AdminCreateClientPage() {
     if (!formData.registration_number.trim()) {
       errors.registration_number = 'Registration number is required.';
     }
+    if (!formData.company_registration_authority.trim()) errors.company_registration_authority = 'Registration authority is required.';
+    if (!formData.incorporation_date) errors.incorporation_date = 'Registration date is required.';
+    if (!formData.nature_of_business.trim()) errors.nature_of_business = 'Nature of business is required.';
+    if (!formData.industry.trim()) errors.industry = 'Industry or sector is required.';
+    if (!formData.registration_verified) errors.registration_verified = 'Verify the company registration.';
+    if (!formData.registration_document_reference.trim()) errors.registration_document_reference = 'Registration evidence reference is required.';
+    if (!formData.director_full_legal_name.trim()) errors.director_full_legal_name = 'Record at least one director.';
+    if (!formData.director_identifier.trim()) errors.director_identifier = 'Director identification is required.';
+    if (!formData.owner_full_legal_name.trim()) errors.owner_full_legal_name = 'Record a beneficial owner or controlling official.';
+    if (!formData.owner_identifier.trim()) errors.owner_identifier = 'Beneficial-owner identification is required.';
+    if (!formData.owner_evidence_reference.trim()) errors.owner_evidence_reference = 'Ownership evidence is required.';
+    if (!formData.contact_full_name.trim()) errors.contact_full_name = 'An authorised representative is required.';
+    if (!formData.contact_national_id_number.trim()) errors.contact_national_id_number = 'Representative identification is required.';
+    if (!formData.contact_phone_number.trim() && !formData.phone_number.trim()) errors.contact_phone_number = 'Representative phone is required.';
+    if (!formData.representative_authority_reference.trim()) errors.representative_authority_reference = 'Authority evidence is required.';
+    if (!formData.representative_authority_verified) errors.representative_authority_verified = 'Verify the representative authority.';
+    if (!formData.company_purpose_and_nature.trim()) errors.company_purpose_and_nature = 'Describe the legal service and purpose.';
+    if (!formData.company_privacy_notice_acknowledged) errors.company_privacy_notice_acknowledged = 'Confirm privacy-notice acknowledgement.';
+    if (!formData.client_instructions_confirmed) errors.client_instructions_confirmed = 'Confirm the company instructions.';
     if (formData.kra_pin && normalizeUpper(formData.kra_pin).length < 8) {
       errors.kra_pin = 'Enter a valid KRA PIN.';
     }
@@ -420,7 +489,7 @@ export default function AdminCreateClientPage() {
       errors.website = 'Enter a valid http or https URL.';
     }
 
-    if (selectedEntityAccessType === 'PROSPECT') {
+    if (selectedEntityAccessType === 'PORTAL_ENABLED') {
       if (!formData.email.trim()) {
         errors.email = 'Company email is required for client portal access.';
       }
@@ -444,7 +513,7 @@ export default function AdminCreateClientPage() {
     const isProspect =
       clientType === 'INDIVIDUAL'
         ? selectedClientMode === 'portal'
-        : selectedEntityAccessType === 'PROSPECT';
+        : selectedEntityAccessType === 'PORTAL_ENABLED';
     const clean = (payload) =>
       Object.fromEntries(
         Object.entries(payload).filter(([, value]) => value !== '' && value !== null),
@@ -465,7 +534,7 @@ export default function AdminCreateClientPage() {
           formData.administrator_contact ||
           formData.director_contact
         : formData.phone_number,
-      access_type: isProspect ? 'PROSPECT' : 'ASSISTED_CLIENT',
+      access_type: isProspect ? 'PORTAL_ENABLED' : 'ASSISTED',
       country: formData.country,
       county: formData.county,
       city: formData.city,
@@ -479,13 +548,16 @@ export default function AdminCreateClientPage() {
         client_type: clientType,
         clientType,
         requestedClientType,
-        accessType: isProspect ? 'PROSPECT' : 'ASSISTED_CLIENT',
+        accessType: isProspect ? 'PORTAL_ENABLED' : 'ASSISTED',
       });
     }
 
     if (companyLikeClientTypes.includes(clientType)) {
+      const portalEnabled = selectedEntityAccessType === 'PORTAL_ENABLED';
       return clean({
         ...base,
+        access_type: portalEnabled ? 'PORTAL_ENABLED' : 'ASSISTED',
+        legal_name: formData.company_name.trim(),
         company_name:
           formData.company_name.trim() ||
           `${requestedClientType.replace(/_/g, ' ')} Client`,
@@ -494,7 +566,10 @@ export default function AdminCreateClientPage() {
         kra_pin: normalizeUpper(formData.kra_pin),
         company_type: formData.company_type,
         incorporation_date: formData.incorporation_date || null,
+        registration_date: formData.incorporation_date || null,
         country_of_incorporation: formData.country_of_incorporation || 'Kenya',
+        country_of_registration: formData.country_of_incorporation || 'Kenya',
+        registration_authority: formData.company_registration_authority,
         industry: formData.industry,
         nature_of_business: formData.nature_of_business,
         website: formData.website,
@@ -502,8 +577,66 @@ export default function AdminCreateClientPage() {
         director_count: formData.director_count,
         employee_count: formData.employee_count,
         beneficial_ownership_declared: formData.beneficial_ownership_declared,
+        beneficial_ownership_verified: formData.beneficial_ownership_verified,
         annual_returns_up_to_date: formData.annual_returns_up_to_date,
         compliance_notes: formData.compliance_notes,
+        registration_verified: formData.registration_verified,
+        registration_verification_source: formData.registration_verification_source,
+        registration_document_reference: formData.registration_document_reference,
+        onboarding_method: portalEnabled ? 'PORTAL' : formData.onboarding_method_company,
+        preferred_contact_channel: portalEnabled ? 'EMAIL' : formData.preferred_contact_channel_company,
+        privacy_notice_version: formData.company_privacy_notice_version,
+        privacy_notice_delivery_method: portalEnabled ? 'PORTAL' : formData.company_privacy_notice_delivery_method,
+        privacy_notice_acknowledged: formData.company_privacy_notice_acknowledged,
+        personal_data_source: formData.company_personal_data_source,
+        privacy_lawful_basis: formData.company_privacy_lawful_basis,
+        purpose_and_nature_of_relationship: formData.company_purpose_and_nature,
+        pep_status: formData.company_pep_status,
+        sanctions_screening_status: formData.company_sanctions_status,
+        risk_rating: formData.company_risk_rating,
+        source_of_funds: formData.company_source_of_funds,
+        source_of_wealth: formData.company_source_of_wealth,
+        enhanced_due_diligence_required: formData.company_edd_required,
+        enhanced_due_diligence_reason: formData.company_edd_reason,
+        engagement_letter_status: 'PENDING',
+        fee_agreement_status: 'PENDING',
+        client_instructions_confirmed: formData.client_instructions_confirmed,
+        directors: formData.director_full_legal_name ? [{
+          full_legal_name: formData.director_full_legal_name,
+          person_type: 'INDIVIDUAL',
+          national_id_or_passport: formData.director_identifier,
+          nationality: formData.director_nationality,
+          role: 'DIRECTOR',
+          is_active: true,
+          authority_to_instruct: formData.director_authority_to_instruct,
+          identity_verified: formData.director_identity_verified,
+          verification_document_reference: formData.director_verification_reference,
+        }] : [],
+        beneficial_owners: formData.owner_full_legal_name ? [{
+          full_legal_name: formData.owner_full_legal_name,
+          person_type: 'INDIVIDUAL',
+          national_id_or_passport: formData.owner_identifier,
+          nationality: formData.owner_nationality,
+          ownership_percentage: formData.owner_ownership_percentage,
+          voting_rights_percentage: formData.owner_voting_percentage,
+          control_method: formData.owner_control_method,
+          identity_verified: formData.owner_identity_verified,
+          ownership_evidence_reference: formData.owner_evidence_reference,
+          pep_status: 'PENDING',
+          sanctions_screening_status: 'PENDING',
+        }] : [],
+        authorised_representatives: [{
+          full_legal_name: formData.contact_full_name,
+          role_title: formData.contact_role_or_designation,
+          national_id_or_passport: formData.contact_national_id_number,
+          telephone: formData.contact_phone_number || formData.phone_number,
+          email: formData.contact_email || formData.email,
+          authority_type: formData.representative_authority_type,
+          authority_document_reference: formData.representative_authority_reference,
+          authority_verified: formData.representative_authority_verified,
+          is_primary: true,
+          is_portal_contact: portalEnabled,
+        }],
         contact_full_name: formData.contact_full_name,
         contact_email: formData.contact_email,
         contact_phone_number: formData.contact_phone_number,
@@ -685,7 +818,7 @@ export default function AdminCreateClientPage() {
   const isProspect =
     clientType === 'INDIVIDUAL'
       ? selectedClientMode === 'portal'
-      : selectedEntityAccessType === 'PROSPECT';
+      : selectedEntityAccessType === 'PORTAL_ENABLED';
   const isAssistedIndividual = isIndividual && !isProspect;
   const isMinorIndividual = isIndividual && isMinorIndividualClient(formData.date_of_birth);
   const individualSubtitle = isIndividual
@@ -737,7 +870,7 @@ export default function AdminCreateClientPage() {
     setSuccessData(null);
     setFieldErrors({});
     setGeneralError('');
-    setSelectedEntityAccessType('PROSPECT');
+    setSelectedEntityAccessType('PORTAL_ENABLED');
     setFormData((prev) => ({
       ...prev,
       email: '',
@@ -746,7 +879,7 @@ export default function AdminCreateClientPage() {
       trading_name: '',
       registration_number: '',
       kra_pin: '',
-      company_type: 'PRIVATE_LIMITED',
+      company_type: 'PRIVATE_LIMITED_COMPANY',
       incorporation_date: '',
       country_of_incorporation: 'Kenya',
       industry: '',
@@ -765,6 +898,7 @@ export default function AdminCreateClientPage() {
       agreement_type: '',
       ngo_name: '',
       registration_authority: '',
+      company_registration_authority: 'Business Registration Service',
       registration_date: '',
       sector: '',
       headquarters_address: '',
@@ -896,6 +1030,7 @@ export default function AdminCreateClientPage() {
       middle_name: '',
       last_name: '',
       preferred_name: '',
+      onboarding_method: 'STAFF_ASSISTED',
       identification_type: 'NATIONAL_ID',
       identification_number: '',
       identification_country: 'Kenya',
@@ -936,18 +1071,29 @@ export default function AdminCreateClientPage() {
       privacy_notice_version: INDIVIDUAL_PRIVACY_NOTICE_VERSION,
       privacy_notice_delivery_method: 'PORTAL',
       privacy_notice_acknowledged: false,
+      privacy_acknowledgement_reference: '',
+      privacy_lawful_basis: 'CONTRACT_AND_LEGAL_OBLIGATION',
+      privacy_data_sharing_explanation: 'Courts, tribunals, opposing counsel and authorised service providers where necessary for the legal service.',
+      privacy_retention_category: 'CLIENT_AND_MATTER_RECORD',
       personal_data_source: '',
       acting_for_self: true,
       represented_person: '',
+      representation_capacity: '',
       authority_document_reference: '',
+      authority_verified: false,
       purpose_and_nature_of_relationship: '',
       pep_status: 'PENDING',
       pep_details: '',
       sanctions_screening_status: 'PENDING',
+      screening_date: '',
+      screening_method: '',
+      screening_result: '',
       risk_rating: 'NOT_ASSESSED',
+      risk_assessment_reason: '',
       source_of_funds: '',
       source_of_wealth: '',
       enhanced_due_diligence_required: false,
+      enhanced_due_diligence_reason: '',
       next_review_date: '',
       notes: '',
       country: 'Kenya',
@@ -1062,6 +1208,7 @@ export default function AdminCreateClientPage() {
 	                        guardian_email: option.value === 'assisted' ? '' : current.guardian_email,
 	                        next_of_kin_email: option.value === 'assisted' ? '' : current.next_of_kin_email,
 	                        preferred_contact_channel: option.value === 'assisted' ? 'IN_PERSON' : '',
+	                        onboarding_method: option.value === 'assisted' ? 'IN_PERSON' : 'STAFF_ASSISTED',
 	                        privacy_notice_delivery_method: option.value === 'assisted' ? 'VERBAL' : 'PORTAL',
 	                        privacy_notice_acknowledged: false,
 	                      }));
@@ -1088,6 +1235,21 @@ export default function AdminCreateClientPage() {
 	                  Fully assisted does not create a login account. The firm manages the client information.
 	                </div>
 	              )}
+	              <Select3D
+	                label='Client Onboarding Method'
+	                name='onboarding_method'
+	                value={formData.onboarding_method}
+	                onChange={handleChange}
+	                error={fieldErrors.onboarding_method}
+	                required
+	                options={isProspect ? [
+	                  { value: 'STAFF_ASSISTED', label: 'Staff assisted portal setup' },
+	                ] : [
+	                  { value: 'IN_PERSON', label: 'In person' },
+	                  { value: 'PHONE', label: 'By phone' },
+	                  { value: 'STAFF_ASSISTED', label: 'Other staff-assisted intake' },
+	                ]}
+	              />
 	            </section>
 	          )}
 
@@ -1105,8 +1267,8 @@ export default function AdminCreateClientPage() {
                   setGeneralError('');
                 }}
                 options={[
-                  { value: 'ASSISTED_CLIENT', label: 'Firm-managed client' },
-                  { value: 'PROSPECT', label: 'Client portal access' },
+                  { value: 'ASSISTED', label: 'Firm-managed client' },
+                  { value: 'PORTAL_ENABLED', label: 'Client portal access' },
                 ]}
               />
               {isProspect ? (
@@ -1883,6 +2045,9 @@ export default function AdminCreateClientPage() {
                 </h3>
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                   <FloatingInput label='Full Legal Name' name='full_name' value={formData.full_name} onChange={handleChange} error={fieldErrors.full_name} required />
+                  <FloatingInput label='First Name' name='first_name' value={formData.first_name} onChange={handleChange} error={fieldErrors.first_name} />
+                  <FloatingInput label='Middle Name' name='middle_name' value={formData.middle_name} onChange={handleChange} error={fieldErrors.middle_name} />
+                  <FloatingInput label='Last Name' name='last_name' value={formData.last_name} onChange={handleChange} error={fieldErrors.last_name} />
                   <Select3D label='Identification Type' name='identification_type' value={formData.identification_type} onChange={handleChange} error={fieldErrors.identification_type} required options={[
                     { value: 'NATIONAL_ID', label: 'National ID' },
                     { value: 'PASSPORT', label: 'Passport' },
@@ -1975,7 +2140,13 @@ export default function AdminCreateClientPage() {
                 {!formData.acting_for_self && (
                   <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                     <FloatingInput label='Person Represented' name='represented_person' value={formData.represented_person} onChange={handleChange} error={fieldErrors.represented_person} required />
+                    <FloatingInput label='Relationship / Legal Capacity' name='representation_capacity' value={formData.representation_capacity} onChange={handleChange} error={fieldErrors.representation_capacity} required />
                     <FloatingInput label='Authority Document / Reference' name='authority_document_reference' value={formData.authority_document_reference} onChange={handleChange} error={fieldErrors.authority_document_reference} required />
+                    <label className='flex items-start gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                      <input type='checkbox' name='authority_verified' checked={formData.authority_verified} onChange={handleChange} className='mt-1' />
+                      <span className='text-sm'>I inspected and verified the representative’s authority to give instructions.</span>
+                    </label>
+                    {fieldErrors.authority_verified && <p className='text-sm text-red-500'>{fieldErrors.authority_verified}</p>}
                   </div>
                 )}
                 <FloatingInput
@@ -2089,10 +2260,28 @@ export default function AdminCreateClientPage() {
                     { value: 'HIGH', label: 'High' },
                   ]} />
                   <FloatingInput label='Source of Funds (when relevant)' name='source_of_funds' value={formData.source_of_funds} onChange={handleChange} error={fieldErrors.source_of_funds} />
+                  <FloatingInput label='Source of Wealth (when relevant)' name='source_of_wealth' value={formData.source_of_wealth} onChange={handleChange} error={fieldErrors.source_of_wealth} />
+                  {!['PENDING', 'NOT_CHECKED'].includes(formData.sanctions_screening_status) && (
+                    <>
+                      <FloatingInput label='Screening Date' name='screening_date' type='date' value={formData.screening_date} onChange={handleChange} error={fieldErrors.screening_date} required />
+                      <FloatingInput label='Screening Method / Provider' name='screening_method' value={formData.screening_method} onChange={handleChange} error={fieldErrors.screening_method} />
+                      <FloatingInput label='Screening Result' name='screening_result' value={formData.screening_result} onChange={handleChange} error={fieldErrors.screening_result} required />
+                    </>
+                  )}
+                  {formData.risk_rating !== 'NOT_ASSESSED' && (
+                    <FloatingInput label='Risk Assessment Reason' name='risk_assessment_reason' value={formData.risk_assessment_reason} onChange={handleChange} error={fieldErrors.risk_assessment_reason} required />
+                  )}
                   {['POTENTIAL_MATCH', 'CONFIRMED_MATCH'].includes(formData.pep_status) && (
                     <FloatingInput label='PEP Details' name='pep_details' value={formData.pep_details} onChange={handleChange} error={fieldErrors.pep_details} required />
                   )}
                 </div>
+                <label className='flex items-start gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                  <input type='checkbox' name='enhanced_due_diligence_required' checked={formData.enhanced_due_diligence_required} onChange={handleChange} className='mt-1' />
+                  <span className='text-sm'>Enhanced due diligence is required</span>
+                </label>
+                {formData.enhanced_due_diligence_required && (
+                  <FloatingInput label='Enhanced Due Diligence Reason' name='enhanced_due_diligence_reason' value={formData.enhanced_due_diligence_reason} onChange={handleChange} error={fieldErrors.enhanced_due_diligence_reason} required />
+                )}
               </section>
 
               <section className='space-y-4'>
@@ -2118,6 +2307,15 @@ export default function AdminCreateClientPage() {
                     { value: 'AUTHORIZED_REPRESENTATIVE', label: 'Authorized representative' },
                     { value: 'OTHER', label: 'Other' },
                   ]} />
+                  <FloatingInput label='Signature / Acknowledgement Reference' name='privacy_acknowledgement_reference' value={formData.privacy_acknowledgement_reference} onChange={handleChange} error={fieldErrors.privacy_acknowledgement_reference} required />
+                  <Select3D label='Lawful Basis' name='privacy_lawful_basis' value={formData.privacy_lawful_basis} onChange={handleChange} error={fieldErrors.privacy_lawful_basis} required options={[
+                    { value: 'CONTRACT_AND_LEGAL_OBLIGATION', label: 'Contract and legal obligation' },
+                    { value: 'LEGAL_OBLIGATION', label: 'Legal obligation' },
+                    { value: 'LEGAL_CLAIMS', label: 'Establishment, exercise or defence of legal claims' },
+                    { value: 'LEGITIMATE_INTERESTS', label: 'Legitimate interests' },
+                  ]} />
+                  <FloatingInput label='Data Sharing Explanation' name='privacy_data_sharing_explanation' value={formData.privacy_data_sharing_explanation} onChange={handleChange} error={fieldErrors.privacy_data_sharing_explanation} />
+                  <FloatingInput label='Retention Category' name='privacy_retention_category' value={formData.privacy_retention_category} onChange={handleChange} error={fieldErrors.privacy_retention_category} />
                 </div>
                 <label className='flex items-start gap-3 rounded-xl border border-[color:var(--border)] p-4'>
                   <input type='checkbox' name='privacy_notice_acknowledged' checked={formData.privacy_notice_acknowledged} onChange={handleChange} className='mt-1' />
@@ -2180,8 +2378,8 @@ export default function AdminCreateClientPage() {
                     value={formData.company_type}
                     onChange={handleChange}
                     options={[
-                      { value: 'PRIVATE_LIMITED', label: 'Private Company Limited by Shares' },
-                      { value: 'PUBLIC_LIMITED', label: 'Public Limited Company' },
+                      { value: 'PRIVATE_LIMITED_COMPANY', label: 'Private Company Limited by Shares' },
+                      { value: 'PUBLIC_LIMITED_COMPANY', label: 'Public Limited Company' },
                       { value: 'COMPANY_LIMITED_BY_GUARANTEE', label: 'Company Limited by Guarantee' },
                       { value: 'FOREIGN_COMPANY', label: 'Foreign Company' },
                       { value: 'UNLIMITED_COMPANY', label: 'Unlimited Company' },
@@ -2203,6 +2401,18 @@ export default function AdminCreateClientPage() {
                     onChange={handleChange}
                     error={fieldErrors.country_of_incorporation}
                   />
+                  <FloatingInput label='Registration Authority' name='company_registration_authority' value={formData.company_registration_authority} onChange={handleChange} error={fieldErrors.company_registration_authority} required />
+                  <FloatingInput label='Registration Document Reference' name='registration_document_reference' value={formData.registration_document_reference} onChange={handleChange} error={fieldErrors.registration_document_reference} required />
+                  <Select3D label='Independent Verification Source' name='registration_verification_source' value={formData.registration_verification_source} onChange={handleChange} error={fieldErrors.registration_verification_source} options={[
+                    { value: 'BRS_ECITIZEN', label: 'BRS / eCitizen search' },
+                    { value: 'CERTIFIED_DOCUMENT', label: 'Certified registration document' },
+                    { value: 'FOREIGN_OFFICIAL_REGISTER', label: 'Foreign official register' },
+                  ]} />
+                  <label className='flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                    <input type='checkbox' name='registration_verified' checked={formData.registration_verified} onChange={handleChange} />
+                    <span>Registration and current status independently verified</span>
+                  </label>
+                  {fieldErrors.registration_verified && <p className='text-sm text-red-500'>{fieldErrors.registration_verified}</p>}
                   <Select3D
                     label='Company Status'
                     name='company_status'
@@ -2250,15 +2460,6 @@ export default function AdminCreateClientPage() {
                     error={fieldErrors.website}
                   />
                   <FloatingInput
-                    label='Number of Directors'
-                    name='director_count'
-                    type='number'
-                    min='0'
-                    value={formData.director_count}
-                    onChange={handleChange}
-                    error={fieldErrors.director_count}
-                  />
-                  <FloatingInput
                     label='Number of Employees'
                     name='employee_count'
                     type='number'
@@ -2297,6 +2498,54 @@ export default function AdminCreateClientPage() {
               </section>
 
               <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>Director or controlling officer</h3>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Full Legal Name' name='director_full_legal_name' value={formData.director_full_legal_name} onChange={handleChange} error={fieldErrors.director_full_legal_name} required />
+                  <FloatingInput label='National ID / Passport' name='director_identifier' value={formData.director_identifier} onChange={handleChange} error={fieldErrors.director_identifier} required />
+                  <FloatingInput label='Nationality' name='director_nationality' value={formData.director_nationality} onChange={handleChange} />
+                  <FloatingInput label='Identity Verification Reference' name='director_verification_reference' value={formData.director_verification_reference} onChange={handleChange} error={fieldErrors.director_verification_reference} />
+                </div>
+                <div className='grid gap-3 md:grid-cols-2'>
+                  <label className='flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                    <input type='checkbox' name='director_identity_verified' checked={formData.director_identity_verified} onChange={handleChange} />
+                    <span>Director identity verified</span>
+                  </label>
+                  <label className='flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                    <input type='checkbox' name='director_authority_to_instruct' checked={formData.director_authority_to_instruct} onChange={handleChange} />
+                    <span>Director has authority to instruct</span>
+                  </label>
+                </div>
+              </section>
+
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>Beneficial ownership</h3>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Beneficial Owner / Controlling Official' name='owner_full_legal_name' value={formData.owner_full_legal_name} onChange={handleChange} error={fieldErrors.owner_full_legal_name} required />
+                  <FloatingInput label='National ID / Passport' name='owner_identifier' value={formData.owner_identifier} onChange={handleChange} error={fieldErrors.owner_identifier} required />
+                  <FloatingInput label='Nationality' name='owner_nationality' value={formData.owner_nationality} onChange={handleChange} />
+                  <FloatingInput label='Ownership %' name='owner_ownership_percentage' type='number' min='0' max='100' value={formData.owner_ownership_percentage} onChange={handleChange} />
+                  <FloatingInput label='Voting Rights %' name='owner_voting_percentage' type='number' min='0' max='100' value={formData.owner_voting_percentage} onChange={handleChange} />
+                  <Select3D label='Control Method' name='owner_control_method' value={formData.owner_control_method} onChange={handleChange} options={[
+                    { value: 'SHAREHOLDING', label: 'Shareholding' },
+                    { value: 'VOTING_RIGHTS', label: 'Voting rights' },
+                    { value: 'OTHER_CONTROL', label: 'Control through other means' },
+                    { value: 'SENIOR_MANAGING_OFFICIAL', label: 'Senior managing official' },
+                  ]} />
+                  <FloatingInput label='Ownership Evidence Reference' name='owner_evidence_reference' value={formData.owner_evidence_reference} onChange={handleChange} error={fieldErrors.owner_evidence_reference} required />
+                </div>
+                <div className='grid gap-3 md:grid-cols-2'>
+                  <label className='flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                    <input type='checkbox' name='owner_identity_verified' checked={formData.owner_identity_verified} onChange={handleChange} />
+                    <span>Beneficial-owner identity verified</span>
+                  </label>
+                  <label className='flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                    <input type='checkbox' name='beneficial_ownership_verified' checked={formData.beneficial_ownership_verified} onChange={handleChange} />
+                    <span>Beneficial ownership evidence verified</span>
+                  </label>
+                </div>
+              </section>
+
+              <section className='space-y-4'>
                 <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
                   Company contact details
                 </h3>
@@ -2317,7 +2566,62 @@ export default function AdminCreateClientPage() {
                     error={fieldErrors.phone_number}
                     required={isProspect && !formData.contact_phone_number}
                   />
+                  <Select3D label='Authority Type' name='representative_authority_type' value={formData.representative_authority_type} onChange={handleChange} options={[
+                    { value: 'BOARD_RESOLUTION', label: 'Board resolution' },
+                    { value: 'POWER_OF_ATTORNEY', label: 'Power of attorney' },
+                    { value: 'CONSTITUTIONAL_AUTHORITY', label: 'Constitutional / office authority' },
+                    { value: 'OTHER', label: 'Other written authority' },
+                  ]} />
+                  <FloatingInput label='Authority Document Reference' name='representative_authority_reference' value={formData.representative_authority_reference} onChange={handleChange} error={fieldErrors.representative_authority_reference} required />
+                  <label className='flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                    <input type='checkbox' name='representative_authority_verified' checked={formData.representative_authority_verified} onChange={handleChange} />
+                    <span>Representative authority verified</span>
+                  </label>
+                  {fieldErrors.representative_authority_verified && <p className='text-sm text-red-500'>{fieldErrors.representative_authority_verified}</p>}
                 </div>
+              </section>
+
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>Legal-service purpose and risk</h3>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FloatingInput label='Purpose and Nature of Relationship' name='company_purpose_and_nature' value={formData.company_purpose_and_nature} onChange={handleChange} error={fieldErrors.company_purpose_and_nature} required />
+                  <Select3D label='Company PEP Status' name='company_pep_status' value={formData.company_pep_status} onChange={handleChange} options={[
+                    { value: 'PENDING', label: 'Pending' }, { value: 'NO_MATCH', label: 'No match' }, { value: 'POTENTIAL_MATCH', label: 'Potential match' }, { value: 'CONFIRMED_MATCH', label: 'Confirmed match' },
+                  ]} />
+                  <Select3D label='Sanctions Status' name='company_sanctions_status' value={formData.company_sanctions_status} onChange={handleChange} options={[
+                    { value: 'PENDING', label: 'Pending' }, { value: 'NO_MATCH', label: 'No match' }, { value: 'POTENTIAL_MATCH', label: 'Potential match' }, { value: 'CONFIRMED_MATCH', label: 'Confirmed match' },
+                  ]} />
+                  <Select3D label='Risk Rating' name='company_risk_rating' value={formData.company_risk_rating} onChange={handleChange} options={[
+                    { value: 'NOT_ASSESSED', label: 'Not assessed' }, { value: 'LOW', label: 'Low' }, { value: 'MEDIUM', label: 'Medium' }, { value: 'HIGH', label: 'High' },
+                  ]} />
+                  <FloatingInput label='Source of Funds (when relevant)' name='company_source_of_funds' value={formData.company_source_of_funds} onChange={handleChange} />
+                  <FloatingInput label='Source of Wealth (when relevant)' name='company_source_of_wealth' value={formData.company_source_of_wealth} onChange={handleChange} />
+                </div>
+                <label className='flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                  <input type='checkbox' name='company_edd_required' checked={formData.company_edd_required} onChange={handleChange} />
+                  <span>Enhanced due diligence required</span>
+                </label>
+                {formData.company_edd_required && <FloatingInput label='EDD Reason' name='company_edd_reason' value={formData.company_edd_reason} onChange={handleChange} required />}
+              </section>
+
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>Privacy and instructions</h3>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <div className='rounded-xl border border-[color:var(--border)] p-4 text-sm'>Notice version: <strong>{formData.company_privacy_notice_version}</strong></div>
+                  <Select3D label='Personal Data Source' name='company_personal_data_source' value={formData.company_personal_data_source} onChange={handleChange} options={[
+                    { value: 'ENTITY', label: 'Entity' }, { value: 'AUTHORISED_REPRESENTATIVE', label: 'Authorised representative' }, { value: 'PUBLIC_REGISTER', label: 'Public register' },
+                  ]} />
+                </div>
+                <label className='flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                  <input type='checkbox' name='company_privacy_notice_acknowledged' checked={formData.company_privacy_notice_acknowledged} onChange={handleChange} />
+                  <span>Authorised representative received and acknowledged the privacy notice</span>
+                </label>
+                {fieldErrors.company_privacy_notice_acknowledged && <p className='text-sm text-red-500'>{fieldErrors.company_privacy_notice_acknowledged}</p>}
+                <label className='flex items-center gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                  <input type='checkbox' name='client_instructions_confirmed' checked={formData.client_instructions_confirmed} onChange={handleChange} />
+                  <span>Company instructions have been confirmed by the authorised representative</span>
+                </label>
+                {fieldErrors.client_instructions_confirmed && <p className='text-sm text-red-500'>{fieldErrors.client_instructions_confirmed}</p>}
               </section>
 
               <section className='space-y-4'>
@@ -2378,14 +2682,14 @@ export default function AdminCreateClientPage() {
                     setGeneralError('');
                   }}
                   options={[
-                    { value: 'ASSISTED_CLIENT', label: 'Firm-managed client' },
-                    { value: 'PROSPECT', label: 'Client portal access' },
+                    { value: 'ASSISTED', label: 'Firm-managed client' },
+                    { value: 'PORTAL_ENABLED', label: 'Client portal access' },
                   ]}
                 />
                 {isProspect && (
                   <div className='rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-100'>
-                    The main company email will be used as the login email. A
-                    temporary password will be generated after creation.
+                    The authorised portal contact&apos;s email will be used for
+                    login. A temporary password will be generated after creation.
                   </div>
                 )}
               </section>

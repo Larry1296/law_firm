@@ -54,7 +54,7 @@ class AdminLegalEntityClientCreationTests(TestCase):
         type_slug = client_type.lower()
         data = {
             "client_type": client_type,
-            "access_type": Client.AccessType.ASSISTED_CLIENT,
+            "access_type": Client.AccessType.ASSISTED,
             "legal_name": f"Canonical {client_type.replace('_', ' ').title()}",
             "registration_number": f"REG-{type_slug}-001",
             "kra_pin": f"P{abs(hash(client_type)) % 1000000000:09d}A",
@@ -217,7 +217,7 @@ class AdminLegalEntityClientCreationTests(TestCase):
                 self.assertEqual(response.status_code, 201, response.data)
                 client = Client.objects.get(id=response.data["client"]["id"])
                 self.assertEqual(client.client_type, client_type)
-                self.assertEqual(client.access_type, Client.AccessType.ASSISTED_CLIENT)
+                self.assertEqual(client.access_type, Client.AccessType.ASSISTED)
                 self.assertIsNone(client.user_id)
                 self.assertIsNone(response.data["portal_user"])
                 self.assertIsNone(response.data["temp_password"])
@@ -266,7 +266,7 @@ class AdminLegalEntityClientCreationTests(TestCase):
             self.url,
             self.payload_for(
                 Client.ClientType.COOPERATIVE,
-                access_type=Client.AccessType.PROSPECT,
+                access_type=Client.AccessType.PORTAL_ENABLED,
                 email="portal-cooperative@example.test",
                 phone_number="+254700910010",
             ),

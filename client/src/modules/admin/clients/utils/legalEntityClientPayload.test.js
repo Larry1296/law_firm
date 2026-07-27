@@ -31,7 +31,7 @@ assert.equal(canonicalLegalEntityTypes.includes('SACCO'), false);
 const original = structuredClone(baseEntity);
 const nonprofitPayload = buildLegalEntityClientPayload(baseEntity, {
   clientType: 'NON_PROFIT_ORGANIZATION',
-  accessType: 'PROSPECT',
+  accessType: 'PORTAL_ENABLED',
 });
 
 assert.deepEqual(baseEntity, original, 'legal entity payload builder must not mutate form state');
@@ -40,7 +40,7 @@ assert.equal(nonprofitPayload.legal_name, 'Nairobi Public Benefit Initiative');
 assert.equal(nonprofitPayload.registration_number, 'PBO-2026-001');
 assert.equal(nonprofitPayload.kra_pin, 'P051234567X');
 assert.equal(nonprofitPayload.email, 'pbo.contact@example.com');
-assert.equal(nonprofitPayload.access_type, 'PROSPECT');
+assert.equal(nonprofitPayload.access_type, 'PORTAL_ENABLED');
 assert.equal(nonprofitPayload.representatives.length, 1);
 assert.equal(nonprofitPayload.representatives[0].full_legal_name, 'Mercy Wanjiku Njeri');
 assert.equal(nonprofitPayload.representatives[0].is_portal_contact, true);
@@ -54,11 +54,11 @@ const assistedEntity = buildLegalEntityClientPayload(
   },
   {
     clientType: 'SOCIETY_OR_ASSOCIATION',
-    accessType: 'ASSISTED_CLIENT',
+    accessType: 'ASSISTED',
   },
 );
 
-assert.equal(assistedEntity.access_type, 'ASSISTED_CLIENT');
+assert.equal(assistedEntity.access_type, 'ASSISTED');
 assert.equal(Object.prototype.hasOwnProperty.call(assistedEntity, 'email'), false);
 assert.equal(assistedEntity.representatives[0].email, 'secretary@example.com');
 
@@ -71,7 +71,7 @@ const saccoPayload = buildLegalEntityClientPayload(
   {
     clientType: 'COOPERATIVE',
     requestedClientType: 'SACCO',
-    accessType: 'PROSPECT',
+    accessType: 'PORTAL_ENABLED',
   },
 );
 
@@ -88,7 +88,7 @@ const partnershipPayload = buildLegalEntityClientPayload(
   },
   {
     clientType: 'PARTNERSHIP',
-    accessType: 'ASSISTED_CLIENT',
+    accessType: 'ASSISTED',
   },
 );
 
@@ -106,7 +106,7 @@ const estatePayload = buildLegalEntityClientPayload(
   },
   {
     clientType: 'ESTATE',
-    accessType: 'ASSISTED_CLIENT',
+    accessType: 'ASSISTED',
   },
 );
 

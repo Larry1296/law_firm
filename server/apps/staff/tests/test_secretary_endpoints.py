@@ -85,7 +85,14 @@ class SecretaryEndpointTests(TestCase):
                 else "VERBAL"
             ),
             "privacy_notice_acknowledged": True,
+            "privacy_acknowledgement_reference": "STAFF-ACK-001",
+            "privacy_lawful_basis": "CONTRACT_AND_LEGAL_OBLIGATION",
             "personal_data_source": "CLIENT",
+            "onboarding_method": (
+                "STAFF_ASSISTED"
+                if access_type == Client.AccessType.PORTAL_ENABLED
+                else "IN_PERSON"
+            ),
             "acting_for_self": True,
             "purpose_and_nature_of_relationship": "General legal advice",
             "access_type": access_type,

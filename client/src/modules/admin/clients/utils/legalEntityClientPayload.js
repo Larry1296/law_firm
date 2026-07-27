@@ -33,10 +33,10 @@ export const buildLegalEntityClientPayload = (
   {
     clientType,
     requestedClientType = clientType,
-    accessType = 'PROSPECT',
+    accessType = 'PORTAL_ENABLED',
   } = {},
 ) => {
-  const isProspect = accessType === 'PROSPECT';
+  const isProspect = accessType === 'PORTAL_ENABLED';
   const email = isProspect
     ? lower(formData.email) || lower(formData.contact_email) || lower(formData.contact_person_email)
     : lower(formData.email);

@@ -158,27 +158,60 @@ export default function SecretaryClients() {
 
                 {[
                   ['Company', 'company'],
+                  ['Sole Proprietorship', 'sole_proprietorship'],
                   ['Partnership', 'partnership'],
+                  ['Limited Liability Partnership', 'limited_liability_partnership'],
                   ['Trust', 'trust'],
+                  ['Estate', 'estate'],
                   ['NGO', 'ngo'],
                   ['SACCO', 'sacco'],
                   ['Cooperative', 'cooperative'],
                   ['Association', 'association'],
                   ['Government Institution', 'government'],
+                  ['International Organization', 'international_organization'],
                   ['School', 'school'],
                   ['Religious Organization', 'religious'],
                 ].map(([label, type]) => (
-                  <button
-                    key={type}
-                    onClick={() => goToCreate(type)}
-                    className='
-                      w-full px-4 py-3 text-left
-                      text-text-primary-light dark:text-text-primary-dark
-                      hover:bg-background-light dark:hover:bg-background-dark
-                    '
-                  >
-                    {label}
-                  </button>
+                  <div key={type} className='relative group/client-type'>
+                    <button
+                      type='button'
+                      className='
+                        w-full flex items-center justify-between px-4 py-3 text-left
+                        text-text-primary-light dark:text-text-primary-dark
+                        hover:bg-background-light dark:hover:bg-background-dark
+                      '
+                    >
+                      <span>{label}</span>
+                      <ChevronRight size={16} />
+                    </button>
+
+                    <div
+                      className='
+                        invisible opacity-0
+                        group-hover/client-type:visible group-hover/client-type:opacity-100
+                        transition-all duration-200
+                        absolute top-0 right-full mr-1 w-56
+                        rounded-xl shadow-2xl border z-50
+                        bg-surface-light dark:bg-surface-dark
+                        border-border-light dark:border-border-dark
+                      '
+                    >
+                      <button
+                        type='button'
+                        onClick={() => goToCreate(type, 'portal')}
+                        className='w-full px-4 py-3 text-left text-text-primary-light dark:text-text-primary-dark hover:bg-background-light dark:hover:bg-background-dark'
+                      >
+                        Portal Enabled
+                      </button>
+                      <button
+                        type='button'
+                        onClick={() => goToCreate(type, 'assisted')}
+                        className='w-full px-4 py-3 text-left text-text-primary-light dark:text-text-primary-dark hover:bg-background-light dark:hover:bg-background-dark'
+                      >
+                        Assisted Client
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

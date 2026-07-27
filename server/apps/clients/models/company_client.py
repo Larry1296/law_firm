@@ -19,6 +19,14 @@ class CompanyClient(models.Model):
         OTHER = "OTHER", "Other"
 
     class CompanyType(models.TextChoices):
+        PRIVATE_LIMITED_COMPANY = (
+            "PRIVATE_LIMITED_COMPANY",
+            "Private Company Limited by Shares",
+        )
+        PUBLIC_LIMITED_COMPANY = (
+            "PUBLIC_LIMITED_COMPANY",
+            "Public Limited Company",
+        )
         PRIVATE_LIMITED = (
             "PRIVATE_LIMITED",
             "Private Company Limited by Shares",
@@ -71,7 +79,7 @@ class CompanyClient(models.Model):
     company_type = models.CharField(
         max_length=50,
         choices=CompanyType.choices,
-        default=CompanyType.PRIVATE_LIMITED,
+        default=CompanyType.PRIVATE_LIMITED_COMPANY,
     )
 
     incorporation_date = models.DateField(
@@ -90,6 +98,9 @@ class CompanyClient(models.Model):
         default=CompanyStatus.ACTIVE,
         db_index=True,
     )
+    registration_authority = models.CharField(max_length=255, blank=True, default="")
+    registration_document_reference = models.CharField(max_length=255, blank=True, default="")
+    registration_verification_source = models.CharField(max_length=100, blank=True, default="")
 
     # ---------------------------------------------------------
     # Business details
@@ -130,6 +141,7 @@ class CompanyClient(models.Model):
         default=False,
         help_text="Whether beneficial ownership information has been provided.",
     )
+    beneficial_ownership_verified = models.BooleanField(default=False)
 
     annual_returns_up_to_date = models.BooleanField(
         default=False,
@@ -140,6 +152,17 @@ class CompanyClient(models.Model):
         blank=True,
         default="",
     )
+    onboarding_method = models.CharField(max_length=30, blank=True, default="")
+    preferred_contact_channel = models.CharField(max_length=20, blank=True, default="")
+    privacy_notice_version = models.CharField(max_length=50, blank=True, default="")
+    privacy_notice_delivery_method = models.CharField(max_length=20, blank=True, default="")
+    privacy_notice_acknowledged = models.BooleanField(default=False)
+    privacy_notice_acknowledged_at = models.DateTimeField(null=True, blank=True)
+    personal_data_source = models.CharField(max_length=50, blank=True, default="")
+    privacy_lawful_basis = models.CharField(max_length=100, blank=True, default="")
+    engagement_letter_status = models.CharField(max_length=30, blank=True, default="PENDING")
+    fee_agreement_status = models.CharField(max_length=30, blank=True, default="PENDING")
+    client_instructions_confirmed = models.BooleanField(default=False)
 
     # ---------------------------------------------------------
     # Internal verification
@@ -233,52 +256,29 @@ class CompanyClient(models.Model):
                 }
             )
 
-        if (
-            self.registration_verified
-            and not self.registration_verified_at
-        ):
+        if self.registration_verified and not self.registration_verified_at:
             raise ValidationError(
-                {
-                    "registration_verified_at": (
-                        "Provide the date and time when registration was "
-                        "verified."
-                    )
-                }
+                {"registration_verified_at": "Provide the date and time when registration was verified."}
             )
 
-        if (
-            not self.registration_verified
-            and self.registration_verified_at
-        ):
+        if not self.registration_verified and self.registration_verified_at:
             raise ValidationError(
-                {
-                    "registration_verified": (
-                        "Registration must be marked as verified when a "
-                        "verification date is provided."
-                    )
-                }
+                {"registration_verified": "Registration must be marked as verified when a verification date is provided."}
             )
 
     def save(self, *args, **kwargs):
         self.company_name = self.company_name.strip()
         self.registration_number = self.registration_number.strip().upper()
         self.trading_name = self.trading_name.strip()
-
         self.full_clean()
         super().save(*args, **kwargs)
 
     @property
     def kra_pin(self):
-        """
-        Retrieve the company's KRA PIN from the base Client record.
-        """
         return self.client.kra_pin
 
     @property
     def portal_user(self):
-        """
-        Retrieve the company's portal account from the base Client record.
-        """
         return self.client.user
 
     @property
@@ -292,3 +292,49 @@ class CompanyClient(models.Model):
     @property
     def primary_phone_number(self):
         return self.client.phone_number
+
+
+class CompanyDirector(models.Model):
+    company = models.ForeignKey(CompanyClient, on_delete=models.CASCADE, related_name="directors")
+    full_legal_name = models.CharField(max_length=255)
+    person_type = models.CharField(max_length=20, default="INDIVIDUAL")
+    national_id_or_passport = models.CharField(max_length=100, blank=True, default="")
+    nationality = models.CharField(max_length=100, blank=True, default="")
+    date_of_birth = models.DateField(null=True, blank=True)
+    residential_address = models.TextField(blank=True, default="")
+    role = models.CharField(max_length=100, default="DIRECTOR")
+    appointment_date = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    is_beneficial_owner = models.BooleanField(default=False)
+    authority_to_instruct = models.BooleanField(default=False)
+    identity_verified = models.BooleanField(default=False)
+    verification_document_reference = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "company_directors"
+
+
+class CompanyBeneficialOwner(models.Model):
+    company = models.ForeignKey(CompanyClient, on_delete=models.CASCADE, related_name="beneficial_owners")
+    full_legal_name = models.CharField(max_length=255)
+    person_type = models.CharField(max_length=20, default="INDIVIDUAL")
+    national_id_or_passport = models.CharField(max_length=100, blank=True, default="")
+    nationality = models.CharField(max_length=100, blank=True, default="")
+    residential_address = models.TextField(blank=True, default="")
+    ownership_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    voting_rights_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    control_method = models.CharField(max_length=100)
+    identity_verified = models.BooleanField(default=False)
+    ownership_evidence_reference = models.CharField(max_length=255)
+    pep_status = models.CharField(max_length=30, default="PENDING")
+    sanctions_screening_status = models.CharField(max_length=30, default="PENDING")
+    is_controlling_official = models.BooleanField(default=False)
+    control_reason = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "company_beneficial_owners"
+
+    def __str__(self):
+        return self.full_legal_name

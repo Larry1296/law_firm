@@ -11,6 +11,7 @@ const baseIndividual = {
   middle_name: ' Mwangi ',
   last_name: ' Kamau ',
   preferred_name: ' Peter ',
+  onboarding_method: 'STAFF_ASSISTED',
   email: ' PETER.MWANGI.UI@EXAMPLE.COM ',
   phone_number: ' +254712345678 ',
   identification_type: 'NATIONAL_ID',
@@ -51,6 +52,8 @@ const baseIndividual = {
   privacy_notice_version: ' 2026-07 ',
   privacy_notice_delivery_method: 'PORTAL',
   privacy_notice_acknowledged: true,
+  privacy_acknowledgement_reference: 'SIGNED-2026-001',
+  privacy_lawful_basis: 'CONTRACT_AND_LEGAL_OBLIGATION',
   personal_data_source: 'CLIENT',
   acting_for_self: true,
   purpose_and_nature_of_relationship: ' Employment advice ',
@@ -62,9 +65,9 @@ const portalPayload = buildIndividualClientPayload(baseIndividual, 'portal');
 assert.deepEqual(baseIndividual, original, 'individual payload builder must not mutate form state');
 assert.equal(portalPayload.access_type, 'PORTAL_ENABLED');
 assert.equal(portalPayload.full_name, 'Peter Mwangi Kamau');
-assert.equal(Object.prototype.hasOwnProperty.call(portalPayload, 'first_name'), false);
-assert.equal(Object.prototype.hasOwnProperty.call(portalPayload, 'middle_name'), false);
-assert.equal(Object.prototype.hasOwnProperty.call(portalPayload, 'last_name'), false);
+assert.equal(portalPayload.first_name, 'Peter');
+assert.equal(portalPayload.middle_name, 'Mwangi');
+assert.equal(portalPayload.last_name, 'Kamau');
 assert.equal(portalPayload.email, 'peter.mwangi.ui@example.com');
 assert.equal(portalPayload.next_of_kin_email, 'mary.wanjiku@example.com');
 assert.equal(portalPayload.identification_type, 'NATIONAL_ID');
@@ -88,6 +91,7 @@ const assistedPayload = buildIndividualClientPayload(
     phone_number: '+254733456789',
     preferred_contact_channel: 'PHONE',
     privacy_notice_delivery_method: 'VERBAL',
+    onboarding_method: 'PHONE',
   },
   'assisted',
 );
@@ -116,7 +120,7 @@ const assistedWithoutEmail = validateIndividualClientForm(
 assert.equal(assistedWithoutEmail.isValid, true);
 
 const assistedWithoutAnyContact = validateIndividualClientForm(
-  { ...baseIndividual, email: '', next_of_kin_email: '', phone_number: '', preferred_contact_channel: 'PHONE', privacy_notice_delivery_method: 'VERBAL' },
+  { ...baseIndividual, email: '', next_of_kin_email: '', phone_number: '', preferred_contact_channel: 'PHONE', privacy_notice_delivery_method: 'VERBAL', onboarding_method: 'PHONE' },
   'assisted',
 );
 assert.equal(assistedWithoutAnyContact.isValid, false);
@@ -126,7 +130,7 @@ assert.equal(
 );
 
 const assistedInPersonWithoutDigitalContact = validateIndividualClientForm(
-  { ...baseIndividual, email: '', next_of_kin_email: '', phone_number: '', preferred_contact_channel: 'IN_PERSON', privacy_notice_delivery_method: 'PAPER' },
+  { ...baseIndividual, email: '', next_of_kin_email: '', phone_number: '', preferred_contact_channel: 'IN_PERSON', privacy_notice_delivery_method: 'PAPER', onboarding_method: 'IN_PERSON' },
   'assisted',
 );
 assert.equal(assistedInPersonWithoutDigitalContact.isValid, true);
@@ -249,6 +253,7 @@ const minorWithGuardian = validateIndividualClientForm(
     next_of_kin_email: '',
     preferred_contact_channel: 'IN_PERSON',
     privacy_notice_delivery_method: 'VERBAL',
+    onboarding_method: 'IN_PERSON',
   },
   'assisted',
 );

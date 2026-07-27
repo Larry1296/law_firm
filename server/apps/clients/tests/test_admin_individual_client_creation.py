@@ -10,6 +10,7 @@ from apps.clients.models import (
     Client,
     ClientAddress,
     ClientContact,
+    ClientDueDiligence,
     ContactType,
     IndividualClient,
 )
@@ -70,7 +71,10 @@ class AdminIndividualClientCreationTests(TestCase):
             "privacy_notice_version": "2026-07",
             "privacy_notice_delivery_method": IndividualClient.PrivacyNoticeDeliveryMethod.VERBAL,
             "privacy_notice_acknowledged": True,
+            "privacy_acknowledgement_reference": "SIGNED-ASSISTED-001",
+            "privacy_lawful_basis": "CONTRACT_AND_LEGAL_OBLIGATION",
             "personal_data_source": IndividualClient.PersonalDataSource.CLIENT,
+            "onboarding_method": IndividualClient.OnboardingMethod.IN_PERSON,
             "acting_for_self": True,
             "purpose_and_nature_of_relationship": "Advice on a land succession issue",
             "next_of_kin_name": "Mary Anyango Otieno",
@@ -114,7 +118,10 @@ class AdminIndividualClientCreationTests(TestCase):
             "privacy_notice_version": "2026-07",
             "privacy_notice_delivery_method": IndividualClient.PrivacyNoticeDeliveryMethod.PORTAL,
             "privacy_notice_acknowledged": True,
+            "privacy_acknowledgement_reference": "PORTAL-ACK-001",
+            "privacy_lawful_basis": "CONTRACT_AND_LEGAL_OBLIGATION",
             "personal_data_source": IndividualClient.PersonalDataSource.CLIENT,
+            "onboarding_method": IndividualClient.OnboardingMethod.STAFF_ASSISTED,
             "acting_for_self": True,
             "purpose_and_nature_of_relationship": "Employment-law advice",
             "next_of_kin_name": "Mary Wanjiku Kamau",
@@ -133,6 +140,7 @@ class AdminIndividualClientCreationTests(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         client = Client.objects.get(full_name="Jane Akinyi Otieno")
         profile = IndividualClient.objects.get(client=client)
+        due_diligence = ClientDueDiligence.objects.get(client=client)
 
         self.assertEqual(client.client_type, Client.ClientType.INDIVIDUAL)
         self.assertEqual(client.access_type, Client.AccessType.ASSISTED)
@@ -145,6 +153,14 @@ class AdminIndividualClientCreationTests(TestCase):
         self.assertIsNone(response.data["client"]["portal_login_email"])
         self.assertEqual(profile.nationality, "Kenyan")
         self.assertEqual(profile.preferred_language, "Kiswahili")
+        self.assertEqual(profile.onboarding_method, IndividualClient.OnboardingMethod.IN_PERSON)
+        self.assertTrue(profile.privacy_notice_acknowledged)
+        self.assertEqual(profile.privacy_acknowledgement_reference, "SIGNED-ASSISTED-001")
+        self.assertTrue(due_diligence.acting_for_self)
+        self.assertEqual(
+            due_diligence.purpose_and_nature_of_relationship,
+            "Advice on a land succession issue",
+        )
         self.assertEqual(client.kra_pin, "A098765432C")
 
     def test_assisted_individual_address_and_next_of_kin_persist(self):

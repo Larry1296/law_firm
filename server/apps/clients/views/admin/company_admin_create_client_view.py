@@ -1,7 +1,14 @@
 from rest_framework import status
 from rest_framework.response import Response
 
-from apps.clients.models import Client
+from rest_framework import serializers
+
+from apps.clients.models import (
+    Client,
+    ClientRepresentative,
+    CompanyBeneficialOwner,
+    CompanyDirector,
+)
 from apps.clients.serializers.client.client_type_profile_serializer import (
     CompanyClientProfileSerializer,
 )
@@ -15,6 +22,24 @@ from apps.clients.serializers.admin.company_admin_create_client_serializer impor
 )
 from apps.clients.services.admin.client_admin_create_service import ClientAdminCreateService
 from apps.clients.views.admin.client_admin_base_view import ClientAdminBaseView
+
+
+class CompanyDirectorResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompanyDirector
+        exclude = ["company"]
+
+
+class CompanyBeneficialOwnerResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompanyBeneficialOwner
+        exclude = ["company"]
+
+
+class CompanyRepresentativeResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClientRepresentative
+        exclude = ["client"]
 
 
 class CompanyAdminCreateClientView(ClientAdminBaseView):
@@ -45,6 +70,21 @@ class CompanyAdminCreateClientView(ClientAdminBaseView):
                 if result.get("registered_address")
                 else None
             ),
+            "directors": CompanyDirectorResponseSerializer(
+                result["profile"].directors.all(), many=True
+            ).data,
+            "beneficial_owners": CompanyBeneficialOwnerResponseSerializer(
+                result["profile"].beneficial_owners.all(), many=True
+            ).data,
+            "authorised_representatives": CompanyRepresentativeResponseSerializer(
+                result.get("representatives", []), many=True
+            ).data,
+            "due_diligence": {
+                "purpose_and_nature_of_relationship": result["due_diligence"].purpose_and_nature_of_relationship,
+                "pep_status": result["due_diligence"].pep_status,
+                "sanctions_screening_status": result["due_diligence"].sanctions_screening_status,
+                "risk_rating": result["due_diligence"].risk_rating,
+            },
             "portal_user": (
                 {
                     "id": str(portal_user.id),

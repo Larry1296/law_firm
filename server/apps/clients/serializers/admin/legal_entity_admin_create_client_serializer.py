@@ -315,7 +315,10 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
                         {"registration_number": "A client with this legal name and type already exists in this firm."}
                     )
 
-        if attrs.get("access_type") == Client.AccessType.PROSPECT:
+        if attrs.get("access_type") not in {Client.AccessType.PORTAL_ENABLED, Client.AccessType.ASSISTED}:
+            raise serializers.ValidationError({"access_type": "Use PORTAL_ENABLED or ASSISTED."})
+
+        if attrs.get("access_type") == Client.AccessType.PORTAL_ENABLED:
             errors = {}
             if not attrs.get("email"):
                 errors["email"] = "Portal access requires the authorized contact email."

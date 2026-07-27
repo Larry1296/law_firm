@@ -7,7 +7,14 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
-from apps.clients.models import Client, ClientAddress, ClientContact, CompanyClient
+from apps.clients.models import (
+    Client,
+    ClientAddress,
+    ClientContact,
+    CompanyBeneficialOwner,
+    CompanyClient,
+    CompanyDirector,
+)
 from apps.common.choices import UserRole
 from apps.firm.models import LawFirm
 from apps.users.models import User
@@ -35,25 +42,42 @@ class AdminCompanyClientCreationTests(TestCase):
 
     def payload(self, **overrides):
         data = {
-            "company_name": "Rift Valley Logistics Limited",
+            "legal_name": "Rift Valley Logistics Limited",
             "trading_name": "RV Logistics",
             "registration_number": "PVT-TEST-2026-002",
             "kra_pin": "P000000002L",
-            "company_type": CompanyClient.CompanyType.PRIVATE_LIMITED,
-            "incorporation_date": "2021-06-10",
-            "country_of_incorporation": "Kenya",
+            "company_type": CompanyClient.CompanyType.PRIVATE_LIMITED_COMPANY,
+            "registration_authority": "Business Registration Service",
+            "registration_date": "2021-06-10",
+            "country_of_registration": "Kenya",
             "industry": "Transport and Logistics",
             "nature_of_business": "Road freight, warehousing and logistics services",
             "website": "https://rvlogistics.test",
             "company_status": CompanyClient.CompanyStatus.ACTIVE,
-            "director_count": 4,
             "employee_count": 35,
             "beneficial_ownership_declared": True,
+            "beneficial_ownership_verified": True,
             "annual_returns_up_to_date": True,
             "compliance_notes": "Initial onboarding checks complete.",
+            "registration_verified": True,
+            "registration_verification_source": "BRS_ECITIZEN",
+            "registration_document_reference": "CERT-TEST-002",
             "email": "legal@rvlogistics.test",
             "phone_number": "+254700200001",
-            "access_type": Client.AccessType.PROSPECT,
+            "access_type": Client.AccessType.PORTAL_ENABLED,
+            "onboarding_method": "PORTAL",
+            "preferred_contact_channel": "EMAIL",
+            "privacy_notice_version": "KE-DPA-2026-01",
+            "privacy_notice_delivery_method": "PORTAL",
+            "privacy_notice_acknowledged": True,
+            "personal_data_source": "AUTHORISED_REPRESENTATIVE",
+            "privacy_lawful_basis": "LEGAL_SERVICE_AND_CONTRACT",
+            "purpose_and_nature_of_relationship": "Commercial legal advice.",
+            "pep_status": "PENDING",
+            "sanctions_screening_status": "PENDING",
+            "risk_rating": "NOT_ASSESSED",
+            "enhanced_due_diligence_required": False,
+            "client_instructions_confirmed": True,
             "country": "Kenya",
             "county": "Nakuru",
             "city": "Nakuru",
@@ -67,6 +91,34 @@ class AdminCompanyClientCreationTests(TestCase):
             "contact_email": "samuel.kiprotich@rvlogistics.test",
             "contact_phone_number": "+254700200002",
             "contact_national_id_number": "TEST-ID-200001",
+            "directors": [{
+                "full_legal_name": "Jane Wanjiku Kamau",
+                "national_id_or_passport": "23456789",
+                "role": "DIRECTOR",
+                "identity_verified": True,
+                "verification_document_reference": "DIR-ID-001",
+            }],
+            "beneficial_owners": [{
+                "full_legal_name": "Jane Wanjiku Kamau",
+                "national_id_or_passport": "23456789",
+                "ownership_percentage": 60,
+                "voting_rights_percentage": 60,
+                "control_method": "SHAREHOLDING",
+                "identity_verified": True,
+                "ownership_evidence_reference": "SHARE-REGISTER-001",
+            }],
+            "authorised_representatives": [{
+                "full_legal_name": "Samuel Kiprotich",
+                "role_title": "Company Secretary",
+                "national_id_or_passport": "TEST-ID-200001",
+                "telephone": "+254700200002",
+                "email": "samuel.kiprotich@rvlogistics.test",
+                "authority_type": "BOARD_RESOLUTION",
+                "authority_document_reference": "BR-2026-004",
+                "authority_verified": True,
+                "is_primary": True,
+                "is_portal_contact": True,
+            }],
         }
         data.update(overrides)
         return data
@@ -75,12 +127,26 @@ class AdminCompanyClientCreationTests(TestCase):
         response = self.api_client.post(
             self.url,
             self.payload(
-                access_type=Client.AccessType.ASSISTED_CLIENT,
+                access_type=Client.AccessType.ASSISTED,
                 email="assisted-rv@example.test",
                 phone_number="",
                 contact_phone_number="+254700200012",
                 registration_number="PVT-ASSISTED-001",
                 contact_national_id_number="TEST-ID-200012",
+                onboarding_method="STAFF_ASSISTED",
+                preferred_contact_channel="PHONE",
+                privacy_notice_delivery_method="PAPER",
+                authorised_representatives=[{
+                    "full_legal_name": "Samuel Kiprotich",
+                    "role_title": "Company Secretary",
+                    "national_id_or_passport": "TEST-ID-200012",
+                    "telephone": "+254700200012",
+                    "authority_type": "BOARD_RESOLUTION",
+                    "authority_document_reference": "BR-2026-012",
+                    "authority_verified": True,
+                    "is_primary": True,
+                    "is_portal_contact": False,
+                }],
             ),
             format="json",
         )
@@ -100,7 +166,10 @@ class AdminCompanyClientCreationTests(TestCase):
 
         self.assertEqual(response.data["client"]["id"], str(client.id))
         self.assertEqual(response.data["profile"]["id"], profile.id)
-        self.assertEqual(response.data["portal_user"]["email"], client.email)
+        self.assertEqual(
+            response.data["portal_user"]["email"],
+            "samuel.kiprotich@rvlogistics.test",
+        )
         self.assertEqual(response.data["portal_user"]["role"], UserRole.PROSPECT)
         self.assertTrue(response.data["portal_user"]["is_active"])
         self.assertTrue(response.data["temp_password"])
@@ -119,7 +188,7 @@ class AdminCompanyClientCreationTests(TestCase):
 
         self.assertEqual(profile.company_name, "Rift Valley Logistics Limited")
         self.assertEqual(profile.trading_name, "RV Logistics")
-        self.assertEqual(profile.company_type, CompanyClient.CompanyType.PRIVATE_LIMITED)
+        self.assertEqual(profile.company_type, CompanyClient.CompanyType.PRIVATE_LIMITED_COMPANY)
         self.assertEqual(profile.incorporation_date, date(2021, 6, 10))
         self.assertEqual(profile.country_of_incorporation, "Kenya")
         self.assertEqual(profile.industry, "Transport and Logistics")
@@ -129,14 +198,16 @@ class AdminCompanyClientCreationTests(TestCase):
         )
         self.assertEqual(profile.website, "https://rvlogistics.test")
         self.assertEqual(profile.company_status, CompanyClient.CompanyStatus.ACTIVE)
-        self.assertEqual(profile.director_count, 4)
+        self.assertEqual(profile.director_count, 1)
         self.assertEqual(profile.employee_count, 35)
         self.assertTrue(profile.beneficial_ownership_declared)
         self.assertTrue(profile.annual_returns_up_to_date)
         self.assertEqual(profile.compliance_notes, "Initial onboarding checks complete.")
-        self.assertFalse(profile.registration_verified)
-        self.assertIsNone(profile.registration_verified_at)
-        self.assertIsNone(profile.registration_verified_by)
+        self.assertTrue(profile.registration_verified)
+        self.assertIsNotNone(profile.registration_verified_at)
+        self.assertEqual(profile.registration_verified_by, self.admin)
+        self.assertEqual(CompanyDirector.objects.filter(company=profile).count(), 1)
+        self.assertEqual(CompanyBeneficialOwner.objects.filter(company=profile).count(), 1)
 
     def test_registered_address_is_created(self):
         self.api_client.post(self.url, self.payload(), format="json")
@@ -162,7 +233,7 @@ class AdminCompanyClientCreationTests(TestCase):
         client = Client.objects.get(email="legal@rvlogistics.test")
 
         self.assertIsNotNone(client.user)
-        self.assertEqual(client.user.email, "legal@rvlogistics.test")
+        self.assertEqual(client.user.email, "samuel.kiprotich@rvlogistics.test")
         self.assertFalse(hasattr(client.company_profile, "user"))
 
     def test_temporary_password_is_returned_only_on_creation(self):
@@ -182,7 +253,7 @@ class AdminCompanyClientCreationTests(TestCase):
                 created_by=self.admin,
                 full_name="Existing Company",
                 client_type=Client.ClientType.COMPANY,
-                access_type=Client.AccessType.ASSISTED_CLIENT,
+                access_type=Client.AccessType.ASSISTED,
             ),
             company_name="Existing Company",
             registration_number="PVT-TEST-2026-002",
@@ -199,7 +270,7 @@ class AdminCompanyClientCreationTests(TestCase):
 
     def test_duplicate_login_email_is_rejected(self):
         User.objects.create_user(
-            email="legal@rvlogistics.test",
+            email="samuel.kiprotich@rvlogistics.test",
             password="strong-pass123",
             first_name="Existing",
             last_name="User",
@@ -211,7 +282,7 @@ class AdminCompanyClientCreationTests(TestCase):
         response = self.api_client.post(self.url, self.payload(), format="json")
 
         self.assertEqual(response.status_code, 400, response.data)
-        self.assertIn("email", response.data["errors"])
+        self.assertIn("authorised_representatives", response.data["errors"])
 
     def test_missing_prospect_email_is_rejected(self):
         response = self.api_client.post(
@@ -233,27 +304,27 @@ class AdminCompanyClientCreationTests(TestCase):
         self.assertEqual(response.status_code, 400, response.data)
         self.assertIn("phone_number", response.data["errors"])
 
-    def test_missing_authorised_contact_name_is_rejected(self):
+    def test_missing_authorised_representative_is_rejected(self):
         response = self.api_client.post(
             self.url,
-            self.payload(contact_full_name=""),
+            self.payload(authorised_representatives=[]),
             format="json",
         )
 
         self.assertEqual(response.status_code, 400, response.data)
-        self.assertIn("contact_full_name", response.data["errors"])
+        self.assertIn("authorised_representatives", response.data["errors"])
 
     def test_future_incorporation_date_is_rejected(self):
         future_date = timezone.localdate() + timedelta(days=1)
 
         response = self.api_client.post(
             self.url,
-            self.payload(incorporation_date=future_date.isoformat()),
+            self.payload(registration_date=future_date.isoformat()),
             format="json",
         )
 
         self.assertEqual(response.status_code, 400, response.data)
-        self.assertIn("incorporation_date", response.data["errors"])
+        self.assertIn("registration_date", response.data["errors"])
 
     def test_failed_user_creation_rolls_back_client_and_profile(self):
         with patch(
@@ -286,10 +357,13 @@ class AdminCompanyClientCreationTests(TestCase):
         self.assertEqual(detail["type_profile"]["company_name"], "Rift Valley Logistics Limited")
         self.assertEqual(detail["type_profile"]["trading_name"], "RV Logistics")
         self.assertEqual(detail["type_profile"]["registration_number"], "PVT-TEST-2026-002")
-        self.assertEqual(detail["type_profile"]["company_type"], CompanyClient.CompanyType.PRIVATE_LIMITED)
+        self.assertEqual(detail["type_profile"]["company_type"], CompanyClient.CompanyType.PRIVATE_LIMITED_COMPANY)
         self.assertEqual(detail["type_profile"]["country_of_incorporation"], "Kenya")
         self.assertEqual(detail["type_profile"]["industry"], "Transport and Logistics")
         self.assertTrue(detail["portal_access_exists"])
-        self.assertEqual(detail["portal_login_email"], "legal@rvlogistics.test")
+        self.assertEqual(
+            detail["portal_login_email"],
+            "samuel.kiprotich@rvlogistics.test",
+        )
         self.assertEqual(detail["registered_address"]["full_address"], self.payload()["full_address"])
         self.assertEqual(detail["primary_contact"]["full_name"], "Samuel Kiprotich")

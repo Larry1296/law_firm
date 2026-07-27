@@ -2,6 +2,11 @@ from django.db import models
 
 
 class IndividualClient(models.Model):
+    class OnboardingMethod(models.TextChoices):
+        IN_PERSON = "IN_PERSON", "In person"
+        PHONE = "PHONE", "Phone"
+        STAFF_ASSISTED = "STAFF_ASSISTED", "Staff assisted"
+
     class PrivacyNoticeDeliveryMethod(models.TextChoices):
         PORTAL = "PORTAL", "Client portal"
         PAPER = "PAPER", "Paper copy"
@@ -55,6 +60,12 @@ class IndividualClient(models.Model):
     last_name = models.CharField(max_length=100, blank=True, default="")
 
     preferred_name = models.CharField(max_length=100, blank=True, default="")
+    onboarding_method = models.CharField(
+        max_length=30,
+        choices=OnboardingMethod.choices,
+        blank=True,
+        default="",
+    )
 
     identification_type = models.CharField(max_length=40, choices=IdentificationType.choices, blank=True, default="")
     identification_number = models.CharField(max_length=80, blank=True, default="", db_index=True)
@@ -149,6 +160,10 @@ class IndividualClient(models.Model):
     )
     privacy_notice_acknowledged = models.BooleanField(default=False)
     privacy_notice_acknowledged_at = models.DateTimeField(null=True, blank=True)
+    privacy_acknowledgement_reference = models.CharField(max_length=255, blank=True, default="")
+    privacy_lawful_basis = models.CharField(max_length=255, blank=True, default="")
+    privacy_data_sharing_explanation = models.TextField(blank=True, default="")
+    privacy_retention_category = models.CharField(max_length=100, blank=True, default="")
     privacy_notice_given_at = models.DateTimeField(null=True, blank=True)
     privacy_notice_given_by = models.ForeignKey(
         "users.User",
@@ -202,15 +217,30 @@ class ClientDueDiligence(models.Model):
     client = models.OneToOneField("clients.Client", on_delete=models.CASCADE, related_name="due_diligence")
     acting_for_self = models.BooleanField(null=True, blank=True)
     represented_person = models.CharField(max_length=255, blank=True, default="")
+    representation_capacity = models.CharField(max_length=100, blank=True, default="")
     authority_document_reference = models.CharField(max_length=255, blank=True, default="")
+    authority_verified = models.BooleanField(default=False)
+    authority_verified_by = models.ForeignKey(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="verified_client_representative_authorities",
+    )
+    authority_verified_at = models.DateTimeField(null=True, blank=True)
     purpose_and_nature_of_relationship = models.TextField(blank=True, default="")
     pep_status = models.CharField(max_length=30, choices=PepStatus.choices, default=PepStatus.NOT_CHECKED)
     pep_details = models.TextField(blank=True, default="")
     sanctions_screening_status = models.CharField(max_length=30, choices=ScreeningStatus.choices, default=ScreeningStatus.NOT_CHECKED)
+    screening_date = models.DateField(null=True, blank=True)
+    screening_method = models.CharField(max_length=255, blank=True, default="")
+    screening_result = models.TextField(blank=True, default="")
     risk_rating = models.CharField(max_length=30, choices=RiskRating.choices, default=RiskRating.NOT_ASSESSED)
+    risk_assessment_reason = models.TextField(blank=True, default="")
     source_of_funds = models.TextField(blank=True, default="")
     source_of_wealth = models.TextField(blank=True, default="")
     enhanced_due_diligence_required = models.BooleanField(default=False)
+    enhanced_due_diligence_reason = models.TextField(blank=True, default="")
     reviewed_by = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_client_due_diligence_records")
     reviewed_at = models.DateTimeField(null=True, blank=True)
     next_review_date = models.DateField(null=True, blank=True)

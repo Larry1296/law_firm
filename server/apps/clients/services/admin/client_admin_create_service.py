@@ -9,7 +9,9 @@ from apps.clients.models import (
     ClientContact,
     ClientDueDiligence,
     ClientRepresentative,
+    CompanyBeneficialOwner,
     CompanyClient,
+    CompanyDirector,
     CommunicationChannel,
     CooperativeClient,
     ContactType,
@@ -87,6 +89,7 @@ class ClientAdminCreateService:
         "middle_name",
         "last_name",
         "preferred_name",
+        "onboarding_method",
         "gender",
         "occupation_status",
         "occupation",
@@ -118,6 +121,10 @@ class ClientAdminCreateService:
         "privacy_notice_delivery_method",
         "privacy_notice_acknowledged",
         "privacy_notice_acknowledged_at",
+        "privacy_acknowledgement_reference",
+        "privacy_lawful_basis",
+        "privacy_data_sharing_explanation",
+        "privacy_retention_category",
         "privacy_notice_given_at",
         "privacy_notice_given_by",
         "personal_data_source",
@@ -126,15 +133,22 @@ class ClientAdminCreateService:
     DUE_DILIGENCE_FIELDS = {
         "acting_for_self",
         "represented_person",
+        "representation_capacity",
         "authority_document_reference",
+        "authority_verified",
         "purpose_and_nature_of_relationship",
         "pep_status",
         "pep_details",
         "sanctions_screening_status",
+        "screening_date",
+        "screening_method",
+        "screening_result",
         "risk_rating",
+        "risk_assessment_reason",
         "source_of_funds",
         "source_of_wealth",
         "enhanced_due_diligence_required",
+        "enhanced_due_diligence_reason",
         "next_review_date",
     }
     NEXT_OF_KIN_FIELDS = {
@@ -254,7 +268,8 @@ class ClientAdminCreateService:
         if client.access_type != Client.AccessType.PORTAL_ENABLED:
             return None, None
 
-        if User.objects.filter(email__iexact=client.email).exists():
+        portal_email = base_data.get("email") or client.email
+        if User.objects.filter(email__iexact=portal_email).exists():
             raise ValidationError(
                 {"email": "A user account with this email already exists."}
             )
@@ -271,7 +286,7 @@ class ClientAdminCreateService:
         )
 
         user, temp_password = AuthService.create_user_with_temp_password(
-            email=client.email,
+            email=portal_email,
             first_name=first_name,
             last_name=last_name,
             phone_number=base_data.get("phone_number") or contact_data.get("contact_phone_number"),
@@ -303,6 +318,9 @@ class ClientAdminCreateService:
         contact_data = ClientAdminCreateService._pop_fields(data, ClientAdminCreateService.CONTACT_FIELDS)
         individual_data = {}
         due_diligence_data = {}
+        directors_data = []
+        beneficial_owners_data = []
+        authorised_representatives_data = []
         if client_type == Client.ClientType.INDIVIDUAL:
             individual_data = ClientAdminCreateService._pop_fields(
                 data,
@@ -312,6 +330,25 @@ class ClientAdminCreateService:
                 data,
                 ClientAdminCreateService.DUE_DILIGENCE_FIELDS,
             )
+        elif client_type == Client.ClientType.COMPANY:
+            directors_data = data.pop("directors", [])
+            beneficial_owners_data = data.pop("beneficial_owners", [])
+            authorised_representatives_data = data.pop("authorised_representatives", [])
+            due_diligence_data = ClientAdminCreateService._pop_fields(
+                data,
+                ClientAdminCreateService.DUE_DILIGENCE_FIELDS,
+            )
+            primary_rep = next(
+                (rep for rep in authorised_representatives_data if rep.get("is_primary")),
+                authorised_representatives_data[0] if authorised_representatives_data else {},
+            )
+            contact_data = {
+                "contact_full_name": primary_rep.get("full_legal_name", ""),
+                "contact_role_or_designation": primary_rep.get("role_title", ""),
+                "contact_email": primary_rep.get("email", ""),
+                "contact_phone_number": primary_rep.get("telephone", ""),
+                "contact_national_id_number": primary_rep.get("national_id_or_passport", ""),
+            }
 
         full_name = ClientAdminCreateService._display_name(
             client_type,
@@ -341,6 +378,12 @@ class ClientAdminCreateService:
             if individual_data.get("identification_verified"):
                 individual_data["identification_verified_at"] = timezone.now()
                 individual_data["identification_verified_by"] = created_by
+            if due_diligence_data.get("authority_verified"):
+                due_diligence_data["authority_verified_at"] = timezone.now()
+                due_diligence_data["authority_verified_by"] = created_by
+        elif client_type == Client.ClientType.COMPANY:
+            data["created_by"] = created_by
+            data["director_count"] = len(directors_data)
 
         profile = ClientAdminCreateService._create_profile(
             client,
@@ -374,9 +417,54 @@ class ClientAdminCreateService:
         else:
             due_diligence = None
 
+        representatives = []
+        if client_type == Client.ClientType.COMPANY:
+            for item in directors_data:
+                CompanyDirector.objects.create(company=profile, **item)
+            for item in beneficial_owners_data:
+                CompanyBeneficialOwner.objects.create(company=profile, **item)
+            representatives = ClientAdminCreateService._create_representatives(
+                client,
+                [
+                    {
+                        "full_legal_name": item["full_legal_name"],
+                        "representative_category": ClientRepresentative.RepresentativeCategory.AUTHORIZED_AGENT,
+                        "role_title": item.get("role_title", ""),
+                        "national_id_or_passport": item.get("national_id_or_passport", ""),
+                        "email": item.get("email", ""),
+                        "telephone": item.get("telephone", ""),
+                        "authority_type": item.get("authority_type", ""),
+                        "authority_document_reference": item.get("authority_document_reference", ""),
+                        "authority_start_date": item.get("authority_start_date"),
+                        "is_primary": item.get("is_primary", False),
+                        "is_portal_contact": item.get("is_portal_contact", False),
+                        "is_verified": item.get("authority_verified", False),
+                    }
+                    for item in authorised_representatives_data
+                ],
+                created_by,
+            )
+            due_diligence = ClientDueDiligence.objects.create(client=client, **due_diligence_data)
+
+        portal_base_data = base_data
+        if client_type == Client.ClientType.COMPANY and authorised_representatives_data:
+            portal_rep = next(
+                (
+                    rep
+                    for rep in authorised_representatives_data
+                    if rep.get("is_portal_contact")
+                ),
+                {},
+            )
+            portal_base_data = {
+                **base_data,
+                "email": portal_rep.get("email"),
+                "phone_number": portal_rep.get("telephone") or base_data.get("phone_number"),
+            }
+
         user, temp_password = ClientAdminCreateService._create_portal_user(
             client,
-            base_data,
+            portal_base_data,
             contact_data,
         )
 
@@ -387,6 +475,7 @@ class ClientAdminCreateService:
             "registered_address": registered_address,
             "next_of_kin": next_of_kin,
             "due_diligence": due_diligence,
+            "representatives": representatives,
             "user": user,
             "temp_password": temp_password,
         }
@@ -784,6 +873,7 @@ class ClientAdminCreateService:
                 middle_name=middle_name,
                 last_name=last_name,
                 preferred_name=data.get("preferred_name", ""),
+                onboarding_method=data.get("onboarding_method", ""),
                 identification_type=data.get("identification_type", ""),
                 identification_number=data.get("identification_number", ""),
                 identification_country=data.get("identification_country", ""),
@@ -825,6 +915,10 @@ class ClientAdminCreateService:
                 privacy_notice_delivery_method=data.get("privacy_notice_delivery_method", ""),
                 privacy_notice_acknowledged=data.get("privacy_notice_acknowledged", False),
                 privacy_notice_acknowledged_at=data.get("privacy_notice_acknowledged_at"),
+                privacy_acknowledgement_reference=data.get("privacy_acknowledgement_reference", ""),
+                privacy_lawful_basis=data.get("privacy_lawful_basis", ""),
+                privacy_data_sharing_explanation=data.get("privacy_data_sharing_explanation", ""),
+                privacy_retention_category=data.get("privacy_retention_category", ""),
                 privacy_notice_given_at=data.get("privacy_notice_given_at"),
                 privacy_notice_given_by=data.get("privacy_notice_given_by"),
                 personal_data_source=data.get("personal_data_source", ""),
@@ -839,7 +933,7 @@ class ClientAdminCreateService:
                 registration_number=data["registration_number"],
                 company_type=data.get(
                     "company_type",
-                    CompanyClient.CompanyType.PRIVATE_LIMITED,
+                    CompanyClient.CompanyType.PRIVATE_LIMITED_COMPANY,
                 ),
                 incorporation_date=data.get("incorporation_date"),
                 country_of_incorporation=data.get("country_of_incorporation", "Kenya"),
@@ -854,7 +948,25 @@ class ClientAdminCreateService:
                     False,
                 ),
                 annual_returns_up_to_date=data.get("annual_returns_up_to_date", False),
+                beneficial_ownership_verified=data.get("beneficial_ownership_verified", False),
                 compliance_notes=data.get("compliance_notes", ""),
+                registration_authority=data.get("registration_authority", ""),
+                registration_document_reference=data.get("registration_document_reference", ""),
+                registration_verification_source=data.get("registration_verification_source", ""),
+                registration_verified=data.get("registration_verified", False),
+                registration_verified_at=timezone.now() if data.get("registration_verified") else None,
+                registration_verified_by=data.get("created_by") if data.get("registration_verified") else None,
+                onboarding_method=data.get("onboarding_method", ""),
+                preferred_contact_channel=data.get("preferred_contact_channel", ""),
+                privacy_notice_version=data.get("privacy_notice_version", ""),
+                privacy_notice_delivery_method=data.get("privacy_notice_delivery_method", ""),
+                privacy_notice_acknowledged=data.get("privacy_notice_acknowledged", False),
+                privacy_notice_acknowledged_at=timezone.now() if data.get("privacy_notice_acknowledged") else None,
+                personal_data_source=data.get("personal_data_source", ""),
+                privacy_lawful_basis=data.get("privacy_lawful_basis", ""),
+                engagement_letter_status=data.get("engagement_letter_status", "PENDING"),
+                fee_agreement_status=data.get("fee_agreement_status", "PENDING"),
+                client_instructions_confirmed=data.get("client_instructions_confirmed", False),
             )
 
         if client_type == Client.ClientType.PARTNERSHIP:

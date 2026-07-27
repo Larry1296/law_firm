@@ -65,7 +65,11 @@ export const buildIndividualClientPayload = (formData, mode = 'portal') => {
 
   return clean({
     full_name: collapse(formData.full_name),
+    first_name: collapse(formData.first_name),
+    middle_name: collapse(formData.middle_name),
+    last_name: collapse(formData.last_name),
     preferred_name: collapse(formData.preferred_name),
+    onboarding_method: formData.onboarding_method,
     email: isPortal ? lower(formData.email) : '',
     phone_number: normalizePhone(formData.phone_number),
     access_type: accessType,
@@ -113,18 +117,29 @@ export const buildIndividualClientPayload = (formData, mode = 'portal') => {
     privacy_notice_version: trim(formData.privacy_notice_version),
     privacy_notice_delivery_method: formData.privacy_notice_delivery_method,
     privacy_notice_acknowledged: Boolean(formData.privacy_notice_acknowledged),
+    privacy_acknowledgement_reference: trim(formData.privacy_acknowledgement_reference),
+    privacy_lawful_basis: trim(formData.privacy_lawful_basis),
+    privacy_data_sharing_explanation: trim(formData.privacy_data_sharing_explanation),
+    privacy_retention_category: trim(formData.privacy_retention_category),
     personal_data_source: formData.personal_data_source,
     acting_for_self: Boolean(formData.acting_for_self),
     represented_person: collapse(formData.represented_person),
+    representation_capacity: trim(formData.representation_capacity),
     authority_document_reference: trim(formData.authority_document_reference),
+    authority_verified: Boolean(formData.authority_verified),
     purpose_and_nature_of_relationship: trim(formData.purpose_and_nature_of_relationship),
     pep_status: formData.pep_status || 'PENDING',
     pep_details: trim(formData.pep_details),
     sanctions_screening_status: formData.sanctions_screening_status || 'PENDING',
+    screening_date: formData.screening_date || null,
+    screening_method: trim(formData.screening_method),
+    screening_result: trim(formData.screening_result),
     risk_rating: formData.risk_rating || 'NOT_ASSESSED',
+    risk_assessment_reason: trim(formData.risk_assessment_reason),
     source_of_funds: trim(formData.source_of_funds),
     source_of_wealth: trim(formData.source_of_wealth),
     enhanced_due_diligence_required: Boolean(formData.enhanced_due_diligence_required),
+    enhanced_due_diligence_reason: trim(formData.enhanced_due_diligence_reason),
     next_review_date: formData.next_review_date || null,
     notes: trim(formData.notes),
   });
@@ -137,6 +152,7 @@ export const validateIndividualClientForm = (formData, mode = 'portal') => {
   const identificationNumber = trim(formData.identification_number || (identificationType === 'PASSPORT' ? formData.passport_number : formData.national_id));
 
   if (!collapse(formData.full_name)) errors.full_name = 'Full legal name is required.';
+  if (!formData.onboarding_method) errors.onboarding_method = 'Onboarding method is required.';
   if (!identificationType) errors.identification_type = 'Identification type is required.';
   if (!identificationNumber) errors.identification_number = 'Identification number is required.';
   if (identificationType === 'NATIONAL_ID' && identificationNumber && !/^\d{7,10}$/.test(identificationNumber)) errors.identification_number = 'Enter a valid Kenyan National ID number.';
@@ -183,11 +199,21 @@ export const validateIndividualClientForm = (formData, mode = 'portal') => {
   if (isPortal && formData.privacy_notice_delivery_method !== 'PORTAL') errors.privacy_notice_delivery_method = 'Portal clients receive the notice in the portal.';
   if (!isPortal && !['PAPER', 'VERBAL'].includes(formData.privacy_notice_delivery_method)) errors.privacy_notice_delivery_method = 'Choose paper copy or verbal explanation.';
   if (!formData.privacy_notice_acknowledged) errors.privacy_notice_acknowledged = 'Confirm that the client received and acknowledged the notice.';
+  if (!trim(formData.privacy_acknowledgement_reference)) errors.privacy_acknowledgement_reference = 'Record the signature, signed form or staff acknowledgement reference.';
+  if (!trim(formData.privacy_lawful_basis)) errors.privacy_lawful_basis = 'Record the lawful basis for processing.';
   if (!formData.personal_data_source) errors.personal_data_source = 'Personal data source is required.';
   if (!formData.acting_for_self && !collapse(formData.represented_person)) errors.represented_person = 'Name the person represented.';
+  if (!formData.acting_for_self && !trim(formData.representation_capacity)) errors.representation_capacity = 'Record the representative capacity.';
   if (!formData.acting_for_self && !trim(formData.authority_document_reference)) errors.authority_document_reference = 'Record the authority to act.';
+  if (!formData.acting_for_self && !formData.authority_verified) errors.authority_verified = 'Confirm that authority to instruct was verified.';
   if (!trim(formData.purpose_and_nature_of_relationship)) errors.purpose_and_nature_of_relationship = 'Describe the legal service sought.';
   if (['POTENTIAL_MATCH', 'CONFIRMED_MATCH'].includes(formData.pep_status) && !trim(formData.pep_details)) errors.pep_details = 'Record the PEP details.';
+  if (!['PENDING', 'NOT_CHECKED', '', undefined, null].includes(formData.sanctions_screening_status)) {
+    if (!formData.screening_date) errors.screening_date = 'Record the screening date.';
+    if (!trim(formData.screening_result)) errors.screening_result = 'Record the screening result.';
+  }
+  if (formData.risk_rating && formData.risk_rating !== 'NOT_ASSESSED' && !trim(formData.risk_assessment_reason)) errors.risk_assessment_reason = 'Record the reason for the risk rating.';
+  if (formData.enhanced_due_diligence_required && !trim(formData.enhanced_due_diligence_reason)) errors.enhanced_due_diligence_reason = 'Record why enhanced due diligence is required.';
   if (isMinorIndividualClient(formData.date_of_birth)) {
     if (!collapse(formData.guardian_name)) errors.guardian_name = 'Guardian or legal representative name is required for minor clients.';
     if (!trim(formData.guardian_phone) && !trim(formData.guardian_email)) errors.guardian_contact = 'Guardian phone or guardian email is required for minor clients.';

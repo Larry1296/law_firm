@@ -39,10 +39,20 @@ def build_individual_create_response(result):
         ),
         "due_diligence": {
             "acting_for_self": result["due_diligence"].acting_for_self,
+            "represented_person": result["due_diligence"].represented_person,
+            "representation_capacity": result["due_diligence"].representation_capacity,
+            "authority_document_reference": result["due_diligence"].authority_document_reference,
+            "authority_verified": result["due_diligence"].authority_verified,
             "purpose_and_nature_of_relationship": result["due_diligence"].purpose_and_nature_of_relationship,
             "pep_status": result["due_diligence"].pep_status,
             "sanctions_screening_status": result["due_diligence"].sanctions_screening_status,
+            "screening_date": result["due_diligence"].screening_date,
+            "screening_method": result["due_diligence"].screening_method,
+            "screening_result": result["due_diligence"].screening_result,
             "risk_rating": result["due_diligence"].risk_rating,
+            "risk_assessment_reason": result["due_diligence"].risk_assessment_reason,
+            "enhanced_due_diligence_required": result["due_diligence"].enhanced_due_diligence_required,
+            "enhanced_due_diligence_reason": result["due_diligence"].enhanced_due_diligence_reason,
         },
         "portal_user": (
             {

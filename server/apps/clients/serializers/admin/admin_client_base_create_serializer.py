@@ -23,8 +23,8 @@ class AdminClientBaseCreateSerializer(serializers.Serializer):
     )
 
     access_type = serializers.ChoiceField(
-        choices=Client.AccessType.choices,
-        default=Client.AccessType.ASSISTED_CLIENT,
+        choices=(Client.AccessType.PORTAL_ENABLED, Client.AccessType.ASSISTED),
+        default=Client.AccessType.ASSISTED,
     )
 
     national_id = serializers.CharField(
@@ -118,21 +118,21 @@ class AdminClientBaseCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         access_type = attrs.get(
             "access_type",
-            Client.AccessType.ASSISTED_CLIENT,
+            Client.AccessType.ASSISTED,
         )
 
         if (
-            access_type == Client.AccessType.PROSPECT
+            access_type == Client.AccessType.PORTAL_ENABLED
             and not attrs.get("email")
         ):
             raise serializers.ValidationError(
                 {
-                    "email": "Prospects require an email address."
+                    "email": "Portal-enabled clients require a login email."
                 }
             )
 
         if (
-            access_type == Client.AccessType.PROSPECT
+            access_type == Client.AccessType.PORTAL_ENABLED
             and not (
                 attrs.get("phone_number")
                 or attrs.get("contact_phone_number")
@@ -141,7 +141,7 @@ class AdminClientBaseCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {
                     "phone_number": (
-                        "Prospects require a phone number."
+                        "Portal-enabled clients require a phone number."
                     )
                 }
             )

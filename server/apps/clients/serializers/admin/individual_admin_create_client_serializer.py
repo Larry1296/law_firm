@@ -46,6 +46,10 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
     middle_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     preferred_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    onboarding_method = serializers.ChoiceField(
+        choices=IndividualClient.OnboardingMethod.choices,
+        required=True,
+    )
     gender = serializers.ChoiceField(choices=IndividualClient.Gender.choices, required=False, allow_null=True, allow_blank=True)
     occupation_status = serializers.ChoiceField(choices=IndividualClient.OccupationStatus.choices, required=False, allow_blank=True)
     occupation = serializers.CharField(max_length=255, required=False, allow_blank=True)
@@ -75,10 +79,16 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
         allow_blank=True,
     )
     privacy_notice_acknowledged = serializers.BooleanField(required=False, default=False)
+    privacy_acknowledgement_reference = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    privacy_lawful_basis = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    privacy_data_sharing_explanation = serializers.CharField(required=False, allow_blank=True)
+    privacy_retention_category = serializers.CharField(max_length=100, required=False, allow_blank=True)
     personal_data_source = serializers.ChoiceField(choices=IndividualClient.PersonalDataSource.choices, required=False, allow_blank=True)
     acting_for_self = serializers.BooleanField(required=True)
     represented_person = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    representation_capacity = serializers.CharField(max_length=100, required=False, allow_blank=True)
     authority_document_reference = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    authority_verified = serializers.BooleanField(required=False, default=False)
     purpose_and_nature_of_relationship = serializers.CharField(required=True, allow_blank=False)
     pep_status = serializers.ChoiceField(
         choices=ClientDueDiligence.PepStatus.choices,
@@ -89,13 +99,18 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
         choices=ClientDueDiligence.ScreeningStatus.choices,
         default=ClientDueDiligence.ScreeningStatus.PENDING,
     )
+    screening_date = serializers.DateField(required=False, allow_null=True)
+    screening_method = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    screening_result = serializers.CharField(required=False, allow_blank=True)
     risk_rating = serializers.ChoiceField(
         choices=ClientDueDiligence.RiskRating.choices,
         default=ClientDueDiligence.RiskRating.NOT_ASSESSED,
     )
     source_of_funds = serializers.CharField(required=False, allow_blank=True)
     source_of_wealth = serializers.CharField(required=False, allow_blank=True)
+    risk_assessment_reason = serializers.CharField(required=False, allow_blank=True)
     enhanced_due_diligence_required = serializers.BooleanField(required=False, default=False)
+    enhanced_due_diligence_reason = serializers.CharField(required=False, allow_blank=True)
     next_review_date = serializers.DateField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True)
 
@@ -142,8 +157,13 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             "county_or_region", "city_or_town", "street_or_locality", "postal_code", "address_description", "county", "city",
             "street", "full_address", "notes", "privacy_notice_version", "personal_data_source",
             "privacy_notice_delivery_method", "represented_person",
+            "onboarding_method", "privacy_acknowledgement_reference",
+            "privacy_lawful_basis", "privacy_data_sharing_explanation",
+            "privacy_retention_category", "representation_capacity",
             "authority_document_reference", "purpose_and_nature_of_relationship",
             "pep_details", "source_of_funds", "source_of_wealth",
+            "screening_method", "screening_result", "risk_assessment_reason",
+            "enhanced_due_diligence_reason",
         ]
         for field in name_fields:
             if field in attrs and attrs[field] is not None:
@@ -250,6 +270,8 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
         if access_type == Client.AccessType.PORTAL_ENABLED and not attrs.get("phone_number") and not attrs.get("email"):
             errors["contact_method"] = "At least one reliable client contact method is required."
         if access_type == Client.AccessType.PORTAL_ENABLED:
+            if attrs.get("onboarding_method") != IndividualClient.OnboardingMethod.STAFF_ASSISTED:
+                errors["onboarding_method"] = "Portal onboarding must be recorded as staff assisted until the client self-service onboarding workflow is available."
             if not attrs.get("email"):
                 errors["email"] = "Portal individual clients require a login email address."
             if not attrs.get("phone_number"):
@@ -257,6 +279,12 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             if attrs.get("privacy_notice_delivery_method") != IndividualClient.PrivacyNoticeDeliveryMethod.PORTAL:
                 errors["privacy_notice_delivery_method"] = "Portal clients must receive the privacy notice through the portal."
         if access_type == Client.AccessType.ASSISTED:
+            if attrs.get("onboarding_method") not in {
+                IndividualClient.OnboardingMethod.IN_PERSON,
+                IndividualClient.OnboardingMethod.PHONE,
+                IndividualClient.OnboardingMethod.STAFF_ASSISTED,
+            }:
+                errors["onboarding_method"] = "Choose in-person, phone or staff-assisted onboarding."
             email_fields = {
                 "email": attrs.get("email"),
                 "contact_email": attrs.get("contact_email"),
@@ -296,13 +324,21 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             errors["privacy_notice_version"] = "Privacy notice version is required."
         if not attrs.get("privacy_notice_acknowledged"):
             errors["privacy_notice_acknowledged"] = "Confirm that the privacy notice was delivered and acknowledged."
+        if not attrs.get("privacy_acknowledgement_reference"):
+            errors["privacy_acknowledgement_reference"] = "Record the signed form, signature or staff acknowledgement reference."
+        if not attrs.get("privacy_lawful_basis"):
+            errors["privacy_lawful_basis"] = "Record the applicable lawful basis for processing."
         if not attrs.get("personal_data_source"):
             errors["personal_data_source"] = "Personal data source is required."
         if not attrs.get("acting_for_self"):
             if not attrs.get("represented_person"):
                 errors["represented_person"] = "Name the person for whom the client is acting."
+            if not attrs.get("representation_capacity"):
+                errors["representation_capacity"] = "Record the representative's relationship or legal capacity."
             if not attrs.get("authority_document_reference"):
                 errors["authority_document_reference"] = "Record the document or other authority to act."
+            if not attrs.get("authority_verified"):
+                errors["authority_verified"] = "The authority to give instructions must be verified."
         if not attrs.get("purpose_and_nature_of_relationship"):
             errors["purpose_and_nature_of_relationship"] = "Record the legal service sought and intended nature of the relationship."
         if attrs.get("pep_status") in {
@@ -310,6 +346,18 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             ClientDueDiligence.PepStatus.CONFIRMED_MATCH,
         } and not attrs.get("pep_details"):
             errors["pep_details"] = "Record the relevant politically exposed person details."
+        if attrs.get("sanctions_screening_status") not in {
+            ClientDueDiligence.ScreeningStatus.NOT_CHECKED,
+            ClientDueDiligence.ScreeningStatus.PENDING,
+        }:
+            if not attrs.get("screening_date"):
+                errors["screening_date"] = "Record the screening date."
+            if not attrs.get("screening_result"):
+                errors["screening_result"] = "Record the screening result."
+        if attrs.get("risk_rating") != ClientDueDiligence.RiskRating.NOT_ASSESSED and not attrs.get("risk_assessment_reason"):
+            errors["risk_assessment_reason"] = "Record the reason for the risk rating."
+        if attrs.get("enhanced_due_diligence_required") and not attrs.get("enhanced_due_diligence_reason"):
+            errors["enhanced_due_diligence_reason"] = "Record why enhanced due diligence is required."
 
         if attrs.get("kra_pin") and not re.fullmatch(r"A\d{9}[A-Z]", attrs["kra_pin"]):
             errors["kra_pin"] = "Enter a valid individual KRA PIN, for example A123456789B."
