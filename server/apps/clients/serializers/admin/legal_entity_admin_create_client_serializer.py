@@ -344,9 +344,27 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
                 )
         elif client_type == Client.ClientType.ESTATE:
             self._require(attrs, "estate_name", "deceased_full_name")
-            if attrs.get("grant_status") in {"ISSUED", "CONFIRMED"} and not attrs.get("personal_representatives"):
+            personal_representatives = attrs.get("personal_representatives") or []
+            if not personal_representatives:
                 raise serializers.ValidationError(
-                    {"personal_representatives": "Record at least one personal representative for an issued grant."}
+                    {
+                        "personal_representatives": (
+                            "Record at least one executor, administrator, or "
+                            "other lawful personal representative."
+                        )
+                    }
+                )
+            if any(
+                not representative.get("identifier")
+                for representative in personal_representatives
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "personal_representatives": (
+                            "Record an ID or passport number for every "
+                            "personal representative."
+                        )
+                    }
                 )
         elif client_type == Client.ClientType.PUBLIC_ENTITY:
             self._require(attrs, "official_name", "public_entity_subtype")

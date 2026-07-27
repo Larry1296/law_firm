@@ -328,6 +328,7 @@ export default function AdminCreateClientPage() {
     trustee_name: '',
     trustee_identifier: '',
     personal_representative_name: '',
+    personal_representative_identifier: '',
     cooperative_subtype: 'PRIMARY_COOPERATIVE',
     area_of_operation: '',
     activity_sector: '',
@@ -1021,6 +1022,7 @@ export default function AdminCreateClientPage() {
       trustee_name: '',
       trustee_identifier: '',
       personal_representative_name: '',
+      personal_representative_identifier: '',
       cooperative_subtype: 'PRIMARY_COOPERATIVE',
       area_of_operation: '',
       activity_sector: '',
@@ -1530,7 +1532,8 @@ export default function AdminCreateClientPage() {
                   <FloatingInput label='Estate Display Name' name='estate_name' value={formData.estate_name} onChange={handleChange} required />
                   <FloatingInput label='Deceased Full Name' name='deceased_full_name' value={formData.deceased_full_name} onChange={handleChange} required />
                   <FloatingInput label='Date of Death' name='date_of_death' type='date' value={formData.date_of_death} onChange={handleChange} noFloat />
-                  <FloatingInput label='Executor / Administrator Name' name='personal_representative_name' value={formData.personal_representative_name} onChange={handleChange} />
+                  <FloatingInput label='Executor / Administrator Name' name='personal_representative_name' value={formData.personal_representative_name} onChange={handleChange} required />
+                  <FloatingInput label='Representative ID / Passport' name='personal_representative_identifier' value={formData.personal_representative_identifier} onChange={handleChange} required />
                   <FloatingInput label='Succession Cause / Probate Number' name='probate_number' value={formData.probate_number} onChange={handleChange} />
                 </div>
               )}

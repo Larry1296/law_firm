@@ -42,6 +42,7 @@ export const buildLegalEntityClientPayload = (
   const isLimitedLiabilityPartnership =
     clientType === 'LIMITED_LIABILITY_PARTNERSHIP';
   const isTrust = clientType === 'TRUST';
+  const isEstate = clientType === 'ESTATE';
   const proprietorName = trim(formData.proprietor_name);
   const proprietorIdentifier = trim(formData.proprietor_identifier);
   const firstPartnerName = trim(formData.partner_one_name);
@@ -52,6 +53,18 @@ export const buildLegalEntityClientPayload = (
   );
   const trusteeName = trim(formData.trustee_name);
   const trusteeIdentifier = trim(formData.trustee_identifier);
+  const personalRepresentativeName = trim(
+    formData.personal_representative_name,
+  );
+  const personalRepresentativeIdentifier = trim(
+    formData.personal_representative_identifier,
+  );
+  const personalRepresentativeType =
+    formData.grant_type === 'PROBATE'
+      ? 'EXECUTOR'
+      : formData.grant_type === 'PUBLIC_TRUSTEE'
+        ? 'PUBLIC_TRUSTEE'
+        : 'ADMINISTRATOR';
   const contactName =
     trim(formData.contact_full_name) ||
     (isSoleProprietorship
@@ -62,14 +75,20 @@ export const buildLegalEntityClientPayload = (
           ? designatedPartnerName
           : isTrust
             ? trusteeName
-            : '');
+            : isEstate
+              ? personalRepresentativeName
+              : '');
   const contactEmail = isProspect
     ? lower(formData.contact_email) ||
-      (isSoleProprietorship || isTrust ? lower(formData.email) : '')
+      (isSoleProprietorship || isTrust || isEstate
+        ? lower(formData.email)
+        : '')
     : '';
   const contactPhone =
     trim(formData.contact_phone_number) ||
-    (isSoleProprietorship || isTrust ? trim(formData.phone_number) : '');
+    (isSoleProprietorship || isTrust || isEstate
+      ? trim(formData.phone_number)
+      : '');
   const contactIdentifier =
     trim(formData.contact_national_id_number) ||
     (isSoleProprietorship
@@ -80,7 +99,9 @@ export const buildLegalEntityClientPayload = (
           ? designatedPartnerIdentifier
           : isTrust
             ? trusteeIdentifier
-            : '');
+            : isEstate
+              ? personalRepresentativeIdentifier
+              : '');
   const email = isProspect
     ? lower(formData.email) || contactEmail || lower(formData.contact_person_email)
     : '';
@@ -109,7 +130,9 @@ export const buildLegalEntityClientPayload = (
                   ? 'DESIGNATED_PARTNER'
                   : isTrust && !trim(formData.contact_full_name)
                     ? 'TRUSTEE'
-                    : 'AUTHORIZED_AGENT',
+                    : isEstate && !trim(formData.contact_full_name)
+                      ? personalRepresentativeType
+                      : 'AUTHORIZED_AGENT',
           role_title:
             trim(formData.contact_role_or_designation) ||
             (isSoleProprietorship
@@ -120,7 +143,13 @@ export const buildLegalEntityClientPayload = (
                   ? 'Designated Partner'
                   : isTrust
                     ? 'Trustee'
-                    : ''),
+                    : isEstate
+                      ? personalRepresentativeType === 'EXECUTOR'
+                        ? 'Executor'
+                        : personalRepresentativeType === 'PUBLIC_TRUSTEE'
+                          ? 'Public Trustee'
+                          : 'Administrator'
+                      : ''),
           national_id_or_passport: contactIdentifier,
           ...(isProspect && contactEmail ? { email: contactEmail } : {}),
           telephone: contactPhone,
@@ -174,11 +203,16 @@ export const buildLegalEntityClientPayload = (
       ]
     : [];
 
-  const personalRepresentatives = trim(formData.personal_representative_name)
+  const personalRepresentatives = personalRepresentativeName
     ? [
         {
-          representative_type: formData.grant_type === 'PROBATE' ? 'EXECUTOR' : 'ADMINISTRATOR',
-          full_legal_name: trim(formData.personal_representative_name),
+          representative_type: personalRepresentativeType,
+          full_legal_name: personalRepresentativeName,
+          identifier: personalRepresentativeIdentifier,
+          phone_number: contactPhone,
+          ...(isProspect && contactEmail ? { email: contactEmail } : {}),
+          grant_reference:
+            trim(formData.probate_number) || trim(formData.court_reference),
           is_primary: true,
           is_verified: false,
         },
@@ -206,7 +240,13 @@ export const buildLegalEntityClientPayload = (
             ? 'Designated Partner'
             : isTrust
               ? 'Trustee'
-              : ''),
+              : isEstate
+                ? personalRepresentativeType === 'EXECUTOR'
+                  ? 'Executor'
+                  : personalRepresentativeType === 'PUBLIC_TRUSTEE'
+                    ? 'Public Trustee'
+                    : 'Administrator'
+                : ''),
     contact_email: contactEmail,
     contact_phone_number: contactPhone,
     contact_national_id_number: contactIdentifier,

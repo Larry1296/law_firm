@@ -188,6 +188,7 @@ class AdminLegalEntityClientCreationTests(TestCase):
                     "personal_representatives": [
                         {
                             "legal_name": "Mary Wanjiku Kamau",
+                            "identifier": "ESTATE-REP-ID-001",
                             "representative_type": "ADMINISTRATOR",
                             "is_primary": True,
                         }
@@ -428,6 +429,55 @@ class AdminLegalEntityClientCreationTests(TestCase):
 
         self.assertEqual(response.status_code, 400, response.data)
         self.assertIn("trustees", response.data["errors"])
+
+    def test_portal_estate_creates_login_for_personal_representative(self):
+        payload = self.payload_for(
+            Client.ClientType.ESTATE,
+            access_type=Client.AccessType.PORTAL_ENABLED,
+            email="portal-administrator@example.test",
+            phone_number="+254700910043",
+            contact_full_name="Mary Wanjiku Kamau",
+            contact_national_id_number="ESTATE-REP-ID-001",
+        )
+        payload["representatives"][0].update(
+            {
+                "full_legal_name": "Mary Wanjiku Kamau",
+                "representative_category": "ADMINISTRATOR",
+                "role_title": "Administrator",
+                "national_id_or_passport": "ESTATE-REP-ID-001",
+                "email": payload["email"],
+                "telephone": payload["phone_number"],
+                "is_portal_contact": True,
+            }
+        )
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.select_related("user").get(
+            id=response.data["client"]["id"]
+        )
+        self.assertEqual(client.full_name, "Estate of John Kamau")
+        self.assertEqual(client.access_type, Client.AccessType.PORTAL_ENABLED)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
+        self.assertEqual(client.phone_number, "+254700910043")
+        self.assertEqual(client.user.email, "portal-administrator@example.test")
+        self.assertEqual(client.user.first_name, "Mary")
+        self.assertEqual(client.estate_profile.personal_representatives.count(), 1)
+        self.assertEqual(
+            response.data["representatives"][0]["representative_category"],
+            "ADMINISTRATOR",
+        )
+        self.assertTrue(response.data["temp_password"])
+
+    def test_estate_requires_identified_personal_representative(self):
+        payload = self.payload_for(Client.ClientType.ESTATE)
+        payload["personal_representatives"][0]["identifier"] = ""
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("personal_representatives", response.data["errors"])
 
     def test_portal_legal_entity_returns_stable_credentials_shape(self):
         response = self.api_client.post(

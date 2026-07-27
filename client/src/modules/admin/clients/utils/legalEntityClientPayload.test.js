@@ -290,14 +290,22 @@ assert.equal(
 const estatePayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,
+    email: 'administrator@example.com',
+    phone_number: '+254700000023',
+    contact_full_name: '',
+    contact_email: '',
+    contact_phone_number: '',
+    contact_national_id_number: '',
     estate_name: ' Estate of John Kamau ',
     deceased_full_name: ' John Kamau ',
-    grant_type: 'LETTERS_OF_ADMINISTRATION',
+    grant_type: 'PROBATE',
     personal_representative_name: ' Mary Wanjiku Kamau ',
+    personal_representative_identifier: 'ESTATE-REP-ID-001',
+    probate_number: 'SUCCESSION-001',
   },
   {
     clientType: 'ESTATE',
-    accessType: 'ASSISTED',
+    accessType: 'PORTAL_ENABLED',
   },
 );
 
@@ -305,5 +313,22 @@ assert.equal(estatePayload.personal_representatives.length, 1);
 assert.equal(
   estatePayload.personal_representatives[0].full_legal_name,
   'Mary Wanjiku Kamau',
+);
+assert.equal(
+  estatePayload.personal_representatives[0].identifier,
+  'ESTATE-REP-ID-001',
+);
+assert.equal(estatePayload.personal_representatives[0].representative_type, 'EXECUTOR');
+assert.equal(estatePayload.personal_representatives[0].grant_reference, 'SUCCESSION-001');
+assert.equal(estatePayload.contact_full_name, 'Mary Wanjiku Kamau');
+assert.equal(estatePayload.contact_national_id_number, 'ESTATE-REP-ID-001');
+assert.equal(
+  estatePayload.representatives[0].representative_category,
+  'EXECUTOR',
+);
+assert.equal(estatePayload.representatives[0].is_portal_contact, true);
+assert.equal(
+  estatePayload.representatives[0].email,
+  'administrator@example.com',
 );
 });
