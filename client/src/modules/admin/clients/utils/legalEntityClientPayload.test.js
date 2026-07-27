@@ -350,6 +350,40 @@ assert.equal(
   true,
 );
 
+const schoolPayload = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    official_name: ' Milimani Academy ',
+    registration_number: ' school-2026-001 ',
+    school_representative_name: ' Mercy Wanjiku ',
+    school_representative_identifier: ' SCHOOL-REP-ID-001 ',
+    contact_full_name: '',
+    contact_email: '',
+    contact_phone_number: '',
+    contact_national_id_number: '',
+    email: 'school.rep@example.com',
+    phone_number: '+254700000030',
+  },
+  {
+    clientType: 'EDUCATIONAL_INSTITUTION',
+    requestedClientType: 'SCHOOL',
+    accessType: 'PORTAL_ENABLED',
+  },
+);
+
+assert.equal(schoolPayload.client_type, 'EDUCATIONAL_INSTITUTION');
+assert.equal(schoolPayload.official_name, 'Milimani Academy');
+assert.equal(schoolPayload.contact_full_name, 'Mercy Wanjiku');
+assert.equal(
+  schoolPayload.contact_national_id_number,
+  'SCHOOL-REP-ID-001',
+);
+assert.equal(
+  schoolPayload.representatives[0].representative_category,
+  'AUTHORIZED_AGENT',
+);
+assert.equal(schoolPayload.representatives[0].is_portal_contact, true);
+
 const partnershipPayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,

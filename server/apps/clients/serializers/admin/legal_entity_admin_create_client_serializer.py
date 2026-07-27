@@ -29,6 +29,7 @@ CANONICAL_ENTITY_TYPES = {
     Client.ClientType.TRUST,
     Client.ClientType.ESTATE,
     Client.ClientType.PUBLIC_ENTITY,
+    Client.ClientType.EDUCATIONAL_INSTITUTION,
     Client.ClientType.INTERNATIONAL_ORGANIZATION,
 }
 
@@ -238,6 +239,7 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
         if client_type in {
             Client.ClientType.PUBLIC_ENTITY,
             Client.ClientType.INTERNATIONAL_ORGANIZATION,
+            Client.ClientType.EDUCATIONAL_INSTITUTION,
         }:
             return attrs.get("official_name") or attrs.get("legal_name")
         return attrs.get("legal_name")
@@ -497,6 +499,33 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
                         "representatives": (
                             "Record an ID or passport number for every "
                             "authorized public officer."
+                        )
+                    }
+                )
+        elif client_type == Client.ClientType.EDUCATIONAL_INSTITUTION:
+            self._require(attrs, "official_name")
+            school_representatives = [
+                representative
+                for representative in attrs.get("representatives") or []
+                if representative.get("representative_category")
+                in {
+                    ClientRepresentative.RepresentativeCategory.AUTHORIZED_AGENT,
+                    ClientRepresentative.RepresentativeCategory.OTHER,
+                }
+            ]
+            if not school_representatives:
+                raise serializers.ValidationError(
+                    {"representatives": "Record an authorized school representative."}
+                )
+            if any(
+                not representative.get("national_id_or_passport")
+                for representative in school_representatives
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "representatives": (
+                            "Record an ID or passport number for every "
+                            "authorized school representative."
                         )
                     }
                 )

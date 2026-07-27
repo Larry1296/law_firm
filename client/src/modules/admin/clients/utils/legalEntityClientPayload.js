@@ -12,6 +12,7 @@ export const canonicalLegalEntityTypes = [
   'TRUST',
   'ESTATE',
   'PUBLIC_ENTITY',
+  'EDUCATIONAL_INSTITUTION',
   'INTERNATIONAL_ORGANIZATION',
 ];
 
@@ -52,6 +53,8 @@ export const buildLegalEntityClientPayload = (
   const isPublicEntity = clientType === 'PUBLIC_ENTITY';
   const isInternationalOrganization =
     clientType === 'INTERNATIONAL_ORGANIZATION';
+  const isEducationalInstitution =
+    clientType === 'EDUCATIONAL_INSTITUTION';
   const proprietorName = trim(formData.proprietor_name);
   const proprietorIdentifier = trim(formData.proprietor_identifier);
   const firstPartnerName = trim(formData.partner_one_name);
@@ -88,6 +91,10 @@ export const buildLegalEntityClientPayload = (
   const internationalRepresentativeIdentifier = trim(
     formData.international_representative_identifier,
   );
+  const schoolRepresentativeName = trim(formData.school_representative_name);
+  const schoolRepresentativeIdentifier = trim(
+    formData.school_representative_identifier,
+  );
   const personalRepresentativeType =
     formData.grant_type === 'PROBATE'
       ? 'EXECUTOR'
@@ -116,7 +123,9 @@ export const buildLegalEntityClientPayload = (
                       ? publicOfficerName
                       : isInternationalOrganization
                         ? internationalRepresentativeName
-                        : '');
+                        : isEducationalInstitution
+                          ? schoolRepresentativeName
+                          : '');
   const contactEmail = isProspect
     ? lower(formData.contact_email) ||
       (isSoleProprietorship ||
@@ -126,7 +135,8 @@ export const buildLegalEntityClientPayload = (
       isNgo ||
       isSocietyOrAssociation ||
       isPublicEntity ||
-      isInternationalOrganization
+      isInternationalOrganization ||
+      isEducationalInstitution
         ? lower(formData.email)
         : '')
     : '';
@@ -139,7 +149,8 @@ export const buildLegalEntityClientPayload = (
     isNgo ||
     isSocietyOrAssociation ||
     isPublicEntity ||
-    isInternationalOrganization
+    isInternationalOrganization ||
+    isEducationalInstitution
       ? trim(formData.phone_number)
       : '');
   const contactIdentifier =
@@ -164,7 +175,9 @@ export const buildLegalEntityClientPayload = (
                       ? publicOfficerIdentifier
                       : isInternationalOrganization
                         ? internationalRepresentativeIdentifier
-                        : '');
+                        : isEducationalInstitution
+                          ? schoolRepresentativeIdentifier
+                          : '');
   const email = isProspect
     ? lower(formData.email) || contactEmail || lower(formData.contact_person_email)
     : '';
@@ -234,7 +247,9 @@ export const buildLegalEntityClientPayload = (
                               ? 'Authorized Public Officer'
                               : isInternationalOrganization
                                 ? 'Authorized Organization Representative'
-                                : ''),
+                                : isEducationalInstitution
+                                  ? 'Authorized School Representative'
+                                  : ''),
           national_id_or_passport: contactIdentifier,
           ...(isProspect && contactEmail ? { email: contactEmail } : {}),
           telephone: contactPhone,
@@ -343,7 +358,9 @@ export const buildLegalEntityClientPayload = (
                         ? 'Authorized Public Officer'
                         : isInternationalOrganization
                           ? 'Authorized Organization Representative'
-                          : ''),
+                          : isEducationalInstitution
+                            ? 'Authorized School Representative'
+                            : ''),
     contact_email: contactEmail,
     contact_phone_number: contactPhone,
     contact_national_id_number: contactIdentifier,

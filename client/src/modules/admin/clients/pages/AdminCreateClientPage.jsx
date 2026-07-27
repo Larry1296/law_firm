@@ -43,8 +43,8 @@ export default function AdminCreateClientPage() {
     RELIGIOUS_ORGANIZATION: 'NON_PROFIT_ORGANIZATION',
     GOVERNMENT: 'PUBLIC_ENTITY',
     GOVERNMENT_BODY: 'PUBLIC_ENTITY',
-    SCHOOL: 'PUBLIC_ENTITY',
-    EDUCATIONAL_INSTITUTION: 'PUBLIC_ENTITY',
+    SCHOOL: 'EDUCATIONAL_INSTITUTION',
+    EDUCATIONAL_INSTITUTION: 'EDUCATIONAL_INSTITUTION',
     INTERNATIONAL_ENTITY: 'INTERNATIONAL_ORGANIZATION',
   };
 
@@ -365,6 +365,8 @@ export default function AdminCreateClientPage() {
     public_entity_subtype: 'OTHER_STATUTORY_BODY',
     public_officer_name: '',
     public_officer_identifier: '',
+    school_representative_name: '',
+    school_representative_identifier: '',
     enabling_instrument: '',
     parent_ministry_or_county: '',
     legal_capacity_notes: '',
@@ -1069,6 +1071,8 @@ export default function AdminCreateClientPage() {
       public_entity_subtype: 'OTHER_STATUTORY_BODY',
       public_officer_name: '',
       public_officer_identifier: '',
+      school_representative_name: '',
+      school_representative_identifier: '',
       enabling_instrument: '',
       parent_ministry_or_county: '',
       legal_capacity_notes: '',
@@ -1568,24 +1572,39 @@ export default function AdminCreateClientPage() {
                 </div>
               )}
 
-              {clientType === 'PUBLIC_ENTITY' && (
+              {(clientType === 'PUBLIC_ENTITY' || clientType === 'EDUCATIONAL_INSTITUTION') && (
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                  <FloatingInput label='Official Name' name='official_name' value={formData.official_name} onChange={handleChange} required />
-                  <FloatingInput label='Authorized Public Officer' name='public_officer_name' value={formData.public_officer_name} onChange={handleChange} required />
-                  <FloatingInput label='Public Officer ID / Passport' name='public_officer_identifier' value={formData.public_officer_identifier} onChange={handleChange} required />
-                  <Select3D label='Public Entity Type' name='public_entity_subtype' value={formData.public_entity_subtype} onChange={handleChange} options={[
-                    { value: 'NATIONAL_GOVERNMENT', label: 'National Government' },
-                    { value: 'COUNTY_GOVERNMENT', label: 'County Government' },
-                    { value: 'MINISTRY_OR_DEPARTMENT', label: 'Ministry or Department' },
-                    { value: 'CONSTITUTIONAL_COMMISSION', label: 'Constitutional Commission' },
-                    { value: 'INDEPENDENT_OFFICE', label: 'Independent Office' },
-                    { value: 'STATE_CORPORATION', label: 'State Corporation' },
-                    { value: 'COUNTY_ENTITY', label: 'County Entity' },
-                    { value: 'PUBLIC_UNIVERSITY', label: 'Public University' },
-                    { value: 'OTHER_STATUTORY_BODY', label: 'Other Statutory Body' },
-                  ]} />
-                  <FloatingInput label='Enabling Instrument' name='enabling_instrument' value={formData.enabling_instrument} onChange={handleChange} />
-                  <FloatingInput label='Authorized Public Officer' name='statutory_representative' value={formData.statutory_representative} onChange={handleChange} />
+                  <FloatingInput label={clientType === 'EDUCATIONAL_INSTITUTION' ? 'School / Institution Name' : 'Official Name'} name='official_name' value={formData.official_name} onChange={handleChange} required />
+                  {clientType === 'EDUCATIONAL_INSTITUTION' ? (
+                    <>
+                      <FloatingInput label='Authorized School Representative' name='school_representative_name' value={formData.school_representative_name} onChange={handleChange} required />
+                      <FloatingInput label='Representative ID / Passport' name='school_representative_identifier' value={formData.school_representative_identifier} onChange={handleChange} required />
+                    </>
+                  ) : (
+                    <>
+                      <FloatingInput label='Authorized Public Officer' name='public_officer_name' value={formData.public_officer_name} onChange={handleChange} required />
+                      <FloatingInput label='Public Officer ID / Passport' name='public_officer_identifier' value={formData.public_officer_identifier} onChange={handleChange} required />
+                    </>
+                  )}
+                  {clientType === 'PUBLIC_ENTITY' && (
+                    <Select3D label='Public Entity Type' name='public_entity_subtype' value={formData.public_entity_subtype} onChange={handleChange} options={[
+                      { value: 'NATIONAL_GOVERNMENT', label: 'National Government' },
+                      { value: 'COUNTY_GOVERNMENT', label: 'County Government' },
+                      { value: 'MINISTRY_OR_DEPARTMENT', label: 'Ministry or Department' },
+                      { value: 'CONSTITUTIONAL_COMMISSION', label: 'Constitutional Commission' },
+                      { value: 'INDEPENDENT_OFFICE', label: 'Independent Office' },
+                      { value: 'STATE_CORPORATION', label: 'State Corporation' },
+                      { value: 'COUNTY_ENTITY', label: 'County Entity' },
+                      { value: 'PUBLIC_UNIVERSITY', label: 'Public University' },
+                      { value: 'OTHER_STATUTORY_BODY', label: 'Other Statutory Body' },
+                    ]} />
+                  )}
+                  {clientType === 'PUBLIC_ENTITY' && (
+                    <>
+                      <FloatingInput label='Enabling Instrument' name='enabling_instrument' value={formData.enabling_instrument} onChange={handleChange} />
+                      <FloatingInput label='Statutory Representative' name='statutory_representative' value={formData.statutory_representative} onChange={handleChange} />
+                    </>
+                  )}
                 </div>
               )}
 

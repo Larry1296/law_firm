@@ -172,6 +172,7 @@ class ClientAdminCreateService:
         Client.ClientType.TRUST,
         Client.ClientType.ESTATE,
         Client.ClientType.PUBLIC_ENTITY,
+        Client.ClientType.EDUCATIONAL_INSTITUTION,
         Client.ClientType.INTERNATIONAL_ORGANIZATION,
     }
 
@@ -856,6 +857,23 @@ class ClientAdminCreateService:
                 jurisdiction_level=data.get("jurisdiction_level", ""),
                 status=data.get("status") or "UNKNOWN",
                 verification_notes=data.get("verification_notes", ""),
+            )
+
+        if client_type == Client.ClientType.EDUCATIONAL_INSTITUTION:
+            return GovernmentClient.objects.create(
+                client=client,
+                government_entity_name=data["official_name"],
+                department=data.get("department"),
+                agency_code=data.get("agency_code"),
+                registration_number=data.get("registration_number"),
+                jurisdiction_level=data.get("jurisdiction_level"),
+                contact_person_name=data.get("contact_full_name"),
+                contact_person_position=data.get("contact_role_or_designation"),
+                contact_person_phone=data.get("contact_phone_number"),
+                contact_person_email=data.get("contact_email"),
+                office_address=data.get("official_address")
+                or data.get("registered_address"),
+                mandate_area=data.get("legal_capacity_notes"),
             )
 
         if client_type == Client.ClientType.INTERNATIONAL_ORGANIZATION:
