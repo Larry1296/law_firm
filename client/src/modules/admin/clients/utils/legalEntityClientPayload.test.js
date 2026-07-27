@@ -141,17 +141,27 @@ const saccoPayload = buildLegalEntityClientPayload(
     ...baseEntity,
     registered_name: ' Nairobi Members SACCO ',
     cooperative_subtype: 'PRIMARY_COOPERATIVE',
+    cooperative_officer_name: ' Mercy Wanjiku ',
+    cooperative_officer_identifier: ' SACCO-OFFICER-ID-001 ',
+    contact_full_name: '',
+    contact_national_id_number: '',
   },
   {
-    clientType: 'COOPERATIVE',
+    clientType: 'SACCO',
     requestedClientType: 'SACCO',
     accessType: 'PORTAL_ENABLED',
   },
 );
 
-assert.equal(saccoPayload.client_type, 'COOPERATIVE');
+assert.equal(saccoPayload.client_type, 'SACCO');
 assert.equal(saccoPayload.registered_name, 'Nairobi Members SACCO');
 assert.equal(saccoPayload.cooperative_subtype, 'SACCO');
+assert.equal(saccoPayload.contact_full_name, 'Mercy Wanjiku');
+assert.equal(saccoPayload.contact_national_id_number, 'SACCO-OFFICER-ID-001');
+assert.equal(
+  saccoPayload.representatives[0].representative_category,
+  'COOPERATIVE_OFFICER',
+);
 
 const partnershipPayload = buildLegalEntityClientPayload(
   {

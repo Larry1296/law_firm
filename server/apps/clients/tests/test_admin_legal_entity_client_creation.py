@@ -138,14 +138,29 @@ class AdminLegalEntityClientCreationTests(TestCase):
                     ],
                 }
             )
-        elif client_type == Client.ClientType.COOPERATIVE:
+        elif client_type in {
+            Client.ClientType.COOPERATIVE,
+            Client.ClientType.SACCO,
+        }:
             data.update(
                 {
                     "registered_name": "Nairobi SACCO Society",
-                    "cooperative_subtype": CooperativeClient.CooperativeSubtype.SACCO,
+                    "cooperative_subtype": (
+                        CooperativeClient.CooperativeSubtype.SACCO
+                        if client_type == Client.ClientType.SACCO
+                        else CooperativeClient.CooperativeSubtype.PRIMARY_COOPERATIVE
+                    ),
                     "area_of_operation": "Nairobi County",
                 }
             )
+            if client_type == Client.ClientType.SACCO:
+                data["representatives"][0].update(
+                    {
+                        "representative_category": "COOPERATIVE_OFFICER",
+                        "role_title": "SACCO Officer",
+                        "national_id_or_passport": "SACCO-OFFICER-ID-001",
+                    }
+                )
         elif client_type == Client.ClientType.SOCIETY_OR_ASSOCIATION:
             data.update(
                 {
@@ -221,6 +236,7 @@ class AdminLegalEntityClientCreationTests(TestCase):
             Client.ClientType.PARTNERSHIP: PartnershipClient,
             Client.ClientType.LIMITED_LIABILITY_PARTNERSHIP: LimitedLiabilityPartnershipClient,
             Client.ClientType.COOPERATIVE: CooperativeClient,
+            Client.ClientType.SACCO: CooperativeClient,
             Client.ClientType.SOCIETY_OR_ASSOCIATION: SocietyAssociationClient,
             Client.ClientType.NON_PROFIT_ORGANIZATION: NonProfitOrganizationClient,
             Client.ClientType.TRUST: TrustClient,
@@ -478,6 +494,51 @@ class AdminLegalEntityClientCreationTests(TestCase):
 
         self.assertEqual(response.status_code, 400, response.data)
         self.assertIn("personal_representatives", response.data["errors"])
+
+    def test_portal_sacco_preserves_sacco_category_and_creates_officer_login(self):
+        payload = self.payload_for(
+            Client.ClientType.SACCO,
+            access_type=Client.AccessType.PORTAL_ENABLED,
+            email="portal-sacco@example.test",
+            phone_number="+254700910044",
+            contact_full_name="Mercy Wanjiku Njeri",
+            contact_national_id_number="SACCO-OFFICER-ID-001",
+        )
+        payload["representatives"][0].update(
+            {
+                "email": payload["email"],
+                "telephone": payload["phone_number"],
+                "is_portal_contact": True,
+            }
+        )
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.select_related("user").get(
+            id=response.data["client"]["id"]
+        )
+        self.assertEqual(client.client_type, Client.ClientType.SACCO)
+        self.assertEqual(client.cooperative_profile.subtype, "SACCO")
+        self.assertEqual(client.access_type, Client.AccessType.PORTAL_ENABLED)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
+        self.assertEqual(client.phone_number, "+254700910044")
+        self.assertEqual(client.user.email, "portal-sacco@example.test")
+        self.assertEqual(client.user.first_name, "Mercy")
+        self.assertEqual(
+            response.data["representatives"][0]["representative_category"],
+            "COOPERATIVE_OFFICER",
+        )
+        self.assertTrue(response.data["temp_password"])
+
+    def test_sacco_requires_identified_authorized_officer(self):
+        payload = self.payload_for(Client.ClientType.SACCO)
+        payload["representatives"][0]["national_id_or_passport"] = ""
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("representatives", response.data["errors"])
 
     def test_portal_legal_entity_returns_stable_credentials_shape(self):
         response = self.api_client.post(

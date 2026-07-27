@@ -5,6 +5,7 @@ export const canonicalLegalEntityTypes = [
   'PARTNERSHIP',
   'LIMITED_LIABILITY_PARTNERSHIP',
   'COOPERATIVE',
+  'SACCO',
   'SOCIETY_OR_ASSOCIATION',
   'NON_PROFIT_ORGANIZATION',
   'TRUST',
@@ -43,6 +44,7 @@ export const buildLegalEntityClientPayload = (
     clientType === 'LIMITED_LIABILITY_PARTNERSHIP';
   const isTrust = clientType === 'TRUST';
   const isEstate = clientType === 'ESTATE';
+  const isSacco = clientType === 'SACCO';
   const proprietorName = trim(formData.proprietor_name);
   const proprietorIdentifier = trim(formData.proprietor_identifier);
   const firstPartnerName = trim(formData.partner_one_name);
@@ -58,6 +60,10 @@ export const buildLegalEntityClientPayload = (
   );
   const personalRepresentativeIdentifier = trim(
     formData.personal_representative_identifier,
+  );
+  const cooperativeOfficerName = trim(formData.cooperative_officer_name);
+  const cooperativeOfficerIdentifier = trim(
+    formData.cooperative_officer_identifier,
   );
   const personalRepresentativeType =
     formData.grant_type === 'PROBATE'
@@ -77,16 +83,18 @@ export const buildLegalEntityClientPayload = (
             ? trusteeName
             : isEstate
               ? personalRepresentativeName
-              : '');
+              : isSacco
+                ? cooperativeOfficerName
+                : '');
   const contactEmail = isProspect
     ? lower(formData.contact_email) ||
-      (isSoleProprietorship || isTrust || isEstate
+      (isSoleProprietorship || isTrust || isEstate || isSacco
         ? lower(formData.email)
         : '')
     : '';
   const contactPhone =
     trim(formData.contact_phone_number) ||
-    (isSoleProprietorship || isTrust || isEstate
+    (isSoleProprietorship || isTrust || isEstate || isSacco
       ? trim(formData.phone_number)
       : '');
   const contactIdentifier =
@@ -101,7 +109,9 @@ export const buildLegalEntityClientPayload = (
             ? trusteeIdentifier
             : isEstate
               ? personalRepresentativeIdentifier
-              : '');
+              : isSacco
+                ? cooperativeOfficerIdentifier
+                : '');
   const email = isProspect
     ? lower(formData.email) || contactEmail || lower(formData.contact_person_email)
     : '';
@@ -132,7 +142,9 @@ export const buildLegalEntityClientPayload = (
                     ? 'TRUSTEE'
                     : isEstate && !trim(formData.contact_full_name)
                       ? personalRepresentativeType
-                      : 'AUTHORIZED_AGENT',
+                      : isSacco && !trim(formData.contact_full_name)
+                        ? 'COOPERATIVE_OFFICER'
+                        : 'AUTHORIZED_AGENT',
           role_title:
             trim(formData.contact_role_or_designation) ||
             (isSoleProprietorship
@@ -149,7 +161,9 @@ export const buildLegalEntityClientPayload = (
                         : personalRepresentativeType === 'PUBLIC_TRUSTEE'
                           ? 'Public Trustee'
                           : 'Administrator'
-                      : ''),
+                      : isSacco
+                        ? 'SACCO Officer'
+                        : ''),
           national_id_or_passport: contactIdentifier,
           ...(isProspect && contactEmail ? { email: contactEmail } : {}),
           telephone: contactPhone,
@@ -240,13 +254,15 @@ export const buildLegalEntityClientPayload = (
             ? 'Designated Partner'
             : isTrust
               ? 'Trustee'
-              : isEstate
+                : isEstate
                 ? personalRepresentativeType === 'EXECUTOR'
                   ? 'Executor'
                   : personalRepresentativeType === 'PUBLIC_TRUSTEE'
                     ? 'Public Trustee'
                     : 'Administrator'
-                : ''),
+                : isSacco
+                  ? 'SACCO Officer'
+                  : ''),
     contact_email: contactEmail,
     contact_phone_number: contactPhone,
     contact_national_id_number: contactIdentifier,
@@ -287,7 +303,10 @@ export const buildLegalEntityClientPayload = (
     registered_office: trim(formData.registered_office) || trim(formData.full_address),
     principal_business_address: trim(formData.principal_business_address),
 
-    cooperative_subtype: requestedClientType === 'SACCO' ? 'SACCO' : formData.cooperative_subtype,
+    cooperative_subtype:
+      requestedClientType === 'SACCO' || clientType === 'SACCO'
+        ? 'SACCO'
+        : formData.cooperative_subtype,
     area_of_operation: trim(formData.area_of_operation),
     activity_sector: trim(formData.activity_sector) || trim(formData.sector),
     regulator_name: trim(formData.regulator_name),

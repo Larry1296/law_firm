@@ -22,6 +22,7 @@ CANONICAL_ENTITY_TYPES = {
     Client.ClientType.PARTNERSHIP,
     Client.ClientType.LIMITED_LIABILITY_PARTNERSHIP,
     Client.ClientType.COOPERATIVE,
+    Client.ClientType.SACCO,
     Client.ClientType.SOCIETY_OR_ASSOCIATION,
     Client.ClientType.NON_PROFIT_ORGANIZATION,
     Client.ClientType.TRUST,
@@ -222,6 +223,7 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             return attrs.get("registered_name") or attrs.get("legal_name")
         if client_type in {
             Client.ClientType.COOPERATIVE,
+            Client.ClientType.SACCO,
             Client.ClientType.NON_PROFIT_ORGANIZATION,
         }:
             return attrs.get("registered_name") or attrs.get("legal_name")
@@ -318,8 +320,46 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
                         )
                     }
                 )
-        elif client_type == Client.ClientType.COOPERATIVE:
+        elif client_type in {
+            Client.ClientType.COOPERATIVE,
+            Client.ClientType.SACCO,
+        }:
             self._require(attrs, "registered_name", "registration_number", "cooperative_subtype")
+            if (
+                client_type == Client.ClientType.SACCO
+                and attrs.get("cooperative_subtype")
+                != CooperativeClient.CooperativeSubtype.SACCO
+            ):
+                raise serializers.ValidationError(
+                    {"cooperative_subtype": "A SACCO client must use the SACCO subtype."}
+                )
+            if client_type == Client.ClientType.SACCO:
+                sacco_officers = [
+                    representative
+                    for representative in attrs.get("representatives") or []
+                    if representative.get("representative_category")
+                    == ClientRepresentative.RepresentativeCategory.COOPERATIVE_OFFICER
+                ]
+                if not sacco_officers:
+                    raise serializers.ValidationError(
+                        {
+                            "representatives": (
+                                "Record at least one authorized SACCO officer."
+                            )
+                        }
+                    )
+                if any(
+                    not officer.get("national_id_or_passport")
+                    for officer in sacco_officers
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "representatives": (
+                                "Record an ID or passport number for every "
+                                "authorized SACCO officer."
+                            )
+                        }
+                    )
         elif client_type == Client.ClientType.SOCIETY_OR_ASSOCIATION:
             self._require(attrs, "legal_name", "registration_status")
         elif client_type == Client.ClientType.NON_PROFIT_ORGANIZATION:

@@ -34,7 +34,7 @@ export default function AdminCreateClientPage() {
   ).toUpperCase();
 
   const clientTypeMap = {
-    SACCO: 'COOPERATIVE',
+    SACCO: 'SACCO',
     COOPERATIVE: 'COOPERATIVE',
     ASSOCIATION: 'SOCIETY_OR_ASSOCIATION',
     NGO_ASSOCIATION: 'SOCIETY_OR_ASSOCIATION',
@@ -330,6 +330,8 @@ export default function AdminCreateClientPage() {
     personal_representative_name: '',
     personal_representative_identifier: '',
     cooperative_subtype: 'PRIMARY_COOPERATIVE',
+    cooperative_officer_name: '',
+    cooperative_officer_identifier: '',
     area_of_operation: '',
     activity_sector: '',
     regulator_name: '',
@@ -1024,6 +1026,8 @@ export default function AdminCreateClientPage() {
       personal_representative_name: '',
       personal_representative_identifier: '',
       cooperative_subtype: 'PRIMARY_COOPERATIVE',
+      cooperative_officer_name: '',
+      cooperative_officer_identifier: '',
       area_of_operation: '',
       activity_sector: '',
       regulator_name: '',
@@ -1465,7 +1469,7 @@ export default function AdminCreateClientPage() {
                 </div>
               )}
 
-              {clientType === 'COOPERATIVE' && (
+              {(clientType === 'COOPERATIVE' || clientType === 'SACCO') && (
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                   <FloatingInput label='Registered Cooperative Name' name='registered_name' value={formData.registered_name} onChange={handleChange} required />
                   <Select3D label='Cooperative Subtype' name='cooperative_subtype' value={requestedClientType === 'SACCO' ? 'SACCO' : formData.cooperative_subtype} onChange={handleChange} options={[
@@ -1475,6 +1479,12 @@ export default function AdminCreateClientPage() {
                     { value: 'SACCO', label: 'SACCO' },
                     { value: 'OTHER_COOPERATIVE', label: 'Other Co-operative' },
                   ]} />
+                  {clientType === 'SACCO' && (
+                    <>
+                      <FloatingInput label='SACCO Officer Legal Name' name='cooperative_officer_name' value={formData.cooperative_officer_name} onChange={handleChange} required />
+                      <FloatingInput label='SACCO Officer ID / Passport' name='cooperative_officer_identifier' value={formData.cooperative_officer_identifier} onChange={handleChange} required />
+                    </>
+                  )}
                   <FloatingInput label='Area of Operation' name='area_of_operation' value={formData.area_of_operation} onChange={handleChange} />
                   <FloatingInput label='Regulator / License Status' name='license_status' value={formData.license_status} onChange={handleChange} />
                 </div>

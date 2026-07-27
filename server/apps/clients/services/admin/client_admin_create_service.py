@@ -165,6 +165,7 @@ class ClientAdminCreateService:
         Client.ClientType.PARTNERSHIP,
         Client.ClientType.LIMITED_LIABILITY_PARTNERSHIP,
         Client.ClientType.COOPERATIVE,
+        Client.ClientType.SACCO,
         Client.ClientType.SOCIETY_OR_ASSOCIATION,
         Client.ClientType.NON_PROFIT_ORGANIZATION,
         Client.ClientType.TRUST,
@@ -712,7 +713,10 @@ class ClientAdminCreateService:
                 )
             return profile
 
-        if client_type == Client.ClientType.COOPERATIVE:
+        if client_type in {
+            Client.ClientType.COOPERATIVE,
+            Client.ClientType.SACCO,
+        }:
             return CooperativeClient.objects.create(
                 client=client,
                 registered_name=data["registered_name"],
