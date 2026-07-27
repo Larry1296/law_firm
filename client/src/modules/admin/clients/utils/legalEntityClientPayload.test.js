@@ -265,6 +265,41 @@ assert.equal(
 );
 assert.equal(associationPayload.representatives[0].is_portal_contact, true);
 
+const publicEntityPayload = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    official_name: ' County Roads Authority ',
+    public_entity_subtype: 'COUNTY_ENTITY',
+    public_officer_name: ' Mercy Wanjiku ',
+    public_officer_identifier: ' PUBLIC-OFFICER-ID-001 ',
+    contact_full_name: '',
+    contact_email: '',
+    contact_phone_number: '',
+    contact_national_id_number: '',
+    email: 'public.officer@example.com',
+    phone_number: '+254700000028',
+  },
+  {
+    clientType: 'PUBLIC_ENTITY',
+    requestedClientType: 'GOVERNMENT',
+    accessType: 'PORTAL_ENABLED',
+  },
+);
+
+assert.equal(publicEntityPayload.client_type, 'PUBLIC_ENTITY');
+assert.equal(publicEntityPayload.official_name, 'County Roads Authority');
+assert.equal(publicEntityPayload.public_entity_subtype, 'COUNTY_ENTITY');
+assert.equal(publicEntityPayload.contact_full_name, 'Mercy Wanjiku');
+assert.equal(
+  publicEntityPayload.contact_national_id_number,
+  'PUBLIC-OFFICER-ID-001',
+);
+assert.equal(
+  publicEntityPayload.representatives[0].representative_category,
+  'AUTHORIZED_PUBLIC_OFFICER',
+);
+assert.equal(publicEntityPayload.representatives[0].is_portal_contact, true);
+
 const partnershipPayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,

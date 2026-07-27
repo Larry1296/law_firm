@@ -363,6 +363,8 @@ export default function AdminCreateClientPage() {
     grant_status: 'UNKNOWN',
     official_name: '',
     public_entity_subtype: 'OTHER_STATUTORY_BODY',
+    public_officer_name: '',
+    public_officer_identifier: '',
     enabling_instrument: '',
     parent_ministry_or_county: '',
     legal_capacity_notes: '',
@@ -1063,6 +1065,8 @@ export default function AdminCreateClientPage() {
       grant_status: 'UNKNOWN',
       official_name: '',
       public_entity_subtype: 'OTHER_STATUTORY_BODY',
+      public_officer_name: '',
+      public_officer_identifier: '',
       enabling_instrument: '',
       parent_ministry_or_county: '',
       legal_capacity_notes: '',
@@ -1563,6 +1567,8 @@ export default function AdminCreateClientPage() {
               {clientType === 'PUBLIC_ENTITY' && (
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                   <FloatingInput label='Official Name' name='official_name' value={formData.official_name} onChange={handleChange} required />
+                  <FloatingInput label='Authorized Public Officer' name='public_officer_name' value={formData.public_officer_name} onChange={handleChange} required />
+                  <FloatingInput label='Public Officer ID / Passport' name='public_officer_identifier' value={formData.public_officer_identifier} onChange={handleChange} required />
                   <Select3D label='Public Entity Type' name='public_entity_subtype' value={formData.public_entity_subtype} onChange={handleChange} options={[
                     { value: 'NATIONAL_GOVERNMENT', label: 'National Government' },
                     { value: 'COUNTY_GOVERNMENT', label: 'County Government' },
