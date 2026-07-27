@@ -197,6 +197,45 @@ assert.equal(
 );
 assert.equal(cooperativePayload.representatives[0].is_portal_contact, true);
 
+const cooperativeWithAuthorizedContactPayload =
+  buildLegalEntityClientPayload(
+    {
+      ...baseEntity,
+      registered_name: 'Nairobi Farmers Cooperative',
+      cooperative_subtype: 'PRIMARY_COOPERATIVE',
+      cooperative_officer_name: 'Mercy Wanjiku',
+      cooperative_officer_identifier: 'COOPERATIVE-OFFICER-ID-001',
+      contact_full_name: 'Mercy Wanjiku',
+      contact_role_or_designation: 'Cooperative Secretary',
+      contact_email: 'secretary@cooperative.example',
+      contact_phone_number: '+254700000026',
+      contact_national_id_number: 'COOPERATIVE-OFFICER-ID-001',
+    },
+    {
+      clientType: 'COOPERATIVE',
+      requestedClientType: 'COOPERATIVE',
+      accessType: 'PORTAL_ENABLED',
+    },
+  );
+
+assert.equal(
+  cooperativeWithAuthorizedContactPayload.representatives[0]
+    .representative_category,
+  'COOPERATIVE_OFFICER',
+);
+assert.equal(
+  cooperativeWithAuthorizedContactPayload.representatives[0].role_title,
+  'Cooperative Secretary',
+);
+assert.equal(
+  cooperativeWithAuthorizedContactPayload.representatives[0].email,
+  'secretary@cooperative.example',
+);
+assert.equal(
+  cooperativeWithAuthorizedContactPayload.representatives[0].telephone,
+  '+254700000026',
+);
+
 const ngoPayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,
@@ -227,6 +266,43 @@ assert.equal(
   'PBO_OFFICIAL',
 );
 assert.equal(ngoPayload.representatives[0].is_portal_contact, true);
+
+const ngoWithAuthorizedContactPayload = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    registered_name: 'Nairobi Justice Initiative',
+    nonprofit_official_name: 'Mercy Wanjiku',
+    nonprofit_official_identifier: 'NGO-OFFICIAL-ID-001',
+    contact_full_name: 'Mercy Wanjiku',
+    contact_role_or_designation: 'NGO Secretary',
+    contact_email: 'secretary@ngo.example',
+    contact_phone_number: '+254700000025',
+    contact_national_id_number: 'NGO-OFFICIAL-ID-001',
+  },
+  {
+    clientType: 'NGO',
+    requestedClientType: 'NGO',
+    accessType: 'PORTAL_ENABLED',
+  },
+);
+
+assert.equal(
+  ngoWithAuthorizedContactPayload.representatives[0]
+    .representative_category,
+  'PBO_OFFICIAL',
+);
+assert.equal(
+  ngoWithAuthorizedContactPayload.representatives[0].role_title,
+  'NGO Secretary',
+);
+assert.equal(
+  ngoWithAuthorizedContactPayload.representatives[0].email,
+  'secretary@ngo.example',
+);
+assert.equal(
+  ngoWithAuthorizedContactPayload.representatives[0].telephone,
+  '+254700000025',
+);
 
 const associationPayload = buildLegalEntityClientPayload(
   {

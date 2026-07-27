@@ -214,22 +214,23 @@ export const buildLegalEntityClientPayload = (
               ? 'AUTHORIZED_PUBLIC_OFFICER'
               : isSocietyOrAssociation
                 ? 'SOCIETY_OFFICIAL'
-              : isSoleProprietorship && !trim(formData.contact_full_name)
-              ? 'PROPRIETOR'
-              : isPartnership && !trim(formData.contact_full_name)
-                ? 'PARTNER'
-                : isLimitedLiabilityPartnership &&
-                    !trim(formData.contact_full_name)
-                  ? 'DESIGNATED_PARTNER'
-                  : isTrust && !trim(formData.contact_full_name)
-                    ? 'TRUSTEE'
-                    : isEstate && !trim(formData.contact_full_name)
-                      ? personalRepresentativeType
-                      : isCooperative && !trim(formData.contact_full_name)
-                        ? 'COOPERATIVE_OFFICER'
-                        : isNgo && !trim(formData.contact_full_name)
-                          ? 'PBO_OFFICIAL'
-                        : 'AUTHORIZED_AGENT',
+                : isCooperative
+                  ? 'COOPERATIVE_OFFICER'
+                  : isNgo
+                    ? 'PBO_OFFICIAL'
+                    : isSoleProprietorship &&
+                        !trim(formData.contact_full_name)
+                      ? 'PROPRIETOR'
+                      : isPartnership && !trim(formData.contact_full_name)
+                        ? 'PARTNER'
+                        : isLimitedLiabilityPartnership &&
+                            !trim(formData.contact_full_name)
+                          ? 'DESIGNATED_PARTNER'
+                          : isTrust && !trim(formData.contact_full_name)
+                            ? 'TRUSTEE'
+                            : isEstate && !trim(formData.contact_full_name)
+                              ? personalRepresentativeType
+                              : 'AUTHORIZED_AGENT',
           role_title:
             trim(formData.contact_role_or_designation) ||
             (isSoleProprietorship
