@@ -79,7 +79,15 @@ class SecretaryEndpointTests(TestCase):
             "city_or_town": "Nairobi",
             "address_description": "Nairobi",
             "privacy_notice_version": "2026-07",
+            "privacy_notice_delivery_method": (
+                "PORTAL"
+                if access_type == Client.AccessType.PORTAL_ENABLED
+                else "VERBAL"
+            ),
+            "privacy_notice_acknowledged": True,
             "personal_data_source": "CLIENT",
+            "acting_for_self": True,
+            "purpose_and_nature_of_relationship": "General legal advice",
             "access_type": access_type,
         }
         payload.update(overrides)

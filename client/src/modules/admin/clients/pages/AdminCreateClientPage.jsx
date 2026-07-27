@@ -12,6 +12,7 @@ import adminClientsService from '@/modules/admin/clients/services/adminClientsSe
 import secretaryClientsService from '@/modules/staff/secretary/clients/services/secretaryClientServices';
 import {
   buildIndividualClientPayload,
+  INDIVIDUAL_PRIVACY_NOTICE_VERSION,
   isMinorIndividualClient,
   validateIndividualClientForm,
 } from '@/modules/admin/clients/utils/individualClientPayload';
@@ -131,6 +132,9 @@ export default function AdminCreateClientPage() {
     identification_country: 'Kenya',
     identification_expiry_date: '',
     identification_document_reference: '',
+    identification_verified: false,
+    verification_method: '',
+    verification_notes: '',
     national_id: '',
     passport_number: '',
     date_of_birth: '',
@@ -160,8 +164,22 @@ export default function AdminCreateClientPage() {
     guardian_relationship: '',
     guardian_phone: '',
     guardian_email: '',
-    privacy_notice_version: '',
+    privacy_notice_version: INDIVIDUAL_PRIVACY_NOTICE_VERSION,
+    privacy_notice_delivery_method: 'PORTAL',
+    privacy_notice_acknowledged: false,
     personal_data_source: '',
+    acting_for_self: true,
+    represented_person: '',
+    authority_document_reference: '',
+    purpose_and_nature_of_relationship: '',
+    pep_status: 'PENDING',
+    pep_details: '',
+    sanctions_screening_status: 'PENDING',
+    risk_rating: 'NOT_ASSESSED',
+    source_of_funds: '',
+    source_of_wealth: '',
+    enhanced_due_diligence_required: false,
+    next_review_date: '',
     notes: '',
 
     company_name: '',
@@ -883,6 +901,9 @@ export default function AdminCreateClientPage() {
       identification_country: 'Kenya',
       identification_expiry_date: '',
       identification_document_reference: '',
+      identification_verified: false,
+      verification_method: '',
+      verification_notes: '',
       national_id: '',
       passport_number: '',
       date_of_birth: '',
@@ -912,8 +933,22 @@ export default function AdminCreateClientPage() {
       guardian_relationship: '',
       guardian_phone: '',
       guardian_email: '',
-      privacy_notice_version: '',
+      privacy_notice_version: INDIVIDUAL_PRIVACY_NOTICE_VERSION,
+      privacy_notice_delivery_method: 'PORTAL',
+      privacy_notice_acknowledged: false,
       personal_data_source: '',
+      acting_for_self: true,
+      represented_person: '',
+      authority_document_reference: '',
+      purpose_and_nature_of_relationship: '',
+      pep_status: 'PENDING',
+      pep_details: '',
+      sanctions_screening_status: 'PENDING',
+      risk_rating: 'NOT_ASSESSED',
+      source_of_funds: '',
+      source_of_wealth: '',
+      enhanced_due_diligence_required: false,
+      next_review_date: '',
       notes: '',
       country: 'Kenya',
       county: '',
@@ -1008,12 +1043,12 @@ export default function AdminCreateClientPage() {
 	                  {
 	                    value: 'portal',
 	                    title: 'Portal access',
-	                    description: 'Creates a login account and temporary password.',
+	                    description: 'For a client who can use email and the online portal. Creates secure login credentials.',
 	                  },
 	                  {
 	                    value: 'assisted',
 	                    title: 'Fully assisted',
-	                    description: 'Does not create a login account. The firm manages the client information.',
+	                    description: 'For a client served in person or by phone. No email, login or digital access is requested.',
 	                  },
 	                ].map((option) => (
 	                  <button
@@ -1021,6 +1056,16 @@ export default function AdminCreateClientPage() {
 	                    type='button'
 	                    onClick={() => {
 	                      setSelectedClientMode(option.value);
+	                      setFormData((current) => ({
+	                        ...current,
+	                        email: option.value === 'assisted' ? '' : current.email,
+	                        guardian_email: option.value === 'assisted' ? '' : current.guardian_email,
+	                        next_of_kin_email: option.value === 'assisted' ? '' : current.next_of_kin_email,
+	                        preferred_contact_channel: option.value === 'assisted' ? 'IN_PERSON' : '',
+	                        privacy_notice_delivery_method: option.value === 'assisted' ? 'VERBAL' : 'PORTAL',
+	                        privacy_notice_acknowledged: false,
+	                      }));
+	                      setFieldErrors({});
 	                      setGeneralError('');
 	                    }}
 	                    className={`rounded-xl border p-4 text-left transition ${
@@ -1856,19 +1901,29 @@ export default function AdminCreateClientPage() {
                   <FloatingInput label='Document Reference' name='identification_document_reference' value={formData.identification_document_reference} onChange={handleChange} error={fieldErrors.identification_document_reference} />
                   <FloatingInput label='Preferred Name' name='preferred_name' value={formData.preferred_name} onChange={handleChange} error={fieldErrors.preferred_name} />
                   <FloatingInput label='KRA PIN' name='kra_pin' value={formData.kra_pin} onChange={handleChange} error={fieldErrors.kra_pin} />
-                  <Select3D label='Gender' name='gender' value={formData.gender} onChange={handleChange} error={fieldErrors.gender} options={[
-                    { value: 'MALE', label: 'Male' },
-                    { value: 'FEMALE', label: 'Female' },
-                    { value: 'OTHER', label: 'Other' },
-                  ]} />
-                  <Select3D label='Marital Status' name='marital_status' value={formData.marital_status} onChange={handleChange} error={fieldErrors.marital_status} options={[
-                    { value: 'SINGLE', label: 'Single' },
-                    { value: 'MARRIED', label: 'Married' },
-                    { value: 'DIVORCED', label: 'Divorced' },
-                    { value: 'WIDOWED', label: 'Widowed' },
-                  ]} />
                   <FloatingInput label='Citizenship' name='citizenship' value={formData.citizenship} onChange={handleChange} error={fieldErrors.citizenship} />
                 </div>
+                <label className='flex items-start gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                  <input type='checkbox' name='identification_verified' checked={formData.identification_verified} onChange={handleChange} className='mt-1' />
+                  <span>
+                    <span className='block font-medium'>Identity document has been independently verified</span>
+                    <span className='block text-sm text-[color:var(--text-secondary)]'>Select only after inspecting an original, a certified copy, or a reliable official electronic source.</span>
+                  </span>
+                </label>
+                {formData.identification_verified ? (
+                  <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                    <Select3D label='Verification Method' name='verification_method' value={formData.verification_method} onChange={handleChange} error={fieldErrors.verification_method} required options={[
+                      { value: 'ORIGINAL_INSPECTED', label: 'Original document inspected' },
+                      { value: 'CERTIFIED_COPY', label: 'Certified copy inspected' },
+                      { value: 'OFFICIAL_ELECTRONIC_SOURCE', label: 'Official electronic source' },
+                    ]} />
+                    <FloatingInput label='Verification Notes' name='verification_notes' value={formData.verification_notes} onChange={handleChange} error={fieldErrors.verification_notes} />
+                  </div>
+                ) : (
+                  <div className='rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/20 dark:text-amber-100'>
+                    Identity is recorded but remains unverified. Complete verification before regulated work or client-money activity proceeds.
+                  </div>
+                )}
               </section>
 
               <section className='space-y-4'>
@@ -1877,20 +1932,60 @@ export default function AdminCreateClientPage() {
                 </h3>
                 {fieldErrors.contact_method && <p className='text-sm text-red-500'>{fieldErrors.contact_method}</p>}
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                  <FloatingInput label={isProspect ? 'Portal Login Email' : 'Email'} name='email' value={formData.email} onChange={handleChange} error={fieldErrors.email} required={isProspect} />
+                  {isProspect && (
+                    <FloatingInput label='Portal Login Email' name='email' value={formData.email} onChange={handleChange} error={fieldErrors.email} required />
+                  )}
                   <FloatingInput label='Phone Number' name='phone_number' value={formData.phone_number} onChange={handleChange} error={fieldErrors.phone_number} required={isProspect} />
                   <Select3D label='Preferred Communication Channel' name='preferred_contact_channel' value={formData.preferred_contact_channel} onChange={handleChange} error={fieldErrors.preferred_contact_channel} required options={[
+                    ...(!isProspect ? [{ value: 'IN_PERSON', label: 'In person at the firm' }] : []),
                     { value: 'PHONE', label: 'Phone' },
-                    { value: 'EMAIL', label: 'Email' },
-                    { value: 'SMS', label: 'SMS' },
-                    { value: 'WHATSAPP', label: 'WhatsApp' },
-                    { value: 'OTHER', label: 'Other' },
+                    ...(isProspect ? [
+                      { value: 'EMAIL', label: 'Email' },
+                      { value: 'SMS', label: 'SMS' },
+                      { value: 'WHATSAPP', label: 'WhatsApp' },
+                    ] : []),
                   ]} />
                   <Select3D label='Preferred Language' name='preferred_language' value={formData.preferred_language} onChange={handleChange} error={fieldErrors.preferred_language} options={[
                     { value: 'English', label: 'English' },
                     { value: 'Kiswahili', label: 'Kiswahili / Swahili' },
                   ]} />
                 </div>
+              </section>
+
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Instructions and authority
+                </h3>
+                <p className='text-sm text-[color:var(--text-secondary)]'>
+                  Record who is giving instructions and the legal service being requested. This supports conflict checking and Kenyan client due diligence.
+                </p>
+                <label className='flex items-start gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                  <input
+                    type='checkbox'
+                    name='acting_for_self'
+                    checked={formData.acting_for_self}
+                    onChange={handleChange}
+                    className='mt-1'
+                  />
+                  <span>
+                    <span className='block font-medium'>The client is acting for themself</span>
+                    <span className='block text-sm text-[color:var(--text-secondary)]'>Untick where the client is acting as an agent, nominee, guardian, trustee or other representative.</span>
+                  </span>
+                </label>
+                {!formData.acting_for_self && (
+                  <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                    <FloatingInput label='Person Represented' name='represented_person' value={formData.represented_person} onChange={handleChange} error={fieldErrors.represented_person} required />
+                    <FloatingInput label='Authority Document / Reference' name='authority_document_reference' value={formData.authority_document_reference} onChange={handleChange} error={fieldErrors.authority_document_reference} required />
+                  </div>
+                )}
+                <FloatingInput
+                  label='Legal Service Sought / Purpose of Instructions'
+                  name='purpose_and_nature_of_relationship'
+                  value={formData.purpose_and_nature_of_relationship}
+                  onChange={handleChange}
+                  error={fieldErrors.purpose_and_nature_of_relationship}
+                  required
+                />
               </section>
 
               <section className='space-y-4'>
@@ -1930,7 +2025,7 @@ export default function AdminCreateClientPage() {
                   {formData.occupation_status === 'BUSINESS_OWNER' && (
                     <FloatingInput label='Business Name' name='business_name' value={formData.business_name} onChange={handleChange} error={fieldErrors.business_name} required />
                   )}
-                  <FloatingInput label='Accessibility Notes' name='disability_or_accessibility_notes' value={formData.disability_or_accessibility_notes} onChange={handleChange} error={fieldErrors.disability_or_accessibility_notes} />
+                  <FloatingInput label='Communication or Accessibility Support (only if volunteered)' name='disability_or_accessibility_notes' value={formData.disability_or_accessibility_notes} onChange={handleChange} error={fieldErrors.disability_or_accessibility_notes} />
                 </div>
               </section>
 
@@ -1947,7 +2042,7 @@ export default function AdminCreateClientPage() {
                     <FloatingInput label='Guardian Name' name='guardian_name' value={formData.guardian_name} onChange={handleChange} error={fieldErrors.guardian_name} required />
                     <FloatingInput label='Relationship' name='guardian_relationship' value={formData.guardian_relationship} onChange={handleChange} error={fieldErrors.guardian_relationship} />
                     <FloatingInput label='Guardian Phone' name='guardian_phone' value={formData.guardian_phone} onChange={handleChange} error={fieldErrors.guardian_phone} required={!formData.guardian_email} />
-                    <FloatingInput label='Guardian Email' name='guardian_email' value={formData.guardian_email} onChange={handleChange} error={fieldErrors.guardian_email} required={!formData.guardian_phone} />
+                    {isProspect && <FloatingInput label='Guardian Email' name='guardian_email' value={formData.guardian_email} onChange={handleChange} error={fieldErrors.guardian_email} required={!formData.guardian_phone} />}
                   </div>
                 </section>
               )}
@@ -1956,13 +2051,47 @@ export default function AdminCreateClientPage() {
                 <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
                   Optional next of kin
                 </h3>
+                <p className='text-sm text-[color:var(--text-secondary)]'>
+                  Record only if the client voluntarily provides an emergency contact. This person does not receive case information or authority to give instructions.
+                </p>
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                   <FloatingInput label='Full Name' name='next_of_kin_name' value={formData.next_of_kin_name} onChange={handleChange} error={fieldErrors.next_of_kin_name} />
                   <Select3D label='Relationship' name='next_of_kin_relationship' value={formData.next_of_kin_relationship} onChange={handleChange} error={fieldErrors.next_of_kin_relationship} options={nextOfKinRelationshipOptions} />
                   <FloatingInput label='Phone' name='next_of_kin_phone' value={formData.next_of_kin_phone} onChange={handleChange} error={fieldErrors.next_of_kin_phone} />
-                  <FloatingInput label='Email' name='next_of_kin_email' value={formData.next_of_kin_email} onChange={handleChange} error={fieldErrors.next_of_kin_email} />
-                  <FloatingInput label='Identification Number' name='next_of_kin_identification_number' value={formData.next_of_kin_identification_number} onChange={handleChange} error={fieldErrors.next_of_kin_identification_number} />
-                  <FloatingInput label='Address' name='next_of_kin_address' value={formData.next_of_kin_address} onChange={handleChange} error={fieldErrors.next_of_kin_address} />
+                  {isProspect && <FloatingInput label='Email' name='next_of_kin_email' value={formData.next_of_kin_email} onChange={handleChange} error={fieldErrors.next_of_kin_email} />}
+                </div>
+              </section>
+
+              <section className='space-y-4'>
+                <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
+                  Initial client due diligence
+                </h3>
+                <p className='text-sm text-[color:var(--text-secondary)]'>
+                  This creates the initial risk record. Identity verification and any required screening must still be completed before regulated work or client-money activity proceeds.
+                </p>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <Select3D label='PEP Screening Status' name='pep_status' value={formData.pep_status} onChange={handleChange} error={fieldErrors.pep_status} options={[
+                    { value: 'PENDING', label: 'Pending review' },
+                    { value: 'NO_MATCH', label: 'No match found' },
+                    { value: 'POTENTIAL_MATCH', label: 'Potential match' },
+                    { value: 'CONFIRMED_MATCH', label: 'Confirmed PEP' },
+                  ]} />
+                  <Select3D label='Sanctions Screening Status' name='sanctions_screening_status' value={formData.sanctions_screening_status} onChange={handleChange} error={fieldErrors.sanctions_screening_status} options={[
+                    { value: 'PENDING', label: 'Pending review' },
+                    { value: 'NO_MATCH', label: 'No match found' },
+                    { value: 'POTENTIAL_MATCH', label: 'Potential match' },
+                    { value: 'CONFIRMED_MATCH', label: 'Confirmed match' },
+                  ]} />
+                  <Select3D label='Initial Risk Rating' name='risk_rating' value={formData.risk_rating} onChange={handleChange} error={fieldErrors.risk_rating} options={[
+                    { value: 'NOT_ASSESSED', label: 'Not yet assessed' },
+                    { value: 'LOW', label: 'Low' },
+                    { value: 'MEDIUM', label: 'Medium' },
+                    { value: 'HIGH', label: 'High' },
+                  ]} />
+                  <FloatingInput label='Source of Funds (when relevant)' name='source_of_funds' value={formData.source_of_funds} onChange={handleChange} error={fieldErrors.source_of_funds} />
+                  {['POTENTIAL_MATCH', 'CONFIRMED_MATCH'].includes(formData.pep_status) && (
+                    <FloatingInput label='PEP Details' name='pep_details' value={formData.pep_details} onChange={handleChange} error={fieldErrors.pep_details} required />
+                  )}
                 </div>
               </section>
 
@@ -1974,13 +2103,29 @@ export default function AdminCreateClientPage() {
                   The firm collects identity, contact, address and service-related information to provide legal services, meet legal obligations, protect legal claims and preserve advocate-client confidentiality. Access is limited to authorised firm users and records are retained according to firm and legal requirements. Clients may request access to and correction of their personal information.
                 </p>
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                  <FloatingInput label='Privacy Notice Version' name='privacy_notice_version' value={formData.privacy_notice_version} onChange={handleChange} error={fieldErrors.privacy_notice_version} required />
+                  <div className='rounded-xl border border-[color:var(--border)] p-4 text-sm'>
+                    <span className='block text-[color:var(--text-secondary)]'>Notice version</span>
+                    <span className='font-semibold'>{formData.privacy_notice_version}</span>
+                  </div>
+                  <Select3D label='Notice Delivery Method' name='privacy_notice_delivery_method' value={formData.privacy_notice_delivery_method} onChange={handleChange} error={fieldErrors.privacy_notice_delivery_method} required options={isProspect ? [
+                    { value: 'PORTAL', label: 'Displayed in client portal' },
+                  ] : [
+                    { value: 'VERBAL', label: 'Read and explained verbally' },
+                    { value: 'PAPER', label: 'Paper copy provided' },
+                  ]} />
                   <Select3D label='Personal Data Source' name='personal_data_source' value={formData.personal_data_source} onChange={handleChange} error={fieldErrors.personal_data_source} required options={[
                     { value: 'CLIENT', label: 'Client' },
                     { value: 'AUTHORIZED_REPRESENTATIVE', label: 'Authorized representative' },
                     { value: 'OTHER', label: 'Other' },
                   ]} />
                 </div>
+                <label className='flex items-start gap-3 rounded-xl border border-[color:var(--border)] p-4'>
+                  <input type='checkbox' name='privacy_notice_acknowledged' checked={formData.privacy_notice_acknowledged} onChange={handleChange} className='mt-1' />
+                  <span className='text-sm'>
+                    I confirm that the notice was delivered using the method recorded above, the client had an opportunity to ask questions, and the client acknowledged receipt. This records notice—not consent as the only legal basis for processing.
+                  </span>
+                </label>
+                {fieldErrors.privacy_notice_acknowledged && <p className='text-sm text-red-500'>{fieldErrors.privacy_notice_acknowledged}</p>}
               </section>
 
               <section className='space-y-4'>

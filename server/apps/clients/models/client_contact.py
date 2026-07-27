@@ -14,6 +14,7 @@ class ContactType(models.TextChoices):
 
 
 class CommunicationChannel(models.TextChoices):
+    IN_PERSON = "IN_PERSON", "In person"
     PHONE = "PHONE", "Phone"
     EMAIL = "EMAIL", "Email"
     SMS = "SMS", "SMS"

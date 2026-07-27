@@ -68,11 +68,15 @@ class AdminIndividualClientCreationTests(TestCase):
             "address_description": "Milimani, Kisumu",
             "full_address": "Milimani, Kisumu",
             "privacy_notice_version": "2026-07",
+            "privacy_notice_delivery_method": IndividualClient.PrivacyNoticeDeliveryMethod.VERBAL,
+            "privacy_notice_acknowledged": True,
             "personal_data_source": IndividualClient.PersonalDataSource.CLIENT,
+            "acting_for_self": True,
+            "purpose_and_nature_of_relationship": "Advice on a land succession issue",
             "next_of_kin_name": "Mary Anyango Otieno",
             "next_of_kin_relationship": "Sister",
             "next_of_kin_phone": "+254723456781",
-            "next_of_kin_email": "mary.anyango@example.test",
+            "next_of_kin_email": "",
         }
         data.update(overrides)
         return data
@@ -108,7 +112,11 @@ class AdminIndividualClientCreationTests(TestCase):
             "address_description": "South B, Nairobi",
             "full_address": "South B, Nairobi",
             "privacy_notice_version": "2026-07",
+            "privacy_notice_delivery_method": IndividualClient.PrivacyNoticeDeliveryMethod.PORTAL,
+            "privacy_notice_acknowledged": True,
             "personal_data_source": IndividualClient.PersonalDataSource.CLIENT,
+            "acting_for_self": True,
+            "purpose_and_nature_of_relationship": "Employment-law advice",
             "next_of_kin_name": "Mary Wanjiku Kamau",
             "next_of_kin_relationship": "Spouse",
             "next_of_kin_phone": "+254723456789",
@@ -154,7 +162,7 @@ class AdminIndividualClientCreationTests(TestCase):
         )
         self.assertEqual(next_of_kin.full_name, "Mary Anyango Otieno")
         self.assertEqual(next_of_kin.role_or_designation, "Sister")
-        self.assertEqual(next_of_kin.email, "mary.anyango@example.test")
+        self.assertEqual(next_of_kin.email, "")
 
     def test_admin_creates_portal_individual_with_linked_prospect_user(self):
         response = self.api_client.post(self.url, self.portal_payload(), format="json")

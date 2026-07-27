@@ -37,6 +37,13 @@ def build_individual_create_response(result):
             if result.get("next_of_kin")
             else None
         ),
+        "due_diligence": {
+            "acting_for_self": result["due_diligence"].acting_for_self,
+            "purpose_and_nature_of_relationship": result["due_diligence"].purpose_and_nature_of_relationship,
+            "pep_status": result["due_diligence"].pep_status,
+            "sanctions_screening_status": result["due_diligence"].sanctions_screening_status,
+            "risk_rating": result["due_diligence"].risk_rating,
+        },
         "portal_user": (
             {
                 "id": str(portal_user.id),

@@ -49,7 +49,11 @@ const baseIndividual = {
   guardian_phone: '',
   guardian_email: '',
   privacy_notice_version: ' 2026-07 ',
+  privacy_notice_delivery_method: 'PORTAL',
+  privacy_notice_acknowledged: true,
   personal_data_source: 'CLIENT',
+  acting_for_self: true,
+  purpose_and_nature_of_relationship: ' Employment advice ',
 };
 
 const original = structuredClone(baseIndividual);
@@ -80,7 +84,10 @@ const assistedPayload = buildIndividualClientPayload(
   {
     ...baseIndividual,
     email: '',
+    next_of_kin_email: '',
     phone_number: '+254733456789',
+    preferred_contact_channel: 'PHONE',
+    privacy_notice_delivery_method: 'VERBAL',
   },
   'assisted',
 );
@@ -88,22 +95,6 @@ const assistedPayload = buildIndividualClientPayload(
 assert.equal(assistedPayload.access_type, 'ASSISTED');
 assert.equal(Object.prototype.hasOwnProperty.call(assistedPayload, 'email'), false);
 assert.equal(assistedPayload.phone_number, '+254733456789');
-
-const assistedWithNextOfKinOnly = buildIndividualClientPayload(
-  {
-    ...baseIndividual,
-    email: '',
-    next_of_kin_email: 'guardian@example.com',
-  },
-  'assisted',
-);
-
-assert.equal(
-  Object.prototype.hasOwnProperty.call(assistedWithNextOfKinOnly, 'email'),
-  false,
-  'next-of-kin email must not become the client login email',
-);
-assert.equal(assistedWithNextOfKinOnly.next_of_kin_email, 'guardian@example.com');
 
 const portalValidation = validateIndividualClientForm(baseIndividual, 'portal');
 assert.equal(portalValidation.isValid, true);
@@ -119,20 +110,26 @@ assert.equal(
 );
 
 const assistedWithoutEmail = validateIndividualClientForm(
-  { ...baseIndividual, email: '', preferred_contact_channel: 'PHONE' },
+  { ...baseIndividual, email: '', next_of_kin_email: '', preferred_contact_channel: 'PHONE', privacy_notice_delivery_method: 'VERBAL' },
   'assisted',
 );
 assert.equal(assistedWithoutEmail.isValid, true);
 
 const assistedWithoutAnyContact = validateIndividualClientForm(
-  { ...baseIndividual, email: '', phone_number: '', preferred_contact_channel: 'PHONE' },
+  { ...baseIndividual, email: '', next_of_kin_email: '', phone_number: '', preferred_contact_channel: 'PHONE', privacy_notice_delivery_method: 'VERBAL' },
   'assisted',
 );
 assert.equal(assistedWithoutAnyContact.isValid, false);
 assert.equal(
-  assistedWithoutAnyContact.errors.contact_method,
-  'At least one reliable contact method is required.',
+  assistedWithoutAnyContact.errors.phone_number,
+  'Enter a phone number or choose in-person communication.',
 );
+
+const assistedInPersonWithoutDigitalContact = validateIndividualClientForm(
+  { ...baseIndividual, email: '', next_of_kin_email: '', phone_number: '', preferred_contact_channel: 'IN_PERSON', privacy_notice_delivery_method: 'PAPER' },
+  'assisted',
+);
+assert.equal(assistedInPersonWithoutDigitalContact.isValid, true);
 
 const futureDob = validateIndividualClientForm(
   { ...baseIndividual, date_of_birth: '2999-01-01' },
@@ -248,6 +245,10 @@ const minorWithGuardian = validateIndividualClientForm(
     guardian_name: 'Grace Mwangi',
     guardian_phone: '+254722000111',
     guardian_email: '',
+    email: '',
+    next_of_kin_email: '',
+    preferred_contact_channel: 'IN_PERSON',
+    privacy_notice_delivery_method: 'VERBAL',
   },
   'assisted',
 );

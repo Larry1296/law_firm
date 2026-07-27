@@ -2,6 +2,10 @@ from django.db import models
 
 
 class IndividualClient(models.Model):
+    class PrivacyNoticeDeliveryMethod(models.TextChoices):
+        PORTAL = "PORTAL", "Client portal"
+        PAPER = "PAPER", "Paper copy"
+        VERBAL = "VERBAL", "Read and explained verbally"
 
     class IdentificationType(models.TextChoices):
         NATIONAL_ID = "NATIONAL_ID", "National ID"
@@ -137,6 +141,14 @@ class IndividualClient(models.Model):
     )
 
     privacy_notice_version = models.CharField(max_length=50, blank=True, default="")
+    privacy_notice_delivery_method = models.CharField(
+        max_length=20,
+        choices=PrivacyNoticeDeliveryMethod.choices,
+        blank=True,
+        default="",
+    )
+    privacy_notice_acknowledged = models.BooleanField(default=False)
+    privacy_notice_acknowledged_at = models.DateTimeField(null=True, blank=True)
     privacy_notice_given_at = models.DateTimeField(null=True, blank=True)
     privacy_notice_given_by = models.ForeignKey(
         "users.User",

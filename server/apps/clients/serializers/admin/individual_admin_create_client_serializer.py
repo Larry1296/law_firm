@@ -4,7 +4,12 @@ from datetime import date
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.clients.models import Client, CommunicationChannel, IndividualClient
+from apps.clients.models import (
+    Client,
+    ClientDueDiligence,
+    CommunicationChannel,
+    IndividualClient,
+)
 from apps.clients.serializers.admin.admin_client_base_create_serializer import (
     AdminClientBaseCreateSerializer,
 )
@@ -26,6 +31,17 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
     identification_country = serializers.CharField(max_length=100, required=False, allow_blank=True)
     identification_expiry_date = serializers.DateField(required=False, allow_null=True)
     identification_document_reference = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    identification_verified = serializers.BooleanField(required=False, default=False)
+    verification_method = serializers.ChoiceField(
+        choices=(
+            ("ORIGINAL_INSPECTED", "Original document inspected"),
+            ("CERTIFIED_COPY", "Certified copy inspected"),
+            ("OFFICIAL_ELECTRONIC_SOURCE", "Official electronic source"),
+        ),
+        required=False,
+        allow_blank=True,
+    )
+    verification_notes = serializers.CharField(required=False, allow_blank=True)
     first_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     middle_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
@@ -53,7 +69,34 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
     next_of_kin_identification_number = serializers.CharField(max_length=80, required=False, allow_blank=True)
     next_of_kin_address = serializers.CharField(required=False, allow_blank=True)
     privacy_notice_version = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    privacy_notice_delivery_method = serializers.ChoiceField(
+        choices=IndividualClient.PrivacyNoticeDeliveryMethod.choices,
+        required=False,
+        allow_blank=True,
+    )
+    privacy_notice_acknowledged = serializers.BooleanField(required=False, default=False)
     personal_data_source = serializers.ChoiceField(choices=IndividualClient.PersonalDataSource.choices, required=False, allow_blank=True)
+    acting_for_self = serializers.BooleanField(required=True)
+    represented_person = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    authority_document_reference = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    purpose_and_nature_of_relationship = serializers.CharField(required=True, allow_blank=False)
+    pep_status = serializers.ChoiceField(
+        choices=ClientDueDiligence.PepStatus.choices,
+        default=ClientDueDiligence.PepStatus.PENDING,
+    )
+    pep_details = serializers.CharField(required=False, allow_blank=True)
+    sanctions_screening_status = serializers.ChoiceField(
+        choices=ClientDueDiligence.ScreeningStatus.choices,
+        default=ClientDueDiligence.ScreeningStatus.PENDING,
+    )
+    risk_rating = serializers.ChoiceField(
+        choices=ClientDueDiligence.RiskRating.choices,
+        default=ClientDueDiligence.RiskRating.NOT_ASSESSED,
+    )
+    source_of_funds = serializers.CharField(required=False, allow_blank=True)
+    source_of_wealth = serializers.CharField(required=False, allow_blank=True)
+    enhanced_due_diligence_required = serializers.BooleanField(required=False, default=False)
+    next_review_date = serializers.DateField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True)
 
     # Compatibility inputs retained while the frontend/API migrate.
@@ -98,6 +141,9 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             "disability_or_accessibility_notes", "guardian_relationship", "next_of_kin_relationship", "country",
             "county_or_region", "city_or_town", "street_or_locality", "postal_code", "address_description", "county", "city",
             "street", "full_address", "notes", "privacy_notice_version", "personal_data_source",
+            "privacy_notice_delivery_method", "represented_person",
+            "authority_document_reference", "purpose_and_nature_of_relationship",
+            "pep_details", "source_of_funds", "source_of_wealth",
         ]
         for field in name_fields:
             if field in attrs and attrs[field] is not None:
@@ -164,6 +210,11 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             errors["identification_type"] = "Identification type is required."
         if not attrs.get("identification_number"):
             errors["identification_number"] = "Identification number is required."
+        elif (
+            attrs.get("identification_type") == IndividualClient.IdentificationType.NATIONAL_ID
+            and not re.fullmatch(r"\d{7,10}", attrs["identification_number"])
+        ):
+            errors["identification_number"] = "Enter a valid Kenyan National ID number."
         if not attrs.get("identification_country"):
             errors["identification_country"] = "Identification country is required."
         if attrs.get("identification_type") == IndividualClient.IdentificationType.PASSPORT:
@@ -171,6 +222,11 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
                 errors["identification_expiry_date"] = "Passport expiry date is required."
             elif attrs["identification_expiry_date"] <= timezone.localdate():
                 errors["identification_expiry_date"] = "Passport expiry date must be in the future."
+        if attrs.get("identification_verified"):
+            if not attrs.get("verification_method"):
+                errors["verification_method"] = "Record how the identity document was verified."
+            if not attrs.get("identification_document_reference"):
+                errors["identification_document_reference"] = "Record the inspected document or secure file reference."
         if not attrs.get("date_of_birth"):
             errors["date_of_birth"] = "Date of birth is required."
         elif attrs["date_of_birth"] >= timezone.localdate():
@@ -191,13 +247,37 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             errors["business_name"] = "Business name is required for business owners."
         if not attrs.get("preferred_contact_channel"):
             errors["preferred_contact_channel"] = "Preferred contact channel is required."
-        if not attrs.get("phone_number") and not attrs.get("email"):
+        if access_type == Client.AccessType.PORTAL_ENABLED and not attrs.get("phone_number") and not attrs.get("email"):
             errors["contact_method"] = "At least one reliable client contact method is required."
         if access_type == Client.AccessType.PORTAL_ENABLED:
             if not attrs.get("email"):
                 errors["email"] = "Portal individual clients require a login email address."
             if not attrs.get("phone_number"):
                 errors["phone_number"] = "Portal individual clients require a phone number."
+            if attrs.get("privacy_notice_delivery_method") != IndividualClient.PrivacyNoticeDeliveryMethod.PORTAL:
+                errors["privacy_notice_delivery_method"] = "Portal clients must receive the privacy notice through the portal."
+        if access_type == Client.AccessType.ASSISTED:
+            email_fields = {
+                "email": attrs.get("email"),
+                "contact_email": attrs.get("contact_email"),
+                "guardian_email": attrs.get("guardian_email"),
+                "next_of_kin_email": attrs.get("next_of_kin_email"),
+            }
+            for field, value in email_fields.items():
+                if value:
+                    errors[field] = "Email is not collected for a fully assisted client."
+            if attrs.get("preferred_contact_channel") not in {
+                CommunicationChannel.IN_PERSON,
+                CommunicationChannel.PHONE,
+            }:
+                errors["preferred_contact_channel"] = "Assisted clients may choose in-person or phone communication."
+            if attrs.get("preferred_contact_channel") == CommunicationChannel.PHONE and not attrs.get("phone_number"):
+                errors["phone_number"] = "Enter a phone number or choose in-person communication."
+            if attrs.get("privacy_notice_delivery_method") not in {
+                IndividualClient.PrivacyNoticeDeliveryMethod.PAPER,
+                IndividualClient.PrivacyNoticeDeliveryMethod.VERBAL,
+            }:
+                errors["privacy_notice_delivery_method"] = "Record whether the assisted client received a paper notice or had it explained verbally."
         if attrs.get("preferred_contact_channel") == CommunicationChannel.EMAIL and not attrs.get("email"):
             errors["preferred_contact_channel"] = "Email is required when preferred contact channel is email."
         if attrs.get("preferred_contact_channel") in {CommunicationChannel.PHONE, CommunicationChannel.SMS, CommunicationChannel.WHATSAPP} and not attrs.get("phone_number"):
@@ -214,11 +294,25 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
             errors["county_or_region"] = "County is required for Kenyan residential addresses when known."
         if not attrs.get("privacy_notice_version"):
             errors["privacy_notice_version"] = "Privacy notice version is required."
+        if not attrs.get("privacy_notice_acknowledged"):
+            errors["privacy_notice_acknowledged"] = "Confirm that the privacy notice was delivered and acknowledged."
         if not attrs.get("personal_data_source"):
             errors["personal_data_source"] = "Personal data source is required."
+        if not attrs.get("acting_for_self"):
+            if not attrs.get("represented_person"):
+                errors["represented_person"] = "Name the person for whom the client is acting."
+            if not attrs.get("authority_document_reference"):
+                errors["authority_document_reference"] = "Record the document or other authority to act."
+        if not attrs.get("purpose_and_nature_of_relationship"):
+            errors["purpose_and_nature_of_relationship"] = "Record the legal service sought and intended nature of the relationship."
+        if attrs.get("pep_status") in {
+            ClientDueDiligence.PepStatus.POTENTIAL_MATCH,
+            ClientDueDiligence.PepStatus.CONFIRMED_MATCH,
+        } and not attrs.get("pep_details"):
+            errors["pep_details"] = "Record the relevant politically exposed person details."
 
-        if attrs.get("kra_pin") and len(attrs["kra_pin"]) < 8:
-            errors["kra_pin"] = "Enter a valid KRA PIN."
+        if attrs.get("kra_pin") and not re.fullmatch(r"A\d{9}[A-Z]", attrs["kra_pin"]):
+            errors["kra_pin"] = "Enter a valid individual KRA PIN, for example A123456789B."
         if firm:
             ident_type = attrs.get("identification_type")
             ident_number = attrs.get("identification_number")

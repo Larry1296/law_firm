@@ -80,6 +80,9 @@ class ClientAdminCreateService:
         "identification_document_reference",
         "verification_method",
         "verification_notes",
+        "identification_verified",
+        "identification_verified_at",
+        "identification_verified_by",
         "first_name",
         "middle_name",
         "last_name",
@@ -112,10 +115,27 @@ class ClientAdminCreateService:
         "next_of_kin_physical_address",
         "next_of_kin_address",
         "privacy_notice_version",
+        "privacy_notice_delivery_method",
+        "privacy_notice_acknowledged",
+        "privacy_notice_acknowledged_at",
         "privacy_notice_given_at",
         "privacy_notice_given_by",
         "personal_data_source",
         "notes",
+    }
+    DUE_DILIGENCE_FIELDS = {
+        "acting_for_self",
+        "represented_person",
+        "authority_document_reference",
+        "purpose_and_nature_of_relationship",
+        "pep_status",
+        "pep_details",
+        "sanctions_screening_status",
+        "risk_rating",
+        "source_of_funds",
+        "source_of_wealth",
+        "enhanced_due_diligence_required",
+        "next_review_date",
     }
     NEXT_OF_KIN_FIELDS = {
         "next_of_kin_name",
@@ -282,10 +302,15 @@ class ClientAdminCreateService:
         address_data = ClientAdminCreateService._pop_fields(data, ClientAdminCreateService.ADDRESS_FIELDS)
         contact_data = ClientAdminCreateService._pop_fields(data, ClientAdminCreateService.CONTACT_FIELDS)
         individual_data = {}
+        due_diligence_data = {}
         if client_type == Client.ClientType.INDIVIDUAL:
             individual_data = ClientAdminCreateService._pop_fields(
                 data,
                 ClientAdminCreateService.INDIVIDUAL_PROFILE_FIELDS,
+            )
+            due_diligence_data = ClientAdminCreateService._pop_fields(
+                data,
+                ClientAdminCreateService.DUE_DILIGENCE_FIELDS,
             )
 
         full_name = ClientAdminCreateService._display_name(
@@ -312,6 +337,10 @@ class ClientAdminCreateService:
         if client_type == Client.ClientType.INDIVIDUAL:
             individual_data["privacy_notice_given_at"] = timezone.now()
             individual_data["privacy_notice_given_by"] = created_by
+            individual_data["privacy_notice_acknowledged_at"] = timezone.now()
+            if individual_data.get("identification_verified"):
+                individual_data["identification_verified_at"] = timezone.now()
+                individual_data["identification_verified_by"] = created_by
 
         profile = ClientAdminCreateService._create_profile(
             client,
@@ -338,7 +367,12 @@ class ClientAdminCreateService:
             else None
         )
         if client_type == Client.ClientType.INDIVIDUAL:
-            ClientDueDiligence.objects.get_or_create(client=client)
+            due_diligence = ClientDueDiligence.objects.create(
+                client=client,
+                **due_diligence_data,
+            )
+        else:
+            due_diligence = None
 
         user, temp_password = ClientAdminCreateService._create_portal_user(
             client,
@@ -352,6 +386,7 @@ class ClientAdminCreateService:
             "primary_contact": primary_contact,
             "registered_address": registered_address,
             "next_of_kin": next_of_kin,
+            "due_diligence": due_diligence,
             "user": user,
             "temp_password": temp_password,
         }
@@ -756,6 +791,9 @@ class ClientAdminCreateService:
                 identification_document_reference=data.get("identification_document_reference", ""),
                 verification_method=data.get("verification_method", ""),
                 verification_notes=data.get("verification_notes", ""),
+                identification_verified=data.get("identification_verified", False),
+                identification_verified_at=data.get("identification_verified_at"),
+                identification_verified_by=data.get("identification_verified_by"),
                 gender=data.get("gender"),
                 occupation_status=data.get("occupation_status", ""),
                 occupation=data.get("occupation"),
@@ -784,6 +822,9 @@ class ClientAdminCreateService:
                 next_of_kin_physical_address=data.get("next_of_kin_physical_address", ""),
                 next_of_kin_address=data.get("next_of_kin_address", ""),
                 privacy_notice_version=data.get("privacy_notice_version", ""),
+                privacy_notice_delivery_method=data.get("privacy_notice_delivery_method", ""),
+                privacy_notice_acknowledged=data.get("privacy_notice_acknowledged", False),
+                privacy_notice_acknowledged_at=data.get("privacy_notice_acknowledged_at"),
                 privacy_notice_given_at=data.get("privacy_notice_given_at"),
                 privacy_notice_given_by=data.get("privacy_notice_given_by"),
                 personal_data_source=data.get("personal_data_source", ""),
