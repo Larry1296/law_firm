@@ -300,6 +300,56 @@ assert.equal(
 );
 assert.equal(publicEntityPayload.representatives[0].is_portal_contact, true);
 
+const internationalOrganizationPayload = buildLegalEntityClientPayload(
+  {
+    ...baseEntity,
+    official_name: ' Regional Development Organization ',
+    organization_type: 'INTERGOVERNMENTAL',
+    international_representative_name: ' Mercy Wanjiku ',
+    international_representative_identifier: ' INTL-REP-ID-001 ',
+    contact_full_name: '',
+    contact_email: '',
+    contact_phone_number: '',
+    contact_national_id_number: '',
+    email: 'international.rep@example.com',
+    phone_number: '+254700000029',
+  },
+  {
+    clientType: 'INTERNATIONAL_ORGANIZATION',
+    requestedClientType: 'INTERNATIONAL_ORGANIZATION',
+    accessType: 'PORTAL_ENABLED',
+  },
+);
+
+assert.equal(
+  internationalOrganizationPayload.client_type,
+  'INTERNATIONAL_ORGANIZATION',
+);
+assert.equal(
+  internationalOrganizationPayload.official_name,
+  'Regional Development Organization',
+);
+assert.equal(
+  internationalOrganizationPayload.organization_type,
+  'INTERGOVERNMENTAL',
+);
+assert.equal(
+  internationalOrganizationPayload.contact_full_name,
+  'Mercy Wanjiku',
+);
+assert.equal(
+  internationalOrganizationPayload.contact_national_id_number,
+  'INTL-REP-ID-001',
+);
+assert.equal(
+  internationalOrganizationPayload.representatives[0].representative_category,
+  'AUTHORIZED_AGENT',
+);
+assert.equal(
+  internationalOrganizationPayload.representatives[0].is_portal_contact,
+  true,
+);
+
 const partnershipPayload = buildLegalEntityClientPayload(
   {
     ...baseEntity,

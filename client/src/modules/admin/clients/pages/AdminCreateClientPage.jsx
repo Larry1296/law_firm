@@ -371,6 +371,8 @@ export default function AdminCreateClientPage() {
     official_address: '',
     statutory_representative: '',
     organization_type: 'INTERGOVERNMENTAL',
+    international_representative_name: '',
+    international_representative_identifier: '',
     founding_instrument: '',
     headquarters_country: '',
     kenya_recognition_details: '',
@@ -1073,6 +1075,8 @@ export default function AdminCreateClientPage() {
       official_address: '',
       statutory_representative: '',
       organization_type: 'INTERGOVERNMENTAL',
+      international_representative_name: '',
+      international_representative_identifier: '',
       founding_instrument: '',
       headquarters_country: '',
       kenya_recognition_details: '',
@@ -1588,6 +1592,8 @@ export default function AdminCreateClientPage() {
               {clientType === 'INTERNATIONAL_ORGANIZATION' && (
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                   <FloatingInput label='Official Name' name='official_name' value={formData.official_name} onChange={handleChange} required />
+                  <FloatingInput label='Authorized Organization Representative' name='international_representative_name' value={formData.international_representative_name} onChange={handleChange} required />
+                  <FloatingInput label='Representative ID / Passport' name='international_representative_identifier' value={formData.international_representative_identifier} onChange={handleChange} required />
                   <Select3D label='Organization Type' name='organization_type' value={formData.organization_type} onChange={handleChange} options={[
                     { value: 'INTERGOVERNMENTAL', label: 'Intergovernmental Organization' },
                     { value: 'TREATY_BODY', label: 'Treaty Body' },

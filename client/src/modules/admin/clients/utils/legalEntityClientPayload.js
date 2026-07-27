@@ -50,6 +50,8 @@ export const buildLegalEntityClientPayload = (
   const isNgo = clientType === 'NGO';
   const isSocietyOrAssociation = clientType === 'SOCIETY_OR_ASSOCIATION';
   const isPublicEntity = clientType === 'PUBLIC_ENTITY';
+  const isInternationalOrganization =
+    clientType === 'INTERNATIONAL_ORGANIZATION';
   const proprietorName = trim(formData.proprietor_name);
   const proprietorIdentifier = trim(formData.proprietor_identifier);
   const firstPartnerName = trim(formData.partner_one_name);
@@ -80,6 +82,12 @@ export const buildLegalEntityClientPayload = (
   );
   const publicOfficerName = trim(formData.public_officer_name);
   const publicOfficerIdentifier = trim(formData.public_officer_identifier);
+  const internationalRepresentativeName = trim(
+    formData.international_representative_name,
+  );
+  const internationalRepresentativeIdentifier = trim(
+    formData.international_representative_identifier,
+  );
   const personalRepresentativeType =
     formData.grant_type === 'PROBATE'
       ? 'EXECUTOR'
@@ -106,7 +114,9 @@ export const buildLegalEntityClientPayload = (
                     ? associationOfficialName
                     : isPublicEntity
                       ? publicOfficerName
-                      : '');
+                      : isInternationalOrganization
+                        ? internationalRepresentativeName
+                        : '');
   const contactEmail = isProspect
     ? lower(formData.contact_email) ||
       (isSoleProprietorship ||
@@ -115,7 +125,8 @@ export const buildLegalEntityClientPayload = (
       isCooperative ||
       isNgo ||
       isSocietyOrAssociation ||
-      isPublicEntity
+      isPublicEntity ||
+      isInternationalOrganization
         ? lower(formData.email)
         : '')
     : '';
@@ -127,7 +138,8 @@ export const buildLegalEntityClientPayload = (
     isCooperative ||
     isNgo ||
     isSocietyOrAssociation ||
-    isPublicEntity
+    isPublicEntity ||
+    isInternationalOrganization
       ? trim(formData.phone_number)
       : '');
   const contactIdentifier =
@@ -150,7 +162,9 @@ export const buildLegalEntityClientPayload = (
                     ? associationOfficialIdentifier
                     : isPublicEntity
                       ? publicOfficerIdentifier
-                      : '');
+                      : isInternationalOrganization
+                        ? internationalRepresentativeIdentifier
+                        : '');
   const email = isProspect
     ? lower(formData.email) || contactEmail || lower(formData.contact_person_email)
     : '';
@@ -218,7 +232,9 @@ export const buildLegalEntityClientPayload = (
                             ? 'Association Official'
                             : isPublicEntity
                               ? 'Authorized Public Officer'
-                              : ''),
+                              : isInternationalOrganization
+                                ? 'Authorized Organization Representative'
+                                : ''),
           national_id_or_passport: contactIdentifier,
           ...(isProspect && contactEmail ? { email: contactEmail } : {}),
           telephone: contactPhone,
@@ -325,7 +341,9 @@ export const buildLegalEntityClientPayload = (
                       ? 'Association Official'
                       : isPublicEntity
                         ? 'Authorized Public Officer'
-                        : ''),
+                        : isInternationalOrganization
+                          ? 'Authorized Organization Representative'
+                          : ''),
     contact_email: contactEmail,
     contact_phone_number: contactPhone,
     contact_national_id_number: contactIdentifier,

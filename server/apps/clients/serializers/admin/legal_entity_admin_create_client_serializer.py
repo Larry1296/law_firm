@@ -502,6 +502,35 @@ class LegalEntityAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
                 )
         elif client_type == Client.ClientType.INTERNATIONAL_ORGANIZATION:
             self._require(attrs, "official_name", "organization_type")
+            organization_representatives = [
+                representative
+                for representative in attrs.get("representatives") or []
+                if representative.get("representative_category")
+                in {
+                    ClientRepresentative.RepresentativeCategory.AUTHORIZED_AGENT,
+                    ClientRepresentative.RepresentativeCategory.OTHER,
+                }
+            ]
+            if not organization_representatives:
+                raise serializers.ValidationError(
+                    {
+                        "representatives": (
+                            "Record an authorized organization representative."
+                        )
+                    }
+                )
+            if any(
+                not representative.get("national_id_or_passport")
+                for representative in organization_representatives
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "representatives": (
+                            "Record an ID or passport number for every "
+                            "authorized organization representative."
+                        )
+                    }
+                )
 
         legal_name = self._legal_name(attrs)
         if not legal_name:
