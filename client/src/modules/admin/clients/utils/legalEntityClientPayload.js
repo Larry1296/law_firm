@@ -32,6 +32,72 @@ const clean = (payload) =>
     Object.entries(payload).filter(([, value]) => !EMPTY_VALUES.has(value)),
   );
 
+const REPRESENTATIVE_CONTACT_FIELDS = {
+  proprietor_name: ['contact_full_name', 'Proprietor'],
+  proprietor_identifier: ['contact_national_id_number'],
+  partner_one_name: ['contact_full_name', 'Partner'],
+  partner_one_identifier: ['contact_national_id_number'],
+  designated_partner_name: ['contact_full_name', 'Designated Partner'],
+  designated_partner_identifier: ['contact_national_id_number'],
+  cooperative_officer_name: ['contact_full_name', 'Cooperative Officer'],
+  cooperative_officer_identifier: ['contact_national_id_number'],
+  association_official_name: ['contact_full_name', 'Association Official'],
+  association_official_identifier: ['contact_national_id_number'],
+  nonprofit_official_name: ['contact_full_name', 'NGO Official'],
+  nonprofit_official_identifier: ['contact_national_id_number'],
+  religious_official_name: [
+    'contact_full_name',
+    'Religious Organization Official',
+  ],
+  religious_official_identifier: ['contact_national_id_number'],
+  trustee_name: ['contact_full_name', 'Trustee'],
+  trustee_identifier: ['contact_national_id_number'],
+  personal_representative_name: [
+    'contact_full_name',
+    'Executor / Administrator',
+  ],
+  personal_representative_identifier: ['contact_national_id_number'],
+  public_officer_name: ['contact_full_name', 'Authorized Public Officer'],
+  public_officer_identifier: ['contact_national_id_number'],
+  school_representative_name: [
+    'contact_full_name',
+    'Authorized School Representative',
+  ],
+  school_representative_identifier: ['contact_national_id_number'],
+  international_representative_name: [
+    'contact_full_name',
+    'Authorized Organization Representative',
+  ],
+  international_representative_identifier: ['contact_national_id_number'],
+};
+
+export const getRepresentativeContactAutofill = (
+  formData,
+  sourceField,
+  nextValue,
+) => {
+  const mapping = REPRESENTATIVE_CONTACT_FIELDS[sourceField];
+  if (!mapping) return {};
+
+  const [contactField, defaultRole] = mapping;
+  const currentContactValue = formData[contactField] || '';
+  const previousSourceValue = formData[sourceField] || '';
+
+  if (
+    currentContactValue &&
+    currentContactValue !== previousSourceValue
+  ) {
+    return {};
+  }
+
+  return {
+    [contactField]: nextValue,
+    ...(defaultRole && !formData.contact_role_or_designation
+      ? { contact_role_or_designation: defaultRole }
+      : {}),
+  };
+};
+
 export const buildLegalEntityClientPayload = (
   formData,
   {

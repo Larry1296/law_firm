@@ -300,7 +300,7 @@ export default function EventsWorkspace({
 
   return (
     <div className='space-y-6 p-4 md:p-6'>
-      <SectionHeading title={title} subtitle={subtitle} align='left' size='compact' />
+      <SectionHeading title={title} subtitle={subtitle} size='compact' />
 
       <div className='grid gap-4 md:grid-cols-3'>
         <Card className='p-4'>

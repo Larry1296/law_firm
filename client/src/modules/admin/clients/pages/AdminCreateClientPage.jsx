@@ -19,6 +19,7 @@ import {
 import {
   buildLegalEntityClientPayload,
   canonicalLegalEntityTypes,
+  getRepresentativeContactAutofill,
 } from '@/modules/admin/clients/utils/legalEntityClientPayload';
 import ClientCreationSuccessPanel from '@/modules/admin/clients/components/ClientCreationSuccessPanel';
 
@@ -407,6 +408,7 @@ export default function AdminCreateClientPage() {
     setFormData((prev) => ({
       ...prev,
       [name]: nextValue,
+      ...getRepresentativeContactAutofill(prev, name, nextValue),
       ...(name === 'identification_type'
         ? {
             identification_number: '',
@@ -2879,6 +2881,10 @@ export default function AdminCreateClientPage() {
           )}
 
           <div className='flex gap-3 pt-4'>
+            <Button3D type='submit' variant='primary' disabled={isSubmitting}>
+              {isSubmitting ? 'Creating...' : 'Create Client'}
+            </Button3D>
+
             <Button3D
               type='button'
               variant='secondary'
@@ -2887,10 +2893,6 @@ export default function AdminCreateClientPage() {
               }
             >
               Cancel
-            </Button3D>
-
-            <Button3D type='submit' variant='primary' disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Client'}
             </Button3D>
           </div>
         </form>

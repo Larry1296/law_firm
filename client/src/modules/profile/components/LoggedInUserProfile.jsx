@@ -124,7 +124,6 @@ export default function LoggedInUserProfile({
       <SectionHeading
         title={title}
         subtitle={subtitle}
-        align='left'
         size='compact'
       />
 

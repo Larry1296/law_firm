@@ -59,20 +59,23 @@ export default function ClientNotificationsPage() {
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
+      <div className='flex flex-col items-center gap-4 text-center'>
         <SectionHeading
           title='Notifications'
           subtitle='Live updates from your firm about your legal matters.'
+          size='compact'
         />
 
-        <Button3D
-          variant='secondary'
-          disabled={!unreadCount || markAllRead.isPending}
-          onClick={() => markAllRead.mutate()}
-        >
-          <CheckCheck size={16} />
-          Mark all read
-        </Button3D>
+        <div className='flex w-full items-center justify-end'>
+          <Button3D
+            variant='secondary'
+            disabled={!unreadCount || markAllRead.isPending}
+            onClick={() => markAllRead.mutate()}
+          >
+            <CheckCheck size={16} />
+            Mark all read
+          </Button3D>
+        </div>
       </div>
 
       <div className='grid gap-4 sm:grid-cols-2'>

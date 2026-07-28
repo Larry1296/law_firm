@@ -107,15 +107,18 @@ export default function AdminAnnouncementsPage() {
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
+      <div className='flex flex-col items-center gap-4 text-center'>
         <SectionHeading
           title='Announcements'
           subtitle='Send no-reply announcements to all staff or selected staff members.'
+          size='compact'
         />
 
-        <Button3D variant='outlineLight' onClick={refetch}>
-          Refresh
-        </Button3D>
+        <div className='flex w-full items-center justify-end'>
+          <Button3D variant='outlineLight' onClick={refetch}>
+            Refresh
+          </Button3D>
+        </div>
       </div>
 
       <div className='grid gap-6 xl:grid-cols-[420px_1fr]'>

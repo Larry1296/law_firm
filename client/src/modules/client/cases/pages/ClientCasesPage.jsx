@@ -67,10 +67,10 @@ export default function ClientCasesPage() {
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
-        <SectionHeading title='My Cases' subtitle='Your active legal matters' />
+      <div className='flex flex-col items-center gap-4 text-center'>
+        <SectionHeading title='My Cases' subtitle='Your active legal matters' size='compact' />
 
-        <div className='flex gap-3'>
+        <div className='flex w-full items-center justify-end gap-3'>
           <Button3D onClick={refetch}>Refresh</Button3D>
         </div>
       </div>

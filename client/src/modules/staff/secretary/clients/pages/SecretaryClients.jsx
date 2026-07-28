@@ -4,8 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users,
   UserCheck,
-  ChevronDown,
-  ChevronRight,
 } from 'lucide-react';
 
 import { useSecretaryClients } from '@/modules/staff/secretary/clients/hooks/useSecretaryClients';
@@ -20,6 +18,7 @@ import Button3D from '@/components/ui/Button3D';
 import ResponsiveFilterTabs from '@/components/ui/ResponsiveFilterTabs';
 import useSecretaryDashboard from '@/modules/staff/secretary/dashboard/hooks/useSecretaryDashboard';
 import { CLIENT_CATEGORY_TABS } from '@/modules/clients/shared/clientListTabs';
+import ClientCreationChooser from '@/modules/clients/shared/ClientCreationChooser';
 
 const hasPermission = (permissions, permission) =>
   permissions.map((item) => String(item).toUpperCase()).includes(permission);
@@ -29,6 +28,7 @@ export default function SecretaryClients() {
   const [search, setSearch] = useState('');
   const [searchBy, setSearchBy] = useState('NAME');
   const [activeCategoryTab, setActiveCategoryTab] = useState('ALL');
+  const [showCreationChooser, setShowCreationChooser] = useState(false);
 
   const { clients = [], loading, refetch } = useSecretaryClients();
   const { data: dashboardData } = useSecretaryDashboard();
@@ -122,151 +122,32 @@ export default function SecretaryClients() {
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
+      <div className='flex flex-col items-center gap-4 text-center'>
         <SectionHeading
           title='Firm Clients'
           subtitle='Portal-enabled and staff-assisted clients managed by the firm'
+          size='compact'
         />
 
-        <div className='flex flex-wrap gap-3'>
-          <Button3D onClick={refetch}>Refresh</Button3D>
-
+        <div className='flex w-full flex-wrap items-center justify-between gap-3'>
           {canManageClients && (
-            <div className='relative group'>
-              <Button3D variant='primary' className='flex items-center'>
-                + Create Client
-                <ChevronDown size={16} className='ml-2' />
-              </Button3D>
-
-              <div
-                className='
-                  invisible opacity-0
-                  group-hover:visible group-hover:opacity-100
-                  transition-all duration-200
-
-                  absolute right-0 mt-2
-                  w-64
-
-                  rounded-xl shadow-2xl border z-50
-
-                  bg-surface-light dark:bg-surface-dark
-                  border-border-light dark:border-border-dark
-                '
-              >
-                <div className='relative group/individual'>
-                  <button
-                    type='button'
-                    className='
-                      w-full flex items-center justify-between px-4 py-3 text-left
-                      text-text-primary-light dark:text-text-primary-dark
-                      hover:bg-background-light dark:hover:bg-background-dark
-                    '
-                  >
-                    <span>Individual</span>
-                    <ChevronRight size={16} />
-                  </button>
-
-                  <div
-                    className='
-                      invisible opacity-0
-                      group-hover/individual:visible group-hover/individual:opacity-100
-                      transition-all duration-200
-
-                      absolute top-0 right-full mr-1
-                      w-56
-
-                      rounded-xl shadow-2xl border z-50
-
-                      bg-surface-light dark:bg-surface-dark
-                      border-border-light dark:border-border-dark
-                    '
-                  >
-                    <button
-                      onClick={() => goToCreate('individual', 'portal')}
-                      className='
-                        w-full px-4 py-3 text-left
-                        text-text-primary-light dark:text-text-primary-dark
-                        hover:bg-background-light dark:hover:bg-background-dark
-                      '
-                    >
-                      Portal Enabled
-                    </button>
-
-                    <button
-                      onClick={() => goToCreate('individual', 'assisted')}
-                      className='
-                        w-full px-4 py-3 text-left
-                        text-text-primary-light dark:text-text-primary-dark
-                        hover:bg-background-light dark:hover:bg-background-dark
-                      '
-                    >
-                      Assisted Client
-                    </button>
-                  </div>
-                </div>
-
-                {[
-                  ['Company', 'company'],
-                  ['Sole Proprietorship', 'sole_proprietorship'],
-                  ['Partnership', 'partnership'],
-                  ['Limited Liability Partnership', 'limited_liability_partnership'],
-                  ['Trust', 'trust'],
-                  ['Estate', 'estate'],
-                  ['NGO', 'ngo'],
-                  ['SACCO', 'sacco'],
-                  ['Cooperative', 'cooperative'],
-                  ['Association', 'association'],
-                  ['Government Institution', 'government'],
-                  ['International Organization', 'international_organization'],
-                  ['School', 'school'],
-                  ['Religious Organization', 'religious'],
-                ].map(([label, type]) => (
-                  <div key={type} className='relative group/client-type'>
-                    <button
-                      type='button'
-                      className='
-                        w-full flex items-center justify-between px-4 py-3 text-left
-                        text-text-primary-light dark:text-text-primary-dark
-                        hover:bg-background-light dark:hover:bg-background-dark
-                      '
-                    >
-                      <span>{label}</span>
-                      <ChevronRight size={16} />
-                    </button>
-
-                    <div
-                      className='
-                        invisible opacity-0
-                        group-hover/client-type:visible group-hover/client-type:opacity-100
-                        transition-all duration-200
-                        absolute top-0 right-full mr-1 w-56
-                        rounded-xl shadow-2xl border z-50
-                        bg-surface-light dark:bg-surface-dark
-                        border-border-light dark:border-border-dark
-                      '
-                    >
-                      <button
-                        type='button'
-                        onClick={() => goToCreate(type, 'portal')}
-                        className='w-full px-4 py-3 text-left text-text-primary-light dark:text-text-primary-dark hover:bg-background-light dark:hover:bg-background-dark'
-                      >
-                        Portal Enabled
-                      </button>
-                      <button
-                        type='button'
-                        onClick={() => goToCreate(type, 'assisted')}
-                        className='w-full px-4 py-3 text-left text-text-primary-light dark:text-text-primary-dark hover:bg-background-light dark:hover:bg-background-dark'
-                      >
-                        Assisted Client
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Button3D
+              variant='primary'
+              onClick={() => setShowCreationChooser(true)}
+            >
+              + Create Client
+            </Button3D>
           )}
+          {!canManageClients && <span aria-hidden='true' />}
+          <Button3D onClick={refetch}>Refresh</Button3D>
         </div>
       </div>
+
+      <ClientCreationChooser
+        open={showCreationChooser}
+        onClose={() => setShowCreationChooser(false)}
+        onSelect={goToCreate}
+      />
 
       <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
         <StatsCard

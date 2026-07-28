@@ -28,21 +28,21 @@ export default function SectionHeading({
   const sizeStyles = {
     lg: {
       wrapper: "max-w-3xl mb-16",
-      title: "text-4xl",
-      underline: "h-[4px] w-16 mt-3",
-      subtitle: "mt-5 text-lg leading-relaxed",
+      title: "text-4xl sm:text-5xl",
+      underline: "h-[4px] w-20 mt-4",
+      subtitle: "mt-4 text-lg sm:text-xl leading-relaxed",
     },
     compact: {
       wrapper: "max-w-3xl mb-0",
-      title: "text-xl",
-      underline: "h-[3px] w-10 mt-2",
-      subtitle: "mt-1 text-sm leading-6",
+      title: "text-2xl sm:text-3xl",
+      underline: "h-[3px] w-14 mt-3",
+      subtitle: "mt-2 text-base sm:text-lg leading-7",
     },
     hero: {
       wrapper: "max-w-3xl mb-0",
-      title: "text-3xl lg:text-4xl",
-      underline: "h-[4px] w-16 mt-3",
-      subtitle: "mt-3 text-base leading-7",
+      title: "text-4xl sm:text-5xl lg:text-6xl",
+      underline: "h-[4px] w-24 mt-4",
+      subtitle: "mt-4 text-lg sm:text-xl leading-8",
     },
   };
   const styles = sizeStyles[size] || sizeStyles.lg;
@@ -59,12 +59,6 @@ export default function SectionHeading({
         }}
       >
         {title}
-
-        <span
-          className={`${styles.underline} block rounded-full ${
-            align === "left" ? "" : "mx-auto"
-          } bg-gradient-to-r from-blue-500 to-indigo-500`}
-        />
       </HeadingTag>
 
       {subtitle && (
@@ -72,6 +66,13 @@ export default function SectionHeading({
           {subtitle}
         </p>
       )}
+
+      <span
+        aria-hidden="true"
+        className={`${styles.underline} block rounded-full ${
+          align === "left" ? "" : "mx-auto"
+        } bg-gradient-to-r from-blue-500 to-indigo-500`}
+      />
     </div>
   );
 }

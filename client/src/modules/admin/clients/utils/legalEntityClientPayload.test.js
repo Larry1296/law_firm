@@ -4,9 +4,49 @@ import { test } from 'vitest';
 import {
   buildLegalEntityClientPayload,
   canonicalLegalEntityTypes,
+  getRepresentativeContactAutofill,
 } from './legalEntityClientPayload.js';
 
 test('builds canonical legal entity client payloads', () => {
+assert.deepEqual(
+  getRepresentativeContactAutofill(
+    {
+      public_officer_name: '',
+      contact_full_name: '',
+      contact_role_or_designation: '',
+    },
+    'public_officer_name',
+    'Mercy Wanjiku',
+  ),
+  {
+    contact_full_name: 'Mercy Wanjiku',
+    contact_role_or_designation: 'Authorized Public Officer',
+  },
+);
+assert.deepEqual(
+  getRepresentativeContactAutofill(
+    {
+      cooperative_officer_identifier: '',
+      contact_national_id_number: '',
+    },
+    'cooperative_officer_identifier',
+    'ID-001',
+  ),
+  { contact_national_id_number: 'ID-001' },
+);
+assert.deepEqual(
+  getRepresentativeContactAutofill(
+    {
+      nonprofit_official_name: 'Original Official',
+      contact_full_name: 'Different Portal Contact',
+      contact_role_or_designation: 'Portal Administrator',
+    },
+    'nonprofit_official_name',
+    'Updated Official',
+  ),
+  {},
+);
+
 const baseEntity = {
   legal_name: ' Nairobi Public Benefit Initiative ',
   registration_number: ' pbo-2026-001 ',

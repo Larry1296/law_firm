@@ -63,13 +63,14 @@ export default function LawyerCasesPage() {
 
   return (
     <div className='w-full min-w-0 space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
+      <div className='flex flex-col items-center gap-4 text-center'>
         <SectionHeading
           title='My Cases'
           subtitle='All assigned legal matters'
+          size='compact'
         />
 
-        <div className='flex gap-3'>
+        <div className='flex w-full items-center justify-end gap-3'>
           <Button3D onClick={refetch}>
             {isFetching ? 'Refreshing...' : 'Refresh'}
           </Button3D>

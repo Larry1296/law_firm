@@ -534,16 +534,16 @@ export default function AdminCreateStaffPage() {
           )}
 
           <div className='flex gap-3 pt-4'>
+            <Button3D type='submit' variant='primary' disabled={isSubmitting}>
+              {isSubmitting ? 'Creating...' : 'Create Staff'}
+            </Button3D>
+
             <Button3D
               type='button'
               variant='secondary'
               onClick={() => navigate('/admin/staff')}
             >
               Cancel
-            </Button3D>
-
-            <Button3D type='submit' variant='primary' disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Staff'}
             </Button3D>
           </div>
         </form>

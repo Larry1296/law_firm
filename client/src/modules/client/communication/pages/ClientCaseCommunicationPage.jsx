@@ -82,12 +82,13 @@ export default function ClientCaseCommunicationPage() {
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
+      <div className='flex flex-col items-center gap-4 text-center'>
         <SectionHeading
           title='Case Communication'
           subtitle='Send and receive case-related communication with the firm.'
+          size='compact'
         />
-        <div className='flex flex-col gap-2 sm:flex-row'>
+        <div className='flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
           {selectedCaseId && (
             <Link to={`/client/cases/${selectedCaseId}`}>
               <Button3D variant='outlineLight' className='w-full justify-center sm:w-auto'>

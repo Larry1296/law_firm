@@ -65,13 +65,14 @@ export default function SecretaryCasesPage() {
 
   return (
     <div className='w-full min-w-0 space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <div className='flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
+      <div className='flex flex-col items-center gap-4 text-center'>
         <SectionHeading
           title='Secretary Cases'
           subtitle='All assigned legal matters'
+          size='compact'
         />
 
-        <div className='flex flex-wrap gap-3'>
+        <div className='flex w-full flex-wrap items-center justify-end gap-3'>
           <Button3D onClick={refetch}>Refresh</Button3D>
 
         </div>
