@@ -28,6 +28,72 @@
   }
 }
 
+@keyframes dashboard-tile-photo-arrive {
+  0% {
+    opacity: 0;
+    filter: saturate(0.9);
+    transform: scale(1.035);
+  }
+  100% {
+    opacity: 1;
+    filter: saturate(1.05);
+    transform: scale(1.01);
+  }
+}
+
+@keyframes dashboard-tile-sheen {
+  0%,
+  12% {
+    transform: translateX(0) rotate(12deg);
+  }
+  45%,
+  100% {
+    transform: translateX(540%) rotate(12deg);
+  }
+}
+
+@keyframes dashboard-tile-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.82;
+    transform: scale(1.08);
+  }
+}
+
+.dashboard-tile-photo {
+  background-repeat: no-repeat;
+  will-change: transform, opacity, filter;
+}
+
+.dashboard-tile-photo-current {
+  animation: dashboard-tile-photo-arrive 1200ms ease-in-out both;
+}
+
+.dashboard-tile-sheen {
+  animation: dashboard-tile-sheen 8s ease-in-out infinite;
+  will-change: transform;
+}
+
+[role='button']:hover .dashboard-tile-photo {
+  filter: saturate(1.18) contrast(1.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-tile-photo,
+  .dashboard-tile-sheen,
+  .dashboard-tile-orb {
+    animation: none;
+  }
+
+  .dashboard-tile-photo {
+    transform: none;
+  }
+}
+
 @layer utilities {
   .bg-shell-light {
     background-color: #222222;

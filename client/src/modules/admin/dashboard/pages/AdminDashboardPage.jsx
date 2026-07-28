@@ -21,7 +21,6 @@ import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
 import useAdminDashboard from '@/modules/admin/dashboard/hooks/useAdminDashboard';
-import Card from '@/components/ui/Card';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { displayEnum } from '@/core/utils/textFormatter';
 
@@ -291,26 +290,32 @@ export default function AdminDashboardPage() {
 
 
       <section className='mt-6 px-4 md:px-6'>
-        <Card className='p-5'>
+        <DashboardTile
+          size='full'
+          variant='hearings'
+          rounded='xl'
+          shadow
+          className='min-h-[260px] p-5 sm:p-6'
+        >
           <div className='mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
             <div>
-              <h2 className='text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+              <h2 className='text-lg font-semibold text-white'>
                 Upcoming Court Events
               </h2>
-              <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
+              <p className='text-sm text-white/75'>
                 Owner view of scheduled mentions, hearings, directions and registry events across firm matters.
               </p>
             </div>
             <Link
               to='/admin/calendar'
-              className='w-fit rounded-lg border border-border-light px-3 py-2 text-sm font-semibold text-text-primary-light hover:bg-background-light dark:border-border-dark dark:text-text-primary-dark dark:hover:bg-background-dark'
+              className='w-fit rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20'
             >
               Open calendar
             </Link>
           </div>
 
           {(dashboard?.upcomingEvents || []).length === 0 ? (
-            <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
+            <p className='rounded-xl border border-white/15 bg-black/20 p-4 text-sm text-white/80 backdrop-blur-md'>
               No upcoming court events are scheduled.
             </p>
           ) : (
@@ -318,32 +323,32 @@ export default function AdminDashboardPage() {
               {(dashboard?.upcomingEvents || []).map((event) => (
                 <div
                   key={event.id}
-                  className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'
+                  className='rounded-xl border border-white/20 bg-black/30 p-4 shadow-lg backdrop-blur-md'
                 >
                   <div className='flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between'>
                     <div className='min-w-0'>
-                      <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
+                      <p className='font-semibold text-white'>
                         {event.title}
                       </p>
-                      <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                      <p className='mt-1 text-sm text-white/70'>
                         {event.event_type_label || displayEnum(event.event_type)} · {event.status_label || displayEnum(event.status)}
                       </p>
                     </div>
-                    <span className='w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-100'>
+                    <span className='w-fit rounded-full border border-white/20 bg-white/15 px-3 py-1 text-xs font-semibold text-white'>
                       {formatDateTime(event.starts_at)}
                     </span>
                   </div>
 
-                  <div className='mt-3 grid gap-2 text-sm text-text-muted-light dark:text-text-muted-dark md:grid-cols-2'>
-                    <p><span className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Matter:</span> {event.case?.title || 'Not recorded'}</p>
-                    <p><span className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Client:</span> {event.case?.client?.full_name || 'Not recorded'}</p>
-                    <p><span className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Internal matter no.:</span> {event.case?.case_number || 'Not recorded'}</p>
-                    <p><span className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Lawyer:</span> {event.case?.assigned_lawyer?.full_name || 'Not assigned'}</p>
-                    <p><span className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Court:</span> {event.court || event.court_station || 'Not recorded'}{event.courtroom ? ` · ${event.courtroom}` : ''}</p>
+                  <div className='mt-3 grid gap-2 text-sm text-white/75 md:grid-cols-2'>
+                    <p><span className='font-semibold text-white'>Matter:</span> {event.case?.title || 'Not recorded'}</p>
+                    <p><span className='font-semibold text-white'>Client:</span> {event.case?.client?.full_name || 'Not recorded'}</p>
+                    <p><span className='font-semibold text-white'>Internal matter no.:</span> {event.case?.case_number || 'Not recorded'}</p>
+                    <p><span className='font-semibold text-white'>Lawyer:</span> {event.case?.assigned_lawyer?.full_name || 'Not assigned'}</p>
+                    <p><span className='font-semibold text-white'>Court:</span> {event.court || event.court_station || 'Not recorded'}{event.courtroom ? ` · ${event.courtroom}` : ''}</p>
                   </div>
 
                   {event.description && (
-                    <p className='mt-3 text-sm text-text-primary-light dark:text-text-primary-dark'>
+                    <p className='mt-3 text-sm text-white/90'>
                       {event.description}
                     </p>
                   )}
@@ -351,7 +356,7 @@ export default function AdminDashboardPage() {
                   {event.case?.id && (
                     <Link
                       to={`/admin/cases/${event.case.id}`}
-                      className='mt-4 inline-flex w-fit rounded-lg bg-brand-primary px-3 py-2 text-sm font-semibold text-white hover:opacity-90'
+                      className='mt-4 inline-flex w-fit rounded-lg border border-white/25 bg-white/15 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/25'
                     >
                       Open matter
                     </Link>
@@ -360,7 +365,7 @@ export default function AdminDashboardPage() {
               ))}
             </div>
           )}
-        </Card>
+        </DashboardTile>
       </section>
     </>
   );

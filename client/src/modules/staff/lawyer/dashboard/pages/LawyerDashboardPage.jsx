@@ -14,7 +14,6 @@ import { useNavigate } from 'react-router-dom';
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
-import DashboardNotifications from '@/components/dashboard/DashboardNotifications';
 import CourtroomTodayPanel from '@/modules/courtroom/components/CourtroomTodayPanel';
 import useLawyerDashboard from '@/modules/staff/lawyer/dashboard/hooks/useLawyerDashboard';
 
@@ -97,7 +96,6 @@ export default function LawyerDashboardPage() {
   const { data } = useLawyerDashboard();
   const summary = data?.summary || {};
   const profile = data?.lawyer || {};
-  const recentNotifications = data?.recent_notifications || data?.recent_activity || [];
 
   const tileValue = (tile) => {
     if (tile.title === 'Notifications') return summary.unread_notifications ?? 0;
@@ -178,16 +176,6 @@ export default function LawyerDashboardPage() {
 
       <CourtroomTodayPanel />
 
-      <DashboardNotifications
-        notifications={recentNotifications}
-        onOpen={(notification) => {
-          if (notification.case) {
-            navigate(`/lawyer/cases/${notification.case}`);
-          } else {
-            navigate('/lawyer/notifications');
-          }
-        }}
-      />
     </>
   );
 }

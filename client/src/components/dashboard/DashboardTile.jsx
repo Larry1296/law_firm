@@ -1,3 +1,5 @@
+import DashboardTileBackdrop from '@/components/dashboard/DashboardTileBackdrop';
+
 const sizes = {
   small: 'col-span-1 row-span-1',
 
@@ -27,6 +29,9 @@ const variants = {
     'bg-gradient-to-br from-green-700 via-emerald-600 to-teal-600 dark:from-slate-950 dark:via-green-900 dark:to-slate-900 text-white',
 
   activities:
+    'bg-gradient-to-br from-slate-700 via-slate-600 to-zinc-600 dark:from-slate-950 dark:via-slate-800 dark:to-slate-900 text-white',
+
+  activity:
     'bg-gradient-to-br from-slate-700 via-slate-600 to-zinc-600 dark:from-slate-950 dark:via-slate-800 dark:to-slate-900 text-white',
 
   messages:
@@ -122,23 +127,28 @@ const DashboardTile = ({
 
         relative
         min-w-0
+        min-h-[220px]
+        sm:min-h-[250px]
         overflow-hidden
 
         ${roundedClass}
         ${shadowClass}
 
-        border border-black/10 dark:border-white/10
+        border border-black/10 dark:border-white/15
+        ring-1 ring-inset ring-white/10
 
-        hover:-translate-y-0.5
+        hover:-translate-y-1
+        hover:scale-[1.012]
         transition-all
-        duration-300
+        duration-500
 
         p-4 sm:p-5 lg:p-6
 
         ${className}
       `}
     >
-      {children}
+      <DashboardTileBackdrop variant={variant} />
+      <div className='relative z-10 h-full'>{children}</div>
     </div>
   );
 };
