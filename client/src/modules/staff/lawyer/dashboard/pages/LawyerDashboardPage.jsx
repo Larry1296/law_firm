@@ -174,7 +174,7 @@ export default function LawyerDashboardPage() {
         </DashboardGrid>
       </section>
 
-      <CourtroomTodayPanel />
+      <CourtroomTodayPanel className='mt-0' />
 
     </>
   );

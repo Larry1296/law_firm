@@ -7,12 +7,13 @@ import { useTodayCourtroomEvents } from '@/modules/courtroom/hooks/useCourtroom'
 export default function CourtroomTodayPanel({
   title = "Today's Virtual Courtrooms",
   emptyMessage = 'No virtual courtroom links are available today.',
+  className = 'mt-0',
 }) {
   const { data, isLoading, refetch } = useTodayCourtroomEvents();
   const events = data?.events || [];
 
   return (
-    <section className='mt-6'>
+    <section className={className}>
       <DashboardTile
         size='full'
         variant='courtroom'
