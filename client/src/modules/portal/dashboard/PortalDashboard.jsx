@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
+import { getFirstName } from '@/core/utils/personName';
 import useClientDashboard from '@/modules/client/dashboard/hooks/useClientDashboard';
 
 const portalTiles = [
@@ -85,6 +86,7 @@ export default function PortalDashboard() {
   const { data, isLoading, isFetching } = useClientDashboard();
   const summary = data?.summary || {};
   const client = data?.client || {};
+  const firstName = getFirstName(client.first_name, client.full_name, client.email);
 
   const tileValue = (tile) => {
     if (tile.key === 'documents') return summary.documents ?? 0;
@@ -92,14 +94,14 @@ export default function PortalDashboard() {
     if (tile.key === 'membership') {
       return client.is_verified ? 'Verified' : 'Pending';
     }
-    return null;
+    return 'Open';
   };
 
   return (
     <>
       <DashboardHero
         badge='Client Portal'
-        title={`Welcome back${client.full_name ? `, ${client.full_name}` : ''}`}
+        title={`Welcome${firstName ? `, ${firstName}` : ''}`}
         description='Manage consultations, upload documents, track onboarding progress, and communicate securely with the legal team.'
         statusTitle={client.is_verified ? 'Verified' : 'Pending Review'}
         statusDescription={
@@ -132,18 +134,17 @@ export default function PortalDashboard() {
                         {tile.title}
                       </p>
 
-                      <h3 className='mt-2 break-words text-lg font-semibold leading-tight sm:text-xl'>
+                      <h3 className='mt-2 break-words text-2xl font-semibold leading-tight sm:text-3xl'>
                         {isLoading
                           ? '...'
-                          : value === null
-                            ? tile.subtitle
-                            : typeof value === 'number'
-                              ? value.toLocaleString()
-                              : value}
+                          : typeof value === 'number'
+                            ? value.toLocaleString()
+                            : value}
                       </h3>
-                      {value !== null && (
-                        <p className='mt-2 text-sm text-white/80'>{tile.subtitle}</p>
-                      )}
+
+                      <p className='mt-2 text-sm leading-relaxed text-white/80'>
+                        {tile.subtitle}
+                      </p>
                     </div>
 
                     <div className='shrink-0 rounded-2xl bg-white/15 p-3 shadow-inner backdrop-blur-sm transition group-hover:scale-110'>

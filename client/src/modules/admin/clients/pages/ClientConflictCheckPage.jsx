@@ -249,6 +249,17 @@ export default function ClientConflictCheckPage() {
             <TextArea label='Proposed instructions' value={draft.proposed_instructions} onChange={(value) => setDraft((v) => ({ ...v, proposed_instructions: value }))} required />
             <TextArea label='Factual summary' value={draft.factual_summary} onChange={(value) => setDraft((v) => ({ ...v, factual_summary: value }))} />
             <TextArea label='Desired outcome' value={draft.desired_outcome} onChange={(value) => setDraft((v) => ({ ...v, desired_outcome: value }))} />
+            <Select3D
+              label='Urgency level'
+              value={draft.urgency_level}
+              onChange={(e) => setDraft((v) => ({ ...v, urgency_level: e.target.value }))}
+              options={[
+                { value: 'NORMAL', label: 'Normal' },
+                { value: 'HIGH', label: 'High' },
+                { value: 'URGENT', label: 'Urgent' },
+                { value: 'CRITICAL', label: 'Critical' },
+              ]}
+            />
             <TextArea label='Urgency details' value={draft.urgency_details} onChange={(value) => setDraft((v) => ({ ...v, urgency_details: value }))} />
             <Input3D label='Known adverse party' value={draft.adverse_party_name} onChange={(e) => setDraft((v) => ({ ...v, adverse_party_name: e.target.value }))} />
             <Input3D label='Limitation or deadline date' type='date' value={draft.limitation_or_deadline_date} onChange={(e) => setDraft((v) => ({ ...v, limitation_or_deadline_date: e.target.value }))} />

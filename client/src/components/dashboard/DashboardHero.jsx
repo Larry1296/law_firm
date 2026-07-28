@@ -12,7 +12,7 @@ const DashboardHero = ({
   const IconComponent = Icon || ShieldCheck;
 
   return (
-    <section className='w-full min-w-0 rounded-none bg-gradient-to-r from-brand-primary to-blue-700 px-4 py-5 text-white shadow-medium sm:px-6 sm:py-6 lg:px-8 lg:py-8'>
+    <section className='shell-surface w-full min-w-0 rounded-none px-4 py-5 text-white sm:px-6 sm:py-6 lg:px-8 lg:py-8'>
       <div className='flex min-w-0 flex-col gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-6'>
         <div className='min-w-0'>
           <p className='text-sm uppercase tracking-widest text-blue-100 mb-2'>
@@ -20,12 +20,13 @@ const DashboardHero = ({
           </p>
 
           <SectionHeading
-            title={title}
+            title={`${title} 👋`}
             subtitle={description}
-            size='hero'
+            size='dashboard'
             variant='dark'
             as='h1'
-            className='max-w-2xl min-w-0 [&_p]:text-blue-100'
+            hero={false}
+            className='max-w-2xl min-w-0 [&_h1]:font-extrabold [&_p]:text-blue-100'
           />
         </div>
 

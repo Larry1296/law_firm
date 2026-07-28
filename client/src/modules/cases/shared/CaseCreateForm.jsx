@@ -17,6 +17,8 @@ import {
   COURT_LEVEL_BY_TYPE,
   COURT_LEVELS,
   COURT_TYPES,
+  DISMISSAL_TYPES,
+  EMPLOYMENT_STATUSES,
   ENTRY_ROUTES,
   FORUMS,
   MATTER_NATURES,
@@ -846,9 +848,9 @@ export default function CaseCreateForm({
                 <MatterTextInput label='Employment Start Date' name='employment_start_date' type='date' value={formData.employment_start_date} onChange={handleChange} noFloat />
                 <MatterTextInput label='Monthly Salary' name='monthly_salary' type='number' value={formData.monthly_salary} onChange={handleChange} />
                 <MatterTextInput label='Termination Date' name='termination_date' type='date' value={formData.termination_date} onChange={handleChange} noFloat />
-                <MatterTextInput label='Employment Status' name='employment_status' value={formData.employment_status} onChange={handleChange} />
+                <Select3D label='Employment Status' name='employment_status' value={formData.employment_status} onChange={handleChange} options={EMPLOYMENT_STATUSES} placeholder='Select employment status' />
                 <MatterTextInput label='Nature of Complaint' name='nature_of_complaint' value={formData.nature_of_complaint} onChange={handleChange} />
-                <MatterTextInput label='Dismissal Type' name='dismissal_type' value={formData.dismissal_type} onChange={handleChange} />
+                <Select3D label='Dismissal Type' name='dismissal_type' value={formData.dismissal_type} onChange={handleChange} options={DISMISSAL_TYPES} placeholder='Select dismissal type' />
                 <MatterTextInput label='Labour Officer Reference' name='labour_officer_reference' value={formData.labour_officer_reference} onChange={handleChange} />
               </>
             )}

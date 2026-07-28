@@ -86,6 +86,20 @@ class EmploymentStatus(models.TextChoices):
     RETIRED = "RETIRED", "Retired"
 
 
+class DismissalType(models.TextChoices):
+    NOT_APPLICABLE = "NOT_APPLICABLE", "Not applicable"
+    SUMMARY_DISMISSAL = "SUMMARY_DISMISSAL", "Summary dismissal"
+    TERMINATION_WITH_NOTICE = "TERMINATION_WITH_NOTICE", "Termination with notice"
+    REDUNDANCY = "REDUNDANCY", "Redundancy"
+    CONSTRUCTIVE_DISMISSAL = "CONSTRUCTIVE_DISMISSAL", "Constructive dismissal"
+    UNFAIR_DISMISSAL = "UNFAIR_DISMISSAL", "Unfair dismissal"
+    WRONGFUL_DISMISSAL = "WRONGFUL_DISMISSAL", "Wrongful dismissal"
+    MUTUAL_SEPARATION = "MUTUAL_SEPARATION", "Mutual separation"
+    RESIGNATION = "RESIGNATION", "Resignation"
+    RETIREMENT = "RETIREMENT", "Retirement"
+    OTHER = "OTHER", "Other"
+
+
 # ==========================================================
 # Case Statuses
 # ==========================================================

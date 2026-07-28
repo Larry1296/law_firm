@@ -38,6 +38,30 @@ export const MATTER_NATURES = [
   { value: 'ALTERNATIVE_DISPUTE_RESOLUTION', label: 'Alternative dispute resolution' },
 ];
 
+export const EMPLOYMENT_STATUSES = [
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'PROBATION', label: 'Probation' },
+  { value: 'ON_LEAVE', label: 'On leave' },
+  { value: 'SUSPENDED', label: 'Suspended' },
+  { value: 'RESIGNED', label: 'Resigned' },
+  { value: 'TERMINATED', label: 'Terminated' },
+  { value: 'RETIRED', label: 'Retired' },
+];
+
+export const DISMISSAL_TYPES = [
+  { value: 'NOT_APPLICABLE', label: 'Not applicable' },
+  { value: 'SUMMARY_DISMISSAL', label: 'Summary dismissal' },
+  { value: 'TERMINATION_WITH_NOTICE', label: 'Termination with notice' },
+  { value: 'REDUNDANCY', label: 'Redundancy' },
+  { value: 'CONSTRUCTIVE_DISMISSAL', label: 'Constructive dismissal' },
+  { value: 'UNFAIR_DISMISSAL', label: 'Unfair dismissal' },
+  { value: 'WRONGFUL_DISMISSAL', label: 'Wrongful dismissal' },
+  { value: 'MUTUAL_SEPARATION', label: 'Mutual separation' },
+  { value: 'RESIGNATION', label: 'Resignation' },
+  { value: 'RETIREMENT', label: 'Retirement' },
+  { value: 'OTHER', label: 'Other' },
+];
+
 export const FORUMS = [
   { value: 'NO_FORMAL_FORUM', label: 'No formal forum' },
   { value: 'COURT', label: 'Court' },

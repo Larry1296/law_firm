@@ -306,16 +306,6 @@ class ClientAdminCreateService:
     @staticmethod
     @transaction.atomic
     def create_client(*, firm, created_by, client_type, validated_data):
-        if client_type in ClientAdminCreateService.CANONICAL_ENTITY_TYPES and client_type not in {
-            Client.ClientType.INDIVIDUAL,
-            Client.ClientType.COMPANY,
-        }:
-            return ClientAdminCreateService.create_legal_entity_client(
-                firm=firm,
-                created_by=created_by,
-                validated_data={**validated_data, "client_type": client_type},
-            )
-
         data = dict(validated_data)
         base_data = ClientAdminCreateService._pop_fields(data, ClientAdminCreateService.BASE_FIELDS)
         address_data = ClientAdminCreateService._pop_fields(data, ClientAdminCreateService.ADDRESS_FIELDS)

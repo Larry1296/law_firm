@@ -457,7 +457,7 @@ export const buildLegalEntityClientPayload = (
     registered_address: trim(formData.registered_address) || trim(formData.full_address),
     postal_address: trim(formData.postal_address),
     operational_address: trim(formData.operational_address) || trim(formData.headquarters_address),
-    status: formData.status,
+    status: trim(formData.status) || 'ACTIVE',
     sector: trim(formData.sector) || trim(formData.industry),
     website: trim(formData.website),
     compliance_notes: trim(formData.compliance_notes),

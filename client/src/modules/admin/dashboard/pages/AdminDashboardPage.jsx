@@ -23,6 +23,7 @@ import DashboardTile from '@/components/dashboard/DashboardTile';
 import useAdminDashboard from '@/modules/admin/dashboard/hooks/useAdminDashboard';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { displayEnum } from '@/core/utils/textFormatter';
+import { getFirstName } from '@/core/utils/personName';
 
 const adminTiles = [
   {
@@ -217,17 +218,20 @@ export default function AdminDashboardPage() {
   const { data: dashboard, isLoading, isFetching } = useAdminDashboard();
 
   const displayName =
+    user?.first_name?.trim() ||
+    user?.profile?.first_name?.trim() ||
     user?.full_name?.trim() ||
     user?.profile?.full_name?.trim() ||
     user?.email ||
     '';
+  const firstName = getFirstName(displayName);
   const tileMetrics = useMemo(() => buildTileMetrics(dashboard), [dashboard]);
 
   return (
     <>
       <DashboardHero
         badge='Administrator'
-        title={`Welcome back${displayName ? `, ${displayName}` : ''} 👋`}
+        title={`Welcome${firstName ? `, ${firstName}` : ''}`}
         description='Monitor firm performance, manage staff, oversee client matters, and track legal operations from a single dashboard.'
         statusTitle='Firm Operational'
         statusDescription={isFetching ? 'Refreshing dashboard metrics.' : 'Dashboard metrics are synced with firm data.'}

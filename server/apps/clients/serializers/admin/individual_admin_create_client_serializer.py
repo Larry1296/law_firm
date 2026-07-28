@@ -23,7 +23,7 @@ class IndividualAdminCreateClientSerializer(AdminClientBaseCreateSerializer):
 
     full_name = serializers.CharField(max_length=255)
     access_type = serializers.ChoiceField(
-        choices=(Client.AccessType.PORTAL_ENABLED, Client.AccessType.ASSISTED),
+        choices=Client.AccessType.choices,
         default=Client.AccessType.ASSISTED,
     )
     identification_type = serializers.ChoiceField(choices=IndividualClient.IdentificationType.choices, required=False)

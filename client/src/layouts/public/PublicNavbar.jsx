@@ -98,7 +98,7 @@ export default function PublicNavbar() {
 
           {/* Desktop Navigation */}
           {!isAuthPage && (
-            <div className='hidden lg:flex items-center gap-4'>
+            <div className='hidden lg:flex items-center gap-5 xl:gap-7'>
               {links.map((link) => (
                 <div key={link.id} className='relative group'>
                   <NavLink
@@ -109,7 +109,8 @@ export default function PublicNavbar() {
                       text-white
                       font-extrabold
                       tracking-wide
-                      text-sm
+                      text-base
+                      xl:text-lg
                       transition-all duration-300
                       hover:text-[color:var(--brand-accent)]
                     '
@@ -174,7 +175,7 @@ export default function PublicNavbar() {
           </button>
 
           {/* Links */}
-          <div className='flex flex-col items-center gap-8 w-full max-w-md px-6'>
+          <div className='flex w-full max-w-md flex-col items-center gap-10 px-6'>
             {links.map((link) => (
               <div key={link.id} className='relative'>
                 <NavLink
@@ -183,6 +184,7 @@ export default function PublicNavbar() {
                   className='
                     text-white
                     text-2xl
+                    sm:text-3xl
                     font-extrabold
                     uppercase
                     tracking-widest

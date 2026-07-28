@@ -6,6 +6,7 @@ import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardNotifications from '@/components/dashboard/DashboardNotifications';
 import DashboardTile from '@/components/dashboard/DashboardTile';
 import SystemHealthReport from '@/components/it/SystemHealthReport';
+import { getFirstName } from '@/core/utils/personName';
 import { useStaffDashboard } from '@/modules/staff/common/hooks/useStaffWorkspace';
 
 export default function StaffDashboardPage({ config }) {
@@ -17,12 +18,13 @@ export default function StaffDashboardPage({ config }) {
   const itManagement = summary.it_management;
   const systemHealth = data?.system_health;
   const Icon = config.primaryIcon || Activity;
+  const firstName = getFirstName(profile.first_name, profile.full_name, profile.email);
 
   return (
     <>
       <DashboardHero
         badge={config.badge}
-        title={`Welcome back${profile.full_name ? `, ${profile.full_name}` : ''}`}
+        title={`Welcome${firstName ? `, ${firstName}` : ''}`}
         description={config.description}
         statusTitle={config.statusTitle}
         statusDescription={`${summary.pending_tasks ?? 0} pending tasks, ${summary.notifications ?? 0} notifications.`}

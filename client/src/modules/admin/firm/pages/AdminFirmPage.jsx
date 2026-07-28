@@ -761,6 +761,7 @@ export default function AdminFirmPage() {
       <Card className='p-6'>
         <div className='mb-2'>
           <SectionHeading
+            hero={false}
             title='Firm Profile'
             subtitle='Firm identity and public contact information.'
             size='compact'
@@ -891,6 +892,7 @@ export default function AdminFirmPage() {
       <Card className='p-6'>
         <div className='mb-2'>
           <SectionHeading
+            hero={false}
             title='Administrative Delegation'
             subtitle='Transfer Administrative Role to a trusted Staff Member.'
             size='compact'
@@ -946,6 +948,7 @@ export default function AdminFirmPage() {
       <Card className='p-6'>
         <div className='mb-2'>
           <SectionHeading
+            hero={false}
             title='Firm Settings'
             subtitle='Operating rules, portal behavior, security, and AI options.'
             size='compact'
@@ -1064,6 +1067,7 @@ export default function AdminFirmPage() {
           <div className='flex items-center gap-3'>
             <Building2 className='text-brand-primary' size={24} />
             <SectionHeading
+              hero={false}
               title='Branches'
               subtitle='Create and manage branch offices. A branch can operate as a representative office of the main firm.'
               size='compact'
@@ -1173,6 +1177,7 @@ export default function AdminFirmPage() {
             <div className='flex items-center gap-3'>
               <FolderTree className='text-brand-primary' size={24} />
               <SectionHeading
+                hero={false}
                 title='Departments'
                 subtitle='Create, update, disable, or remove firm departments.'
                 size='compact'
@@ -1274,6 +1279,7 @@ export default function AdminFirmPage() {
           <div className='mb-5 flex items-center gap-3'>
             <ShieldCheck className='text-brand-primary' size={24} />
             <SectionHeading
+              hero={false}
               title='Role Breakdown'
               subtitle='Active firm structure by system role.'
               size='compact'

@@ -13,6 +13,7 @@ import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
 import CourtroomTodayPanel from '@/modules/courtroom/components/CourtroomTodayPanel';
+import { getFirstName } from '@/core/utils/personName';
 import useClientDashboard from '@/modules/client/dashboard/hooks/useClientDashboard';
 import { useNavigate } from 'react-router-dom';
 
@@ -104,6 +105,7 @@ export default function ClientDashboardPage() {
   const summary = data?.summary || {};
   const client = data?.client || {};
   const firm = data?.firm || {};
+  const firstName = getFirstName(client.first_name, client.full_name, client.email);
 
   const tileValue = (tile) => {
     if (tile.key === 'cases') return summary.active_cases ?? 0;
@@ -112,7 +114,7 @@ export default function ClientDashboardPage() {
     if (tile.key === 'notifications') return summary.unread_notifications ?? 0;
     if (tile.key === 'firm') return firm.name || 'Firm';
     if (tile.key === 'messages') return summary.total_cases ?? 0;
-    return null;
+    return tile.path ? 'Open' : 'Soon';
   };
 
   const tileDetail = (tile) => {
@@ -131,7 +133,7 @@ export default function ClientDashboardPage() {
     <>
       <DashboardHero
         badge='Law Firm Home'
-        title={`Welcome back${client.full_name ? `, ${client.full_name}` : ''}`}
+        title={`Welcome${firstName ? `, ${firstName}` : ''}`}
         description='Track your cases, documents, notifications, and firm communication from one place.'
         statusTitle={client.is_verified ? 'Verified Client' : 'Profile Under Review'}
         statusDescription={
@@ -163,18 +165,17 @@ export default function ClientDashboardPage() {
                       <p className='text-[11px] uppercase tracking-[0.16em] text-white/80 sm:text-xs sm:tracking-[0.25em]'>
                         {tile.title}
                       </p>
-                      <h3 className='mt-2 break-words text-lg font-semibold leading-tight sm:text-xl'>
+                      <h3 className='mt-2 break-words text-2xl font-semibold leading-tight sm:text-3xl'>
                         {isLoading
                           ? '...'
-                          : value === null
-                            ? tile.subtitle
-                            : typeof value === 'number'
-                              ? value.toLocaleString()
-                              : value}
+                          : typeof value === 'number'
+                            ? value.toLocaleString()
+                            : value}
                       </h3>
-                      {value !== null && (
-                        <p className='mt-2 text-sm text-white/80'>{tile.subtitle}</p>
-                      )}
+
+                      <p className='mt-2 text-sm leading-relaxed text-white/80'>
+                        {tile.subtitle}
+                      </p>
                     </div>
 
                     <div className='shrink-0 rounded-2xl bg-white/15 p-3 shadow-inner backdrop-blur-sm transition group-hover:scale-110'>

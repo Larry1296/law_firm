@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.clients.models import Client
+from apps.users.models import User
 
 
 class AdminClientBaseCreateSerializer(serializers.Serializer):
@@ -23,7 +24,7 @@ class AdminClientBaseCreateSerializer(serializers.Serializer):
     )
 
     access_type = serializers.ChoiceField(
-        choices=(Client.AccessType.PORTAL_ENABLED, Client.AccessType.ASSISTED),
+        choices=Client.AccessType.choices,
         default=Client.AccessType.ASSISTED,
     )
 
@@ -120,6 +121,11 @@ class AdminClientBaseCreateSerializer(serializers.Serializer):
             "access_type",
             Client.AccessType.ASSISTED,
         )
+        access_type = {
+            Client.AccessType.ASSISTED_CLIENT: Client.AccessType.ASSISTED,
+            Client.AccessType.PROSPECT: Client.AccessType.PORTAL_ENABLED,
+        }.get(access_type, access_type)
+        attrs["access_type"] = access_type
 
         if (
             access_type == Client.AccessType.PORTAL_ENABLED
@@ -145,5 +151,31 @@ class AdminClientBaseCreateSerializer(serializers.Serializer):
                     )
                 }
             )
+
+        if access_type == Client.AccessType.PORTAL_ENABLED:
+            phone_number = (
+                attrs.get("phone_number")
+                or attrs.get("contact_phone_number")
+            )
+            national_id_number = (
+                attrs.get("national_id")
+                or attrs.get("passport_number")
+                or attrs.get("contact_national_id_number")
+            )
+            errors = {}
+            if phone_number and User.objects.filter(
+                phone_number=phone_number
+            ).exists():
+                errors["phone_number"] = (
+                    "A user account with this phone number already exists."
+                )
+            if national_id_number and User.objects.filter(
+                national_id_number=national_id_number[:20]
+            ).exists():
+                errors["national_id"] = (
+                    "A user account with this ID or passport number already exists."
+                )
+            if errors:
+                raise serializers.ValidationError(errors)
 
         return attrs

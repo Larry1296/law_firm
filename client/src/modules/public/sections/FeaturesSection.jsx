@@ -115,6 +115,7 @@ export default function FeaturesSection() {
       <div className="relative z-10 max-w-7xl mx-auto">
         {/* Heading */}
         <SectionHeading
+          hero={false}
           title="Powerful Platform Features"
           subtitle="Everything your legal team needs to manage cases securely, efficiently, and intelligently in one unified platform."
           variant={isDark ? "dark" : "light"}

@@ -152,6 +152,7 @@ export default function ContactSection() {
       <div className="relative z-10 max-w-7xl mx-auto">
         {/* Heading */}
         <SectionHeading
+          hero={false}
           title="Get In Touch"
           subtitle="Have a legal question or need professional assistance? Our team is ready to support you with secure and confidential legal guidance."
           variant={isDark ? "dark" : "light"}

@@ -2,6 +2,7 @@ from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import serializers
 
 from apps.cases.models import Case
+from apps.common.choices import DismissalType, EmploymentStatus
 
 
 CONTROLLED_CREATE_FIELDS = {
@@ -180,6 +181,21 @@ class CaseCreateSerializer(serializers.Serializer):
         forum = attrs["forum"]
         court = self._court_data(attrs)
         errors = {}
+        employment = attrs.get("employment_details") or {}
+        if (
+            employment.get("employment_status")
+            and employment["employment_status"] not in EmploymentStatus.values
+        ):
+            errors["employment_details.employment_status"] = (
+                "Select a valid controlled employment status."
+            )
+        if (
+            employment.get("dismissal_type")
+            and employment["dismissal_type"] not in DismissalType.values
+        ):
+            errors["employment_details.dismissal_type"] = (
+                "Select a valid controlled dismissal type."
+            )
 
         if court.get("filing_date") not in (None, ""):
             court["filing_date"] = self._coerce_date(court.get("filing_date"), "filing_date", errors)

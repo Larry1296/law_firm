@@ -2,6 +2,7 @@ import uuid
 
 from django.db import models
 
+from apps.common.choices import DismissalType, EmploymentStatus
 from apps.common.models.timestamped_model import TimestampedModel
 
 
@@ -163,9 +164,19 @@ class EmploymentMatterDetails(TimestampedModel):
     employment_start_date = models.DateField(null=True, blank=True)
     termination_date = models.DateField(null=True, blank=True)
     monthly_salary = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
-    employment_status = models.CharField(max_length=80, blank=True, default="")
+    employment_status = models.CharField(
+        max_length=80,
+        choices=EmploymentStatus.choices,
+        blank=True,
+        default="",
+    )
     nature_of_complaint = models.TextField(blank=True, default="")
-    dismissal_type = models.CharField(max_length=120, blank=True, default="")
+    dismissal_type = models.CharField(
+        max_length=120,
+        choices=DismissalType.choices,
+        blank=True,
+        default="",
+    )
     disciplinary_process = models.TextField(blank=True, default="")
     labour_officer_reference = models.CharField(max_length=120, blank=True, default="")
 

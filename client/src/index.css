@@ -10,6 +10,14 @@
   body {
     font-family: inherit;
   }
+
+  button,
+  input,
+  optgroup,
+  select,
+  textarea {
+    font: inherit;
+  }
 }
 
 @layer components {
@@ -96,8 +104,11 @@
 
 @layer utilities {
   .bg-shell-light {
-    background-color: #222222;
-    background-image: none;
+    background-color: #0b121c;
+    background-image:
+      radial-gradient(circle at 14% -20%, rgba(148, 163, 184, 0.2), transparent 38%),
+      radial-gradient(circle at 88% 115%, rgba(30, 64, 175, 0.14), transparent 34%),
+      linear-gradient(135deg, #36404a 0%, #293440 38%, #172538 68%, #07101e 100%);
     color: #FFFFFF;
   }
 
@@ -124,8 +135,8 @@
   }
 
   .hover\:bg-shell-hover-light:hover {
-    background-color: #2F2F2F;
-    background-image: none;
+    background-color: #343b44;
+    background-image: linear-gradient(135deg, rgba(226, 232, 240, 0.16), rgba(9, 12, 16, 0.24));
   }
 
   .dark .dark\:hover\:bg-shell-hover-dark:hover {
@@ -134,7 +145,9 @@
   }
 
   .shadow-shell-light {
-    box-shadow: 0 14px 34px rgba(34,34,34,0.22);
+    box-shadow:
+      0 16px 38px rgba(2, 6, 23, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
   }
 
   .dark .dark\:shadow-shell-dark {
@@ -144,22 +157,29 @@
 
 
 .shell-surface {
-  background-color: #222222;
-  background-image: none;
+  background-color: #0b121c;
+  background-image:
+    radial-gradient(circle at 14% -20%, rgba(148, 163, 184, 0.2), transparent 38%),
+    radial-gradient(circle at 88% 115%, rgba(30, 64, 175, 0.14), transparent 34%),
+    linear-gradient(135deg, #36404a 0%, #293440 38%, #172538 68%, #07101e 100%);
+  background-attachment: fixed;
+  background-position: left top;
+  background-repeat: no-repeat;
+  background-size: 100vw 100vh;
   color: #FFFFFF;
-  box-shadow: 0 14px 34px rgba(34,34,34,0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .dark .shell-surface {
   background-color: #061A3A;
   background-image: radial-gradient(circle at 12% 0%, rgba(125,211,252,0.24), transparent 30%), linear-gradient(135deg, #0B2A5B 0%, #061A3A 52%, #020617 100%);
   color: #EAF6FF;
-  box-shadow: 0 16px 40px rgba(2,6,23,0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .shell-hover:hover {
-  background-color: #2F2F2F;
-  background-image: none;
+  background-color: #343b44;
+  background-image: linear-gradient(135deg, rgba(226, 232, 240, 0.16), rgba(9, 12, 16, 0.24));
 }
 
 .dark .shell-hover:hover {

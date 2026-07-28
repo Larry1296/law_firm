@@ -32,6 +32,7 @@ export default function Testimonials() {
       <div className="relative z-10 max-w-7xl mx-auto">
         {/* Heading */}
         <SectionHeading
+          hero={false}
           title="What Our Clients Say"
           subtitle="Trusted by individuals and businesses for reliable, professional legal support."
           variant="dark"

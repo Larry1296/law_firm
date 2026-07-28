@@ -40,10 +40,10 @@ export default {
         },
 
         shell: {
-          light: '#222222',
-          lightFrom: '#222222',
-          lightVia: '#222222',
-          lightTo: '#222222',
+          light: '#0B121C',
+          lightFrom: '#36404A',
+          lightVia: '#293440',
+          lightTo: '#07101E',
           dark: '#061A3A',
           darkFrom: '#0B2A5B',
           darkVia: '#061A3A',
@@ -53,7 +53,7 @@ export default {
           mutedLight: 'rgba(255,255,255,0.78)',
           mutedDark: 'rgba(234,246,255,0.78)',
           hover: {
-            light: '#2F2F2F',
+            light: '#343B44',
             dark: '#0B2A5B',
           },
         },
@@ -74,14 +74,14 @@ export default {
         soft: '0 2px 10px rgba(31,41,51,0.08)',
         medium: '0 8px 22px rgba(31,41,51,0.12)',
         strong: '0 14px 34px rgba(31,41,51,0.18)',
-        shellLight: '0 14px 34px rgba(34,34,34,0.22)',
+        shellLight: '0 16px 38px rgba(2,6,23,0.34), inset 0 1px 0 rgba(255,255,255,0.14)',
         shellDark: '0 16px 40px rgba(2,6,23,0.55)',
       },
 
       backgroundImage: {
-        'shell-light': 'none',
+        'shell-light': 'linear-gradient(135deg, #36404A 0%, #293440 38%, #172538 68%, #07101E 100%)',
         'shell-dark': 'linear-gradient(135deg, #0B2A5B 0%, #061A3A 52%, #020617 100%)',
-        'shell-light-shine': 'none',
+        'shell-light-shine': 'radial-gradient(circle at 14% -20%, rgba(148,163,184,0.20), transparent 38%), radial-gradient(circle at 88% 115%, rgba(30,64,175,0.14), transparent 34%), linear-gradient(135deg, #36404A 0%, #293440 38%, #172538 68%, #07101E 100%)',
         'shell-dark-shine': 'radial-gradient(circle at 12% 0%, rgba(125,211,252,0.24), transparent 30%), linear-gradient(135deg, #0B2A5B 0%, #061A3A 52%, #020617 100%)',
       },
 

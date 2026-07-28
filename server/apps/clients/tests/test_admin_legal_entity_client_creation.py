@@ -333,6 +333,65 @@ class AdminLegalEntityClientCreationTests(TestCase):
                 self.assertTrue(ClientAddress.objects.filter(client=client).exists())
                 self.assertTrue(ClientRepresentative.objects.filter(client=client).exists())
 
+    def test_legacy_assisted_access_value_is_normalized(self):
+        response = self.api_client.post(
+            self.url,
+            self.payload_for(
+                Client.ClientType.RELIGIOUS_ORGANIZATION,
+                access_type=Client.AccessType.ASSISTED_CLIENT,
+            ),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.get(id=response.data["client"]["id"])
+        self.assertEqual(client.access_type, Client.AccessType.ASSISTED)
+
+    def test_portal_duplicate_phone_returns_field_validation_error(self):
+        payload = self.payload_for(
+            Client.ClientType.COOPERATIVE,
+            access_type=Client.AccessType.PORTAL_ENABLED,
+            email="unique-phone-check@example.test",
+            phone_number=self.admin.phone_number,
+        )
+        payload["contact_national_id_number"] = "UNIQUE-ID-910"
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("phone_number", response.data["errors"])
+
+    def test_portal_duplicate_national_id_returns_field_validation_error(self):
+        payload = self.payload_for(
+            Client.ClientType.COOPERATIVE,
+            access_type=Client.AccessType.PORTAL_ENABLED,
+            email="unique-id-check@example.test",
+            phone_number="+254700919998",
+        )
+        payload["contact_national_id_number"] = self.admin.national_id_number
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("national_id", response.data["errors"])
+
+    def test_assisted_entity_preserves_email_and_selected_status(self):
+        response = self.api_client.post(
+            self.url,
+            self.payload_for(
+                Client.ClientType.COOPERATIVE,
+                email="records-only@example.test",
+                status="SUSPENDED",
+            ),
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.get(id=response.data["client"]["id"])
+        self.assertEqual(client.email, "records-only@example.test")
+        self.assertIsNone(client.user_id)
+        self.assertEqual(client.cooperative_profile.status, "SUSPENDED")
+
     def test_normalized_child_records_are_created_for_capacity_sensitive_types(self):
         self.api_client.post(
             self.url,

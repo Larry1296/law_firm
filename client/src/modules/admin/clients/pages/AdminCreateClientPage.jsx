@@ -307,6 +307,7 @@ export default function AdminCreateClientPage() {
     legal_department_contact: '',
 
     legal_name: '',
+    status: 'ACTIVE',
     registered_business_name: '',
     business_registration_number: '',
     proprietor_name: '',
@@ -1453,6 +1454,19 @@ export default function AdminCreateClientPage() {
                   name='sector'
                   value={formData.sector}
                   onChange={handleChange}
+                />
+                <Select3D
+                  label='Current Legal Status'
+                  name='status'
+                  value={formData.status}
+                  onChange={handleChange}
+                  options={[
+                    { value: 'ACTIVE', label: 'Active' },
+                    { value: 'INACTIVE', label: 'Inactive' },
+                    { value: 'SUSPENDED', label: 'Suspended' },
+                    { value: 'DISSOLVED', label: 'Dissolved' },
+                    { value: 'UNKNOWN', label: 'Unknown / not verified' },
+                  ]}
                 />
               </div>
 

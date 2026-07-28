@@ -190,6 +190,7 @@ export default function HowItWorks() {
       <div className="relative z-10">
         {/* Heading */}
         <SectionHeading
+          hero={false}
           title="How It Works"
           subtitle="A modern, transparent legal process designed to guide you from consultation to successful resolution."
           variant={isDark ? "dark" : "light"}

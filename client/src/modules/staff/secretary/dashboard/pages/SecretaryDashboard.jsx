@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
+import { getFirstName } from '@/core/utils/personName';
 import useSecretaryDashboard from '@/modules/staff/secretary/dashboard/hooks/useSecretaryDashboard';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 
@@ -106,6 +107,7 @@ export default function SecretaryDashboard() {
   const permissions = data?.permissions || [];
   const recentNotifications = data?.recent_notifications || data?.recent_activity || [];
   const latestNotification = recentNotifications[0];
+  const firstName = getFirstName(profile.first_name, profile.full_name, profile.email);
   const visibleTiles = secretaryTiles.filter((tile) =>
     hasPermission(permissions, tile.permission),
   );
@@ -114,7 +116,7 @@ export default function SecretaryDashboard() {
     <>
       <DashboardHero
         badge='Secretary'
-        title={`Welcome back${profile.full_name ? `, ${profile.full_name}` : ''}`}
+        title={`Welcome${firstName ? `, ${firstName}` : ''}`}
         description='Manage client communications, schedules, documents, and daily administrative operations.'
         statusTitle='Operations Running Smoothly'
         statusDescription={`${summary.pending_tasks ?? 0} pending tasks, ${summary.appointments_today ?? 0} appointments today.`}

@@ -196,6 +196,7 @@ export default function ServicesSection() {
       <div className="relative z-10">
         {/* Heading */}
         <SectionHeading
+          hero={false}
           title="Our Legal Services"
           subtitle="Comprehensive legal solutions tailored for individuals, businesses, and organizations with professionalism and precision."
           variant={isDark ? "dark" : "light"}

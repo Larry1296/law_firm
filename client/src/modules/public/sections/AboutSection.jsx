@@ -121,6 +121,7 @@ export default function AboutSection() {
       <div className="relative z-10">
         {/* Heading */}
         <SectionHeading
+          hero={false}
           title="About Our Legal Practice"
           subtitle="We combine legal excellence with modern technology to deliver secure, intelligent, and client-focused legal solutions."
           variant={isDark ? "dark" : "light"}
