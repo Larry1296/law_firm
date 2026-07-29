@@ -169,12 +169,6 @@ export default function ServicesSection() {
     backdropFilter: "blur(24px)",
   };
 
-  const secondaryBtnHoverStyle = {
-    ...secondaryBtnStyle,
-    backgroundColor: colors.btnSecondaryHover,
-    transform: "scale(1.05)",
-  };
-
   return (
     <section
       id="services"

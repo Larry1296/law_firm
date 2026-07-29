@@ -17,8 +17,13 @@ from apps.clients.serializers.admin.client_matter_conflict_check_serializer impo
     RequestInformationSerializer,
     ResumeCheckSerializer,
     StartCheckSerializer,
+    JurisdictionAdvocateDecisionSerializer,
+    JurisdictionReopenSerializer,
+    JurisdictionSuggestionInputSerializer,
+    ProposedMatterJurisdictionSerializer,
 )
 from apps.clients.services.conflict import ClientMatterConflictService
+from apps.clients.services.jurisdiction_suggestion_service import JurisdictionSuggestionService
 from apps.common.choices import ConflictCheckStatus
 
 
@@ -201,3 +206,61 @@ class ClientMatterConflictCheckCloseView(ClientMatterConflictCheckActionView):
 class ClientMatterConflictCheckAcceptanceView(ClientMatterConflictCheckActionView):
     serializer_class = FirmAcceptanceDecisionSerializer
     command = staticmethod(ClientMatterConflictService.record_acceptance_decision)
+
+
+class ProposedMatterJurisdictionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _check(self, request, client_id, check_id):
+        return ClientMatterConflictService.get_check(
+            user=request.user, client_id=client_id, check_id=check_id
+        )
+
+    def get(self, request, client_id, check_id):
+        check = self._check(request, client_id, check_id)
+        try:
+            record = check.jurisdiction
+        except Exception:
+            record = None
+        return Response(
+            {"jurisdiction": ProposedMatterJurisdictionSerializer(record).data if record else None},
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request, client_id, check_id):
+        serializer = JurisdictionSuggestionInputSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+        check = self._check(request, client_id, check_id)
+        record = JurisdictionSuggestionService.generate(
+            user=request.user, check=check, facts=serializer.validated_data
+        )
+        return Response({"jurisdiction": ProposedMatterJurisdictionSerializer(record).data})
+
+
+class ProposedMatterJurisdictionDecisionView(ProposedMatterJurisdictionView):
+    def post(self, request, client_id, check_id):
+        serializer = JurisdictionAdvocateDecisionSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+        check = self._check(request, client_id, check_id)
+        record = JurisdictionSuggestionService.decide(
+            user=request.user, check=check, data=serializer.validated_data
+        )
+        return Response({"jurisdiction": ProposedMatterJurisdictionSerializer(record).data})
+
+
+class ProposedMatterJurisdictionConfirmView(ProposedMatterJurisdictionView):
+    def post(self, request, client_id, check_id):
+        check = self._check(request, client_id, check_id)
+        record = JurisdictionSuggestionService.confirm(user=request.user, check=check)
+        return Response({"jurisdiction": ProposedMatterJurisdictionSerializer(record).data})
+
+
+class ProposedMatterJurisdictionReopenView(ProposedMatterJurisdictionView):
+    def post(self, request, client_id, check_id):
+        serializer = JurisdictionReopenSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+        check = self._check(request, client_id, check_id)
+        record = JurisdictionSuggestionService.reopen(
+            user=request.user, check=check, reason=serializer.validated_data["reason"]
+        )
+        return Response({"jurisdiction": ProposedMatterJurisdictionSerializer(record).data})

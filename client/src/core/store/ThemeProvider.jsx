@@ -71,6 +71,8 @@ const ThemeProvider = ({ children, user, role }) => {
   useEffect(() => {
     if (!followsSystemTheme) return undefined;
 
+    // Re-read the external OS preference when system-following is enabled.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(getSystemTheme());
 
     const media = window.matchMedia?.('(prefers-color-scheme: dark)');

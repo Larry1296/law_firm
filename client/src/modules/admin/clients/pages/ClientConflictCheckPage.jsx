@@ -74,6 +74,30 @@ const emptyActionDraft = {
   closure_reason: '',
 };
 
+const emptyJurisdictionFacts = {
+  dispute_category: '',
+  practice_area: '',
+  claim_value: '',
+  relief_sought: '',
+  cause_of_action_location: '',
+  defendant_location: '',
+  property_location: '',
+};
+
+const emptyJurisdictionDecision = {
+  action: 'ACCEPT',
+  final_forum: '',
+  final_court_type: '',
+  final_court_level: '',
+  final_station: '',
+  subject_matter_basis: '',
+  pecuniary_basis: '',
+  territorial_basis: '',
+  legal_basis: '',
+  advocate_findings: '',
+  override_reason: '',
+};
+
 const optionalValue = (value) => {
   const normalized = typeof value === 'string' ? value.trim() : value;
   return normalized === '' || normalized === null || normalized === undefined ? undefined : normalized;
@@ -175,6 +199,8 @@ export default function ClientConflictCheckPage() {
   const [draft, setDraft] = useState(emptyDraft);
   const [actionDraft, setActionDraft] = useState(emptyActionDraft);
   const [acceptanceDraft, setAcceptanceDraft] = useState(emptyAcceptanceDraft);
+  const [jurisdictionFacts, setJurisdictionFacts] = useState(emptyJurisdictionFacts);
+  const [jurisdictionDecision, setJurisdictionDecision] = useState(emptyJurisdictionDecision);
   const { lawyers = [] } = useFirmLawyers();
 
   const { data: clientData } = useQuery({
@@ -235,6 +261,19 @@ export default function ClientConflictCheckPage() {
       setActionDraft(emptyActionDraft);
       queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] });
     },
+  });
+
+  const jurisdictionSuggestionMutation = useMutation({
+    mutationFn: () => service.generateJurisdictionSuggestion(clientId, checkId, jurisdictionFacts),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] }),
+  });
+  const jurisdictionDecisionMutation = useMutation({
+    mutationFn: () => service.recordJurisdictionDecision(clientId, checkId, jurisdictionDecision),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] }),
+  });
+  const jurisdictionConfirmMutation = useMutation({
+    mutationFn: () => service.confirmJurisdiction(clientId, checkId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] }),
   });
 
   if (isNew) {
@@ -363,6 +402,80 @@ export default function ClientConflictCheckPage() {
           )}
         </div>
       </Card>
+
+      {check.status === 'CLEARED' && (
+        <Card className='p-6'>
+          <h3 className='text-lg font-semibold'>Jurisdiction Suggestion and Advocate Decision</h3>
+          <p className='mt-2 text-sm text-text-muted-light dark:text-text-muted-dark'>
+            This is a system-generated jurisdiction suggestion. The responsible advocate must independently review and confirm the appropriate court or tribunal.
+          </p>
+          {!check.jurisdiction?.is_final && (
+            <form className='mt-5 grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); jurisdictionSuggestionMutation.mutate(); }}>
+              <Input3D label='Dispute category' value={jurisdictionFacts.dispute_category} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, dispute_category: e.target.value }))} />
+              <Input3D label='Practice area' value={jurisdictionFacts.practice_area} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, practice_area: e.target.value }))} />
+              <Input3D label='Claim value (KES)' type='number' value={jurisdictionFacts.claim_value} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, claim_value: e.target.value }))} />
+              <Input3D label='Cause-of-action location' value={jurisdictionFacts.cause_of_action_location} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, cause_of_action_location: e.target.value }))} />
+              <TextArea label='Relief sought' value={jurisdictionFacts.relief_sought} onChange={(value) => setJurisdictionFacts((v) => ({ ...v, relief_sought: value }))} />
+              <Button3D type='submit' variant='secondary' disabled={jurisdictionSuggestionMutation.isPending}>
+                {jurisdictionSuggestionMutation.isPending ? 'Generating...' : 'Generate / Refresh Suggestion'}
+              </Button3D>
+            </form>
+          )}
+
+          {check.jurisdiction?.suggestion?.label && (
+            <div className='mt-5 rounded-xl border border-border-light p-4 dark:border-border-dark'>
+              <p><strong>System suggestion:</strong> {check.jurisdiction.suggestion.label}</p>
+              <p><strong>Level:</strong> {enumLabel(check.jurisdiction.suggestion.court_level)}</p>
+              <p><strong>Possible station:</strong> {check.jurisdiction.suggestion.station || 'Advocate input required'}</p>
+              <p><strong>Completeness:</strong> {check.jurisdiction.completeness}%</p>
+              {(check.jurisdiction.suggestion.reasons || []).map((reason) => <p key={reason} className='mt-2'>{reason}</p>)}
+              {(check.jurisdiction.missing_information || []).length > 0 && (
+                <p className='mt-2 text-amber-700'><strong>Missing information:</strong> {check.jurisdiction.missing_information.map(enumLabel).join(', ')}</p>
+              )}
+              {(check.jurisdiction.warnings || []).map((warning) => <p key={warning} className='mt-2 text-amber-700'>{warning}</p>)}
+              <p className='mt-2 text-xs'>Rules: {check.jurisdiction.rule_version}</p>
+            </div>
+          )}
+
+          {check.jurisdiction && !check.jurisdiction.is_final && (
+            <form className='mt-5 grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); jurisdictionDecisionMutation.mutate(); }}>
+              <Select3D label='Advocate action' value={jurisdictionDecision.action} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, action: e.target.value }))} options={[
+                { value: 'ACCEPT', label: 'Accept suggestion' },
+                { value: 'MODIFY', label: 'Modify suggested jurisdiction' },
+                { value: 'REJECT', label: 'Reject and select another forum' },
+                { value: 'REQUEST_INFORMATION', label: 'Request more information' },
+                { value: 'DEFER', label: 'Defer decision' },
+              ]} />
+              {jurisdictionDecision.action !== 'ACCEPT' && <TextArea label='Override / decision reason' value={jurisdictionDecision.override_reason} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, override_reason: value }))} required={['MODIFY', 'REJECT'].includes(jurisdictionDecision.action)} />}
+              {['MODIFY', 'REJECT'].includes(jurisdictionDecision.action) && <>
+                <Input3D label='Selected forum' value={jurisdictionDecision.final_forum} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, final_forum: e.target.value }))} required />
+                <Input3D label='Selected court / tribunal' value={jurisdictionDecision.final_court_type} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, final_court_type: e.target.value }))} required />
+                <Input3D label='Court level' value={jurisdictionDecision.final_court_level} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, final_court_level: e.target.value }))} required />
+                <Input3D label='Station' value={jurisdictionDecision.final_station} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, final_station: e.target.value }))} />
+              </>}
+              <TextArea label='Subject-matter basis' value={jurisdictionDecision.subject_matter_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, subject_matter_basis: value }))} />
+              <TextArea label='Pecuniary basis' value={jurisdictionDecision.pecuniary_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, pecuniary_basis: value }))} />
+              <TextArea label='Territorial basis' value={jurisdictionDecision.territorial_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, territorial_basis: value }))} />
+              <TextArea label='Legal / procedural basis' value={jurisdictionDecision.legal_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, legal_basis: value }))} />
+              <TextArea label='Advocate findings' value={jurisdictionDecision.advocate_findings} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, advocate_findings: value }))} />
+              <Button3D type='submit' variant='secondary' disabled={jurisdictionDecisionMutation.isPending}>Record Advocate Decision</Button3D>
+              {['ACCEPTED', 'MODIFIED', 'REJECTED'].includes(check.jurisdiction.status) && (
+                <Button3D type='button' variant='primary' onClick={() => jurisdictionConfirmMutation.mutate()} disabled={jurisdictionConfirmMutation.isPending}>
+                  Confirm Final Jurisdiction
+                </Button3D>
+              )}
+            </form>
+          )}
+
+          {check.jurisdiction?.is_final && (
+            <div className='mt-5 rounded-xl border border-green-300 bg-green-50 p-4 text-green-900'>
+              <p><strong>Advocate-confirmed jurisdiction:</strong> {enumLabel(check.jurisdiction.final_court_type)}</p>
+              <p>{enumLabel(check.jurisdiction.final_court_level)} · {check.jurisdiction.final_station || 'Station not recorded'}</p>
+              <p>Confirmed by {check.jurisdiction.confirmed_by_name} on {formatDateTime(check.jurisdiction.confirmed_at)}</p>
+            </div>
+          )}
+        </Card>
+      )}
 
       {canRecordAcceptance && (
         <Card className='p-6'>

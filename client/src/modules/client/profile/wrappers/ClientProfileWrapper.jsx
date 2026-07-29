@@ -1,7 +1,5 @@
-'
-
-export default function ClientProfileWrapper  ()  {
+export default function ClientProfileWrapper() {
   return (
     <div>ClientProfileWrapper</div>
-  )
+  );
 }

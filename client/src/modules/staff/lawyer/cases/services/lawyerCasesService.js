@@ -71,6 +71,21 @@ const lawyerCasesService = {
     return data.conflict_check;
   },
 
+  async generateJurisdictionSuggestion(clientId, checkId, payload = {}) {
+    const { data } = await axiosInstance.post(`/staff/lawyer/clients/${clientId}/conflict-checks/${checkId}/jurisdiction/`, payload);
+    return data.jurisdiction;
+  },
+
+  async recordJurisdictionDecision(clientId, checkId, payload) {
+    const { data } = await axiosInstance.post(`/staff/lawyer/clients/${clientId}/conflict-checks/${checkId}/jurisdiction/decision/`, payload);
+    return data.jurisdiction;
+  },
+
+  async confirmJurisdiction(clientId, checkId) {
+    const { data } = await axiosInstance.post(`/staff/lawyer/clients/${clientId}/conflict-checks/${checkId}/jurisdiction/confirm/`, {});
+    return data.jurisdiction;
+  },
+
   async updateLifecycleTransition(caseId, payload) {
     const { data } = await axiosInstance.post(
       `/cases/${caseId}/transitions/`,  // <-- correct endpoint

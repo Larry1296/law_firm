@@ -203,18 +203,7 @@ export const buildLegalEntityClientPayload = (
                             : '');
   const contactEmail = isProspect
     ? lower(formData.contact_email) ||
-      (isSoleProprietorship ||
-      isTrust ||
-      isEstate ||
-      isCooperative ||
-      isNgo ||
-      isSocietyOrAssociation ||
-      isPublicEntity ||
-      isInternationalOrganization ||
-      isEducationalInstitution ||
-      isReligiousOrganization
-        ? lower(formData.email)
-        : '')
+      (contactName ? lower(formData.email) : '')
     : '';
   const contactPhone =
     trim(formData.contact_phone_number) ||

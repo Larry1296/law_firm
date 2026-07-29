@@ -1,0 +1,1 @@
+"""Sheria Master domain applications."""

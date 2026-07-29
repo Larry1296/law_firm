@@ -53,7 +53,7 @@ export default function ClientNotificationsPage() {
       await markRead.mutateAsync(notification.id);
     }
     if (notification.action_url) {
-      window.location.href = notification.action_url;
+      window.location.assign(notification.action_url);
     }
   };
 

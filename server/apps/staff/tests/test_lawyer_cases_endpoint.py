@@ -2,11 +2,12 @@ from datetime import date
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.cases.models import Case
-from apps.clients.models import Client
-from apps.common.choices import UserRole
+from apps.clients.models import Client, ClientMatterConflictCheck
+from apps.common.choices import ConflictCheckStatus, UserRole
 from apps.firm.models import LawFirm
 from apps.staff.models import Lawyer, LawyerPermission, LawyerPermissionGrant, Secretary
 from apps.users.models import User
@@ -87,7 +88,38 @@ class LawyerCasesEndpointTests(TestCase):
             granted_by=lawyer.law_firm.owner,
         )
 
-    def matter_create_payload(self, firm, client, *, assigned_lawyer_id=None, assigned_secretary_id=None, title="Lawyer Created Matter"):
+    def create_openable_conflict_check(self, firm, client, lawyer, *, suffix):
+        now = timezone.now()
+        return ClientMatterConflictCheck.objects.create(
+            firm=firm,
+            client=client,
+            reference_number=f"PMA/CONF/2026/{suffix}",
+            proposed_matter_title="Cleared proposed matter",
+            proposed_instructions="Instructions approved after conflict clearance.",
+            status=ConflictCheckStatus.CLEARED,
+            responsible_lawyer=lawyer,
+            decision_confirmation=True,
+            decided_by=lawyer,
+            decided_at=now,
+            completed_at=now,
+            acceptance_decision=ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED,
+            accepted_by=lawyer,
+            accepted_at=now,
+            acceptance_decided_by=lawyer,
+            acceptance_decided_at=now,
+            created_by=lawyer.user,
+        )
+
+    def matter_create_payload(
+        self,
+        firm,
+        client,
+        *,
+        conflict_check_id=None,
+        assigned_lawyer_id=None,
+        assigned_secretary_id=None,
+        title="Lawyer Created Matter",
+    ):
         payload = {
             "client_id": str(client.id),
             "title": title,
@@ -103,6 +135,8 @@ class LawyerCasesEndpointTests(TestCase):
             "client_party_role": "PLAINTIFF",
             "defendant": "Metro Data Systems Limited",
         }
+        if conflict_check_id:
+            payload["conflict_check_id"] = str(conflict_check_id)
         if assigned_lawyer_id:
             payload["assigned_lawyer_membership_id"] = str(assigned_lawyer_id)
         if assigned_secretary_id:
@@ -311,11 +345,19 @@ class LawyerCasesEndpointTests(TestCase):
             national_id="LAWYER-CREATE-CLIENT",
         )
         self.grant_lawyer_permission(lawyer, LawyerPermission.CREATE_CASES)
+        conflict_check = self.create_openable_conflict_check(
+            firm, client, lawyer, suffix="LAW-CREATE-0001"
+        )
 
         self.client.force_authenticate(user=lawyer.user)
         response = self.client.post(
             reverse("lawyer-cases"),
-            self.matter_create_payload(firm, client, assigned_secretary_id=secretary.id),
+            self.matter_create_payload(
+                firm,
+                client,
+                conflict_check_id=conflict_check.id,
+                assigned_secretary_id=secretary.id,
+            ),
             format="json",
         )
 
@@ -325,7 +367,7 @@ class LawyerCasesEndpointTests(TestCase):
         self.assertEqual(case.assigned_lawyer, lawyer)
         self.assertEqual(case.assigned_secretary, secretary)
         self.assertEqual(case.entry_route, Case.EntryRoute.NEW_INSTRUCTION)
-        self.assertEqual(case.matter_status, Case.MatterStatus.INSTRUCTIONS_RECEIVED)
+        self.assertEqual(case.matter_status, Case.MatterStatus.MATTER_OPEN)
         self.assertEqual(case.court_stage, Case.CourtStage.NOT_FILED)
         self.assertTrue(case.parties.filter(client=client, is_our_client=True).exists())
         self.assertTrue(case.activities.filter(action="MATTER_OPENED").exists())
@@ -376,11 +418,19 @@ class LawyerCasesEndpointTests(TestCase):
             national_id="ASSIGNMENT-BLOCK-CLIENT",
         )
         self.grant_lawyer_permission(lawyer, LawyerPermission.CREATE_CASES)
+        conflict_check = self.create_openable_conflict_check(
+            firm, client, lawyer, suffix="ASSIGN-BLOCK-0001"
+        )
 
         self.client.force_authenticate(user=lawyer.user)
         response = self.client.post(
             reverse("lawyer-cases"),
-            self.matter_create_payload(firm, client, assigned_lawyer_id=other_lawyer.id),
+            self.matter_create_payload(
+                firm,
+                client,
+                conflict_check_id=conflict_check.id,
+                assigned_lawyer_id=other_lawyer.id,
+            ),
             format="json",
         )
 
@@ -409,11 +459,19 @@ class LawyerCasesEndpointTests(TestCase):
         )
         self.grant_lawyer_permission(lawyer, LawyerPermission.CREATE_CASES)
         self.grant_lawyer_permission(lawyer, LawyerPermission.ASSIGN_OTHER_LAWYER)
+        conflict_check = self.create_openable_conflict_check(
+            firm, client, lawyer, suffix="ASSIGN-ALLOW-0001"
+        )
 
         self.client.force_authenticate(user=lawyer.user)
         response = self.client.post(
             reverse("lawyer-cases"),
-            self.matter_create_payload(firm, client, assigned_lawyer_id=other_lawyer.id),
+            self.matter_create_payload(
+                firm,
+                client,
+                conflict_check_id=conflict_check.id,
+                assigned_lawyer_id=other_lawyer.id,
+            ),
             format="json",
         )
 
@@ -446,5 +504,5 @@ class LawyerCasesEndpointTests(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 404, response.data)
+        self.assertEqual(response.status_code, 400, response.data)
         self.assertFalse(Case.objects.filter(client=other_client).exists())

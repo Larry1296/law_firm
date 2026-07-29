@@ -132,12 +132,6 @@ export default function CTASection() {
     backdropFilter: "blur(24px)",
   };
 
-  const secondaryBtnHoverStyle = {
-    ...secondaryBtnStyle,
-    backgroundColor: colors.secondaryBtnHover,
-    transform: "scale(1.05)",
-  };
-
   return (
     <section
       className="relative overflow-hidden py-28 px-6 lg:px-16"

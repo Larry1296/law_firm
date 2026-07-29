@@ -19,6 +19,8 @@ export function useSecretaryClients() {
   };
 
   useEffect(() => {
+    // Initial data loading intentionally synchronizes this hook with the API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchClients();
   }, []);
 

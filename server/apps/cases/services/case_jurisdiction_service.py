@@ -274,3 +274,34 @@ class CaseJurisdictionService:
             metadata={},
         )
         return case
+
+    @classmethod
+    @transaction.atomic
+    def record_existing_case_diagnostic(cls, *, case, actor, data):
+        cls.ensure_can_verify(actor, case)
+        if case.entry_route != Case.EntryRoute.EXISTING_FILED_COURT_CASE:
+            raise ValidationError({"entry_route": "Diagnostics on this action are limited to existing filed cases."})
+        warning = (data.get("assessment") or "").strip()
+        if not warning:
+            raise ValidationError({"assessment": "Record the non-binding diagnostic warning."})
+        JurisdictionAssessment.objects.create(
+            case=case,
+            source=JurisdictionAssessment.Source.EXISTING_COURT_RECORD,
+            status=JurisdictionStatus.UNDER_REVIEW,
+            trigger="NON_BINDING_DIAGNOSTIC",
+            date_raised=timezone.now(),
+            raised_by=actor.full_name,
+            previous_court=case.court_name or case.court_type,
+            proposed_station=case.court_station,
+            assessment=warning,
+            information_source=data.get("verification_source", "Internal diagnostic review"),
+            recorded_by=actor,
+        )
+        CaseActivity.objects.create(
+            case=case,
+            action="EXISTING_CASE_JURISDICTION_DIAGNOSTIC",
+            description=warning,
+            actor=actor,
+            metadata={"non_binding": True, "official_values_changed": False},
+        )
+        return case

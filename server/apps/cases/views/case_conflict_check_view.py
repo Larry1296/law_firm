@@ -27,6 +27,11 @@ class CaseConflictCheckView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
 
         check = CaseConflictCheckService.existing_check(case)
+        originating_check = (
+            case.originating_conflict_check
+            if CaseConflictCheckService.has_originating_intake_conflict(case)
+            else None
+        )
         if hasattr(request.user, "client_profile"):
             return Response(
                 {
@@ -36,7 +41,20 @@ class CaseConflictCheckView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-        if check:
+        if originating_check is not None:
+            conflict_check = {
+                "exists": True,
+                "source": "PROPOSED_MATTER",
+                "reference_number": originating_check.reference_number,
+                "status": originating_check.status,
+                "status_label": originating_check.get_status_display(),
+                "available_actions": [],
+                "detail": (
+                    "This matter was cleared through the authoritative proposed-matter "
+                    "conflict workflow before it was opened."
+                ),
+            }
+        elif check:
             conflict_check = CaseConflictCheckSerializer(check, context={"request": request}).data
         else:
             conflict_check = {

@@ -1,6 +1,13 @@
 from rest_framework import serializers
 
-from apps.clients.models import ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty, FirmAcceptanceHistory
+from apps.clients.models import (
+    ClientMatterConflictCheck,
+    ConflictCheckHistory,
+    ConflictCheckParty,
+    FirmAcceptanceHistory,
+    ProposedMatterJurisdiction,
+    ProposedMatterJurisdictionHistory,
+)
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus
 
 
@@ -66,6 +73,35 @@ class FirmAcceptanceHistorySerializer(serializers.ModelSerializer):
             "decided_by_name",
             "metadata",
             "created_at",
+        ]
+        read_only_fields = fields
+
+
+class ProposedMatterJurisdictionHistorySerializer(serializers.ModelSerializer):
+    actor_name = serializers.CharField(source="actor.full_name", read_only=True)
+
+    class Meta:
+        model = ProposedMatterJurisdictionHistory
+        fields = ["id", "action", "from_status", "to_status", "snapshot", "reason", "actor_name", "created_at"]
+        read_only_fields = fields
+
+
+class ProposedMatterJurisdictionSerializer(serializers.ModelSerializer):
+    status_label = serializers.CharField(source="get_status_display", read_only=True)
+    confirmed_by_name = serializers.CharField(source="confirmed_by.user.full_name", read_only=True)
+    disclaimer = serializers.CharField(read_only=True)
+    is_final = serializers.BooleanField(read_only=True)
+    history = ProposedMatterJurisdictionHistorySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ProposedMatterJurisdiction
+        fields = [
+            "id", "status", "status_label", "input_facts", "suggestion", "alternatives",
+            "warnings", "missing_information", "authorities", "rule_version", "completeness",
+            "generated_at", "advocate_action", "final_forum", "final_court_type",
+            "final_court_level", "final_station", "subject_matter_basis", "pecuniary_basis",
+            "territorial_basis", "legal_basis", "advocate_findings", "override_reason",
+            "confirmed_by_name", "confirmed_at", "disclaimer", "is_final", "history",
         ]
         read_only_fields = fields
 
@@ -141,6 +177,7 @@ class ClientMatterConflictCheckDetailSerializer(ClientMatterConflictCheckListSer
     history = ConflictCheckHistorySerializer(many=True, read_only=True)
     acceptance_history = FirmAcceptanceHistorySerializer(many=True, read_only=True)
     client_name = serializers.CharField(source="client.full_name", read_only=True)
+    jurisdiction = ProposedMatterJurisdictionSerializer(read_only=True)
 
     class Meta(ClientMatterConflictCheckListSerializer.Meta):
         fields = ClientMatterConflictCheckListSerializer.Meta.fields + [
@@ -167,6 +204,8 @@ class ClientMatterConflictCheckDetailSerializer(ClientMatterConflictCheckListSer
             "scope_confirmation",
             "no_adverse_party_currently_known",
             "no_adverse_party_explanation",
+            "jurisdiction_facts",
+            "jurisdiction",
             "parties",
             "history",
             "acceptance_history",
@@ -186,6 +225,42 @@ class ProposedMatterSerializer(serializers.Serializer):
     no_adverse_party_currently_known = serializers.BooleanField(required=False, default=False)
     no_adverse_party_explanation = serializers.CharField(required=False, allow_blank=True)
     parties = ConflictCheckPartySerializer(many=True, required=False)
+    jurisdiction_facts = serializers.JSONField(required=False)
+
+
+class JurisdictionSuggestionInputSerializer(serializers.Serializer):
+    practice_area = serializers.CharField(required=False, allow_blank=True)
+    matter_nature = serializers.CharField(required=False, allow_blank=True)
+    dispute_category = serializers.CharField(required=False, allow_blank=True)
+    claim_value = serializers.DecimalField(max_digits=14, decimal_places=2, required=False, allow_null=True)
+    relief_sought = serializers.CharField(required=False, allow_blank=True)
+    legal_relationship = serializers.CharField(required=False, allow_blank=True)
+    cause_of_action_location = serializers.CharField(required=False, allow_blank=True)
+    defendant_location = serializers.CharField(required=False, allow_blank=True)
+    property_location = serializers.CharField(required=False, allow_blank=True)
+    proposed_station = serializers.CharField(required=False, allow_blank=True)
+    religious_status = serializers.CharField(required=False, allow_blank=True)
+    proceeding_role = serializers.CharField(required=False, allow_blank=True)
+    existing_decision = serializers.CharField(required=False, allow_blank=True)
+    statutory_process = serializers.CharField(required=False, allow_blank=True)
+
+
+class JurisdictionAdvocateDecisionSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=["ACCEPT", "MODIFY", "REJECT", "REQUEST_INFORMATION", "DEFER"])
+    final_forum = serializers.CharField(required=False, allow_blank=True)
+    final_court_type = serializers.CharField(required=False, allow_blank=True)
+    final_court_level = serializers.CharField(required=False, allow_blank=True)
+    final_station = serializers.CharField(required=False, allow_blank=True)
+    subject_matter_basis = serializers.CharField(required=False, allow_blank=True)
+    pecuniary_basis = serializers.CharField(required=False, allow_blank=True)
+    territorial_basis = serializers.CharField(required=False, allow_blank=True)
+    legal_basis = serializers.CharField(required=False, allow_blank=True)
+    advocate_findings = serializers.CharField(required=False, allow_blank=True)
+    override_reason = serializers.CharField(required=False, allow_blank=True)
+
+
+class JurisdictionReopenSerializer(serializers.Serializer):
+    reason = serializers.CharField()
 
 
 class StartCheckSerializer(serializers.Serializer):

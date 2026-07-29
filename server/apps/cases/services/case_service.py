@@ -15,6 +15,7 @@ from apps.cases.models import (
     EmploymentMatterDetails,
     InsuranceMatterDetails,
     LandMatterDetails,
+    JurisdictionAssessment,
     MonetaryRelief,
     NonContentiousMatterDetails,
     SuccessionMatterDetails,
@@ -23,7 +24,7 @@ from apps.cases.models import (
 from apps.cases.services.case_lifecycle_service import CaseLifecycleService
 from apps.clients.models import Client
 from apps.clients.services.conflict import ClientMatterConflictService
-from apps.common.choices import UserRole
+from apps.common.choices import JurisdictionStatus, UserRole
 from apps.notifications.services import NotificationService
 from apps.staff.models import Lawyer, LawyerPermission, Secretary, SecretaryPermission
 
@@ -398,6 +399,15 @@ class CaseService:
                 else Case.CourtStage.NOT_FILED
             )
         matter_status = Case.MatterStatus.MATTER_OPEN
+        try:
+            confirmed_jurisdiction = conflict_check.jurisdiction
+        except Exception:
+            confirmed_jurisdiction = None
+        use_confirmed_jurisdiction = bool(
+            confirmed_jurisdiction
+            and confirmed_jurisdiction.is_final
+            and entry_route != Case.EntryRoute.EXISTING_FILED_COURT_CASE
+        )
 
         court_to_case = {
             "official_court_case_number": "official_court_case_number",
@@ -445,6 +455,17 @@ class CaseService:
                 "accepted_instruction_snapshot": accepted_snapshot,
             }
         )
+        if use_confirmed_jurisdiction:
+            case_payload.update({
+                "forum": confirmed_jurisdiction.final_forum or forum,
+                "court_type": confirmed_jurisdiction.final_court_type,
+                "court_level": confirmed_jurisdiction.final_court_level,
+                "court_station": confirmed_jurisdiction.final_station,
+                "jurisdiction_notes": confirmed_jurisdiction.advocate_findings,
+                "jurisdiction_verified": True,
+                "jurisdiction_verified_by": confirmed_jurisdiction.confirmed_by.user,
+                "jurisdiction_verified_at": confirmed_jurisdiction.confirmed_at,
+            })
 
         case = Case.objects.create(
             firm=firm,
@@ -479,6 +500,26 @@ class CaseService:
             case=case,
             actor=user,
         )
+        if use_confirmed_jurisdiction:
+            JurisdictionAssessment.objects.create(
+                case=case,
+                source=JurisdictionAssessment.Source.PRE_FILING_ASSESSMENT,
+                status=JurisdictionStatus.VERIFIED,
+                proposed_court=confirmed_jurisdiction.final_court_type,
+                proposed_station=confirmed_jurisdiction.final_station,
+                subject_matter_basis=confirmed_jurisdiction.subject_matter_basis,
+                pecuniary_basis=confirmed_jurisdiction.pecuniary_basis,
+                territorial_basis=confirmed_jurisdiction.territorial_basis,
+                claim_value=case.claim_amount,
+                legal_basis=confirmed_jurisdiction.legal_basis,
+                assessment=confirmed_jurisdiction.advocate_findings,
+                information_source=(
+                    f"Advocate-confirmed proposed-matter decision; "
+                    f"system rule version {confirmed_jurisdiction.rule_version}"
+                ),
+                recorded_by=user,
+                confirmed_by=confirmed_jurisdiction.confirmed_by.user,
+            )
 
         client_updates = []
         if client.lifecycle_status in {Client.LifecycleStatus.PROSPECT, Client.LifecycleStatus.PROSPECTIVE}:

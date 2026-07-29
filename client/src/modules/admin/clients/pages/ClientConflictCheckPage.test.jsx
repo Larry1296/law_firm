@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   getConflictCheck: vi.fn(),
   runConflictAction: vi.fn(),
   recordFirmAcceptance: vi.fn(),
+  generateJurisdictionSuggestion: vi.fn(),
+  recordJurisdictionDecision: vi.fn(),
+  confirmJurisdiction: vi.fn(),
   navigate: vi.fn(),
 }));
 
@@ -35,6 +38,9 @@ vi.mock('@/modules/admin/clients/services/adminClientsService', () => ({
     getConflictCheck: mocks.getConflictCheck,
     runConflictAction: mocks.runConflictAction,
     recordFirmAcceptance: mocks.recordFirmAcceptance,
+    generateJurisdictionSuggestion: mocks.generateJurisdictionSuggestion,
+    recordJurisdictionDecision: mocks.recordJurisdictionDecision,
+    confirmJurisdiction: mocks.confirmJurisdiction,
   },
 }));
 
@@ -43,6 +49,9 @@ vi.mock('@/modules/staff/lawyer/cases/services/lawyerCasesService', () => ({
     getConflictCheck: mocks.getConflictCheck,
     runConflictAction: mocks.runConflictAction,
     recordFirmAcceptance: mocks.recordFirmAcceptance,
+    generateJurisdictionSuggestion: mocks.generateJurisdictionSuggestion,
+    recordJurisdictionDecision: mocks.recordJurisdictionDecision,
+    confirmJurisdiction: mocks.confirmJurisdiction,
   },
 }));
 
@@ -212,5 +221,32 @@ describe('ClientConflictCheckPage source checks', () => {
 
     expect(await screen.findByText(/First-reviewer findings:/)).toBeInTheDocument();
     expect(screen.getByText(/Former client appeared in related transaction./)).toBeInTheDocument();
+  });
+
+  it('separates the system suggestion from the advocate decision controls', async () => {
+    renderPage({
+      status: 'CLEARED',
+      status_label: 'Cleared',
+      jurisdiction: {
+        status: 'ADVOCATE_REVIEW_REQUIRED',
+        is_final: false,
+        rule_version: 'KE-JURISDICTION-2026.1',
+        completeness: 75,
+        suggestion: {
+          label: 'Small Claims Court',
+          court_level: 'SMALL_CLAIMS_COURT',
+          station: 'Nairobi',
+          reasons: ['Eligible contractual claim within the configured monetary limit.'],
+        },
+        missing_information: ['territorial_connection'],
+        warnings: ['Advocate review remains required.'],
+      },
+    });
+
+    expect(await screen.findByText(/system-generated jurisdiction suggestion/i)).toBeInTheDocument();
+    expect(screen.getByText(/System suggestion:/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Small Claims Court/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /record advocate decision/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Final jurisdiction confirmed/i)).not.toBeInTheDocument();
   });
 });

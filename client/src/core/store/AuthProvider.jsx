@@ -174,6 +174,8 @@ const AuthProvider = ({ children }) => {
     }
 
     if (isExpired(stored.refreshToken)) {
+      // Session expiry is the external condition this effect synchronizes.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       clearSessionAndRedirect();
       return undefined;
     }
@@ -231,6 +233,8 @@ const AuthProvider = ({ children }) => {
       return undefined;
     }
 
+    // Synchronize the local session snapshot when token identity changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     syncSessionUser();
 
     const intervalId = window.setInterval(

@@ -33,6 +33,8 @@ from .client_matter_conflict_check import (
     ConflictCheckHistory,
     ConflictCheckParty,
     FirmAcceptanceHistory,
+    ProposedMatterJurisdiction,
+    ProposedMatterJurisdictionHistory,
 )
 
 
@@ -73,4 +75,6 @@ __all__ = [
     "ConflictCheckHistory",
     "ConflictCheckParty",
     "FirmAcceptanceHistory",
+    "ProposedMatterJurisdiction",
+    "ProposedMatterJurisdictionHistory",
 ]

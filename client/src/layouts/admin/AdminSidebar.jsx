@@ -63,12 +63,12 @@ export default function AdminSidebar({ onClose }) {
                 {group.section}
               </p>
               <div className='space-y-1'>
-                {group.items.map(({ name, path, icon: Icon, end }) => (
+                {group.items.map(({ name, path, icon: _Icon, end }) => (
                   <SidebarNavLink
                     key={name}
                     to={path}
                     end={end}
-                    icon={<Icon size={18} />}
+                    icon={<_Icon size={18} />}
                     onClick={handleClose}
                   >
                     {name}

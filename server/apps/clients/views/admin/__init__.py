@@ -21,6 +21,10 @@ from .client_matter_conflict_check_view import (
     ClientMatterConflictCheckRequestInformationView,
     ClientMatterConflictCheckResumeView,
     ClientMatterConflictCheckStartView,
+    ProposedMatterJurisdictionConfirmView,
+    ProposedMatterJurisdictionDecisionView,
+    ProposedMatterJurisdictionReopenView,
+    ProposedMatterJurisdictionView,
 )
 from .individual_admin_create_client_view import IndividualAdminCreateClientView
 from .company_admin_create_client_view import (
@@ -77,6 +81,10 @@ __all__ = [
     "ClientMatterConflictCheckRequestInformationView",
     "ClientMatterConflictCheckResumeView",
     "ClientMatterConflictCheckStartView",
+    "ProposedMatterJurisdictionConfirmView",
+    "ProposedMatterJurisdictionDecisionView",
+    "ProposedMatterJurisdictionReopenView",
+    "ProposedMatterJurisdictionView",
     "IndividualAdminCreateClientView",
     "CompanyAdminCreateClientView",
     "CooperativeAdminCreateClientView",

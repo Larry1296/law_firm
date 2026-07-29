@@ -12,6 +12,10 @@ from apps.clients.views.admin.client_matter_conflict_check_view import (
     ClientMatterConflictCheckRequestInformationView,
     ClientMatterConflictCheckResumeView,
     ClientMatterConflictCheckStartView,
+    ProposedMatterJurisdictionConfirmView,
+    ProposedMatterJurisdictionDecisionView,
+    ProposedMatterJurisdictionReopenView,
+    ProposedMatterJurisdictionView,
 )
 from apps.staff.views.lawyer.lawyer_calendar_view import LawyerCalendarView
 from apps.staff.views.lawyer.lawyer_cases_view import LawyerCaseCreateOptionsView, LawyerCasesView
@@ -41,6 +45,10 @@ urlpatterns = [
     path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/decide/", ClientMatterConflictCheckDecideView.as_view(), name="lawyer-client-conflict-check-decide"),
     path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/acceptance/", ClientMatterConflictCheckAcceptanceView.as_view(), name="lawyer-client-conflict-check-acceptance"),
     path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/close/", ClientMatterConflictCheckCloseView.as_view(), name="lawyer-client-conflict-check-close"),
+    path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/jurisdiction/", ProposedMatterJurisdictionView.as_view(), name="lawyer-client-jurisdiction"),
+    path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/jurisdiction/decision/", ProposedMatterJurisdictionDecisionView.as_view(), name="lawyer-client-jurisdiction-decision"),
+    path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/jurisdiction/confirm/", ProposedMatterJurisdictionConfirmView.as_view(), name="lawyer-client-jurisdiction-confirm"),
+    path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/jurisdiction/reopen/", ProposedMatterJurisdictionReopenView.as_view(), name="lawyer-client-jurisdiction-reopen"),
     path("calendar/", LawyerCalendarView.as_view(), name="lawyer-calendar"),
     path("tasks/", LawyerTasksView.as_view(), name="lawyer-tasks"),
     path("documents/", LawyerDocumentsView.as_view(), name="lawyer-documents"),

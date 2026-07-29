@@ -410,6 +410,7 @@ class ClientMatterConflictService:
             "desired_outcome",
             "urgency_level",
             "urgency_details",
+            "jurisdiction_facts",
             "limitation_or_deadline_date",
             "no_adverse_party_currently_known",
             "no_adverse_party_explanation",
@@ -435,6 +436,8 @@ class ClientMatterConflictService:
     def start_check(cls, *, user, client_id, check_id, data=None):
         data = data or {}
         check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
+        if check.status != ConflictCheckStatus.NOT_STARTED:
+            raise ValidationError({"status": "Only a not-started conflict check can be started."})
         if not check.proposed_matter_title.strip() or not check.proposed_instructions.strip():
             raise ValidationError({"proposed_matter": "Title and proposed instructions are required before starting."})
         parties = list(check.parties.exclude(role=ConflictCheckParty.PartyRole.PROSPECTIVE_CLIENT).values("name", "role"))
@@ -473,6 +476,8 @@ class ClientMatterConflictService:
     def resume_check(cls, *, user, client_id, check_id, data=None):
         data = data or {}
         check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
+        if check.status != ConflictCheckStatus.AWAITING_INFORMATION:
+            raise ValidationError({"status": "Only a check awaiting information can be resumed."})
         if "information_missing" in data:
             check.information_missing = data.get("information_missing", "")
         cls._transition(

@@ -148,6 +148,21 @@ const adminClientsService = {
     return data.conflict_check;
   },
 
+  async generateJurisdictionSuggestion(clientId, checkId, payload = {}) {
+    const { data } = await axiosInstance.post(`/admin/clients/${clientId}/conflict-checks/${checkId}/jurisdiction/`, payload);
+    return data.jurisdiction;
+  },
+
+  async recordJurisdictionDecision(clientId, checkId, payload) {
+    const { data } = await axiosInstance.post(`/admin/clients/${clientId}/conflict-checks/${checkId}/jurisdiction/decision/`, payload);
+    return data.jurisdiction;
+  },
+
+  async confirmJurisdiction(clientId, checkId) {
+    const { data } = await axiosInstance.post(`/admin/clients/${clientId}/conflict-checks/${checkId}/jurisdiction/confirm/`, {});
+    return data.jurisdiction;
+  },
+
   /* ======================================================
      UPDATE CLIENT
   ====================================================== */

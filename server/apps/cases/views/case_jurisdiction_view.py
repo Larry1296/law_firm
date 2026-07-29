@@ -43,6 +43,12 @@ class CaseJurisdictionVerificationView(APIView):
                     actor=request.user,
                     data=serializer.validated_data,
                 )
+            elif action == "DIAGNOSTIC":
+                case = CaseJurisdictionService.record_existing_case_diagnostic(
+                    case=case,
+                    actor=request.user,
+                    data=serializer.validated_data,
+                )
             else:
                 case = CaseJurisdictionService.revoke(
                     case=case,

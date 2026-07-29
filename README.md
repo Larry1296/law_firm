@@ -1,5 +1,22 @@
 # law_firm
 Django&amp;Rect-lawfirm System
+
+## Runtime requirements
+
+- Python 3.12 or newer (Python 3.13 is the documented development version)
+- Node.js 22
+- PostgreSQL 17 for development, production, and concurrency-sensitive tests
+
+Copy `.env.example` to `.env` and replace the placeholder secrets before running
+the server. Fast local backend tests default to SQLite:
+
+```bash
+cd server
+python test_all.py
+```
+
+Run the authoritative PostgreSQL suite with `TEST_DATABASE_BACKEND=postgresql`
+and the `TEST_DB_*` variables documented in `.env.example`. CI uses PostgreSQL.
 # 🏛 Law Firm Management System (Backend)
 
 A modular, API-first **Law Firm Management System** built with **Django REST Framework** following a strict service-layer architecture.

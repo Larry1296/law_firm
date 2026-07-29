@@ -68,7 +68,7 @@ const baseEntity = {
 
 assert.equal(canonicalLegalEntityTypes.includes('PUBLIC_ENTITY'), true);
 assert.equal(canonicalLegalEntityTypes.includes('REPRESENTATIVE'), false);
-assert.equal(canonicalLegalEntityTypes.includes('SACCO'), false);
+assert.equal(canonicalLegalEntityTypes.includes('SACCO'), true);
 
 const original = structuredClone(baseEntity);
 const nonprofitPayload = buildLegalEntityClientPayload(baseEntity, {

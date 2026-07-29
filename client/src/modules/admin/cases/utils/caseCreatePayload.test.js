@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
+import { test } from 'vitest';
 
 import {
   buildCaseCreatePayload,
   sanitizeCaseCreatePayload,
 } from './caseCreatePayload.js';
 
+test('builds and sanitizes case creation payloads', () => {
 const baseFiledCase = {
   entry_route: 'EXISTING_FILED_COURT_CASE',
   client_id: 'client-1',
@@ -163,3 +165,4 @@ const advisoryPayload = buildCaseCreatePayload({
 });
 assert.equal(advisoryPayload.non_contentious_details.instruction_type, 'Contract Review');
 assertAbsent(advisoryPayload, 'court_proceeding');
+});

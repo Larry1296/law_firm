@@ -5,7 +5,7 @@ from apps.common.choices import JurisdictionStatus
 
 
 class CaseJurisdictionActionSerializer(serializers.Serializer):
-    action = serializers.ChoiceField(choices=["VERIFY", "REVIEW", "REVOKE", "VERIFY_CTS"])
+    action = serializers.ChoiceField(choices=["VERIFY", "REVIEW", "REVOKE", "VERIFY_CTS", "DIAGNOSTIC"])
     reason = serializers.CharField(required=False, allow_blank=True)
     claim_amount = serializers.DecimalField(
         max_digits=14,
@@ -71,4 +71,6 @@ class CaseJurisdictionActionSerializer(serializers.Serializer):
                     errors[field] = "This field is required for a jurisdiction review."
             if errors:
                 raise serializers.ValidationError(errors)
+        if action == "DIAGNOSTIC" and not (attrs.get("assessment") or "").strip():
+            raise serializers.ValidationError({"assessment": "Record the non-binding diagnostic warning."})
         return attrs

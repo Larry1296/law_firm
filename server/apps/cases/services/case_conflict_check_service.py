@@ -70,6 +70,11 @@ class CaseConflictCheckService:
         - Assigned secretary
         """
 
+        # New matters are cleared at intake. The per-case workflow remains
+        # available only for historical records that pre-date that process.
+        if CaseConflictCheckService.has_originating_intake_conflict(case):
+            return False
+
         if (
             user.role == UserRole.ADMIN
             and case.firm.owner_id == user.id

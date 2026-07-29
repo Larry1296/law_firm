@@ -30,6 +30,8 @@ const useSecretaryCases = (params = {}) => {
   useEffect(() => {
     let isMounted = true;
 
+    // Initial data loading intentionally synchronizes this hook with the API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadCases(isMounted);
 
     return () => {

@@ -63,6 +63,7 @@ class ClientMatterConflictCheck(TimestampedModel):
     desired_outcome = models.TextField(blank=True, default="")
     urgency_level = models.CharField(max_length=30, blank=True, default="")
     urgency_details = models.TextField(blank=True, default="")
+    jurisdiction_facts = models.JSONField(default=dict, blank=True)
     limitation_or_deadline_date = models.DateField(null=True, blank=True)
     status = models.CharField(
         max_length=40,
@@ -197,6 +198,94 @@ class ClientMatterConflictCheck(TimestampedModel):
 
     def __str__(self):
         return f"{self.reference_number} - {self.proposed_matter_title}"
+
+
+class ProposedMatterJurisdiction(TimestampedModel):
+    class Status(models.TextChoices):
+        NOT_ASSESSED = "NOT_ASSESSED", "Not assessed"
+        PRELIMINARY_SUGGESTION = "PRELIMINARY_SUGGESTION", "Preliminary suggestion generated"
+        MORE_INFORMATION_REQUIRED = "MORE_INFORMATION_REQUIRED", "More information required"
+        ADVOCATE_REVIEW_REQUIRED = "ADVOCATE_REVIEW_REQUIRED", "Advocate review required"
+        ACCEPTED = "ACCEPTED", "Accepted by advocate"
+        MODIFIED = "MODIFIED", "Modified by advocate"
+        REJECTED = "REJECTED", "Rejected by advocate"
+        FINAL_CONFIRMED = "FINAL_CONFIRMED", "Final jurisdiction confirmed"
+        DEFERRED = "DEFERRED", "Decision deferred"
+        UNDER_RECONSIDERATION = "UNDER_RECONSIDERATION", "Under reconsideration"
+        CARRIED_OVER = "CARRIED_OVER", "Carried over from existing filed case"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    proposed_matter = models.OneToOneField(
+        ClientMatterConflictCheck,
+        on_delete=models.CASCADE,
+        related_name="jurisdiction",
+    )
+    status = models.CharField(max_length=40, choices=Status.choices, default=Status.NOT_ASSESSED)
+    input_facts = models.JSONField(default=dict, blank=True)
+    suggestion = models.JSONField(default=dict, blank=True)
+    alternatives = models.JSONField(default=list, blank=True)
+    warnings = models.JSONField(default=list, blank=True)
+    missing_information = models.JSONField(default=list, blank=True)
+    authorities = models.JSONField(default=list, blank=True)
+    rule_version = models.CharField(max_length=40, blank=True, default="")
+    completeness = models.PositiveSmallIntegerField(default=0)
+    generated_at = models.DateTimeField(null=True, blank=True)
+    generated_by = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="generated_jurisdiction_suggestions",
+    )
+    advocate_action = models.CharField(max_length=30, blank=True, default="")
+    final_forum = models.CharField(max_length=80, blank=True, default="")
+    final_court_type = models.CharField(max_length=80, blank=True, default="")
+    final_court_level = models.CharField(max_length=80, blank=True, default="")
+    final_station = models.CharField(max_length=255, blank=True, default="")
+    subject_matter_basis = models.TextField(blank=True, default="")
+    pecuniary_basis = models.TextField(blank=True, default="")
+    territorial_basis = models.TextField(blank=True, default="")
+    legal_basis = models.TextField(blank=True, default="")
+    advocate_findings = models.TextField(blank=True, default="")
+    override_reason = models.TextField(blank=True, default="")
+    confirmed_by = models.ForeignKey(
+        "staff.Lawyer", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="confirmed_proposed_matter_jurisdictions",
+    )
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "proposed_matter_jurisdictions"
+
+    @property
+    def disclaimer(self):
+        return (
+            "This is a system-generated jurisdiction suggestion. The responsible "
+            "advocate must independently review and confirm the appropriate court or tribunal."
+        )
+
+    @property
+    def is_final(self):
+        return self.status == self.Status.FINAL_CONFIRMED and bool(self.confirmed_by_id and self.confirmed_at)
+
+
+class ProposedMatterJurisdictionHistory(TimestampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    jurisdiction = models.ForeignKey(
+        ProposedMatterJurisdiction,
+        on_delete=models.CASCADE,
+        related_name="history",
+    )
+    action = models.CharField(max_length=50)
+    from_status = models.CharField(max_length=40, blank=True, default="")
+    to_status = models.CharField(max_length=40)
+    snapshot = models.JSONField(default=dict)
+    reason = models.TextField(blank=True, default="")
+    actor = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True,
+        related_name="proposed_matter_jurisdiction_history",
+    )
+
+    class Meta:
+        db_table = "proposed_matter_jurisdiction_history"
+        ordering = ["created_at"]
 
 
 class ConflictCheckParty(TimestampedModel):
