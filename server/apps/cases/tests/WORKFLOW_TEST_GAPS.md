@@ -8,6 +8,52 @@ assumed. Items are grouped by whether they *block* testing, *distort* it, or
 
 ---
 
+## STATUS as of commit `88d4e99` (re-audited 2026-07-29)
+
+The repository was updated and **most of this document is now resolved**. Full
+suite: **259 tests, 0 failures, 26 skips** via `python test_all.py`.
+
+| Item | Status |
+|---|---|
+| A1 interpreter floor | **Done** — `.python-version` = 3.13, `pyproject.toml` `requires-python = ">=3.12"` |
+| A2 `.env.example` | **Done** — committed at repo root with all required keys |
+| A3 test settings | **Done** — `config/settings_test.py`, sqlite default + `TEST_DATABASE_BACKEND=postgresql` |
+| A4 `apps/__init__.py` | **Done** |
+| A5 runner + CI | **Done** — `test_all.py`, `[tool.pytest.ini_options]`, `.github/workflows/test.yml` (backend on Postgres 17 + frontend lint/test/build) |
+| B1 lawyer/secretary routes | **Done** — `create_openable_conflict_check` helper added; 4 tests now pass |
+| B2 legacy `CaseConflictCheck` | **Decided** — 25 legacy tests `skip`ped with "Superseded by pre-opening proposed-matter conflict clearance." |
+| C1 state machine branches | **Done** — `test_information_potential_escalation_and_close_branches_are_controlled`, `test_illegal_state_transition_is_rejected_without_mutating_history` |
+| C2 automatic conflict search | **Done** — `test_automatic_search_blocks_direct_clearance_when_a_name_matches`, `test_automatic_search_threshold_switches_from_manual_to_automatic` |
+| C3 client types | **Partly** — `test_all_client_types_map_to_the_correct_screened_party_type` covers all 21 via `_client_party_type`, but only as a **direct service-method call**, not through the creation APIs |
+| C6 concurrency | **Done (gated)** — `test_conflict_check_concurrency.py` exists; skips on sqlite, runs on Postgres in CI |
+| C9 frontend | **Partly** — `AdminCreateCasePage.test.jsx`, `ClientConflictCheckPage.test.jsx`, payload tests added; CI runs vitest |
+
+### Still open
+
+- **C3 (partial)** — 15 of 23 client-creation endpoints still have no creation
+  test (sole proprietorship, partnership, LLP, cooperative, SACCO,
+  society/association, non-profit, NGO, trust, estate, public entity,
+  international organisation, government, religious, educational). The party-
+  type mapping is covered; the *creation serializers* are not.
+- **C4** — individual variants still not carried through to a matter:
+  `PORTAL_ENABLED` end-to-end, minor+guardian, `acting_for_self=False`,
+  PEP/sanctions/EDD branches at conflict and matter time.
+- **C5** — `test_universal_matter_creation.py` still builds conflict checks via
+  `objects.create()`, bypassing the service layer. The dead ternary at
+  `accepted_by=lawyer if 'lawyer' in locals() else self.lawyer` is still there.
+- **C7** — authorisation matrix: cross-firm check ID, wrong-client check,
+  inactive advocate as `decided_by`/`accepted_by`, lawyer without
+  `CREATE_CASES` proposing, client/prospect hitting admin endpoints.
+- **C8** — management commands and the `0011` data migration remain untested.
+- **New surface** — a jurisdiction-suggestion feature landed
+  (`jurisdiction_suggestion_service.py`, 364 lines, + `JurisdictionAssessment`
+  model). It has 5 tests and is gated on conflict clearance, so it now sits
+  *inside* this workflow and should be folded into the end-to-end path.
+
+The original analysis below is retained for context.
+
+---
+
 ## A. Blockers — the environment cannot run the suite as shipped
 
 ### A1. Python/Django version floor is unreachable
