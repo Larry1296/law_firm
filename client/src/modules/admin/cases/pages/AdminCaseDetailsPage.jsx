@@ -13,6 +13,7 @@ import { displayEnum } from '@/core/utils/textFormatter';
 
 import useCaseDetails from '@/modules/admin/cases/hooks/useAdminCaseDetails';
 import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
+import CaseProceedingsWorkflow from '@/modules/cases/shared/CaseProceedingsWorkflow';
 import CreateNextCaseEventPanel from '@/modules/admin/cases/components/CreateNextCaseEventPanel';
 import { COURT_LEVELS, COURT_TYPES } from '@/modules/cases/shared/create/caseCreateOptions';
 
@@ -887,6 +888,7 @@ const AdminCaseDetailsPage = () => {
         subtitle='Matter record, court proceeding, parties and activity'
         align='center'
       />
+      <CaseProceedingsWorkflow caseData={caseData} />
 
       <Card className='p-6'>
         <div className='mb-5 flex flex-col gap-3 border-b border-border-light pb-5 dark:border-border-dark md:flex-row md:items-start md:justify-between'>
@@ -1345,24 +1347,24 @@ const AdminCaseDetailsPage = () => {
           </div>
 
 
-          {hasVerifiedCts ? (
+          {hasVerifiedCts && (
             <SectionNote tone='info'>
               <p className='font-semibold'>CTS reference verified</p>
               <p className='mt-1'>
                 {safe(caseData.cts_reference || courtProceeding.cts_reference)} has been recorded from the court or eFiling record.
               </p>
               <p className='mt-1'>
-                Further changes should be made through a separate audited correction workflow.
+                Further checks create separate audit snapshots and do not update the Judiciary system.
               </p>
             </SectionNote>
-          ) : (
-            <form onSubmit={handleCtsSubmit} className='mt-5 rounded-xl border border-border-light bg-surface-light p-5 dark:border-border-dark dark:bg-surface-dark'>
+          )}
+          <form onSubmit={handleCtsSubmit} className='mt-5 rounded-xl border border-border-light bg-surface-light p-5 dark:border-border-dark dark:bg-surface-dark'>
               <div className='mb-4'>
                 <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
-                  CTS / Court Record Verification
+                  Judiciary/CTS Details
                 </h4>
                 <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
-                  Record the CTS reference only after checking the Judiciary eFiling record, registry record, cause list, or stamped court documents.
+                  Record an update from a Judiciary eFiling record, registry record, cause list, or stamped court document. Sheria Master does not update the Judiciary CTS.
                 </p>
               </div>
 
@@ -1415,10 +1417,9 @@ const AdminCaseDetailsPage = () => {
                 disabled={isVerifyingJurisdiction}
                 className='mt-4 w-fit rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
               >
-                {isVerifyingJurisdiction ? 'Recording...' : 'Verify CTS Reference'}
+                {isVerifyingJurisdiction ? 'Recording...' : 'Record CTS Check'}
               </button>
-            </form>
-          )}
+          </form>
 
           <form onSubmit={handleJurisdictionSubmit} className='mt-5 rounded-xl border border-border-light bg-surface-light p-5 dark:border-border-dark dark:bg-surface-dark'>
             <div className='mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>

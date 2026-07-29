@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.db.models import Q
+from django.db.models import Max
 from django.conf import settings
 from django.utils import timezone
 
@@ -582,6 +583,10 @@ class EventService:
             )
         validated_data.setdefault("court_stage_before", case.court_stage)
         validated_data.setdefault("matter_status_before", case.matter_status)
+        validated_data.setdefault(
+            "sequence_number",
+            (CaseEvent.objects.filter(case=case).aggregate(Max("sequence_number"))["sequence_number__max"] or 0) + 1,
+        )
         event = CaseEvent.objects.create(case=case, created_by=user, **validated_data)
         cls.awareness_for_event(event)
 

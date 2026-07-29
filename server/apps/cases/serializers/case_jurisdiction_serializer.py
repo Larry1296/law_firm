@@ -1,10 +1,11 @@
 from rest_framework import serializers
 
 from apps.cases.models import Case
+from apps.common.choices import JurisdictionStatus
 
 
 class CaseJurisdictionActionSerializer(serializers.Serializer):
-    action = serializers.ChoiceField(choices=["VERIFY", "REVOKE", "VERIFY_CTS"])
+    action = serializers.ChoiceField(choices=["VERIFY", "REVIEW", "REVOKE", "VERIFY_CTS"])
     reason = serializers.CharField(required=False, allow_blank=True)
     claim_amount = serializers.DecimalField(
         max_digits=14,
@@ -21,6 +22,27 @@ class CaseJurisdictionActionSerializer(serializers.Serializer):
     jurisdiction_notes = serializers.CharField(required=False, allow_blank=True)
     cts_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)
     verification_source = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    official_case_number = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    efiling_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    judiciary_status = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    latest_official_court_date = serializers.DateTimeField(required=False, allow_null=True)
+    subject_matter_basis = serializers.CharField(required=False, allow_blank=True)
+    pecuniary_basis = serializers.CharField(required=False, allow_blank=True)
+    territorial_basis = serializers.CharField(required=False, allow_blank=True)
+    legal_basis = serializers.CharField(required=False, allow_blank=True)
+    trigger = serializers.CharField(required=False, allow_blank=True)
+    assessment = serializers.CharField(required=False, allow_blank=True)
+    date_raised = serializers.DateTimeField(required=False, allow_null=True)
+    raised_by = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    jurisdiction_status = serializers.ChoiceField(choices=JurisdictionStatus.choices, required=False)
+    court_directions_or_ruling = serializers.CharField(required=False, allow_blank=True)
+    previous_court = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    new_court = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    new_station = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    effective_date = serializers.DateField(required=False, allow_null=True)
+    supporting_document_ids = serializers.ListField(
+        child=serializers.UUIDField(), required=False, allow_empty=True
+    )
 
     def validate_currency(self, value):
         value = (value or "KES").strip().upper()
@@ -40,6 +62,13 @@ class CaseJurisdictionActionSerializer(serializers.Serializer):
                 errors["verification_source"] = "Verification source is required."
             if not (attrs.get("reason") or "").strip():
                 errors["reason"] = "A reason is required to verify the CTS reference."
+            if errors:
+                raise serializers.ValidationError(errors)
+        if action == "REVIEW":
+            errors = {}
+            for field in ("trigger", "assessment", "jurisdiction_status"):
+                if not attrs.get(field):
+                    errors[field] = "This field is required for a jurisdiction review."
             if errors:
                 raise serializers.ValidationError(errors)
         return attrs

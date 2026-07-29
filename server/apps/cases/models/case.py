@@ -2,7 +2,7 @@ import uuid
 
 from django.db import models
 
-from apps.common.choices import CaseStatus
+from apps.common.choices import CaseStatus, InternalCaseLifecycleStage
 from apps.common.models.timestamped_model import TimestampedModel
 
 
@@ -287,6 +287,13 @@ class Case(TimestampedModel):
         choices=CourtStage.choices,
         default=CourtStage.NOT_FILED,
         db_index=True,
+    )
+    lifecycle_stage = models.CharField(
+        max_length=50,
+        choices=InternalCaseLifecycleStage.choices,
+        default=InternalCaseLifecycleStage.PRE_FILING,
+        db_index=True,
+        help_text="Sheria Master internal stage, derived from filing and proceedings.",
     )
     outcome_status = models.CharField(
         max_length=40,

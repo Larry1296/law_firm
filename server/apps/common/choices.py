@@ -143,3 +143,100 @@ class CaseStatus(models.TextChoices):
             cls.SETTLED,
             cls.WITHDRAWN,
         ]
+
+
+# Vocabulary shared by the case, events and courtroom domains. Procedural
+# transition rules deliberately live in the cases service layer.
+class CourtEventType(models.TextChoices):
+    INTERNAL = "INTERNAL", "Internal matter activity"
+    FILING = "FILING", "Filing"
+    REGISTRATION = "REGISTRATION", "Registry registration"
+    REGISTRY_ACTION = "REGISTRY_ACTION", "Registry action"
+    SERVICE = "SERVICE", "Service"
+    PLEA = "PLEA", "Plea"
+    DIRECTIONS = "DIRECTIONS", "Directions"
+    CASE_MANAGEMENT = "CASE_MANAGEMENT", "Case-management conference"
+    PRE_TRIAL = "PRE_TRIAL", "Pre-trial conference"
+    MENTION = "MENTION", "Mention"
+    FURTHER_MENTION = "FURTHER_MENTION", "Further mention"
+    COMPLIANCE_MENTION = "COMPLIANCE_MENTION", "Compliance mention"
+    APPLICATION_HEARING = "APPLICATION_HEARING", "Application hearing"
+    PRELIMINARY_OBJECTION = "PRELIMINARY_OBJECTION", "Preliminary objection"
+    HEARING = "HEARING", "Hearing"
+    FURTHER_HEARING = "FURTHER_HEARING", "Further hearing"
+    DEFENCE_HEARING = "DEFENCE_HEARING", "Defence hearing"
+    SUBMISSIONS = "SUBMISSIONS", "Submissions"
+    RULING = "RULING", "Ruling"
+    JUDGMENT = "JUDGMENT", "Judgment"
+    SENTENCING = "SENTENCING", "Sentencing"
+    MITIGATION = "MITIGATION", "Mitigation"
+    PROBATION_REPORT = "PROBATION_REPORT", "Probation report"
+    TAXATION = "TAXATION", "Taxation"
+    ADR = "ADR", "Alternative dispute resolution"
+    MEDIATION = "MEDIATION", "Mediation"
+    SETTLEMENT = "SETTLEMENT", "Settlement or consent"
+    DECREE = "DECREE", "Decree"
+    EXECUTION = "EXECUTION", "Execution"
+    REVIEW = "REVIEW", "Review"
+    APPEAL = "APPEAL", "Appeal"
+    WITHDRAWAL = "WITHDRAWAL", "Withdrawal"
+    DISMISSAL = "DISMISSAL", "Dismissal"
+    CLOSURE = "CLOSURE", "Closure"
+    ADMINISTRATIVE = "ADMINISTRATIVE", "Administrative activity"
+    CLIENT_MEETING = "CLIENT_MEETING", "Client meeting"
+    OTHER_COURT_DIRECTED = "OTHER_COURT_DIRECTED", "Other court-directed event"
+    OTHER = "OTHER", "Other"
+
+
+class CourtEventOutcome(models.TextChoices):
+    PROCEEDED = "PROCEEDED", "Proceeded"
+    ADJOURNED = "ADJOURNED", "Adjourned"
+    PART_HEARD = "PART_HEARD", "Part-heard"
+    DIRECTIONS_ISSUED = "DIRECTIONS_ISSUED", "Directions issued"
+    DATE_ISSUED = "DATE_ISSUED", "Next date issued"
+    RULING_DELIVERED = "RULING_DELIVERED", "Ruling delivered"
+    JUDGMENT_DELIVERED = "JUDGMENT_DELIVERED", "Judgment delivered"
+    CONSENT_RECORDED = "CONSENT_RECORDED", "Consent recorded"
+    SETTLED = "SETTLED", "Settled"
+    WITHDRAWN = "WITHDRAWN", "Withdrawn"
+    DISMISSED = "DISMISSED", "Dismissed"
+    TAKEN_OUT = "TAKEN_OUT", "Taken out"
+    VACATED = "VACATED", "Vacated"
+    DID_NOT_PROCEED = "DID_NOT_PROCEED", "Did not proceed"
+    OTHER = "OTHER", "Other"
+
+
+class InternalCaseLifecycleStage(models.TextChoices):
+    PRE_FILING = "PRE_FILING", "Pre-filing"
+    FILING_PENDING = "FILING_PENDING", "Filing pending"
+    FILED_REGISTERED = "FILED_REGISTERED", "Filed / registered"
+    AWAITING_DIRECTIONS = "AWAITING_DIRECTIONS", "Awaiting directions"
+    AWAITING_MENTION = "AWAITING_MENTION", "Awaiting mention"
+    AWAITING_APPLICATION_HEARING = "AWAITING_APPLICATION_HEARING", "Awaiting application hearing"
+    AWAITING_HEARING = "AWAITING_HEARING", "Awaiting hearing"
+    PART_HEARD = "PART_HEARD", "Part-heard"
+    AWAITING_SUBMISSIONS = "AWAITING_SUBMISSIONS", "Awaiting submissions"
+    AWAITING_RULING = "AWAITING_RULING", "Awaiting ruling"
+    AWAITING_JUDGMENT = "AWAITING_JUDGMENT", "Awaiting judgment"
+    JUDGMENT_DELIVERED = "JUDGMENT_DELIVERED", "Judgment delivered"
+    EXECUTION = "EXECUTION", "Execution"
+    ON_APPEAL = "ON_APPEAL", "On appeal"
+    STAYED = "STAYED", "Stayed"
+    SETTLED = "SETTLED", "Settled"
+    WITHDRAWN = "WITHDRAWN", "Withdrawn"
+    DISMISSED = "DISMISSED", "Dismissed"
+    CLOSED = "CLOSED", "Closed"
+
+
+class JurisdictionStatus(models.TextChoices):
+    UNDER_REVIEW = "UNDER_REVIEW", "Under review"
+    VERIFIED = "VERIFIED", "Verified"
+    CARRIED_OVER_FROM_EXISTING_CASE = (
+        "CARRIED_OVER_FROM_EXISTING_CASE",
+        "Carried over from existing filed case",
+    )
+    CHALLENGED_BY_PARTY = "CHALLENGED_BY_PARTY", "Challenged by a party"
+    RAISED_BY_COURT = "RAISED_BY_COURT", "Raised by the court"
+    TRANSFER_PENDING = "TRANSFER_PENDING", "Transfer pending"
+    TRANSFERRED = "TRANSFERRED", "Transferred"
+    INCORRECT = "INCORRECT", "Found to be incorrect"

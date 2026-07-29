@@ -37,6 +37,12 @@ class CaseJurisdictionVerificationView(APIView):
                     actor=request.user,
                     data=serializer.validated_data,
                 )
+            elif action == "REVIEW":
+                case = CaseJurisdictionService.review(
+                    case=case,
+                    actor=request.user,
+                    data=serializer.validated_data,
+                )
             else:
                 case = CaseJurisdictionService.revoke(
                     case=case,

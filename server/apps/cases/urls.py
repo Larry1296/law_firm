@@ -13,6 +13,8 @@ from apps.cases.views import (
     CaseStatusView,
     VirtualCourtroomLinkUpdateView,
     VirtualCourtroomTodayView,
+    AllowedNextEventsView,
+    RecordProceedingOutcomeView,
 )
 
 urlpatterns = [
@@ -22,6 +24,8 @@ urlpatterns = [
     path("events/<uuid:event_id>/courtroom-link/", VirtualCourtroomLinkUpdateView.as_view(), name="virtual-courtroom-link-update"),
     path("<uuid:case_id>/", CaseDetailView.as_view(), name="case-detail"),
     path("<uuid:case_id>/events/", CaseEventListCreateView.as_view(), name="case-event-list-create"),
+    path("<uuid:case_id>/allowed-next-events/", AllowedNextEventsView.as_view(), name="allowed-next-events"),
+    path("<uuid:case_id>/events/<uuid:event_id>/record-outcome/", RecordProceedingOutcomeView.as_view(), name="record-proceeding-outcome"),
     path("<uuid:case_id>/transitions/", CaseLifecycleTransitionView.as_view(), name="case-lifecycle-transition"),
     path("<uuid:case_id>/conflict-check/", CaseConflictCheckView.as_view(), name="case-conflict-check"),
     path("<uuid:case_id>/conflict-check/actions/", CaseConflictCheckActionView.as_view(), name="case-conflict-check-action"),

@@ -39,3 +39,4 @@ __all__ = [
     "CaseTaskSerializer",
     "CaseUpdateSerializer",
 ]
+from .proceedings_serializer import ProceedingOutcomeSerializer

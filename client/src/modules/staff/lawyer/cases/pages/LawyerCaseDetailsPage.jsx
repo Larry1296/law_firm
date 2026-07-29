@@ -23,6 +23,7 @@ import {
   useUpdateLifecycleTransition,
 } from '@/modules/staff/lawyer/cases/hooks/useLawyerCases';
 import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
+import CaseProceedingsWorkflow from '@/modules/cases/shared/CaseProceedingsWorkflow';
 import CaseCourtroomPanel from '@/modules/courtroom/components/CaseCourtroomPanel';
 
 const CASE_STATUS_OPTIONS = [
@@ -404,6 +405,7 @@ export default function LawyerCaseDetailsPage() {
         title={pageTitle}
         subtitle='Your assigned legal matter overview'
       />
+      <CaseProceedingsWorkflow caseData={caseData} />
 
       <Card className='p-6'>
         <div className='grid gap-6 md:grid-cols-2'>

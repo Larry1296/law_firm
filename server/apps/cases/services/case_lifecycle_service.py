@@ -11,6 +11,7 @@ from apps.cases.models import (
     CaseTimeline,
 )
 from apps.common.choices import UserRole
+from apps.common.choices import InternalCaseLifecycleStage
 
 
 class CaseLifecycleService:
@@ -674,6 +675,16 @@ class CaseLifecycleService:
             return (
                 case.matter_status
                 == Case.MatterStatus.MATTER_OPEN
+                and (
+                    case.entry_route != Case.EntryRoute.NEW_INSTRUCTION
+                    or (
+                        case.jurisdiction_verified
+                        and case.jurisdiction_history.filter(
+                            status="VERIFIED",
+                            source="PRE_FILING_ASSESSMENT",
+                        ).exists()
+                    )
+                )
             )
 
 
@@ -1455,6 +1466,30 @@ class CaseLifecycleService:
             field,
             to_state,
         )
+
+        lifecycle_by_court_stage = {
+            Case.CourtStage.NOT_FILED: InternalCaseLifecycleStage.PRE_FILING,
+            Case.CourtStage.READY_FOR_FILING: InternalCaseLifecycleStage.FILING_PENDING,
+            Case.CourtStage.FILED: InternalCaseLifecycleStage.FILED_REGISTERED,
+            Case.CourtStage.CASE_MANAGEMENT: InternalCaseLifecycleStage.AWAITING_DIRECTIONS,
+            Case.CourtStage.PRE_TRIAL: InternalCaseLifecycleStage.AWAITING_HEARING,
+            Case.CourtStage.AWAITING_HEARING: InternalCaseLifecycleStage.AWAITING_HEARING,
+            Case.CourtStage.HEARING_IN_PROGRESS: InternalCaseLifecycleStage.PART_HEARD,
+            Case.CourtStage.SUBMISSIONS: InternalCaseLifecycleStage.AWAITING_SUBMISSIONS,
+            Case.CourtStage.JUDGMENT_RESERVED: InternalCaseLifecycleStage.AWAITING_JUDGMENT,
+            Case.CourtStage.JUDGMENT_DELIVERED: InternalCaseLifecycleStage.JUDGMENT_DELIVERED,
+            Case.CourtStage.EXECUTION: InternalCaseLifecycleStage.EXECUTION,
+            Case.CourtStage.APPEAL_OR_REVIEW: InternalCaseLifecycleStage.ON_APPEAL,
+            Case.CourtStage.CONCLUDED: InternalCaseLifecycleStage.CLOSED,
+        }
+        derived_lifecycle = (
+            lifecycle_by_court_stage.get(to_state)
+            if dimension == CaseLifecycleTransition.Dimension.COURT_STAGE
+            else None
+        )
+        if derived_lifecycle:
+            case.lifecycle_stage = derived_lifecycle
+            metadata_updates.append("lifecycle_stage")
 
 
 

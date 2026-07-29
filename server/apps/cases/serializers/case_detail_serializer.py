@@ -78,6 +78,10 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     originating_conflict_check = serializers.SerializerMethodField()
     next_event_suggestion = serializers.SerializerMethodField()
     valid_event_types = serializers.SerializerMethodField()
+    jurisdiction_history = serializers.SerializerMethodField()
+    judiciary_cts_snapshots = serializers.SerializerMethodField()
+    lifecycle_stage_label = serializers.CharField(source="get_lifecycle_stage_display", read_only=True)
+    lifecycle_summary = serializers.SerializerMethodField()
 
     def _client_visible_only(self):
         request = self.context.get("request")
@@ -239,6 +243,8 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "matter_status_label",
             "court_stage",
             "court_stage_label",
+            "lifecycle_stage",
+            "lifecycle_stage_label",
             "outcome_status",
             "outcome_status_label",
             "enforcement_status",
@@ -316,6 +322,9 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "analytics",
             "next_event_suggestion",
             "valid_event_types",
+            "jurisdiction_history",
+            "judiciary_cts_snapshots",
+            "lifecycle_summary",
         ]
         read_only_fields = fields
 
@@ -458,3 +467,67 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         if self._client_visible_only() or self._originating_conflict(obj):
             return None
         return self._related(obj, "conflict_record", ConflictRecordAtRegistrationSerializer)
+
+    def get_jurisdiction_history(self, obj):
+        if self._client_visible_only():
+            return []
+        return [
+            {
+                "id": str(item.id),
+                "source": item.source,
+                "source_label": item.get_source_display(),
+                "status": item.status,
+                "status_label": item.get_status_display(),
+                "trigger": item.trigger,
+                "subject_matter_basis": item.subject_matter_basis,
+                "pecuniary_basis": item.pecuniary_basis,
+                "territorial_basis": item.territorial_basis,
+                "legal_basis": item.legal_basis,
+                "assessment": item.assessment,
+                "previous_court": item.previous_court,
+                "new_court": item.new_court,
+                "court_directions_or_ruling": item.court_directions_or_ruling,
+                "confirmed_by": item.confirmed_by.full_name if item.confirmed_by else "",
+                "created_at": item.created_at,
+            }
+            for item in obj.jurisdiction_history.select_related("confirmed_by").all()
+        ]
+
+    def get_judiciary_cts_snapshots(self, obj):
+        if self._client_visible_only():
+            return []
+        return [
+            {
+                "id": str(item.id),
+                "official_case_number": item.official_case_number,
+                "cts_reference": item.cts_reference,
+                "efiling_reference": item.efiling_reference,
+                "court": item.court,
+                "court_station": item.court_station,
+                "judiciary_status": item.judiciary_status,
+                "latest_official_court_date": item.latest_official_court_date,
+                "source": item.source,
+                "notes": item.notes,
+                "checked_by": item.checked_by.full_name if item.checked_by else "",
+                "checked_at": item.checked_at,
+            }
+            for item in obj.cts_snapshots.select_related("checked_by").all()
+        ]
+
+    def get_lifecycle_summary(self, obj):
+        completed = obj.events.filter(
+            status__in=["COMPLETED", "CONCLUDED", "PART_HEARD"]
+        ).order_by("-actual_end", "-starts_at").first()
+        upcoming = obj.events.filter(
+            status__in=["SCHEDULED", "CONFIRMED"]
+        ).order_by("starts_at").first()
+        deadline = obj.tasks.filter(
+            status__in=["PENDING", "IN_PROGRESS"], due_at__isnull=False
+        ).order_by("due_at").first()
+        return {
+            "current_stage": obj.lifecycle_stage,
+            "current_stage_label": obj.get_lifecycle_stage_display(),
+            "last_completed_proceeding": completed.get_event_type_display() if completed else None,
+            "next_event": EventSerializer(upcoming).data if upcoming else None,
+            "key_pending_deadline": CaseTaskSerializer(deadline).data if deadline else None,
+        }

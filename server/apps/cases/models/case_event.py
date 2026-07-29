@@ -1,34 +1,14 @@
 import uuid
 
 from django.db import models
+from django.db.models import Max
 
+from apps.common.choices import CourtEventOutcome, CourtEventType
 from apps.common.models.timestamped_model import TimestampedModel
 
 
 class CaseEvent(TimestampedModel):
-    class EventType(models.TextChoices):
-        INTERNAL = "INTERNAL", "Internal"
-        FILING = "FILING", "Filing"
-        SERVICE = "SERVICE", "Service"
-        MENTION = "MENTION", "Mention"
-        CASE_MANAGEMENT = "CASE_MANAGEMENT", "Case Management"
-        HEARING = "HEARING", "Hearing"
-        DIRECTIONS = "DIRECTIONS", "Directions"
-        PRE_TRIAL = "PRE_TRIAL", "Pre-Trial Conference"
-        SETTLEMENT = "SETTLEMENT", "Settlement"
-        ADR = "ADR", "Alternative Dispute Resolution"
-        MEDIATION = "MEDIATION", "Mediation"
-        SUBMISSIONS = "SUBMISSIONS", "Submissions"
-        RULING = "RULING", "Ruling"
-        JUDGMENT = "JUDGMENT", "Judgment"
-        APPEAL = "APPEAL", "Appeal"
-        REVIEW = "REVIEW", "Review"
-        ADMINISTRATIVE = "ADMINISTRATIVE", "Administrative"
-        TAXATION = "TAXATION", "Taxation"
-        EXECUTION = "EXECUTION", "Execution"
-        REGISTRY_ACTION = "REGISTRY_ACTION", "Registry Action"
-        CLIENT_MEETING = "CLIENT_MEETING", "Client Meeting"
-        OTHER = "OTHER", "Other"
+    EventType = CourtEventType
 
     class EventStatus(models.TextChoices):
         SCHEDULED = "SCHEDULED", "Scheduled"
@@ -52,6 +32,7 @@ class CaseEvent(TimestampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     case = models.ForeignKey("cases.Case", on_delete=models.CASCADE, related_name="events")
+    sequence_number = models.PositiveIntegerField(default=1)
     event_type = models.CharField(max_length=40, choices=EventType.choices)
     event_subtype = models.CharField(max_length=80, blank=True, default="")
     status = models.CharField(max_length=30, choices=EventStatus.choices, default=EventStatus.SCHEDULED)
@@ -85,9 +66,16 @@ class CaseEvent(TimestampedModel):
     cause_list_position = models.CharField(max_length=50, blank=True, default="")
     adjournment_reason = models.TextField(blank=True, default="")
     outcome = models.TextField(blank=True, default="")
+    outcome_code = models.CharField(max_length=40, choices=CourtEventOutcome.choices, blank=True, default="")
+    proceeded = models.BooleanField(null=True, blank=True)
+    attendance = models.JSONField(default=list, blank=True)
     orders_directions = models.TextField(blank=True, default="")
     next_action = models.CharField(max_length=255, blank=True, default="")
     next_date = models.DateTimeField(null=True, blank=True)
+    previous_event = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="created_next_events"
+    )
+    court_direction_details = models.TextField(blank=True, default="")
     cancelled_by = models.ForeignKey(
         "users.User",
         on_delete=models.SET_NULL,
@@ -104,6 +92,18 @@ class CaseEvent(TimestampedModel):
         blank=True,
         related_name="created_case_events",
     )
+    recorded_by = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="recorded_case_proceedings",
+    )
+    verified_by = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="verified_case_proceedings",
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    supporting_documents = models.ManyToManyField(
+        "cases.CaseAttachment", blank=True, related_name="supported_proceedings"
+    )
 
     class Meta:
         db_table = "case_events"
@@ -115,6 +115,25 @@ class CaseEvent(TimestampedModel):
             models.Index(fields=["is_client_visible"]),
             models.Index(fields=["is_virtual_courtroom_enabled", "starts_at"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["case", "sequence_number"],
+                name="unique_case_event_sequence",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.case.case_number} - {self.title}"
+
+    def save(self, *args, **kwargs):
+        # Keep direct ORM/admin creation backwards compatible. Transactional
+        # proceedings creation still locks the case before allocating a number.
+        if self._state.adding:
+            current_max = (
+                CaseEvent.objects.filter(case_id=self.case_id)
+                .aggregate(Max("sequence_number"))["sequence_number__max"]
+                or 0
+            )
+            if self.sequence_number <= current_max:
+                self.sequence_number = current_max + 1
+        super().save(*args, **kwargs)
