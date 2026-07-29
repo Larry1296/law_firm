@@ -27,22 +27,6 @@ import useUnreadNotifications from '@/modules/notifications/hooks/useUnreadNotif
 
 const links = [
   {
-    section: 'Onboarding',
-    items: [
-      {
-        name: 'Become a Client',
-        path: '/portal/become-client',
-        icon: <Briefcase size={18} />,
-      },
-      {
-        name: 'Membership Status',
-        path: '/portal/membership-status',
-        icon: <ShieldCheck size={18} />,
-      },
-    ],
-  },
-
-  {
     section: 'Main',
     items: [
       {
@@ -60,6 +44,22 @@ const links = [
         name: 'Legal Requests',
         path: '/portal/intake',
         icon: <ClipboardList size={18} />,
+      },
+    ],
+  },
+
+  {
+    section: 'Onboarding',
+    items: [
+      {
+        name: 'Become a Client',
+        path: '/portal/become-client',
+        icon: <Briefcase size={18} />,
+      },
+      {
+        name: 'Membership Status',
+        path: '/portal/membership-status',
+        icon: <ShieldCheck size={18} />,
       },
     ],
   },

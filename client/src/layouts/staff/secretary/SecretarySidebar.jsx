@@ -20,6 +20,13 @@ import {
 
 const links = [
   {
+    name: 'Dashboard',
+    path: '/secretary/dashboard',
+    icon: LayoutDashboard,
+    end: true,
+    section: 'Overview',
+  },
+  {
     name: 'Clients',
     path: '/secretary/clients',
     icon: Users,
@@ -59,14 +66,6 @@ const links = [
     path: '/secretary/chat',
     icon: MessageSquare,
     section: 'Communication',
-  },
-
-  {
-    name: 'Dashboard',
-    path: '/secretary/dashboard',
-    icon: LayoutDashboard,
-    end: true,
-    section: 'Overview',
   },
 
   {

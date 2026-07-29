@@ -4,6 +4,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 
 import PageLoader from '@/components/common/PageLoader';
+import useAuth from '@/core/hooks/useAuth';
+import { ROLE_DASHBOARD } from '@/core/config/redirects';
+import { getEffectiveRole } from '@/core/utils/effectiveRole';
 
 
 /* =========================================================
@@ -41,6 +44,19 @@ import ITLayoutWrapper from '@/layouts/staff/it/ITLayoutWrapper';
 import ClientLayoutWrapper from '@/layouts/client/ClientLayoutWrapper';
 
 import PortalLayoutWrapper from '@/layouts/portal/ClientLayoutWrapper';
+
+const SignedInDashboardRedirect = ({ children }) => {
+  const { user, firmRole, isAuthenticated } = useAuth();
+
+  if (!isAuthenticated || !user) return children;
+
+  const effectiveRole = getEffectiveRole(user, firmRole);
+  const dashboardPath = ROLE_DASHBOARD[effectiveRole];
+
+  return dashboardPath
+    ? <Navigate to={dashboardPath} replace />
+    : children;
+};
 
 
 /* =========================================================
@@ -640,13 +656,27 @@ const AppRoutes = () => {
       <Routes>
         {/* PUBLIC */}
         <Route element={<PublicLayoutWrapper />}>
-          <Route path='/' element={<HomePage />} />
+          <Route
+            path='/'
+            element={(
+              <SignedInDashboardRedirect>
+                <HomePage />
+              </SignedInDashboardRedirect>
+            )}
+          />
         </Route>
 
 
         {/* AUTH */}
         <Route element={<AuthLayoutWrapper />}>
-          <Route path='/login' element={<Login />} />
+          <Route
+            path='/login'
+            element={(
+              <SignedInDashboardRedirect>
+                <Login />
+              </SignedInDashboardRedirect>
+            )}
+          />
           <Route path='/register' element={<Register />} />
           <Route path='/forgot-password' element={<ForgotPassword />} />
           <Route path='/recover-account' element={<RecoverAccount />} />

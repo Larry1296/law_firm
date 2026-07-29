@@ -20,8 +20,13 @@ import {
 } from 'lucide-react';
 
 export const adminSidebarLinks = [
-  { name: 'Staff', path: '/admin/staff', icon: UserCog, section: 'Staff' },
-  { name: 'Staff Chat', path: '/admin/communication', icon: MessageSquare, section: 'Staff' },
+  {
+    name: 'Dashboard',
+    path: '/admin/dashboard',
+    icon: LayoutDashboard,
+    end: true,
+    section: 'Overview',
+  },
 
   {
     name: 'Clients',
@@ -42,16 +47,11 @@ export const adminSidebarLinks = [
     ownerOnly: true,
   },
 
-  {
-    name: 'Dashboard',
-    path: '/admin/dashboard',
-    icon: LayoutDashboard,
-    end: true,
-    section: 'Overview',
-  },
-
   { name: 'Documents', path: '/admin/documents', icon: FileText, section: 'Documents & Billing' },
   { name: 'Billing', path: '/admin/billing', icon: CreditCard, section: 'Documents & Billing' },
+
+  { name: 'Staff', path: '/admin/staff', icon: UserCog, section: 'Staff' },
+  { name: 'Staff Chat', path: '/admin/communication', icon: MessageSquare, section: 'Staff' },
 
   { name: 'Reports', path: '/admin/reports', icon: BarChart, section: 'Reports & Intelligence' },
   { name: 'IT Report', path: '/admin/it-report', icon: MonitorCog, section: 'Reports & Intelligence' },

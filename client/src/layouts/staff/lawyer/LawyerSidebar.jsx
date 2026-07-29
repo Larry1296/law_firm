@@ -28,6 +28,13 @@ import {
 //* ================= LAWYER NAVIGATION ================= */
 const links = [
   {
+    name: 'Dashboard',
+    path: '/lawyer/dashboard',
+    icon: LayoutDashboard,
+    end: true,
+    section: 'Overview',
+  },
+  {
     name: 'Cases',
     path: '/lawyer/cases',
     icon: Briefcase,
@@ -104,14 +111,6 @@ const links = [
     path: '/lawyer/authorities',
     icon: FolderOpen,
     section: 'Research & AI',
-  },
-
-  {
-    name: 'Dashboard',
-    path: '/lawyer/dashboard',
-    icon: LayoutDashboard,
-    end: true,
-    section: 'Overview',
   },
 
   {

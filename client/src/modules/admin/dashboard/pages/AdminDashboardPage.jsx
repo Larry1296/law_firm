@@ -225,13 +225,14 @@ export default function AdminDashboardPage() {
     user?.email ||
     '';
   const firstName = getFirstName(displayName);
+  const firmRole = displayEnum(user?.firm_role || user?.role || 'ADMIN');
   const tileMetrics = useMemo(() => buildTileMetrics(dashboard), [dashboard]);
 
   return (
     <>
       <DashboardHero
         badge='Administrator'
-        title={`Welcome${firstName ? `, ${firstName}` : ''}`}
+        title={`Welcome ${firmRole}${firstName ? `, ${firstName}` : ''}`}
         description='Monitor firm performance, manage staff, oversee client matters, and track legal operations from a single dashboard.'
         statusTitle='Firm Operational'
         statusDescription={isFetching ? 'Refreshing dashboard metrics.' : 'Dashboard metrics are synced with firm data.'}

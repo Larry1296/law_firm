@@ -17,6 +17,13 @@ import useUnreadNotifications from '@/modules/notifications/hooks/useUnreadNotif
 
 const links = [
   {
+    name: 'Dashboard',
+    path: '/client/dashboard',
+    icon: <LayoutDashboard size={18} />,
+    end: true,
+    section: 'Overview',
+  },
+  {
     name: 'Cases',
     path: '/client/cases',
     icon: <Briefcase size={18} />,
@@ -39,13 +46,6 @@ const links = [
     path: '/client/notifications',
     icon: <Bell size={18} />,
     section: 'Communication',
-  },
-  {
-    name: 'Dashboard',
-    path: '/client/dashboard',
-    icon: <LayoutDashboard size={18} />,
-    end: true,
-    section: 'Overview',
   },
   {
     name: 'Profile',
