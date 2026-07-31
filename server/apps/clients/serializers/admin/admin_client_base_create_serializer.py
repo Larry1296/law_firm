@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.clients.models import Client
+from apps.clients.kenya_locations import KENYA_COUNTIES
 from apps.users.models import User
 
 
@@ -126,6 +127,13 @@ class AdminClientBaseCreateSerializer(serializers.Serializer):
             Client.AccessType.PROSPECT: Client.AccessType.PORTAL_ENABLED,
         }.get(access_type, access_type)
         attrs["access_type"] = access_type
+
+        if (attrs.get("country") or "").strip().casefold() == "kenya":
+            county = (attrs.get("county") or "").strip()
+            if county and county not in KENYA_COUNTIES:
+                raise serializers.ValidationError(
+                    {"county": "Select one of Kenya's 47 official counties."}
+                )
 
         if (
             access_type == Client.AccessType.PORTAL_ENABLED

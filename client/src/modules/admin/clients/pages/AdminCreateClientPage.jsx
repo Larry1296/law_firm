@@ -23,6 +23,7 @@ import {
 } from '@/modules/admin/clients/utils/legalEntityClientPayload';
 import ClientCreationSuccessPanel from '@/modules/admin/clients/components/ClientCreationSuccessPanel';
 import KycDocumentUploads from '@/modules/admin/clients/components/KycDocumentUploads';
+import KenyanAddressFields from '@/modules/clients/shared/KenyanAddressFields';
 
 export default function AdminCreateClientPage() {
   const navigate = useNavigate();
@@ -1429,6 +1430,18 @@ export default function AdminCreateClientPage() {
             </section>
           )}
 
+          {!isIndividual && (
+            <section className='space-y-4'>
+              <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>Physical / Registered Office Address</h3>
+              <p className='text-sm text-[color:var(--text-secondary)]'>This is the client&apos;s physical location. For Kenya, County and Nearest City / Town appear directly below.</p>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <KenyanAddressFields formData={formData} onChange={handleChange} errors={fieldErrors} />
+                <FloatingInput label='Postal Code' name='postal_code' value={formData.postal_code} onChange={handleChange} error={fieldErrors.postal_code} />
+                <FloatingInput label='Full Physical Address' name='full_address' value={formData.full_address} onChange={handleChange} error={fieldErrors.full_address} required={isCompanyClient || isProspect} />
+              </div>
+            </section>
+          )}
+
           {canonicalEntityTypes.includes(clientType) && (
             <section className='space-y-5'>
               <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
@@ -1714,7 +1727,7 @@ export default function AdminCreateClientPage() {
 
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 <FloatingInput
-                  label='Country of Incorporation'
+                  label='Country of Incorporation (legal registration, not physical address)'
                   name='country_of_incorporation'
                   value={formData.country_of_incorporation}
                   onChange={handleChange}
@@ -2350,10 +2363,7 @@ export default function AdminCreateClientPage() {
                   Residential address
                 </h3>
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                  <FloatingInput label='Residential Country' name='country' value={formData.country} onChange={handleChange} error={fieldErrors.country} required />
-                  <FloatingInput label='County or Region' name='county_or_region' value={formData.county_or_region} onChange={handleChange} error={fieldErrors.county_or_region || fieldErrors.county} />
-                  <FloatingInput label='City, Town or Locality' name='city_or_town' value={formData.city_or_town} onChange={handleChange} error={fieldErrors.city_or_town || fieldErrors.city} required />
-                  <FloatingInput label='Street or Locality' name='street_or_locality' value={formData.street_or_locality} onChange={handleChange} error={fieldErrors.street_or_locality || fieldErrors.street} />
+                  <KenyanAddressFields formData={formData} onChange={handleChange} errors={{ ...fieldErrors, county_or_region: fieldErrors.county_or_region || fieldErrors.county, city_or_town: fieldErrors.city_or_town || fieldErrors.city, street_or_locality: fieldErrors.street_or_locality || fieldErrors.street }} names={{ country: 'country', county: 'county_or_region', town: 'city_or_town', locality: 'street_or_locality' }} />
                   <FloatingInput label='Postal Code' name='postal_code' value={formData.postal_code} onChange={handleChange} error={fieldErrors.postal_code} />
                   <FloatingInput label='Address Description' name='address_description' value={formData.address_description} onChange={handleChange} error={fieldErrors.address_description || fieldErrors.full_address} required />
                 </div>
@@ -2581,7 +2591,7 @@ export default function AdminCreateClientPage() {
                     error={fieldErrors.incorporation_date}
                   />
                   <FloatingInput
-                    label='Country of Incorporation'
+                    label='Country of Incorporation (legal registration, not physical address)'
                     name='country_of_incorporation'
                     value={formData.country_of_incorporation}
                     onChange={handleChange}
@@ -2900,17 +2910,6 @@ export default function AdminCreateClientPage() {
 		              Registered office
 		            </h3>
 		          )}
-
-          {!isIndividual && (
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-              <FloatingInput label='Country' name='country' value={formData.country} onChange={handleChange} error={fieldErrors.country} />
-              <FloatingInput label='County' name='county' value={formData.county} onChange={handleChange} error={fieldErrors.county} />
-              <FloatingInput label='City' name='city' value={formData.city} onChange={handleChange} error={fieldErrors.city} />
-              <FloatingInput label='Street' name='street' value={formData.street} onChange={handleChange} error={fieldErrors.street} />
-              <FloatingInput label='Postal Code' name='postal_code' value={formData.postal_code} onChange={handleChange} error={fieldErrors.postal_code} />
-              <FloatingInput label='Full Address' name='full_address' value={formData.full_address} onChange={handleChange} error={fieldErrors.full_address} required={isCompanyClient || isProspect} />
-            </div>
-          )}
 
           <KycDocumentUploads formData={formData} onChange={handleKycAttachmentsChange} />
 
