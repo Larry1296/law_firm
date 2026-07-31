@@ -1,5 +1,4 @@
 from apps.cases.models import Case
-from apps.clients.services.client.client_document_service import ClientDocumentService
 from apps.notifications.services import NotificationService
 
 
@@ -8,7 +7,7 @@ class ClientDashboardService:
     def get_dashboard_data(client):
         cases = client.cases.filter(firm=client.firm)
         active_cases = cases.filter(is_active=True)
-        documents = ClientDocumentService.list_documents(client)
+        document_count = client.documents.count()
         unread_notifications = (
             NotificationService.unread_count(client.user)
             if client.user_id
@@ -36,7 +35,7 @@ class ClientDashboardService:
                 "closed_cases": cases.filter(status=Case.Status.CLOSED).count(),
                 "urgent_cases": active_cases.filter(priority=Case.Priority.URGENT).count(),
                 "upcoming_hearings": active_cases.exclude(court_name="").count(),
-                "documents": len(documents),
+                "documents": document_count,
                 "unread_notifications": unread_notifications,
                 "next_deadline": None,
             },

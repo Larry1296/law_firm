@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 
 from apps.common.models.timestamped_model import TimestampedModel
@@ -17,6 +19,17 @@ class DocumentType(models.TextChoices):
 
 
 class ClientDocument(TimestampedModel):
+
+    class ReviewStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending review"
+        ACCEPTED = "ACCEPTED", "Accepted"
+        NEEDS_REPLACEMENT = "NEEDS_REPLACEMENT", "Replacement required"
+
+    class SourceCopyType(models.TextChoices):
+        ORIGINAL_INSPECTED = "ORIGINAL_INSPECTED", "Original inspected and scanned"
+        CERTIFIED_COPY = "CERTIFIED_COPY", "Certified copy scanned"
+        CLIENT_COPY = "CLIENT_COPY", "Client-supplied copy"
+        OFFICIAL_ELECTRONIC = "OFFICIAL_ELECTRONIC", "Official electronic record"
 
     client = models.ForeignKey(
         Client,
@@ -51,6 +64,24 @@ class ClientDocument(TimestampedModel):
         blank=True,
     )
 
+    reference = models.CharField(max_length=40, unique=True, blank=True, db_index=True)
+
+    review_status = models.CharField(
+        max_length=30,
+        choices=ReviewStatus.choices,
+        default=ReviewStatus.PENDING,
+    )
+
+    review_notes = models.TextField(blank=True, default="")
+
+    source_reference = models.CharField(max_length=255, blank=True, default="")
+    source_copy_type = models.CharField(
+        max_length=30, choices=SourceCopyType.choices, default=SourceCopyType.CLIENT_COPY
+    )
+    physical_copy_retained = models.BooleanField(default=False)
+    physical_storage_location = models.CharField(max_length=255, blank=True, default="")
+    custody_notes = models.TextField(blank=True, default="")
+
     uploaded_by = models.ForeignKey(
         "users.User",
         on_delete=models.SET_NULL,
@@ -77,3 +108,10 @@ class ClientDocument(TimestampedModel):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.file_name and self.file:
+            self.file_name = self.file.name.rsplit("/", 1)[-1]
+        if not self.reference:
+            self.reference = f"DOC-{uuid.uuid4().hex[:10].upper()}"
+        super().save(*args, **kwargs)

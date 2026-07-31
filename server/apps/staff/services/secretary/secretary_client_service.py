@@ -1,3 +1,5 @@
+from django.db.models import Count, Q
+
 from apps.staff.models import SecretaryPermission
 from apps.clients.models import Client
 
@@ -27,6 +29,15 @@ class SecretaryClientService:
     def list_clients(user):
         secretary = SecretaryClientService.get_secretary(user)
 
-        return Client.objects.filter(
-            firm=secretary.law_firm,
-        ).order_by("-created_at")
+        return (
+            Client.objects.filter(firm=secretary.law_firm)
+            .select_related("user")
+            .prefetch_related("addresses", "contacts", "representatives")
+            .annotate(
+                matter_count=Count("cases", distinct=True),
+                active_matter_count=Count(
+                    "cases", filter=Q(cases__is_active=True), distinct=True
+                ),
+            )
+            .order_by("-created_at")
+        )

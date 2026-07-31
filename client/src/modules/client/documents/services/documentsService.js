@@ -7,6 +7,10 @@ const documentsService = {
     });
     return data;
   },
+  async uploadDocument(payload) {
+    const { data } = await axiosInstance.post('/client/documents/', payload);
+    return data;
+  },
 };
 
 export default documentsService;

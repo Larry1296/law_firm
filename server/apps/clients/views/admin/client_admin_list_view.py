@@ -28,6 +28,7 @@ class ClientAdminListView(ClientAdminBaseView):
                     "inactive_clients": clients.filter(is_active=False).count(),
                     "prospects_with_access": clients.filter(
                         access_type=Client.AccessType.PORTAL_ENABLED,
+                        lifecycle_status__in=[Client.LifecycleStatus.PROSPECTIVE, Client.LifecycleStatus.PROSPECT],
                     ).count(),
                     "assisted_clients": clients.filter(
                         access_type=Client.AccessType.ASSISTED,

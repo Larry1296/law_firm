@@ -10,10 +10,10 @@ class ClientAdminStatusService:
         if not client.user:
             return
 
-        if client.lifecycle_status == client.LifecycleStatus.OFFICIAL_CLIENT:
+        if client.lifecycle_status in {client.LifecycleStatus.OFFICIAL, client.LifecycleStatus.OFFICIAL_CLIENT}:
             client.user.role = UserRole.OFFICIAL_CLIENT
             client.user.save(update_fields=["role", "updated_at"])
-        elif client.lifecycle_status == client.LifecycleStatus.PROSPECT:
+        elif client.lifecycle_status in {client.LifecycleStatus.PROSPECTIVE, client.LifecycleStatus.PROSPECT}:
             client.user.role = UserRole.PROSPECT
             client.user.save(update_fields=["role", "updated_at"])
 
@@ -74,7 +74,7 @@ class ClientAdminStatusService:
             return client
         client.lifecycle_status = (
             client.previous_lifecycle_status
-            or client.LifecycleStatus.OFFICIAL_CLIENT
+            or client.LifecycleStatus.OFFICIAL
         )
         client.access_type = client.previous_access_type or client.access_type
         client.is_active = (
@@ -148,7 +148,7 @@ class ClientAdminStatusService:
         elif action == "archive":
             return ClientAdminStatusService.archive_client(client)
         else:
-            client.lifecycle_status = client.LifecycleStatus.OFFICIAL_CLIENT
+            client.lifecycle_status = client.LifecycleStatus.OFFICIAL
 
         client.save(update_fields=["lifecycle_status", "updated_at"])
         ClientAdminStatusService._sync_user_role(client)

@@ -22,7 +22,7 @@ from apps.staff.views.lawyer.lawyer_cases_view import LawyerCaseCreateOptionsVie
 from apps.staff.views.lawyer.lawyer_change_password_view import LawyerChangePasswordView
 from apps.staff.views.lawyer.lawyer_clients_view import LawyerClientsView
 from apps.staff.views.lawyer.lawyer_dashboard_view import LawyerDashboardView
-from apps.staff.views.lawyer.lawyer_documents_view import LawyerDocumentsView
+from apps.staff.views.lawyer.lawyer_documents_view import LawyerDocumentRequestReviewView, LawyerDocumentsView
 from apps.staff.views.lawyer.lawyer_notifications_view import LawyerNotificationsView
 from apps.staff.views.lawyer.lawyer_profile_view import LawyerProfileView
 from apps.staff.views.lawyer.lawyer_tasks_view import LawyerTasksView
@@ -53,6 +53,7 @@ urlpatterns = [
     path("tasks/", LawyerTasksView.as_view(), name="lawyer-tasks"),
     path("documents/", LawyerDocumentsView.as_view(), name="lawyer-documents"),
     path("documents/upload/", LawyerDocumentsView.as_view(), name="lawyer-document-upload"),
+    path("documents/requests/<uuid:request_id>/review/", LawyerDocumentRequestReviewView.as_view(), name="lawyer-document-request-review"),
     path("notifications/", LawyerNotificationsView.as_view(), name="lawyer-notifications"),
     path("change-password/", LawyerChangePasswordView.as_view(), name="lawyer-change-password"),
 ]

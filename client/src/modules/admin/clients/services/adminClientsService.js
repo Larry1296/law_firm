@@ -62,6 +62,14 @@ const adminClientsService = {
     return data;
   },
 
+  async uploadKycDocument(clientId, attachment) {
+    const payload = new FormData();
+    Object.entries(attachment).forEach(([key, value]) => value !== null && value !== undefined && payload.append(key, value));
+    payload.append('title', attachment.label);
+    const { data } = await axiosInstance.post(`/documents/clients/${clientId}/kyc/`, payload);
+    return data;
+  },
+
   /* ======================================================
      CLIENT LIST
   ====================================================== */

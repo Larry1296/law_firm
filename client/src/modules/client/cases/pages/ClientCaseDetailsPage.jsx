@@ -18,6 +18,7 @@ import {
 import { useClientCaseDetails } from '@/modules/client/cases/hooks/useClientCaseDetails';
 import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
 import CaseCourtroomPanel from '@/modules/courtroom/components/CaseCourtroomPanel';
+import ClientDocumentWorkspace from '@/modules/client/documents/pages/ClientDocumentWorkspace';
 
 export default function ClientCaseDetailsPage() {
   const { id } = useParams();
@@ -201,6 +202,8 @@ export default function ClientCaseDetailsPage() {
       </Card>
 
       <CaseProcedurePanels caseData={caseData} />
+
+      <ClientDocumentWorkspace caseId={id} compact />
 
       <CaseCourtroomPanel
         caseId={id}

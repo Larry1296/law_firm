@@ -1,6 +1,7 @@
 from apps.notifications.services import NotificationService
 from apps.staff.services.secretary.secretary_case_service import SecretaryCaseService
 from apps.staff.services.secretary.secretary_client_service import SecretaryClientService
+from apps.documents.models import DocumentRequest
 
 
 class SecretaryDashboardService:
@@ -16,6 +17,10 @@ class SecretaryDashboardService:
         )
         cases = SecretaryCaseService.list_cases(user)
         clients = SecretaryClientService.list_clients(user)
+        documents_to_prepare = DocumentRequest.objects.filter(
+            case__in=cases,
+            status__in=[DocumentRequest.Status.OPEN, DocumentRequest.Status.REPLACEMENT_REQUIRED],
+        ).count()
 
         return {
             "profile": {
@@ -32,7 +37,8 @@ class SecretaryDashboardService:
                 "active_cases": cases.filter(is_active=True).count(),
                 "clients": clients.count(),
                 "pending_tasks": cases.filter(status="PENDING").count(),
-                "documents_to_prepare": 0,
+                "documents_to_prepare": documents_to_prepare,
+                "clients_with_active_matters": clients.filter(active_matter_count__gt=0).count(),
                 "appointments_today": cases.exclude(court_name="").count()
                 if secretary.can_schedule_appointments
                 else 0,

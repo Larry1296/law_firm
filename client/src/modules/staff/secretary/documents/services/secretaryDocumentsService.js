@@ -7,6 +7,10 @@ const secretaryDocumentsService = {
     });
     return data;
   },
+  async uploadDocument(payload) {
+    const { data } = await axiosInstance.post('/staff/secretary/documents/', payload);
+    return data;
+  },
 };
 
 export default secretaryDocumentsService;

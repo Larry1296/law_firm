@@ -18,8 +18,8 @@ class ClientAdminDashboardView(ClientAdminBaseView):
                 "dashboard": {
                     "total_clients": clients.count(),
                     "active_clients": clients.filter(is_active=True).count(),
-                    "prospects": clients.filter(lifecycle_status=Client.LifecycleStatus.PROSPECT).count(),
-                    "official_clients": clients.filter(lifecycle_status=Client.LifecycleStatus.OFFICIAL_CLIENT).count(),
+                    "prospects": clients.filter(lifecycle_status__in=[Client.LifecycleStatus.PROSPECTIVE, Client.LifecycleStatus.PROSPECT]).count(),
+                    "official_clients": clients.filter(lifecycle_status__in=[Client.LifecycleStatus.OFFICIAL, Client.LifecycleStatus.OFFICIAL_CLIENT]).count(),
                     "archived_clients": clients.filter(lifecycle_status=Client.LifecycleStatus.ARCHIVED).count(),
                 }
             },

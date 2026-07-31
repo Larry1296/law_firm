@@ -158,7 +158,7 @@ export default function SecretaryClients() {
         />
 
         <StatsCard
-          title='Represented Clients'
+          title='Clients with Active Matters'
           value={clients.filter((c) => c.is_represented).length}
           icon={<UserCheck size={22} />}
           color='green'
@@ -260,11 +260,11 @@ export default function SecretaryClients() {
             render: renderLifecycleStatus,
           },
           {
-            key: 'is_represented',
-            label: 'Representation',
+            key: 'active_matter_count',
+            label: 'Matter Representation',
             render: (value) => (
-              <span className={value ? 'text-success' : 'text-error'}>
-                {value ? 'Represented' : 'Not Represented'}
+              <span className={value > 0 ? 'text-success' : 'text-text-muted-light dark:text-text-muted-dark'}>
+                {value > 0 ? `${value} active matter${value === 1 ? '' : 's'}` : 'No active matter'}
               </span>
             ),
           },

@@ -1,4 +1,6 @@
 from apps.cases.models import Case
+from apps.clients.models import ClientDocument
+from apps.documents.models import DocumentRequest
 from apps.notifications.services import NotificationService
 
 
@@ -14,6 +16,17 @@ class LawyerDashboardService:
         active_cases = cases.filter(is_active=True)
         client_count = cases.values("client_id").distinct().count()
         courtroom_cases = active_cases.exclude(court_name="").count()
+        document_count = ClientDocument.objects.filter(
+            client__cases__assigned_lawyer=lawyer,
+            client__cases__is_active=True,
+        ).distinct().count()
+        pending_document_requests = DocumentRequest.objects.filter(
+            case__assigned_lawyer=lawyer,
+            case__is_active=True,
+            status__in=[DocumentRequest.Status.OPEN, DocumentRequest.Status.UPLOADED, DocumentRequest.Status.REPLACEMENT_REQUIRED],
+        ).count()
+        next_hearing = active_cases.filter(next_court_date__isnull=False).order_by("next_court_date").values_list("next_court_date", flat=True).first()
+        next_deadline = active_cases.filter(internal_deadline__isnull=False).order_by("internal_deadline").values_list("internal_deadline", flat=True).first()
         return {
             "lawyer": {
                 "id": str(lawyer.id),
@@ -28,13 +41,14 @@ class LawyerDashboardService:
                 "clients": client_count,
                 "hearings": courtroom_cases,
                 "tasks_due": active_cases.filter(status=Case.Status.PENDING).count(),
-                "documents": 0,
+                "documents": document_count,
+                "pending_document_requests": pending_document_requests,
                 "notifications": NotificationService.unread_count(user),
                 "unread_notifications": NotificationService.unread_count(user),
             },
             "upcoming": {
-                "next_hearing": "2026-07-10T09:00:00Z",
-                "next_deadline": "2026-07-08T17:00:00Z",
+                "next_hearing": next_hearing,
+                "next_deadline": next_deadline,
             },
             "recent_notifications": recent_notifications,
             "recent_activity": recent_notifications

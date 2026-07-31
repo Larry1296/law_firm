@@ -196,7 +196,7 @@ class SecretaryEndpointTests(TestCase):
             phone_number="+254711000005",
             client_type=Client.ClientType.INDIVIDUAL,
             access_type=Client.AccessType.ASSISTED,
-            lifecycle_status=Client.LifecycleStatus.OFFICIAL_CLIENT,
+            lifecycle_status=Client.LifecycleStatus.OFFICIAL,
         )
         Case.objects.create(
             firm=self.firm,
@@ -219,6 +219,11 @@ class SecretaryEndpointTests(TestCase):
         clients_response = self.client.get(reverse("secretary-clients"))
         self.assertEqual(clients_response.status_code, 200, clients_response.data)
         self.assertEqual(len(clients_response.data["clients"]), 1)
+        listed_client = clients_response.data["clients"][0]
+        self.assertTrue(listed_client["is_represented"])
+        self.assertEqual(listed_client["active_matter_count"], 1)
+        self.assertEqual(listed_client["matter_count"], 1)
+        self.assertEqual(listed_client["representation_status"], "ACTIVE_MATTER")
 
     def test_secretary_client_creation_requires_manage_clients_permission(self):
         secretary_user = User.objects.create_user(

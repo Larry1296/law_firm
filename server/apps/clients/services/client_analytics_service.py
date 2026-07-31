@@ -56,11 +56,12 @@ class ClientAnalyticsService:
             # ----------------------------
 
             "prospects_with_access": queryset.filter(
-                access_type=Client.AccessType.PROSPECT
+                access_type__in=[Client.AccessType.PORTAL_ENABLED, Client.AccessType.PROSPECT],
+                lifecycle_status__in=[Client.LifecycleStatus.PROSPECTIVE, Client.LifecycleStatus.PROSPECT],
             ).count(),
 
             "assisted_clients": queryset.filter(
-                access_type=Client.AccessType.ASSISTED_CLIENT
+                access_type__in=[Client.AccessType.ASSISTED, Client.AccessType.ASSISTED_CLIENT]
             ).count(),
 
             # ----------------------------
@@ -68,11 +69,11 @@ class ClientAnalyticsService:
             # ----------------------------
 
             "prospects": queryset.filter(
-                lifecycle_status=Client.LifecycleStatus.PROSPECT
+                lifecycle_status__in=[Client.LifecycleStatus.PROSPECTIVE, Client.LifecycleStatus.PROSPECT]
             ).count(),
 
             "official_clients": queryset.filter(
-                lifecycle_status=Client.LifecycleStatus.OFFICIAL_CLIENT
+                lifecycle_status__in=[Client.LifecycleStatus.OFFICIAL, Client.LifecycleStatus.OFFICIAL_CLIENT]
             ).count(),
 
             "archived_clients": queryset.filter(

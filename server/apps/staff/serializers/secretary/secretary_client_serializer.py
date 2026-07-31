@@ -14,6 +14,9 @@ from apps.clients.serializers.client.client_type_profile_serializer import (
 class SecretaryClientSerializer(serializers.ModelSerializer):
     client_id = serializers.CharField(source="id", read_only=True)
     is_represented = serializers.SerializerMethodField()
+    matter_count = serializers.IntegerField(read_only=True)
+    active_matter_count = serializers.IntegerField(read_only=True)
+    representation_status = serializers.SerializerMethodField()
     last_updated = serializers.DateTimeField(source="updated_at", read_only=True)
     type_profile = serializers.SerializerMethodField()
     addresses = ClientAddressSerializer(many=True, read_only=True)
@@ -38,6 +41,9 @@ class SecretaryClientSerializer(serializers.ModelSerializer):
             "access_type",
             "lifecycle_status",
             "is_represented",
+            "matter_count",
+            "active_matter_count",
+            "representation_status",
             "kra_pin",
             "passport_number",
             "date_of_birth",
@@ -57,7 +63,13 @@ class SecretaryClientSerializer(serializers.ModelSerializer):
         ]
 
     def get_is_represented(self, obj):
-        return obj.lifecycle_status == Client.LifecycleStatus.OFFICIAL_CLIENT
+        active_count = getattr(obj, "active_matter_count", None)
+        if active_count is not None:
+            return active_count > 0
+        return obj.cases.filter(is_active=True).exists()
+
+    def get_representation_status(self, obj):
+        return "ACTIVE_MATTER" if self.get_is_represented(obj) else "NO_ACTIVE_MATTER"
 
     def get_type_profile(self, obj):
         return serialize_client_type_profile(obj)

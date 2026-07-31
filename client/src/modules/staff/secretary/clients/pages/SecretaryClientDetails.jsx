@@ -179,8 +179,10 @@ const SecretaryClientDetails = () => {
       {/* QUICK STATS */}
       <div className='grid grid-cols-1 gap-3 md:grid-cols-2'>
         <StatsCard
-          title='Representation'
-          value={client.is_represented ? 'Active' : 'Not Active'}
+          title='Matter Representation'
+          value={client.active_matter_count > 0
+            ? `${client.active_matter_count} Active Matter${client.active_matter_count === 1 ? '' : 's'}`
+            : 'No Active Matter'}
         />
 
         <StatsCard title='Lifecycle' value={client.lifecycle_status} />

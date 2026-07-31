@@ -25,6 +25,7 @@ import {
 import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
 import CaseProceedingsWorkflow from '@/modules/cases/shared/CaseProceedingsWorkflow';
 import CaseCourtroomPanel from '@/modules/courtroom/components/CaseCourtroomPanel';
+import LawyerDocumentsPage from '@/modules/staff/lawyer/documents/pages/LawyerDocumentsPage';
 
 const CASE_STATUS_OPTIONS = [
   { value: 'PENDING', label: 'Pending Review' },
@@ -197,7 +198,6 @@ export default function LawyerCaseDetailsPage() {
 
   const analytics = caseData?.analytics ?? {};
   const timeline = caseData?.timeline ?? [];
-  const documents = caseData?.documents ?? [];
 
   const safe = (value, fallback = 'N/A') =>
     value !== null && value !== undefined && value !== '' ? value : fallback;
@@ -935,30 +935,7 @@ export default function LawyerCaseDetailsPage() {
         )}
       </Card>
 
-      <Card className='p-6'>
-        <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-          Documents
-        </h3>
-
-        {documents.length ? (
-          <div className='space-y-2'>
-            {documents.map((doc, index) => (
-              <div
-                key={doc.id || index}
-                className='rounded-lg border border-border-light bg-surface-light p-3 dark:border-border-dark dark:bg-surface-dark'
-              >
-                <p className='text-text-primary-light dark:text-text-primary-dark'>
-                  {doc.name || doc.title || 'Document'}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className='text-text-muted-light dark:text-text-muted-dark'>
-            No documents uploaded.
-          </p>
-        )}
-      </Card>
+      <LawyerDocumentsPage caseId={id} compact />
     </div>
   );
 }
