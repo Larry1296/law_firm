@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.utils import timezone
 
 from apps.clients.models import (
     ClientMatterConflictCheck,
@@ -119,6 +120,10 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
     is_consumed = serializers.BooleanField(read_only=True)
     can_open_matter = serializers.BooleanField(read_only=True)
     permitted_next_statuses = serializers.SerializerMethodField()
+    date_instructions_received = serializers.SerializerMethodField()
+
+    def get_date_instructions_received(self, obj):
+        return timezone.localtime(obj.created_at).date().isoformat()
 
     def get_adverse_parties(self, obj):
         return [
@@ -166,6 +171,7 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
             "is_consumed",
             "adverse_parties",
             "permitted_next_statuses",
+            "date_instructions_received",
             "created_at",
             "updated_at",
         ]

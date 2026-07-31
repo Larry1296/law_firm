@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Case as QueryCase, IntegerField, Max, Q, Value, When
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -17,14 +17,14 @@ class ProceedingsWorkflowService:
         CourtEventType.DIRECTIONS: [CourtEventType.MENTION, CourtEventType.CASE_MANAGEMENT, CourtEventType.HEARING],
         CourtEventType.CASE_MANAGEMENT: [CourtEventType.HEARING, CourtEventType.MENTION, CourtEventType.MEDIATION],
         CourtEventType.MENTION: [
-            CourtEventType.HEARING,
             CourtEventType.FURTHER_MENTION,
+            CourtEventType.HEARING,
             CourtEventType.APPLICATION_HEARING,
             CourtEventType.PRELIMINARY_OBJECTION,
             CourtEventType.DIRECTIONS,
         ],
         CourtEventType.FURTHER_MENTION: [
-            CourtEventType.HEARING, CourtEventType.FURTHER_MENTION, CourtEventType.APPLICATION_HEARING
+            CourtEventType.FURTHER_MENTION, CourtEventType.HEARING, CourtEventType.APPLICATION_HEARING
         ],
         CourtEventType.APPLICATION_HEARING: [
             CourtEventType.RULING, CourtEventType.HEARING, CourtEventType.FURTHER_MENTION
@@ -49,7 +49,59 @@ class ProceedingsWorkflowService:
         ],
         CourtEventType.DECREE: [CourtEventType.EXECUTION, CourtEventType.APPEAL],
         CourtEventType.EXECUTION: [CourtEventType.EXECUTION, CourtEventType.CLOSURE],
+        CourtEventType.APPEAL: [CourtEventType.REGISTRATION, CourtEventType.DIRECTIONS],
+        CourtEventType.REVIEW: [CourtEventType.APPLICATION_HEARING, CourtEventType.RULING],
     }
+    TRACK_TRANSITIONS = {
+        (CaseEvent.Track.APPEAL, CourtEventType.APPEAL): [
+            CourtEventType.REGISTRATION, CourtEventType.DIRECTIONS
+        ],
+        (CaseEvent.Track.APPEAL, CourtEventType.REGISTRATION): [
+            CourtEventType.DIRECTIONS, CourtEventType.MENTION
+        ],
+        (CaseEvent.Track.APPEAL, CourtEventType.DIRECTIONS): [
+            CourtEventType.HEARING, CourtEventType.MENTION
+        ],
+        (CaseEvent.Track.APPEAL, CourtEventType.HEARING): [
+            CourtEventType.SUBMISSIONS, CourtEventType.JUDGMENT, CourtEventType.FURTHER_HEARING
+        ],
+        (CaseEvent.Track.APPEAL, CourtEventType.FURTHER_HEARING): [
+            CourtEventType.FURTHER_HEARING, CourtEventType.SUBMISSIONS
+        ],
+        (CaseEvent.Track.APPEAL, CourtEventType.SUBMISSIONS): [CourtEventType.JUDGMENT],
+        (CaseEvent.Track.APPEAL, CourtEventType.JUDGMENT): [
+            CourtEventType.EXECUTION, CourtEventType.HEARING, CourtEventType.CLOSURE
+        ],
+        (CaseEvent.Track.REVIEW, CourtEventType.REVIEW): [
+            CourtEventType.APPLICATION_HEARING, CourtEventType.RULING
+        ],
+        (CaseEvent.Track.REVIEW, CourtEventType.APPLICATION_HEARING): [
+            CourtEventType.RULING, CourtEventType.FURTHER_MENTION
+        ],
+        (CaseEvent.Track.REVIEW, CourtEventType.RULING): [
+            CourtEventType.HEARING, CourtEventType.EXECUTION, CourtEventType.APPEAL,
+            CourtEventType.CLOSURE,
+        ],
+        (CaseEvent.Track.EXECUTION, CourtEventType.EXECUTION): [
+            CourtEventType.EXECUTION, CourtEventType.APPEAL, CourtEventType.CLOSURE
+        ],
+    }
+    INTERLOCUTORY_TYPES = {
+        CourtEventType.APPLICATION_HEARING,
+        CourtEventType.PRELIMINARY_OBJECTION,
+        CourtEventType.OTHER_COURT_DIRECTED,
+    }
+
+    @classmethod
+    def is_interlocutory_event(cls, event):
+        return (
+            event.event_type in cls.INTERLOCUTORY_TYPES
+            or (
+                event.previous_event_id
+                and event.previous_event.event_type in cls.INTERLOCUTORY_TYPES
+                and event.event_type == CourtEventType.RULING
+            )
+        )
     ALWAYS_AVAILABLE = [CourtEventType.MEDIATION, CourtEventType.SETTLEMENT]
     CRIMINAL_EXTRA = {
         CourtEventType.REGISTRATION: [CourtEventType.PLEA],
@@ -75,6 +127,187 @@ class ProceedingsWorkflowService:
         CourtEventType.APPEAL: InternalCaseLifecycleStage.ON_APPEAL,
         CourtEventType.CLOSURE: InternalCaseLifecycleStage.CLOSED,
     }
+    STAGE_BY_TRACK_EVENT = {
+        (CaseEvent.Track.APPEAL, event_type): InternalCaseLifecycleStage.ON_APPEAL
+        for event_type in (
+            CourtEventType.APPEAL, CourtEventType.REGISTRATION, CourtEventType.DIRECTIONS,
+            CourtEventType.MENTION, CourtEventType.FURTHER_MENTION, CourtEventType.HEARING,
+            CourtEventType.FURTHER_HEARING, CourtEventType.SUBMISSIONS, CourtEventType.JUDGMENT,
+        )
+    }
+    STAGE_BY_TRACK_EVENT.update({
+        (CaseEvent.Track.REVIEW, event_type): InternalCaseLifecycleStage.STAYED
+        for event_type in (
+            CourtEventType.REVIEW, CourtEventType.APPLICATION_HEARING,
+            CourtEventType.FURTHER_MENTION, CourtEventType.RULING,
+        )
+    })
+
+    @classmethod
+    def event_label(cls, event_type, track=CaseEvent.Track.TRIAL, *, repeated=False):
+        label = CourtEventType(event_type).label
+        if event_type == CourtEventType.EXECUTION and repeated:
+            label = "Execution — further attempt"
+        if track != CaseEvent.Track.TRIAL:
+            label = f"{label} — {CaseEvent.Track(track).label}"
+        return label
+
+    @classmethod
+    def _outcome_recommendation(cls, event):
+        if event.outcome_code in {
+            CourtEventOutcome.ADJOURNED,
+            CourtEventOutcome.DID_NOT_PROCEED,
+            CourtEventOutcome.TAKEN_OUT,
+            CourtEventOutcome.VACATED,
+        }:
+            return event.event_type, event.track, cls.event_label(event.event_type, event.track)
+        if event.outcome_code == CourtEventOutcome.PART_HEARD:
+            return (
+                CourtEventType.FURTHER_HEARING,
+                event.track,
+                cls.event_label(CourtEventType.FURTHER_HEARING, event.track) + " (part heard)",
+            )
+        if event.event_type in {CourtEventType.MENTION, CourtEventType.FURTHER_MENTION} and (
+            "compliance pending" in (event.outcome or "").lower()
+        ):
+            return CourtEventType.FURTHER_MENTION, event.track, "Further mention (compliance)"
+        outcome = (event.outcome or "").lower()
+        if event.track == CaseEvent.Track.APPEAL and event.event_type == CourtEventType.JUDGMENT:
+            if "remit" in outcome or "retrial" in outcome:
+                return CourtEventType.HEARING, CaseEvent.Track.TRIAL, "Hearing (retrial)"
+            if "dismiss" in outcome:
+                return CourtEventType.EXECUTION, CaseEvent.Track.EXECUTION, "Execution"
+        if event.track == CaseEvent.Track.REVIEW and event.event_type == CourtEventType.RULING:
+            if "allow" in outcome or "reopen" in outcome:
+                return CourtEventType.HEARING, CaseEvent.Track.TRIAL, "Hearing (reopened after review)"
+            if "dismiss" in outcome:
+                return CourtEventType.EXECUTION, CaseEvent.Track.EXECUTION, "Execution"
+        return None
+
+    @classmethod
+    def _transition_options(cls, event):
+        outcome_choice = cls._outcome_recommendation(event)
+        if outcome_choice:
+            return [outcome_choice]
+        values = cls.TRACK_TRANSITIONS.get(
+            (event.track, event.event_type),
+            cls.TRANSITIONS.get(event.event_type, []),
+        )
+        result = []
+        for value in values:
+            track = event.track
+            if value == CourtEventType.APPEAL:
+                track = CaseEvent.Track.APPEAL
+            elif value == CourtEventType.REVIEW:
+                track = CaseEvent.Track.REVIEW
+            elif value == CourtEventType.EXECUTION:
+                track = CaseEvent.Track.EXECUTION
+            elif event.track in {CaseEvent.Track.APPEAL, CaseEvent.Track.REVIEW} and value == CourtEventType.HEARING:
+                track = event.track
+            result.append((
+                value,
+                track,
+                cls.event_label(
+                    value,
+                    track,
+                    repeated=value == event.event_type == CourtEventType.EXECUTION,
+                ),
+            ))
+        return result
+
+    @classmethod
+    def recommended_next_action(cls, case):
+        current = (
+            case.events.filter(
+                status__in=[
+                    CaseEvent.EventStatus.COMPLETED,
+                    CaseEvent.EventStatus.CONCLUDED,
+                    CaseEvent.EventStatus.ADJOURNED,
+                    CaseEvent.EventStatus.PART_HEARD,
+                ]
+            )
+            .exclude(
+                Q(event_type__in=cls.INTERLOCUTORY_TYPES)
+                | Q(
+                    event_type=CourtEventType.RULING,
+                    previous_event__event_type__in=cls.INTERLOCUTORY_TYPES,
+                )
+            )
+            .order_by("-actual_end", "-starts_at", "-created_at")
+            .first()
+        )
+        if current:
+            options = cls._transition_options(current)
+            if not options:
+                return None
+            event_type, track, label = options[0]
+            return {"event_type": event_type, "track": track, "label": label}
+        if case.lifecycle_stage == InternalCaseLifecycleStage.CLOSED:
+            return None
+        if case.court_stage in {Case.CourtStage.NOT_FILED, Case.CourtStage.READY_FOR_FILING}:
+            return {
+                "event_type": CourtEventType.FILING,
+                "track": CaseEvent.Track.TRIAL,
+                "label": CourtEventType.FILING.label,
+            }
+        return {
+            "event_type": CourtEventType.DIRECTIONS,
+            "track": CaseEvent.Track.TRIAL,
+            "label": CourtEventType.DIRECTIONS.label,
+        }
+
+    @classmethod
+    def _resync_next_action(cls, case, *, actor=None):
+        pending = (
+            case.events.filter(
+                starts_at__gte=timezone.now(),
+                status__in=[CaseEvent.EventStatus.SCHEDULED, CaseEvent.EventStatus.CONFIRMED],
+            )
+            .annotate(
+                headline_priority=QueryCase(
+                    When(
+                        Q(event_type__in=cls.INTERLOCUTORY_TYPES)
+                        | Q(
+                            event_type=CourtEventType.RULING,
+                            previous_event__event_type__in=cls.INTERLOCUTORY_TYPES,
+                        ),
+                        then=Value(1),
+                    ),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by("starts_at", "headline_priority", "created_at")
+            .first()
+        )
+        recommendation = None if pending else cls.recommended_next_action(case)
+        next_action = pending.title if pending else (recommendation or {}).get("label", "")
+        next_date = pending.starts_at if pending else None
+        previous = {
+            "next_action": case.next_action,
+            "next_court_date": case.next_court_date.isoformat() if case.next_court_date else None,
+        }
+        if case.next_action == next_action and case.next_court_date == next_date:
+            return pending or recommendation
+        case.next_action = next_action
+        case.next_court_date = next_date
+        case.save(update_fields=["next_action", "next_court_date", "updated_at"])
+        CaseActivity.objects.create(
+            case=case,
+            action="NEXT_ACTION_WORKFLOW_SYNC",
+            description=next_action or "No further action",
+            actor=actor,
+            metadata={
+                "source": "workflow_sync",
+                "previous_value": previous,
+                "new_value": {
+                    "next_action": next_action,
+                    "next_court_date": next_date.isoformat() if next_date else None,
+                },
+                "event_id": str(pending.id) if pending else None,
+            },
+        )
+        return pending or recommendation
 
     @classmethod
     def ensure_can_record(cls, actor, case):
@@ -84,25 +317,35 @@ class ProceedingsWorkflowService:
     def allowed_next_events(cls, case, current_event=None):
         current_event = current_event or case.events.order_by("-starts_at", "-created_at").first()
         current_type = current_event.event_type if current_event else None
-        options = list(cls.TRANSITIONS.get(current_type, []))
+        transition_options = cls._transition_options(current_event) if current_event else []
+        options = [item[0] for item in transition_options]
         if case.case_type == Case.CaseType.CRIMINAL:
             options = list(cls.CRIMINAL_EXTRA.get(current_type, options))
         for item in cls.ALWAYS_AVAILABLE:
             if item not in options:
                 options.append(item)
-        return [
+        result = [
             {
                 "value": value,
-                "label": CourtEventType(value).label,
+                "label": next(
+                    (item[2] for item in transition_options if item[0] == value),
+                    CourtEventType(value).label,
+                ),
+                "track": next(
+                    (item[1] for item in transition_options if item[0] == value),
+                    CaseEvent.Track.TRIAL,
+                ),
                 "recommended": index == 0,
                 "reason": "Most likely procedural step" if index == 0 else "",
             }
             for index, value in enumerate(options)
-        ] + [{
+        ]
+        return result + [{
             "value": CourtEventType.OTHER_COURT_DIRECTED,
             "label": CourtEventType.OTHER_COURT_DIRECTED.label,
             "recommended": False,
             "requires_court_direction": True,
+            "track": current_event.track if current_event else CaseEvent.Track.TRIAL,
         }]
 
     @classmethod
@@ -142,14 +385,18 @@ class ProceedingsWorkflowService:
         event.attendance = data.get("attendance", [])
         event.orders_directions = data.get("orders_directions", "")
         event.court_direction_details = data.get("court_direction_details", "")
+        if outcome_code in {
+            CourtEventOutcome.ADJOURNED,
+            CourtEventOutcome.DID_NOT_PROCEED,
+        }:
+            event.adjournment_reason = data.get("adjournment_reason") or data["outcome"]
         event.actual_start = data.get("actual_date") or timezone.now()
         event.actual_end = timezone.now()
         event.recorded_by = actor
-        event.status = (
-            CaseEvent.EventStatus.PART_HEARD
-            if outcome_code == CourtEventOutcome.PART_HEARD
-            else CaseEvent.EventStatus.COMPLETED
-        )
+        event.status = {
+            CourtEventOutcome.PART_HEARD: CaseEvent.EventStatus.PART_HEARD,
+            CourtEventOutcome.ADJOURNED: CaseEvent.EventStatus.ADJOURNED,
+        }.get(outcome_code, CaseEvent.EventStatus.COMPLETED)
         event.save()
         document_ids = data.get("supporting_document_ids", [])
         if document_ids:
@@ -168,12 +415,31 @@ class ProceedingsWorkflowService:
             if duplicate:
                 raise ValidationError({"next_event_type": "An active event of this type already exists at that time."})
             sequence = (CaseEvent.objects.filter(case=case).aggregate(Max("sequence_number"))["sequence_number__max"] or 0) + 1
+            selected_option = next(
+                (item for item in cls.allowed_next_events(case, event) if item["value"] == next_type),
+                {},
+            )
+            next_track = data.get("next_event_track") or selected_option.get("track") or event.track
+            next_title = (
+                data.get("court_direction_details")
+                if next_type == CourtEventType.OTHER_COURT_DIRECTED
+                else selected_option.get("label") or cls.event_label(next_type, next_track)
+            )
             next_event = CaseEvent.objects.create(
                 case=case,
                 sequence_number=sequence,
                 previous_event=event,
                 event_type=next_type,
-                title=data.get("next_event_title") or CourtEventType(next_type).label,
+                track=next_track,
+                title=next_title,
+                description=(
+                    event.adjournment_reason
+                    if outcome_code in {
+                        CourtEventOutcome.ADJOURNED,
+                        CourtEventOutcome.DID_NOT_PROCEED,
+                    }
+                    else ""
+                ),
                 starts_at=next_date,
                 court=case.court_name,
                 court_station=case.court_station,
@@ -195,13 +461,26 @@ class ProceedingsWorkflowService:
             new_stage = InternalCaseLifecycleStage.WITHDRAWN
         elif outcome_code == CourtEventOutcome.DISMISSED:
             new_stage = InternalCaseLifecycleStage.DISMISSED
-        elif outcome_code == CourtEventOutcome.JUDGMENT_DELIVERED:
+        elif event.event_type == CourtEventType.CLOSURE:
+            new_stage = InternalCaseLifecycleStage.CLOSED
+        elif (
+            outcome_code == CourtEventOutcome.JUDGMENT_DELIVERED
+            and event.track == CaseEvent.Track.TRIAL
+        ):
             new_stage = InternalCaseLifecycleStage.JUDGMENT_DELIVERED
         else:
-            new_stage = cls.STAGE_BY_NEXT_EVENT.get(next_type, previous_stage)
+            next_track = next_event.track if next_event else (cls.recommended_next_action(case) or {}).get("track")
+            derived_type = next_type or (cls.recommended_next_action(case) or {}).get("event_type")
+            if cls.is_interlocutory_event(event):
+                new_stage = previous_stage
+            else:
+                new_stage = cls.STAGE_BY_TRACK_EVENT.get(
+                    (next_track, derived_type),
+                    cls.STAGE_BY_NEXT_EVENT.get(derived_type, previous_stage),
+                )
         case.lifecycle_stage = new_stage
         case.save(update_fields=["lifecycle_stage", "updated_at"])
-        EventService.sync_case_next_court_date(case)
+        cls._resync_next_action(case, actor=actor)
 
         for deadline in data.get("deadlines", []):
             CaseTask.objects.create(

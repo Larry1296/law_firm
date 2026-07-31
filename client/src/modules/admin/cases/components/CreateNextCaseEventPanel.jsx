@@ -54,6 +54,7 @@ const ALL_EVENT_TYPE_LABELS = {
   REGISTRY_ACTION: 'Registry Action',
   CLIENT_MEETING: 'Client Meeting',
   OTHER: 'Other',
+  OTHER_COURT_DIRECTED: 'Other court-directed event',
 };
 
 const HEARING_MODES = [
@@ -113,7 +114,7 @@ export default function CreateNextCaseEventPanel({
 
   const [draft, setDraft] = useState({
     event_type: defaultEventType,
-    title: suggestion?.next_action || '',
+    title: suggestion?.next_action || validTypes.find((type) => type.value === defaultEventType)?.label || '',
     description: suggestion
       ? `Following: ${suggestion.source_event_title}`
       : '',
@@ -127,11 +128,11 @@ export default function CreateNextCaseEventPanel({
     virtual_meeting_url: '',
     physical_venue: '',
     is_client_visible: true,
-    next_action: '',
-    next_date: '',
   });
 
   const [errors, setErrors] = useState({});
+  const selectedType = validTypes.find((option) => option.value === draft.event_type);
+  const titleIsCustom = draft.event_type === 'INTERNAL';
 
   const daysRemaining = formatDaysRemaining(draft.starts_at);
 
@@ -164,8 +165,6 @@ export default function CreateNextCaseEventPanel({
       virtual_meeting_url: draft.virtual_meeting_url.trim(),
       physical_venue: draft.physical_venue.trim(),
       is_client_visible: draft.is_client_visible,
-      next_action: draft.next_action.trim(),
-      next_date: draft.next_date ? new Date(draft.next_date).toISOString() : null,
       notify_participants: true,
     };
 
@@ -173,7 +172,7 @@ export default function CreateNextCaseEventPanel({
       await onCreateEvent({ caseId: caseData.id, payload });
       setDraft({
         event_type: validTypes[0]?.value || 'MENTION',
-        title: '',
+        title: validTypes[0]?.label || '',
         description: '',
         starts_at: '',
         ends_at: '',
@@ -185,8 +184,6 @@ export default function CreateNextCaseEventPanel({
         virtual_meeting_url: '',
         physical_venue: '',
         is_client_visible: true,
-        next_action: '',
-        next_date: '',
       });
       Swal.fire({
         icon: 'success',
@@ -250,7 +247,15 @@ export default function CreateNextCaseEventPanel({
         <Select3D
           label="Event Type *"
           value={draft.event_type}
-          onChange={(e) => setDraft((d) => ({ ...d, event_type: e.target.value }))}
+          onChange={(e) => {
+            const eventType = e.target.value;
+            const label = validTypes.find((option) => option.value === eventType)?.label || '';
+            setDraft((d) => ({
+              ...d,
+              event_type: eventType,
+              title: eventType === 'INTERNAL' ? d.title : label,
+            }));
+          }}
           options={validTypes}
           error={errors.event_type}
         />
@@ -264,8 +269,9 @@ export default function CreateNextCaseEventPanel({
             type="text"
             value={draft.title}
             onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+            readOnly={!titleIsCustom}
             className={fieldClass}
-            placeholder="e.g. Case management mention"
+            placeholder={titleIsCustom ? 'Describe the internal event' : selectedType?.label}
           />
           {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title}</p>}
         </div>
@@ -382,33 +388,6 @@ export default function CreateNextCaseEventPanel({
             onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
             className={`${fieldClass} min-h-[80px]`}
             placeholder="Directions on pleadings, witness statements, and compliance status..."
-          />
-        </div>
-
-        {/* Next Action (what the court may direct after this event) */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
-            Expected Next Action
-          </label>
-          <input
-            type="text"
-            value={draft.next_action}
-            onChange={(e) => setDraft((d) => ({ ...d, next_action: e.target.value }))}
-            className={fieldClass}
-            placeholder="e.g. Hearing"
-          />
-        </div>
-
-        {/* Next Date (anticipated date for the action above) */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
-            Expected Next Date
-          </label>
-          <input
-            type="datetime-local"
-            value={draft.next_date}
-            onChange={(e) => setDraft((d) => ({ ...d, next_date: e.target.value }))}
-            className={fieldClass}
           />
         </div>
 

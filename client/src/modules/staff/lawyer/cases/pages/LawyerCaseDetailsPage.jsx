@@ -510,7 +510,7 @@ export default function LawyerCaseDetailsPage() {
             </p>
             <p>
               <strong>Next Action:</strong>{' '}
-              {safe(caseData.next_action, 'Not Set')}
+              {safe(caseData.next_action, 'No further action')}
             </p>
           </div>
         </div>

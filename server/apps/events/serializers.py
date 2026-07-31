@@ -81,6 +81,7 @@ class EventSerializer(serializers.ModelSerializer):
             "sequence_number",
             "case",
             "event_type",
+            "track",
             "event_subtype",
             "event_type_label",
             "status",
@@ -137,6 +138,7 @@ class EventSerializer(serializers.ModelSerializer):
 class EventCreateSerializer(serializers.Serializer):
     case_id = serializers.UUIDField()
     event_type = serializers.ChoiceField(choices=CaseEvent.EventType.choices)
+    track = serializers.ChoiceField(choices=CaseEvent.Track.choices, required=False)
     event_subtype = serializers.CharField(max_length=80, required=False, allow_blank=True)
     title = serializers.CharField(max_length=255)
     description = serializers.CharField(required=False, allow_blank=True)
@@ -185,6 +187,7 @@ class EventCreateSerializer(serializers.Serializer):
 
 class EventUpdateSerializer(serializers.Serializer):
     event_type = serializers.ChoiceField(choices=CaseEvent.EventType.choices, required=False)
+    track = serializers.ChoiceField(choices=CaseEvent.Track.choices, required=False)
     status = serializers.ChoiceField(choices=CaseEvent.EventStatus.choices, required=False)
     event_subtype = serializers.CharField(max_length=80, required=False, allow_blank=True)
     title = serializers.CharField(max_length=255, required=False)

@@ -300,9 +300,6 @@ class CaseService:
             "notify_participants": next_event_data.get("notify_participants", True),
         }
         event = EventService.create_event(user=actor, validated_data=payload)
-        case.next_court_date = event.starts_at
-        case.next_action = event.title
-        case.save(update_fields=["next_court_date", "next_action", "updated_at"])
         CaseService.record_activity(
             case,
             action="Next Event Scheduled",
@@ -474,6 +471,10 @@ class CaseService:
             case_number=case_number,
             **case_payload,
         )
+        if not (case.next_action or "").strip():
+            from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
+
+            ProceedingsWorkflowService._resync_next_action(case, actor=user)
 
         CaseService._create_related_matter_records(
             case=case,

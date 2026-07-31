@@ -398,32 +398,11 @@ class EventService:
     # ==========================================================
 
     @classmethod
-    def sync_case_next_court_date(cls, case):
-        """
-        Updates Case.next_court_date and Case.next_action from the
-        nearest upcoming scheduled/confirmed event.
-        """
-        nearest_event = (
-            CaseEvent.objects.filter(
-                case=case,
-                starts_at__gte=timezone.now(),
-                status__in=[
-                    CaseEvent.EventStatus.SCHEDULED,
-                    CaseEvent.EventStatus.CONFIRMED,
-                ],
-            )
-            .order_by("starts_at")
-            .first()
-        )
+    def sync_case_next_court_date(cls, case, *, actor=None):
+        """Compatibility entry point for the single proceedings-workflow sync."""
+        from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
 
-        if nearest_event:
-            case.next_court_date = nearest_event.starts_at
-            case.next_action = nearest_event.title
-        else:
-            case.next_court_date = None
-            case.next_action = ""
-
-        case.save(update_fields=["next_court_date", "next_action", "updated_at"])
+        return ProceedingsWorkflowService._resync_next_action(case, actor=actor)
 
     # ==========================================================
     # NOTIFICATIONS
@@ -587,11 +566,22 @@ class EventService:
             "sequence_number",
             (CaseEvent.objects.filter(case=case).aggregate(Max("sequence_number"))["sequence_number__max"] or 0) + 1,
         )
+        event_type = validated_data["event_type"]
+        default_track = {
+            CaseEvent.EventType.APPEAL: CaseEvent.Track.APPEAL,
+            CaseEvent.EventType.REVIEW: CaseEvent.Track.REVIEW,
+            CaseEvent.EventType.EXECUTION: CaseEvent.Track.EXECUTION,
+        }.get(event_type, CaseEvent.Track.TRIAL)
+        track = validated_data.setdefault("track", default_track)
+        if track != CaseEvent.Track.TRIAL and validated_data.get("title") == CaseEvent.EventType(event_type).label:
+            from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
+
+            validated_data["title"] = ProceedingsWorkflowService.event_label(event_type, track)
         event = CaseEvent.objects.create(case=case, created_by=user, **validated_data)
         cls.awareness_for_event(event)
 
         # Sync case next court date
-        cls.sync_case_next_court_date(case)
+        cls.sync_case_next_court_date(case, actor=user)
 
         if notify_participants:
             cls.notify_event(event, actor=user, reason="scheduled")
@@ -609,7 +599,7 @@ class EventService:
         cls.awareness_for_event(event)
 
         # Sync case next court date
-        cls.sync_case_next_court_date(event.case)
+        cls.sync_case_next_court_date(event.case, actor=user)
 
         if notify_participants:
             cls.notify_event(event, actor=user, reason="updated")

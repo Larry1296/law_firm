@@ -1549,16 +1549,14 @@ const AdminCaseDetailsPage = () => {
             </button>
           </form>
 
-          {caseData.next_action && (
-            <div className='mt-5'>
-              <p className='text-xs font-semibold uppercase tracking-wide text-text-muted-light dark:text-text-muted-dark'>
-                Next Action
-              </p>
-              <p className='mt-1 text-sm text-text-primary-light dark:text-text-primary-dark'>
-                {caseData.next_action}
-              </p>
-            </div>
-          )}
+          <div className='mt-5'>
+            <p className='text-xs font-semibold uppercase tracking-wide text-text-muted-light dark:text-text-muted-dark'>
+              Next Action
+            </p>
+            <p className='mt-1 text-sm text-text-primary-light dark:text-text-primary-dark'>
+              {caseData.next_action || 'No further action'}
+            </p>
+          </div>
 
           {(caseData.jurisdiction_warnings || []).length > 0 && (
             <div className='mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100'>

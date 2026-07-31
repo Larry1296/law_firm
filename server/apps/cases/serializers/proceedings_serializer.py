@@ -8,6 +8,7 @@ class ProceedingOutcomeSerializer(serializers.Serializer):
     proceeded = serializers.BooleanField()
     outcome_code = serializers.ChoiceField(choices=CourtEventOutcome.choices)
     outcome = serializers.CharField()
+    adjournment_reason = serializers.CharField(required=False, allow_blank=True)
     actual_date = serializers.DateTimeField(required=False)
     attendance = serializers.ListField(child=serializers.DictField(), required=False)
     orders_directions = serializers.CharField(required=False, allow_blank=True)
@@ -15,6 +16,7 @@ class ProceedingOutcomeSerializer(serializers.Serializer):
         choices=CourtEventType.choices, required=False, allow_blank=True
     )
     next_event_title = serializers.CharField(required=False, allow_blank=True)
+    next_event_track = serializers.ChoiceField(choices=CaseEvent.Track.choices, required=False)
     next_date = serializers.DateTimeField(required=False, allow_null=True)
     court_direction_details = serializers.CharField(required=False, allow_blank=True)
     courtroom = serializers.CharField(required=False, allow_blank=True)

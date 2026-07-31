@@ -228,7 +228,7 @@ export default function SecretaryCaseDetailsPage() {
             <p><strong>Courtroom:</strong> {safe(caseData.courtroom, 'Not Set')}</p>
             <p><strong>Judicial Officer:</strong> {safe(caseData.judicial_officer, 'Not Set')}</p>
             <p><strong>Next Court Date:</strong> {caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not Set'}</p>
-            <p><strong>Next Action:</strong> {safe(caseData.next_action, 'Not Set')}</p>
+            <p><strong>Next Action:</strong> {safe(caseData.next_action, 'No further action')}</p>
           </div>
         </div>
 

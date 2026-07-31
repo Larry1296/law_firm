@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from '@/core/utils/themedSwal';
 
@@ -58,11 +58,21 @@ const formatPrimaryContact = (client) => {
 
 const responseCase = (result) => result?.data || result?.case || result || {};
 
+const localToday = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const buildInitialFormData = (initialClientId, initialConflictCheckId, initialConflictCheck) => {
   const next = {
     ...caseCreateInitialValues,
     client_id: initialClientId || caseCreateInitialValues.client_id,
     conflict_check_id: initialConflictCheckId || caseCreateInitialValues.conflict_check_id,
+    date_instructions_received: localToday(),
+    next_action: 'Filing',
   };
 
   if (!initialConflictCheck) return next;
@@ -73,6 +83,10 @@ const buildInitialFormData = (initialClientId, initialConflictCheckId, initialCo
     description: initialConflictCheck.factual_summary || initialConflictCheck.proposed_instructions || next.description,
     urgency_level: initialConflictCheck.urgency_level || next.urgency_level,
     urgency_reason: initialConflictCheck.urgency_details || next.urgency_reason,
+    date_instructions_received:
+      initialConflictCheck.date_instructions_received ||
+      (initialConflictCheck.created_at || '').slice(0, 10) ||
+      next.date_instructions_received,
     limitation_date: initialConflictCheck.limitation_or_deadline_date || next.limitation_date,
     defendant: (initialConflictCheck.adverse_parties || []).join(', ') || next.defendant,
     parties: (initialConflictCheck.parties || [])
@@ -259,6 +273,7 @@ export default function CaseCreateForm({
   const [warnings, setWarnings] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdResult, setCreatedResult] = useState(null);
+  const nextActionEdited = useRef(false);
   const [partyDraft, setPartyDraft] = useState({
     name: '',
     role: defaultAdverseRoleForProcedure(caseCreateInitialValues.procedure_track),
@@ -321,6 +336,9 @@ export default function CaseCreateForm({
       const next = { ...current, [name]: value };
 
       if (name === 'entry_route') {
+        if (!nextActionEdited.current) {
+          next.next_action = value === 'EXISTING_FILED_COURT_CASE' ? 'Directions' : 'Filing';
+        }
         if (value === 'EXISTING_FILED_COURT_CASE') {
           next.forum = 'COURT';
         } else if (value === 'EXISTING_TRIBUNAL_MATTER') {
@@ -437,6 +455,7 @@ export default function CaseCreateForm({
 
   const handleChange = (event) => {
     const { name, type, checked, value } = event.target;
+    if (name === 'next_action') nextActionEdited.current = true;
     updateField(name, type === 'checkbox' ? checked : value);
   };
 
@@ -516,7 +535,8 @@ export default function CaseCreateForm({
         detailsPath={detailsPath}
         onCreateAnother={() => {
           setCreatedResult(null);
-          setFormData(caseCreateInitialValues);
+          setFormData(buildInitialFormData(initialClientId, initialConflictCheckId, initialConflictCheck));
+          nextActionEdited.current = false;
           setStep(0);
           setErrors({});
           setWarnings([]);
@@ -967,6 +987,7 @@ export default function CaseCreateForm({
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Internal Matter Number</dt><dd className='font-semibold'>Generated automatically</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Official Court Case Number</dt><dd className='font-semibold'>{isFiledCourtRoute(formData) ? (formData.official_court_case_number || 'Enter official court case number') : 'Not assigned at opening'}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Court Stage</dt><dd className='font-semibold'>{isFiledCourtRoute(formData) ? 'Filed' : 'Not yet filed / not applicable'}</dd></div>
+              <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Next Action</dt><dd className='font-semibold'>{formData.next_action || 'No further action'}</dd></div>
               <div><dt className='text-text-muted-light dark:text-text-muted-dark'>CTS Reference</dt><dd className='font-semibold'>Pending controlled verification</dd></div>
             </dl>
           </Section>

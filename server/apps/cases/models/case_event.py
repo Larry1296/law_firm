@@ -10,6 +10,12 @@ from apps.common.models.timestamped_model import TimestampedModel
 class CaseEvent(TimestampedModel):
     EventType = CourtEventType
 
+    class Track(models.TextChoices):
+        TRIAL = "TRIAL", "Trial"
+        APPEAL = "APPEAL", "Appeal"
+        REVIEW = "REVIEW", "Review"
+        EXECUTION = "EXECUTION", "Execution"
+
     class EventStatus(models.TextChoices):
         SCHEDULED = "SCHEDULED", "Scheduled"
         CONFIRMED = "CONFIRMED", "Confirmed"
@@ -34,6 +40,7 @@ class CaseEvent(TimestampedModel):
     case = models.ForeignKey("cases.Case", on_delete=models.CASCADE, related_name="events")
     sequence_number = models.PositiveIntegerField(default=1)
     event_type = models.CharField(max_length=40, choices=EventType.choices)
+    track = models.CharField(max_length=20, choices=Track.choices, default=Track.TRIAL)
     event_subtype = models.CharField(max_length=80, blank=True, default="")
     status = models.CharField(max_length=30, choices=EventStatus.choices, default=EventStatus.SCHEDULED)
     title = models.CharField(max_length=255)

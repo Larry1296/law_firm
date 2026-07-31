@@ -167,7 +167,7 @@ export default function ClientCaseDetailsPage() {
             <p><strong>Courtroom:</strong> {safe(firstValue(caseData.courtroom, courtProceeding.courtroom), 'Not Set')}</p>
             <p><strong>Judicial Officer:</strong> {safe(firstValue(caseData.judicial_officer, courtProceeding.judicial_officer), 'Not Set')}</p>
             <p><strong>Next Court Date:</strong> {caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not Set'}</p>
-            <p><strong>Next Action:</strong> {safe(caseData.next_action, 'Not Set')}</p>
+            <p><strong>Next Action:</strong> {safe(caseData.next_action, 'No further action')}</p>
           </div>
         </div>
 

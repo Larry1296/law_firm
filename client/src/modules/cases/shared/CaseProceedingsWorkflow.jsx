@@ -19,8 +19,10 @@ export default function CaseProceedingsWorkflow({ caseData }) {
     attendance: '',
     orders_directions: '',
     next_event_type: '',
+    next_event_title: '',
     next_date: '',
     court_direction_details: '',
+    adjournment_reason: '',
   });
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -112,14 +114,34 @@ export default function CaseProceedingsWorkflow({ caseData }) {
             <select className='rounded-lg border p-2 bg-transparent' value={form.proceeded ? 'yes' : 'no'} onChange={(e) => setForm({ ...form, proceeded: e.target.value === 'yes' })}>
               <option value='yes'>Proceeded</option><option value='no'>Did not proceed</option>
             </select>
-            <select className='rounded-lg border p-2 bg-transparent' value={form.outcome_code} onChange={(e) => setForm({ ...form, outcome_code: e.target.value })}>
+            <select className='rounded-lg border p-2 bg-transparent' value={form.outcome_code} onChange={(e) => {
+              const outcomeCode = e.target.value;
+              const shouldRelist = ['ADJOURNED', 'DID_NOT_PROCEED'].includes(outcomeCode);
+              setForm({
+                ...form,
+                outcome_code: outcomeCode,
+                next_event_type: shouldRelist ? current.event_type : form.next_event_type,
+                next_event_title: shouldRelist ? current.event_type_label : form.next_event_title,
+              });
+            }}>
               {['PROCEEDED', 'ADJOURNED', 'PART_HEARD', 'DIRECTIONS_ISSUED', 'DATE_ISSUED', 'RULING_DELIVERED', 'JUDGMENT_DELIVERED', 'SETTLED', 'WITHDRAWN', 'DISMISSED', 'DID_NOT_PROCEED', 'OTHER'].map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
             </select>
             <textarea required className='rounded-lg border p-2 bg-transparent md:col-span-2' placeholder='Outcome' value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })} />
             <input className='rounded-lg border p-2 bg-transparent' placeholder='Appearances, comma-separated' value={form.attendance} onChange={(e) => setForm({ ...form, attendance: e.target.value })} />
             <input className='rounded-lg border p-2 bg-transparent' placeholder='Court orders and directions' value={form.orders_directions} onChange={(e) => setForm({ ...form, orders_directions: e.target.value })} />
-            <select className='rounded-lg border p-2 bg-transparent' value={form.next_event_type} onChange={(e) => setForm({ ...form, next_event_type: e.target.value })}>
+            {form.outcome_code === 'ADJOURNED' && <textarea required className='rounded-lg border p-2 bg-transparent md:col-span-2' placeholder='Adjournment reason (carried into the re-listed event)' value={form.adjournment_reason} onChange={(e) => setForm({ ...form, adjournment_reason: e.target.value })} />}
+            <select className='rounded-lg border p-2 bg-transparent' value={form.next_event_type} onChange={(e) => {
+              const selected = options.find((option) => option.value === e.target.value);
+              setForm({
+                ...form,
+                next_event_type: e.target.value,
+                next_event_title: selected?.label || '',
+              });
+            }}>
               <option value=''>No next event</option>
+              {['ADJOURNED', 'DID_NOT_PROCEED'].includes(form.outcome_code) && !options.some((option) => option.value === current.event_type) && (
+                <option value={current.event_type}>Re-list: {current.event_type_label}</option>
+              )}
               {options.map((option) => <option key={option.value} value={option.value}>{option.recommended ? 'Recommended: ' : ''}{option.label}</option>)}
             </select>
             <input type='datetime-local' className='rounded-lg border p-2 bg-transparent' value={form.next_date} onChange={(e) => setForm({ ...form, next_date: e.target.value })} />

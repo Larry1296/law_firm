@@ -413,10 +413,26 @@ export default function ClientConflictCheckPage() {
             <form className='mt-5 grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); jurisdictionSuggestionMutation.mutate(); }}>
               <Input3D label='Dispute category' value={jurisdictionFacts.dispute_category} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, dispute_category: e.target.value }))} />
               <Input3D label='Practice area' value={jurisdictionFacts.practice_area} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, practice_area: e.target.value }))} />
-              <Input3D label='Claim value (KES)' type='number' value={jurisdictionFacts.claim_value} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, claim_value: e.target.value }))} />
+              <Input3D
+                label='Claim value (KES)'
+                type='number'
+                min='0'
+                step='0.01'
+                value={jurisdictionFacts.claim_value}
+                onChange={(e) => setJurisdictionFacts((v) => ({ ...v, claim_value: e.target.value }))}
+                onWheel={(event) => event.currentTarget.blur()}
+                onKeyDown={(event) => {
+                  if (['ArrowUp', 'ArrowDown'].includes(event.key)) event.preventDefault();
+                }}
+              />
               <Input3D label='Cause-of-action location' value={jurisdictionFacts.cause_of_action_location} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, cause_of_action_location: e.target.value }))} />
               <TextArea label='Relief sought' value={jurisdictionFacts.relief_sought} onChange={(value) => setJurisdictionFacts((v) => ({ ...v, relief_sought: value }))} />
-              <Button3D type='submit' variant='secondary' disabled={jurisdictionSuggestionMutation.isPending}>
+              <Button3D
+                type='submit'
+                variant='primary'
+                className='md:self-end md:justify-self-start'
+                disabled={jurisdictionSuggestionMutation.isPending}
+              >
                 {jurisdictionSuggestionMutation.isPending ? 'Generating...' : 'Generate / Refresh Suggestion'}
               </Button3D>
             </form>
@@ -458,7 +474,14 @@ export default function ClientConflictCheckPage() {
               <TextArea label='Territorial basis' value={jurisdictionDecision.territorial_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, territorial_basis: value }))} />
               <TextArea label='Legal / procedural basis' value={jurisdictionDecision.legal_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, legal_basis: value }))} />
               <TextArea label='Advocate findings' value={jurisdictionDecision.advocate_findings} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, advocate_findings: value }))} />
-              <Button3D type='submit' variant='secondary' disabled={jurisdictionDecisionMutation.isPending}>Record Advocate Decision</Button3D>
+              <Button3D
+                type='submit'
+                variant='primary'
+                className='md:self-end md:justify-self-start'
+                disabled={jurisdictionDecisionMutation.isPending}
+              >
+                Record Advocate Decision
+              </Button3D>
               {['ACCEPTED', 'MODIFIED', 'REJECTED'].includes(check.jurisdiction.status) && (
                 <Button3D type='button' variant='primary' onClick={() => jurisdictionConfirmMutation.mutate()} disabled={jurisdictionConfirmMutation.isPending}>
                   Confirm Final Jurisdiction
