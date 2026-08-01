@@ -21,7 +21,7 @@ export default function Testimonials() {
   return (
     <section
       id="testimonials"
-      className="relative overflow-hidden bg-[#050816] py-24 px-6 lg:px-16"
+      className="relative w-full overflow-hidden bg-[#050816] px-3 py-16 sm:px-4 sm:py-20 lg:px-6 lg:py-24 xl:px-8"
     >
       {/* Ambient background */}
       <div className="absolute inset-0">
@@ -29,7 +29,7 @@ export default function Testimonials() {
         <div className="absolute bottom-[-140px] left-[-100px] w-[420px] h-[420px] rounded-full bg-indigo-500/10 blur-3xl" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto">
+      <div className="relative z-10 mx-auto w-full">
         {/* Heading */}
         <SectionHeading
           hero={false}
@@ -82,16 +82,16 @@ export default function Testimonials() {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
           viewport={{ once: true }}
-          className="mt-24 relative overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] backdrop-blur-2xl p-10 text-center shadow-[0_25px_80px_rgba(0,0,0,0.45)]"
+          className="public-callout public-callout-content relative mt-24 overflow-hidden border border-white/10 bg-white/[0.04] text-center backdrop-blur-2xl"
         >
           {/* glow */}
           <div className="absolute top-[-120px] left-[-80px] w-[300px] h-[300px] rounded-full bg-blue-500/10 blur-3xl" />
 
-          <h3 className="text-2xl md:text-3xl font-black text-white">
+          <h3 className="public-callout-title text-white">
             Trusted Legal Representation
           </h3>
 
-          <p className="mt-4 text-gray-300 max-w-2xl mx-auto">
+          <p className="public-callout-copy mx-auto mt-5 text-gray-300">
             We have successfully represented hundreds of clients across civil,
             corporate, and criminal matters with a strong focus on results and
             confidentiality.

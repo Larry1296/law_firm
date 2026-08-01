@@ -60,6 +60,7 @@ class ClientDocument(TimestampedModel):
 
     file = models.FileField(
         upload_to="client_documents/",
+        blank=True,
     )
 
     file_name = models.CharField(
@@ -93,6 +94,16 @@ class ClientDocument(TimestampedModel):
         max_length=30, choices=ReceivedVia.choices, default=ReceivedVia.CLIENT_PORTAL
     )
 
+    received_from = models.CharField(max_length=255, blank=True, default="")
+    received_by = models.ForeignKey(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="received_physical_client_documents",
+    )
+    received_at = models.DateTimeField(null=True, blank=True)
+
     uploaded_by = models.ForeignKey(
         "users.User",
         on_delete=models.SET_NULL,
@@ -124,5 +135,5 @@ class ClientDocument(TimestampedModel):
         if not self.file_name and self.file:
             self.file_name = self.file.name.rsplit("/", 1)[-1]
         if not self.reference:
-            self.reference = f"DOC-{uuid.uuid4().hex[:10].upper()}"
+            self.reference = f"LEGACY-{uuid.uuid4().hex[:10].upper()}"
         super().save(*args, **kwargs)

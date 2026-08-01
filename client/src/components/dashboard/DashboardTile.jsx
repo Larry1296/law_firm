@@ -134,13 +134,14 @@ const DashboardTile = ({
         ${roundedClass}
         ${shadowClass}
 
-        border border-black/10 dark:border-white/15
+        border border-white/20 dark:border-white/15
         ring-1 ring-inset ring-white/10
+        backdrop-blur-xl
 
         hover:-translate-y-1
         hover:scale-[1.012]
         transition-all
-        duration-500
+        duration-300
 
         p-4 sm:p-5 lg:p-6
 

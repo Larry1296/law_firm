@@ -10,7 +10,7 @@ export default function ClientLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="app-shell flex h-screen overflow-hidden">
       {/* SIDEBAR */}
       <aside
         className={`
@@ -43,7 +43,7 @@ export default function ClientLayout() {
 
         {/* SCROLLABLE CONTENT */}
         <main
-          className={`flex-1 flex flex-col ${
+          className={`app-main flex-1 flex flex-col ${
             theme === "dark"
               ? "bg-[color:var(--background-dark)] text-white"
               : "bg-[color:var(--background-light)] text-[color:var(--text-primary)]"

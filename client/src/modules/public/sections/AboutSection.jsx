@@ -103,7 +103,7 @@ export default function AboutSection() {
   return (
     <section
       id="about"
-      className="relative overflow-hidden py-24 px-6 lg:px-16"
+      className="relative w-full overflow-hidden px-3 py-16 sm:px-4 sm:py-20 lg:px-6 lg:py-24 xl:px-8"
       style={{ backgroundColor: colors.sectionBg }}
     >
       {/* Background Glow */}
@@ -128,7 +128,7 @@ export default function AboutSection() {
         />
 
         {/* Feature Cards */}
-        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-7 max-w-7xl mx-auto mt-16">
+        <div className="mx-auto mt-16 grid w-full gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {items.map((item, index) => {
             const Icon = item.icon;
             return (
@@ -195,8 +195,8 @@ export default function AboutSection() {
 
                 {/* Content */}
                 <div className="relative mt-6">
-                  <h3 className="text-xl font-bold" style={{ color: colors.title }}>{item.title}</h3>
-                  <p className="mt-4 leading-relaxed text-sm" style={{ color: colors.desc }}>
+                  <h3 className="public-feature-title" style={{ color: colors.title }}>{item.title}</h3>
+                  <p className="public-feature-copy mt-4" style={{ color: colors.desc }}>
                     {item.description}
                   </p>
                 </div>
@@ -211,7 +211,7 @@ export default function AboutSection() {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
           viewport={{ once: true }}
-          className="relative mt-24 max-w-7xl mx-auto overflow-hidden rounded-[32px] backdrop-blur-2xl shadow-[0_25px_80px_rgba(0,0,0,0.45)]"
+          className="public-callout relative mx-auto mt-24 w-full overflow-hidden backdrop-blur-2xl"
           style={{
             backgroundColor: colors.missionCardBg,
             borderColor: colors.missionCardBorder,
@@ -221,7 +221,7 @@ export default function AboutSection() {
         >
           <div className="grid lg:grid-cols-2">
             {/* Left */}
-            <div className="p-10 lg:p-14">
+            <div className="public-callout-content">
               {/* Glow */}
               <div
                 className="absolute top-[-100px] left-[-80px] w-[300px] h-[300px] rounded-full blur-3xl"
@@ -229,7 +229,7 @@ export default function AboutSection() {
               />
 
               <div
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm"
+                className="public-section-eyebrow inline-flex items-center gap-2"
                 style={{
                   backgroundColor: colors.badgeBg,
                   borderColor: colors.badgeBorder,
@@ -241,20 +241,20 @@ export default function AboutSection() {
                 Our Mission
               </div>
 
-              <h3 className="mt-6 text-3xl md:text-4xl font-black leading-tight" style={{ color: colors.missionTitle }}>
+              <h3 className="public-callout-title mt-6" style={{ color: colors.missionTitle }}>
                 Redefining Modern
                 <span className="block bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(to right, #2563EB, #06B6D4)" }}>
                   Legal Services
                 </span>
               </h3>
 
-              <p className="mt-6 leading-relaxed" style={{ color: colors.missionDesc }}>
+              <p className="public-callout-copy mt-6" style={{ color: colors.missionDesc }}>
                 We leverage technology, strategic expertise, and client-centered
                 practices to simplify legal operations while maintaining the
                 highest standards of professionalism and confidentiality.
               </p>
 
-              <p className="mt-4 leading-relaxed" style={{ color: colors.missionDescMuted }}>
+              <p className="public-callout-copy mt-4" style={{ color: colors.missionDescMuted }}>
                 Our approach ensures faster workflows, transparent
                 communication, and efficient legal management for individuals,
                 firms, and organizations.
@@ -277,7 +277,7 @@ export default function AboutSection() {
             </div>
 
             {/* Right Quote Card */}
-            <div className="relative flex items-center justify-center p-10 lg:p-14">
+            <div className="public-callout-content relative flex items-center justify-center">
               {/* Glow */}
               <div
                 className="absolute w-[300px] h-[300px] rounded-full blur-3xl"

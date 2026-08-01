@@ -9,8 +9,8 @@ export default function Modal3D({ open, onClose, title, children }) {
           className='
             fixed inset-0 z-50
             flex items-center justify-center
-            bg-black/40
-            backdrop-blur-sm
+            bg-black/55
+            backdrop-blur-md
           '
           onClick={onClose}
           initial={{ opacity: 0 }}
@@ -20,12 +20,13 @@ export default function Modal3D({ open, onClose, title, children }) {
           {/* 3D Floating Card */}
           <motion.div
             className='
-              w-full max-w-2xl
-              rounded-2xl
-              bg-[color:var(--surface)]
-              border border-[color:var(--border)]
-              shadow-[0_30px_80px_rgba(0,0,0,0.35)]
-              p-6
+              mx-4 w-full max-w-3xl
+              rounded-3xl
+              border border-white/20
+              bg-white/90 dark:bg-slate-950/90
+              shadow-[0_30px_100px_rgba(0,0,0,0.4)]
+              p-6 sm:p-8
+              backdrop-blur-2xl
               origin-center
             '
             onClick={(e) => e.stopPropagation()}
@@ -67,7 +68,7 @@ export default function Modal3D({ open, onClose, title, children }) {
             {title && (
               <motion.h2
                 className='
-                  text-xl font-semibold mb-4
+                  mb-5 text-2xl font-extrabold tracking-[-0.025em]
                   text-[color:var(--text-primary)]
                 '
                 initial={{ opacity: 0, y: -10 }}

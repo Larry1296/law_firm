@@ -9,8 +9,9 @@ const DashboardGrid = ({ children, className = '' }) => {
         grid-cols-1
         md:grid-cols-2
         xl:grid-cols-4
-        gap-0
-        mt-0
+        gap-1.5
+        sm:gap-2
+        lg:gap-2.5
         ${className}
       `}
     >

@@ -8,9 +8,11 @@ from apps.cases.models import Case
 from apps.clients.models import Client
 from apps.common.choices import FirmRole, UserRole
 from apps.communications.models import Announcement, AnnouncementRecipient, ChatMessage, ChatThread
+from apps.documents.models import DocumentRequest
 from apps.firm.models import LawFirm, LawFirmMember
 from apps.notifications.models import Notification
 from apps.staff.models import Lawyer, Secretary
+from apps.staff.services.lawyer.lawyer_document_service import LawyerDocumentService
 from apps.users.models import User
 
 
@@ -120,6 +122,7 @@ class CommunicationApiTests(TestCase):
             national_id="755000005",
             client_type=Client.ClientType.INDIVIDUAL,
             lifecycle_status=Client.LifecycleStatus.OFFICIAL_CLIENT,
+            kyc_drawer_reference="KYC-2026-039",
         )
         self.case = Case.objects.create(
             firm=self.firm,
@@ -595,3 +598,78 @@ class CommunicationApiTests(TestCase):
             reverse("communication-thread-messages", kwargs={"thread_id": thread["id"]}),
         )
         self.assertEqual(other_lawyer_read.status_code, 404)
+
+    def test_lawyer_assigned_secretary_gets_client_and_lawyer_threads_without_direct_case_assignment(self):
+        self.case.assigned_secretary = None
+        self.case.save(update_fields=["assigned_secretary", "updated_at"])
+
+        self.api.force_authenticate(user=self.client_user)
+        client_thread_response = self.api.get(
+            reverse("communication-case-thread", kwargs={"case_id": self.case.id}),
+        )
+        self.assertEqual(client_thread_response.status_code, 200, client_thread_response.data)
+        client_thread = client_thread_response.data["thread"]
+        participant_emails = {
+            participant.user.email
+            for participant in ChatThread.objects.get(id=client_thread["id"]).participants.select_related("user")
+        }
+        self.assertIn(self.secretary_user.email, participant_emails)
+
+        self.api.force_authenticate(user=self.secretary_user)
+        inbox = self.api.get(reverse("secretary-case-thread-list"))
+        self.assertEqual(inbox.status_code, 200, inbox.data)
+        self.assertEqual(
+            {thread["id"] for thread in inbox.data["threads"]},
+            {client_thread["id"]},
+        )
+
+        lawyer_thread_response = self.api.get(
+            reverse("communication-case-lawyer-thread", kwargs={"case_id": self.case.id}),
+        )
+        self.assertEqual(lawyer_thread_response.status_code, 200, lawyer_thread_response.data)
+        lawyer_participants = {
+            participant["user"]["email"]
+            for participant in lawyer_thread_response.data["thread"]["participants"]
+        }
+        self.assertEqual(
+            lawyer_participants,
+            {self.secretary_user.email, self.lawyer_user.email},
+        )
+
+    def test_secretary_inbox_creates_threads_for_assigned_matters_before_first_message(self):
+        self.assertEqual(ChatThread.objects.count(), 0)
+        self.api.force_authenticate(user=self.secretary_user)
+
+        response = self.api.get(reverse("secretary-case-thread-list"))
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(len(response.data["threads"]), 1)
+        self.assertEqual(response.data["threads"][0]["case"]["id"], str(self.case.id))
+        self.assertEqual(ChatThread.objects.count(), 1)
+
+    def test_advocate_document_request_is_routed_through_assigned_lawyer_secretary(self):
+        self.case.assigned_secretary = None
+        self.case.save(update_fields=["assigned_secretary", "updated_at"])
+
+        result = LawyerDocumentService.create_request(
+            self.lawyer_user,
+            {
+                "case_id": str(self.case.id),
+                "title": "Signed credit agreement",
+                "document_type": "CONTRACT",
+                "instructions": "Upload a complete signed copy.",
+            },
+        )
+
+        self.assertEqual(result["status"], DocumentRequest.Status.AWAITING_SECRETARY_DISPATCH)
+        self.assertEqual(result["drawer_reference"], self.client.kyc_drawer_reference)
+        self.assertFalse(result["digital_copy_available"])
+        notification = Notification.objects.get(
+            recipient=self.secretary_user,
+            title="Advocate document request awaiting dispatch",
+        )
+        self.assertEqual(notification.case, self.case)
+        self.assertEqual(
+            notification.action_url,
+            f"/secretary/cases/{self.case.id}?section=documents",
+        )

@@ -48,15 +48,6 @@ export default function BecomeClient() {
 
   const mutedText = isDark ? "text-text-muted-dark" : "text-slate-500";
 
-  const inputClass = `
-    w-full rounded-2xl border px-4 py-3 outline-none transition-all
-    ${
-      isDark
-        ? "bg-black/20 border-border-dark text-white placeholder:text-slate-500 focus:border-brand-primary"
-        : "bg-white border-border-light text-slate-800 placeholder:text-slate-400 focus:border-brand-primary"
-    }
-  `;
-
   const benefits = [
     "Dedicated legal representation",
     "Secure case & document management",
@@ -298,14 +289,12 @@ export default function BecomeClient() {
                   </div>
 
                   <h3 className="text-lg font-semibold mb-2">
-                    Upload Documents
+                    Physical KYC Documents
                   </h3>
 
                   <p className={`text-sm mb-5 ${mutedText}`}>
-                    Upload contracts, IDs, agreements, or supporting evidence.
+                    Deliver contracts, IDs, agreements, or supporting evidence to the firm secretary for recording under your KYC drawer reference.
                   </p>
-
-                  <input type="file" multiple className={inputClass} />
                 </div>
               </div>
 

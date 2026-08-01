@@ -17,42 +17,42 @@ export default function HomePage() {
       <FloatingAIChat />
 
       {/* Hero / Landing */}
-      <section id='home' className='pt-0'>
+      <section id='home' className='w-full pt-0'>
         <HeroSection />
       </section>
 
       {/* About Section */}
-      <section id='about' className='pt-0'>
+      <section id='about' className='w-full pt-0'>
         <AboutSection />
       </section>
 
       {/* Services / Offerings */}
-      <section id='services' className='pt-0'>
+      <section id='services' className='w-full pt-0'>
         <ServicesSection />
       </section>
 
       {/* How It Works / Steps */}
-      <section id='how-it-works' className='pt-0'>
+      <section id='how-it-works' className='w-full pt-0'>
         <HowItWorks />
       </section>
 
       {/* Features / Highlights */}
-      <section id='features' className='pt-0'>
+      <section id='features' className='w-full pt-0'>
         <FeaturesSection />
       </section>
 
       {/* Call to Action */}
-      <section id='cta' className='pt-0'>
+      <section id='cta' className='w-full pt-0'>
         <CTASection />
       </section>
 
       {/* Testimonials */}
-      <section id='testimonials' className='pt-0'>
+      <section id='testimonials' className='w-full pt-0'>
         <Testimonials />
       </section>
 
       {/* Contact / Footer */}
-      <section id='contact' className='pt-0'>
+      <section id='contact' className='w-full pt-0'>
         <ContactSection />
       </section>
     </div>

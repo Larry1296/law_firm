@@ -6,6 +6,7 @@ import SectionHeading from '@/components/ui/SectionHeading';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import useSecretaryCaseDetails from '../hooks/useSecretaryCaseDetails';
 import SecretaryDocuments from '../../documents/pages/SecretaryDocuments';
+import SecretaryCaseCommunication from '../../communication/components/SecretaryCaseCommunication';
 
 export default function SecretaryCaseDetailsPage() {
   const { id } = useParams();
@@ -32,6 +33,11 @@ export default function SecretaryCaseDetailsPage() {
         <p><strong>Next court date:</strong> {caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not recorded'}</p>
       </div>
     </Card>
+    <SecretaryCaseCommunication
+      caseId={id}
+      caseNumber={caseData.case_number}
+      hasAssignedLawyer={Boolean(caseData.assigned_lawyer?.id)}
+    />
     <SecretaryDocuments caseId={id} compact />
   </div>;
 }

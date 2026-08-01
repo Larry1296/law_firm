@@ -19,8 +19,6 @@ import {
   casePartyLabel,
   casePartyName,
   renderDateTime,
-  renderEnum,
-  renderPriorityBadge,
   renderStatusBadge,
 } from '@/modules/cases/shared/casePresentation';
 
@@ -30,7 +28,7 @@ export default function SecretaryCasesPage() {
 
   const { cases, loading, refetch } = useSecretaryCases();
 
-  const safeCases = Array.isArray(cases) ? cases : [];
+  const safeCases = useMemo(() => (Array.isArray(cases) ? cases : []), [cases]);
   const statusCounts = useMemo(() => countCasesByStatus(safeCases), [safeCases]);
   const filteredCases = useMemo(
     () =>
@@ -137,22 +135,20 @@ export default function SecretaryCasesPage() {
               render: (_, row) => casePartyLabel(row),
             },
             {
-              key: 'status',
-              label: 'Status',
-              render: renderStatusBadge,
+              key: 'matter_status',
+              label: 'Matter Status',
+              render: (value, row) => renderStatusBadge(row.matter_status_label || value),
             },
             {
-              key: 'priority',
-              label: 'Priority',
-              render: renderPriorityBadge,
+              key: 'court_stage',
+              label: 'Court Stage',
+              render: (value, row) => renderStatusBadge(row.court_stage_label || value),
             },
-            { key: 'procedure_track', label: 'Procedure', render: renderEnum },
             {
-              key: 'court_station',
-              label: 'Court Station',
-              render: (value, row) => value || row.court_name || 'Not Set',
+              key: 'assigned_lawyer',
+              label: 'Assigned Lawyer',
+              render: (value) => value?.name || 'Not Assigned',
             },
-            { key: 'registry', label: 'Registry', render: (value) => value || 'Not Set' },
             { key: 'next_court_date', label: 'Next Date', render: renderDateTime },
           ]}
           actions={(caseItem) => (

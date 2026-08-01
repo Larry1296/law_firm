@@ -17,7 +17,11 @@ class SecretaryDocumentsView(SecretaryBaseView):
         try:
             if request.data.get("action") == "request":
                 return Response(SecretaryDocumentService.create_request(request.user, request.data), status=201)
-            document = SecretaryDocumentService.upload(request.user, request.data)
+            if request.data.get("action") == "assign_drawer":
+                return Response(SecretaryDocumentService.assign_kyc_drawer(request.user, request.data), status=200)
+            if request.data.get("action") != "register_physical":
+                return Response({"detail": "Document uploads are disabled. Record the physical KYC drawer entry."}, status=400)
+            document = SecretaryDocumentService.register_physical_document(request.user, request.data)
             return Response({"document": DocumentWorkflowService.serialize_document(document)}, status=201)
         except Exception as exc:
             return Response({"detail": getattr(exc, "detail", str(exc))}, status=getattr(exc, "status_code", 400))

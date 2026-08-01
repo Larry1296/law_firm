@@ -7,11 +7,64 @@ from apps.cases.models import Case
 from apps.clients.models import ClientDocument
 from apps.documents.models import DocumentRequest, MatterDocumentReference
 from apps.notifications.services import NotificationService
+from apps.staff.models import Secretary
 
 
 class DocumentWorkflowService:
     ALLOWED_TYPES = {choice for choice, _ in ClientDocument._meta.get_field("document_type").choices}
     MAX_FILE_SIZE = 25 * 1024 * 1024
+
+    @staticmethod
+    def register_in_kyc_drawer(*, client, case, user, title, document_type, description=""):
+        document = ClientDocument.objects.create(
+            client=client,
+            document_type=document_type,
+            title=title,
+            description=description,
+            file="",
+            uploaded_by=None,
+            is_confidential=True,
+            physical_copy_retained=False,
+            physical_storage_location="",
+        )
+        document.physical_storage_location = f"KYC DRAWER / {client.kyc_drawer_reference}"
+        document.save(update_fields=["physical_storage_location", "updated_at"])
+        if case:
+            MatterDocumentReference.objects.get_or_create(
+                case=case,
+                document=document,
+                defaults={"purpose": MatterDocumentReference.Purpose.CLIENT_INSTRUCTION, "referenced_by": user},
+            )
+        return document
+
+    @staticmethod
+    def case_secretaries(case):
+        filters = Q(pk__in=[])
+        if case.assigned_secretary_id:
+            filters |= Q(pk=case.assigned_secretary_id)
+        if case.assigned_lawyer_id:
+            filters |= Q(assigned_lawyers=case.assigned_lawyer)
+        return Secretary.objects.select_related("user").filter(
+            filters,
+            law_firm=case.firm,
+            is_active=True,
+            user__is_active=True,
+        ).distinct()
+
+    @staticmethod
+    def notify_secretaries_of_request(request, actor, *, replacement=False):
+        title = "Replacement document requires dispatch" if replacement else "Advocate document request awaiting dispatch"
+        for secretary in DocumentWorkflowService.case_secretaries(request.case):
+            NotificationService.create(
+                firm=request.firm,
+                recipient=secretary.user,
+                actor=actor,
+                case=request.case,
+                title=title,
+                message=f'{request.case.assigned_lawyer.user.full_name} requires "{request.title}" for {request.case.case_number}.',
+                action_url=f"/secretary/cases/{request.case_id}?section=documents",
+                event_key=f"document-request-secretary-dispatch:{request.id}:{request.status}:{request.updated_at.isoformat()}",
+            )
 
     @staticmethod
     def _validate_file(upload):
@@ -69,30 +122,39 @@ class DocumentWorkflowService:
             case = request.case
             document_type = request.document_type
 
-        document = ClientDocument.objects.create(
-            client=client,
-            document_type=document_type,
-            title=(data.get("title") or upload.name).strip(),
-            description=(data.get("description") or "").strip(),
-            file=upload,
-            file_name=upload.name,
-            mime_type=getattr(upload, "content_type", "") or "application/octet-stream",
-            uploaded_by=user,
-            is_confidential=True,
-            source_reference=(data.get("source_reference") or "").strip(),
-            source_copy_type=source_copy_type,
-            physical_copy_retained=physical_retained,
-            physical_storage_location=physical_location,
-            custody_notes=(data.get("custody_notes") or "").strip(),
-            received_via=received_via,
-        )
+        document = request.fulfilled_document if request and request.fulfilled_document_id else None
+        if document is None:
+            document = DocumentWorkflowService.register_in_kyc_drawer(
+                client=client,
+                case=case,
+                user=user,
+                title=(data.get("title") or upload.name).strip(),
+                document_type=document_type,
+                description=(data.get("description") or "").strip(),
+            )
+        document.document_type = document_type
+        document.title = (data.get("title") or document.title or upload.name).strip()
+        document.description = (data.get("description") or document.description or "").strip()
+        document.file = upload
+        document.file_name = upload.name
+        document.mime_type = getattr(upload, "content_type", "") or "application/octet-stream"
+        document.uploaded_by = user
+        document.source_reference = (data.get("source_reference") or document.source_reference or "").strip()
+        document.source_copy_type = source_copy_type
+        document.physical_copy_retained = physical_retained
+        document.physical_storage_location = physical_location or document.physical_storage_location
+        document.custody_notes = (data.get("custody_notes") or document.custody_notes or "").strip()
+        document.received_via = received_via
+        document.save()
         if case:
-            MatterDocumentReference.objects.create(
+            MatterDocumentReference.objects.get_or_create(
                 case=case,
                 document=document,
-                purpose=data.get("purpose") or MatterDocumentReference.Purpose.CLIENT_INSTRUCTION,
-                notes=(data.get("reference_notes") or "").strip(),
-                referenced_by=user,
+                defaults={
+                    "purpose": data.get("purpose") or MatterDocumentReference.Purpose.CLIENT_INSTRUCTION,
+                    "notes": (data.get("reference_notes") or "").strip(),
+                    "referenced_by": user,
+                },
             )
         if request:
             request.fulfilled_document = document
@@ -113,16 +175,14 @@ class DocumentWorkflowService:
 
     @staticmethod
     def _notify_secretary_of_client_upload(request, actor):
-        secretary = request.case.assigned_secretary
-        if not secretary or not secretary.user_id:
-            return
-        NotificationService.create(
-            firm=request.firm, recipient=secretary.user, actor=actor, case=request.case,
-            title="Client document awaiting receipt verification",
-            message=f'{request.client.full_name} uploaded "{request.title}" for {request.case.case_number}.',
-            action_url="/secretary/documents",
-            event_key=f"document-request-secretary-review:{request.id}:{request.fulfilled_document_id}",
-        )
+        for secretary in DocumentWorkflowService.case_secretaries(request.case):
+            NotificationService.create(
+                firm=request.firm, recipient=secretary.user, actor=actor, case=request.case,
+                title="Client document awaiting receipt verification",
+                message=f'{request.client.full_name} uploaded "{request.title}" for {request.case.case_number}.',
+                action_url=f"/secretary/cases/{request.case_id}?section=documents",
+                event_key=f"document-request-secretary-review:{request.id}:{request.fulfilled_document_id}:{secretary.id}",
+            )
 
     @staticmethod
     def _notify_lawyer_of_upload(request, actor):
@@ -134,8 +194,8 @@ class DocumentWorkflowService:
             recipient=lawyer.user,
             actor=actor,
             case=request.case,
-            title="Requested document uploaded",
-            message=f'{request.client.full_name} supplied "{request.title}" for {request.case.case_number}.',
+            title="Requested physical document received",
+            message=f'{request.client.full_name} delivered "{request.title}" into {request.client.kyc_drawer_reference} for {request.case.case_number}.',
             action_url=f"/lawyer/cases/{request.case_id}?section=documents",
             event_key=f"document-request-uploaded:{request.id}:{request.fulfilled_document_id}",
         )
@@ -152,11 +212,18 @@ class DocumentWorkflowService:
             "description": document.description, "mime_type": document.mime_type,
             "review_status": document.review_status, "review_notes": document.review_notes,
             "source_reference": document.source_reference,
+            "drawer_reference": document.client.kyc_drawer_reference,
+            "digital_copy_reference": document.reference,
+            "digital_copy_available": bool(document.file),
+            "record_authority": "PHYSICAL_KYC_DRAWER",
             "source_copy_type": document.source_copy_type,
             "physical_copy_retained": document.physical_copy_retained,
             "physical_storage_location": document.physical_storage_location,
             "custody_notes": document.custody_notes,
             "received_via": document.received_via,
+            "received_from": document.received_from,
+            "received_by": document.received_by.full_name if document.received_by else "Not recorded",
+            "received_at": document.received_at.isoformat() if document.received_at else None,
             "uploaded_at": document.created_at.isoformat(),
             "uploaded_by": document.uploaded_by.full_name if document.uploaded_by else "Unknown",
             "matters": [{"id": str(ref.case_id), "case_number": ref.case.case_number,
@@ -172,6 +239,9 @@ class DocumentWorkflowService:
             "case_title": item.case.title, "client_id": str(item.client_id),
             "client_name": item.client.full_name,
             "fulfilled_document_id": str(item.fulfilled_document_id) if item.fulfilled_document_id else None,
+            "drawer_reference": item.client.kyc_drawer_reference,
+            "physical_storage_location": item.fulfilled_document.physical_storage_location if item.fulfilled_document_id else f"KYC DRAWER / {item.client.kyc_drawer_reference}",
+            "digital_copy_available": bool(item.fulfilled_document.file) if item.fulfilled_document_id else False,
             "secretary_verified_by": item.secretary_verified_by.full_name if item.secretary_verified_by else None,
             "secretary_verified_at": item.secretary_verified_at.isoformat() if item.secretary_verified_at else None,
             "secretary_verification_notes": item.secretary_verification_notes,

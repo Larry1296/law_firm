@@ -134,7 +134,7 @@ export default function ContactSection() {
   return (
     <section
       id="contact"
-      className="relative overflow-hidden py-24 px-6 lg:px-16"
+      className="relative w-full overflow-hidden px-3 py-16 sm:px-4 sm:py-20 lg:px-6 lg:py-24 xl:px-8"
       style={{ backgroundColor: colors.sectionBg }}
     >
       {/* Ambient Background */}
@@ -149,7 +149,7 @@ export default function ContactSection() {
         />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto">
+      <div className="relative z-10 mx-auto w-full">
         {/* Heading */}
         <SectionHeading
           hero={false}

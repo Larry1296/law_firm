@@ -9,6 +9,7 @@ from apps.communications.choices import ChatMessageType, ChatThreadType
 from apps.communications.models import ChatMessage, ChatThread, ChatThreadParticipant
 from apps.firm.models import LawFirmMember
 from apps.notifications.services import NotificationService
+from apps.staff.models import Secretary
 from apps.users.models import User
 
 
@@ -161,7 +162,18 @@ class ChatService:
         if CommunicationAccessService.is_admin(user):
             pass
         elif CommunicationAccessService.is_secretary(user):
-            queryset = queryset.filter(participants__user=user)
+            secretary = user.secretary_profile
+            queryset = queryset.filter(
+                Q(participants__user=user)
+                | Q(
+                    thread_type=ChatThreadType.CASE_CLIENT,
+                    case__assigned_secretary=secretary,
+                )
+                | Q(
+                    thread_type=ChatThreadType.CASE_CLIENT,
+                    case__assigned_lawyer__in=secretary.assigned_lawyers.all(),
+                )
+            )
         elif CommunicationAccessService.is_lawyer(user):
             queryset = queryset.filter(
                 Q(thread_type=ChatThreadType.CASE_CLIENT, case__assigned_lawyer=user.lawyer_profile)
@@ -360,6 +372,21 @@ class ChatService:
         return queryset.none()
 
     @staticmethod
+    def _case_secretaries(case):
+        """Return every active secretary authorised to coordinate this matter."""
+        filters = Q(pk__in=[])
+        if case.assigned_lawyer_id:
+            filters |= Q(assigned_lawyers=case.assigned_lawyer)
+        if case.assigned_secretary_id:
+            filters |= Q(id=case.assigned_secretary_id)
+
+        return (
+            Secretary.objects.select_related("user")
+            .filter(filters, law_firm=case.firm, is_active=True, user__is_active=True)
+            .distinct()
+        )
+
+    @staticmethod
     @transaction.atomic
     def get_or_create_case_thread(*, user, case_id):
         case = ChatService._case_queryset_for_user(user).get(id=case_id)
@@ -395,8 +422,8 @@ class ChatService:
         )
         if case.assigned_lawyer_id and case.assigned_lawyer.user_id:
             ChatService._create_participant(thread, case.assigned_lawyer.user, can_reply=False)
-        if case.assigned_secretary_id and case.assigned_secretary.user_id:
-            ChatService._create_participant(thread, case.assigned_secretary.user, can_reply=True)
+        for secretary in ChatService._case_secretaries(case):
+            ChatService._create_participant(thread, secretary.user, can_reply=True)
 
         return thread
 
@@ -432,10 +459,14 @@ class ChatService:
 
         if case.assigned_lawyer is None or case.assigned_lawyer.user is None:
             raise PermissionDenied("This case has no assigned lawyer chat target.")
-        if case.assigned_secretary is None or case.assigned_secretary.user is None:
+        if secretary is None:
+            secretary = case.assigned_secretary
+            if secretary is None:
+                secretary = ChatService._case_secretaries(case).first()
+        if secretary is None or secretary.user is None:
             raise PermissionDenied("This case has no assigned secretary chat target.")
 
-        thread_key = f"case_lawyer:{case.id}:{case.assigned_secretary.user_id}:{case.assigned_lawyer.user_id}"
+        thread_key = f"case_lawyer:{case.id}:{secretary.user_id}:{case.assigned_lawyer.user_id}"
         subject = f"{case.case_number} - Assigned lawyer coordination"
 
         thread, _ = ChatThread.objects.get_or_create(
@@ -460,7 +491,7 @@ class ChatService:
             update_fields.append("updated_at")
             thread.save(update_fields=update_fields)
 
-        ChatService._create_participant(thread, case.assigned_secretary.user, can_reply=True)
+        ChatService._create_participant(thread, secretary.user, can_reply=True)
         ChatService._create_participant(thread, case.assigned_lawyer.user, can_reply=True)
 
         return thread

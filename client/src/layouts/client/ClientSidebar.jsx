@@ -84,7 +84,7 @@ export default function ClientSidebar({ onClose }) {
   };
 
   return (
-    <aside className={`w-64 h-full flex flex-col ${bgSidebar}`}>
+    <aside className={`flex h-full w-full flex-col ${bgSidebar}`}>
       {/* HEADER */}
       <div className='relative py-3 px-5 border-b border-white/10'>
         <div className='flex items-center justify-center'>
@@ -93,7 +93,8 @@ export default function ClientSidebar({ onClose }) {
 
         <button
           onClick={handleClose}
-          className='lg:hidden absolute top-3 right-4 p-2 rounded hover:bg-white/10'
+          className='absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-xl hover:bg-white/10 lg:hidden'
+          aria-label='Close navigation menu'
         >
           <X size={20} />
         </button>

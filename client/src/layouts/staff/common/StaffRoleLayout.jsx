@@ -11,7 +11,7 @@ export default function StaffRoleLayout({ config }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className='flex h-screen overflow-hidden'>
+    <div className='app-shell flex h-screen overflow-hidden'>
       <aside
         className={`
           fixed lg:static inset-y-0 left-0 z-50 w-64
@@ -41,7 +41,7 @@ export default function StaffRoleLayout({ config }) {
         <StaffTopbar config={config} onMenuClick={() => setSidebarOpen(true)} />
 
         <main
-          className={`flex-1 flex flex-col ${
+          className={`app-main flex-1 flex flex-col ${
             theme === 'dark'
               ? 'bg-[color:var(--background-dark)] text-white'
               : 'bg-[color:var(--background-light)] text-[color:var(--text-primary)]'

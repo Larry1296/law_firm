@@ -11,23 +11,24 @@ export default function ClientTopbar({ onMenuClick }) {
 
   return (
     <header
-      className={`h-16 ${bgTopbar} flex items-center justify-between px-4 sm:px-6`}
+      className={`h-14 shrink-0 ${bgTopbar} flex items-center justify-between gap-2 px-2 sm:h-16 sm:px-6`}
     >
       {/* HAMBURGER (mobile only) */}
       <button
         onClick={onMenuClick}
-        className={`lg:hidden p-2 rounded ${hoverEffect}`}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl lg:hidden ${hoverEffect}`}
+        aria-label='Open navigation menu'
       >
         <Menu size={22} />
       </button>
 
-      <h1 className='font-semibold text-base sm:text-lg'>Client Dashboard</h1>
+      <h1 className='min-w-0 flex-1 truncate px-1 text-sm font-bold sm:text-lg'>Client Dashboard</h1>
 
-      <div className='flex items-center gap-3 sm:gap-4'>
+      <div className='flex shrink-0 items-center gap-1 sm:gap-3'>
         {/* THEME TOGGLE */}
         <button
           onClick={toggleTheme}
-          className={`p-2 rounded ${hoverEffect}`}
+          className={`flex h-11 w-11 items-center justify-center rounded-xl ${hoverEffect}`}
           title='Toggle Theme'
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}

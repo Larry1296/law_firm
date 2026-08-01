@@ -29,10 +29,10 @@ export default function SectionHeading({
   const subtitleColor = mode === "dark" ? "text-gray-300" : "text-gray-600";
   const sizeStyles = {
     lg: {
-      wrapper: "max-w-3xl mb-16",
-      title: "text-4xl sm:text-5xl",
+      wrapper: "max-w-5xl mb-16",
+      title: "text-4xl sm:text-5xl lg:text-6xl",
       underline: "h-[4px] w-20 mt-4",
-      subtitle: "mt-4 text-lg sm:text-xl leading-relaxed",
+      subtitle: "mt-5 text-base sm:text-lg lg:text-xl leading-relaxed",
     },
     compact: {
       wrapper: "max-w-3xl mb-0",
@@ -57,7 +57,7 @@ export default function SectionHeading({
   const heading = createElement(
     HeadingTag,
     {
-      className: `${styles.title} font-bold relative inline-block ${titleColor}`,
+      className: `${styles.title} relative inline-block font-extrabold leading-[1.08] tracking-[-0.035em] ${titleColor}`,
       style: {
         textShadow:
           mode === "dark"

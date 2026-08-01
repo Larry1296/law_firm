@@ -7,8 +7,12 @@ const secretaryDocumentsService = {
     });
     return data;
   },
-  async uploadDocument(payload) {
-    const { data } = await axiosInstance.post('/staff/secretary/documents/', payload);
+  async registerPhysicalDocument(payload) {
+    const { data } = await axiosInstance.post('/staff/secretary/documents/', { ...payload, action: 'register_physical' });
+    return data;
+  },
+  async assignDrawer(payload) {
+    const { data } = await axiosInstance.post('/staff/secretary/documents/', { ...payload, action: 'assign_drawer' });
     return data;
   },
   async createRequest(payload) {

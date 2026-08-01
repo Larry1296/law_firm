@@ -97,7 +97,7 @@ export default function FeaturesSection() {
   return (
     <section
       id="features"
-      className="relative overflow-hidden py-24 px-6 lg:px-16"
+      className="relative w-full overflow-hidden px-3 py-16 sm:px-4 sm:py-20 lg:px-6 lg:py-24 xl:px-8"
       style={{ backgroundColor: colors.sectionBg }}
     >
       {/* Ambient Background */}
@@ -112,7 +112,7 @@ export default function FeaturesSection() {
         />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto">
+      <div className="relative z-10 mx-auto w-full">
         {/* Heading */}
         <SectionHeading
           hero={false}
@@ -198,11 +198,11 @@ export default function FeaturesSection() {
 
                 {/* Content */}
                 <div className="relative mt-7">
-                  <h3 className="text-2xl font-bold" style={{ color: colors.title }}>
+                  <h3 className="public-feature-title" style={{ color: colors.title }}>
                     {item.title}
                   </h3>
 
-                  <p className="mt-4 leading-relaxed text-sm" style={{ color: colors.desc }}>
+                  <p className="public-feature-copy mt-4" style={{ color: colors.desc }}>
                     {item.desc}
                   </p>
                 </div>
@@ -226,7 +226,7 @@ export default function FeaturesSection() {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
           viewport={{ once: true }}
-          className="relative mt-24 overflow-hidden rounded-[36px] backdrop-blur-2xl shadow-[0_25px_80px_rgba(0,0,0,0.45)]"
+          className="public-callout relative mt-24 overflow-hidden backdrop-blur-2xl"
           style={{
             backgroundColor: colors.cardBg,
             borderColor: colors.cardBorder,
@@ -241,11 +241,11 @@ export default function FeaturesSection() {
             style={{ backgroundColor: colors.glow }}
           />
 
-          <div className="relative z-10 grid lg:grid-cols-2 gap-10 p-10 lg:p-14 items-center">
+          <div className="public-callout-content relative z-10 grid items-center gap-10 lg:grid-cols-2">
             {/* Left */}
             <div>
               <div
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm"
+                className="public-section-eyebrow inline-flex items-center gap-2"
                 style={{
                   backgroundColor: colors.badgeBg,
                   borderColor: colors.badgeBorder,
@@ -257,14 +257,14 @@ export default function FeaturesSection() {
                 Smart Legal Technology
               </div>
 
-              <h3 className="mt-6 text-3xl md:text-5xl font-black leading-tight" style={{ color: colors.title }}>
+              <h3 className="public-callout-title mt-6" style={{ color: colors.title }}>
                 Built For Modern
                 <span className="block bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(to right, #60A5FA, #22D3EE, #818CF8)" }}>
                   Legal Operations
                 </span>
               </h3>
 
-              <p className="mt-6 leading-relaxed" style={{ color: colors.desc }}>
+              <p className="public-callout-copy mt-6" style={{ color: colors.desc }}>
                 Streamline legal workflows, enhance collaboration, and improve
                 case management efficiency with intelligent tools designed for
                 modern law firms and legal teams.

@@ -2,8 +2,8 @@ export default function Card({ children, className = '' }) {
   return (
     <div
       className={`
-        bg-surface-light
-        dark:bg-surface-dark
+        bg-white/80
+        dark:bg-white/[0.07]
         text-text-primary-light
         dark:text-text-primary-dark
 
@@ -11,15 +11,16 @@ export default function Card({ children, className = '' }) {
         border-border-light
         dark:border-border-dark
 
-        rounded-2xl
+        rounded-3xl
 
-        shadow-soft
-        hover:shadow-medium
+        shadow-[0_18px_55px_rgba(31,41,51,0.10)]
+        hover:shadow-[0_24px_70px_rgba(31,41,51,0.16)]
+        backdrop-blur-xl
 
         transition-all
-        duration-200
+        duration-300
 
-        active:translate-y-1
+        hover:-translate-y-0.5
 
         ${className}
       `}

@@ -134,7 +134,7 @@ export default function CTASection() {
 
   return (
     <section
-      className="relative overflow-hidden py-28 px-6 lg:px-16"
+      className="relative w-full overflow-hidden px-3 py-16 sm:px-4 sm:py-20 lg:px-6 lg:py-24 xl:px-8"
       style={{ backgroundColor: colors.sectionBg }}
     >
       {/* Ambient Background */}
@@ -157,14 +157,14 @@ export default function CTASection() {
         style={{ borderColor: isDark ? "rgba(59,130,246,0.1)" : "rgba(18,56,90,0.1)" }}
       />
 
-      <div className="relative z-10 max-w-7xl mx-auto">
+      <div className="relative z-10 mx-auto w-full">
         {/* Main CTA Container */}
         <motion.div
           initial={{ opacity: 0, y: 60 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
           viewport={{ once: true }}
-          className="relative overflow-hidden rounded-[40px] backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,0.5)]"
+          className="public-callout relative overflow-hidden backdrop-blur-2xl"
           style={{
             backgroundImage: colors.containerBg,
             borderColor: colors.containerBorder,
@@ -188,14 +188,14 @@ export default function CTASection() {
             style={{ background: `linear-gradient(to bottom, ${colors.glassReflection}, transparent)` }}
           />
 
-          <div className="relative z-10 px-8 py-16 md:px-16 lg:px-20 text-center">
+          <div className="public-callout-content relative z-10 text-center">
             {/* Badge */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-full backdrop-blur-xl text-sm"
+              className="public-section-eyebrow inline-flex items-center gap-2 backdrop-blur-xl"
               style={{
                 backgroundColor: colors.badgeBg,
                 borderColor: colors.badgeBorder,
@@ -214,7 +214,7 @@ export default function CTASection() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
-              className="mt-8 text-4xl md:text-6xl font-black leading-tight"
+              className="public-callout-title mt-8"
               style={{ color: colors.title }}
             >
               Ready To Transform
@@ -229,7 +229,7 @@ export default function CTASection() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.8 }}
               viewport={{ once: true }}
-              className="mt-8 max-w-3xl mx-auto text-lg md:text-xl leading-relaxed"
+              className="public-callout-copy mx-auto mt-8"
               style={{ color: colors.subtitle }}
             >
               Join modern law firms and legal professionals using LegalAssist to

@@ -166,7 +166,7 @@ export default function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="relative overflow-hidden py-24 px-6 lg:px-16"
+      className="relative w-full overflow-hidden px-3 py-16 sm:px-4 sm:py-20 lg:px-6 lg:py-24 xl:px-8"
       style={{ backgroundColor: colors.sectionBg }}
     >
       {/* Background Ambient Glow */}
@@ -191,7 +191,7 @@ export default function HowItWorks() {
         />
 
         {/* Timeline Steps */}
-        <div className="relative max-w-7xl mx-auto mt-24">
+        <div className="relative mx-auto mt-20 w-full lg:mt-24">
           {/* Timeline Line */}
           <div
             className="hidden lg:block absolute top-24 left-0 w-full h-[2px]"
@@ -291,11 +291,11 @@ export default function HowItWorks() {
 
                     {/* Content */}
                     <div className="relative mt-7">
-                      <h3 className="text-2xl font-bold" style={{ color: colors.title }}>
+                      <h3 className="public-feature-title" style={{ color: colors.title }}>
                         {step.title}
                       </h3>
 
-                      <p className="mt-4 leading-relaxed text-sm" style={{ color: colors.desc }}>
+                      <p className="public-feature-copy mt-4" style={{ color: colors.desc }}>
                         {step.desc}
                       </p>
                     </div>
@@ -318,7 +318,7 @@ export default function HowItWorks() {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
           viewport={{ once: true }}
-          className="relative mt-24 max-w-6xl mx-auto overflow-hidden rounded-[32px] backdrop-blur-2xl shadow-[0_25px_80px_rgba(0,0,0,0.45)]"
+          className="public-callout relative mx-auto mt-24 w-full overflow-hidden backdrop-blur-2xl"
           style={{
             backgroundImage: colors.ctaBg,
             borderColor: colors.ctaBorder,
@@ -332,10 +332,10 @@ export default function HowItWorks() {
             style={{ backgroundColor: colors.ctaGlow }}
           />
 
-          <div className="relative z-10 px-8 py-14 md:px-14 text-center">
+          <div className="public-callout-content relative z-10 text-center">
             {/* Badge */}
             <div
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm"
+              className="public-section-eyebrow inline-flex items-center gap-2"
               style={{
                 backgroundColor: colors.badgeBg,
                 borderColor: colors.badgeBorder,
@@ -348,7 +348,7 @@ export default function HowItWorks() {
             </div>
 
             {/* Heading */}
-            <h3 className="mt-6 text-3xl md:text-5xl font-black leading-tight" style={{ color: colors.ctaTitle }}>
+            <h3 className="public-callout-title mt-6" style={{ color: colors.ctaTitle }}>
               Ready To Begin
               <span className="block bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(to right, #2563EB, #06B6D4, #6366F1)" }}>
                 Your Legal Journey?
@@ -356,7 +356,7 @@ export default function HowItWorks() {
             </h3>
 
             {/* Text */}
-            <p className="mt-6 max-w-2xl mx-auto leading-relaxed" style={{ color: colors.ctaDesc }}>
+            <p className="public-callout-copy mx-auto mt-6" style={{ color: colors.ctaDesc }}>
               Start your case today with experienced legal professionals
               committed to delivering transparent, efficient, and results-driven
               legal services.

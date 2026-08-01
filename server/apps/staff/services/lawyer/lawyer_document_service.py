@@ -14,7 +14,13 @@ class LawyerDocumentService:
             case = cases.select_related("client").get(id=data.get("case_id"))
         except Exception as exc:
             raise ValidationError({"case_id": "Select one of your assigned matters."}) from exc
-        return DocumentWorkflowService.upload(client=case.client, user=user, data=data)
+        mutable_data = data.copy()
+        mutable_data["physical_copy_retained"] = True
+        mutable_data["physical_storage_location"] = (
+            mutable_data.get("physical_storage_location")
+            or f"KYC DRAWER / {str(case.client_id)[:8].upper()}"
+        )
+        return DocumentWorkflowService.upload(client=case.client, user=user, data=mutable_data)
 
     @staticmethod
     def workspace(user, params):
@@ -44,6 +50,7 @@ class LawyerDocumentService:
             instructions=(data.get("instructions") or "").strip(), due_date=data.get("due_date") or None,
             status=DocumentRequest.Status.AWAITING_SECRETARY_DISPATCH,
         )
+        DocumentWorkflowService.notify_secretaries_of_request(item, user)
         return DocumentWorkflowService.serialize_request(item)
 
     @staticmethod
@@ -76,17 +83,23 @@ class LawyerDocumentService:
         decision = data.get("decision")
         if decision not in {"ACCEPTED", "REPLACEMENT_REQUIRED"} or not item.fulfilled_document_id or item.status != DocumentRequest.Status.UPLOADED:
             raise ValidationError("Only a secretary-verified upload can be accepted or returned for replacement.")
-        item.status = decision
+        item.status = (
+            DocumentRequest.Status.ACCEPTED
+            if decision == "ACCEPTED"
+            else DocumentRequest.Status.AWAITING_SECRETARY_DISPATCH
+        )
         item.fulfilled_document.review_status = "ACCEPTED" if decision == "ACCEPTED" else "NEEDS_REPLACEMENT"
         item.fulfilled_document.review_notes = (data.get("notes") or "").strip()
         item.fulfilled_document.is_verified = decision == "ACCEPTED"
         item.fulfilled_document.save(update_fields=["review_status", "review_notes", "is_verified", "updated_at"])
         item.save(update_fields=["status", "updated_at"])
-        if item.client.user_id:
+        if decision == "REPLACEMENT_REQUIRED":
+            DocumentWorkflowService.notify_secretaries_of_request(item, user, replacement=True)
+        elif item.client.user_id:
             NotificationService.create(
                 firm=item.firm, recipient=item.client.user, actor=user, case=item.case,
-                title="Document accepted" if decision == "ACCEPTED" else "Replacement document required",
-                message=f'"{item.title}" was accepted.' if decision == "ACCEPTED" else f'Please replace "{item.title}". {item.fulfilled_document.review_notes}'.strip(),
+                title="Document accepted",
+                message=f'"{item.title}" was accepted.',
                 action_url=f"/client/cases/{item.case_id}/documents",
                 event_key=f"document-request-review:{item.id}:{decision}:{item.updated_at.isoformat()}",
             )

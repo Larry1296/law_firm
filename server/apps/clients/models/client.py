@@ -67,6 +67,14 @@ class Client(models.Model):
         editable=False,
     )
 
+    kyc_drawer_reference = models.CharField(
+        max_length=40,
+        unique=True,
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+
     firm = models.ForeignKey(
         "firm.LawFirm",
         on_delete=models.CASCADE,

@@ -123,8 +123,8 @@ export default function DashboardTileBackdrop({ variant }) {
         style={getSceneStyle(sceneState.current)}
       />
 
-      <div className='absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/20' />
-      <div className='absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10' />
+      <div className='absolute inset-0 bg-gradient-to-r from-black/60 via-black/35 to-black/10' />
+      <div className='absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent' />
       <div className='dashboard-tile-sheen absolute -inset-y-1/2 left-[-45%] w-1/3 rotate-12 bg-gradient-to-r from-transparent via-white/15 to-transparent blur-sm' />
 
       <div className='absolute bottom-5 right-5 flex gap-1.5 rounded-full border border-white/20 bg-black/25 px-2.5 py-2 shadow-lg backdrop-blur-md'>

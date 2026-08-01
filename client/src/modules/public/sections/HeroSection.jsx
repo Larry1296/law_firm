@@ -91,8 +91,8 @@ export default function HeroSection() {
           ))}
 
           {/* Hero Content */}
-          <div className='relative z-10 flex items-center justify-center min-h-screen px-6'>
-            <div className='max-w-4xl text-center'>
+          <div className='relative z-10 flex min-h-screen w-full items-center justify-center px-3 sm:px-4 lg:px-6 xl:px-8'>
+            <div className='w-full max-w-6xl text-center'>
               {/* Small Badge */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}

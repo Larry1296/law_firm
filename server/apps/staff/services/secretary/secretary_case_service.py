@@ -48,7 +48,7 @@ class SecretaryCaseService:
                 "assigned_secretary__user",
                 "created_by",
             )
-            .prefetch_related("timeline", "activities")
+            .prefetch_related("timeline", "activities", "parties", "document_requests")
             .order_by("-created_at")
         )
 
@@ -57,12 +57,18 @@ class SecretaryCaseService:
         try:
             secretary = cls.get_secretary(user)
             assigned_lawyer_ids = secretary.assigned_lawyers.values_list("id", flat=True)
-            return Case.objects.filter(
-                firm=secretary.law_firm,
-                is_active=True,
-            ).filter(
-                Q(assigned_secretary=secretary)
-                | Q(assigned_lawyer_id__in=assigned_lawyer_ids)
-            ).get(id=case_id)
+            return (
+                Case.objects.filter(firm=secretary.law_firm, is_active=True)
+                .filter(
+                    Q(assigned_secretary=secretary)
+                    | Q(assigned_lawyer_id__in=assigned_lawyer_ids)
+                )
+                .select_related(
+                    "client", "assigned_lawyer", "assigned_lawyer__user",
+                    "assigned_secretary", "assigned_secretary__user",
+                )
+                .prefetch_related("parties", "document_requests")
+                .get(id=case_id)
+            )
         except Exception:
             return None

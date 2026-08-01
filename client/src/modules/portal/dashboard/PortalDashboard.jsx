@@ -5,7 +5,6 @@ import {
   FileText,
   MessageSquare,
   ShieldCheck,
-  Upload,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -28,7 +27,7 @@ const portalTiles = [
   {
     key: 'documents',
     title: 'My Documents',
-    subtitle: 'Upload, review, and manage legal documents',
+    subtitle: 'Review physical KYC drawer records and requirements',
     icon: FileText,
     variant: 'documents',
     size: 'wide',
@@ -62,13 +61,13 @@ const portalTiles = [
     path: '/portal/intake/status',
   },
   {
-    key: 'upload',
-    title: 'Upload Documents',
-    subtitle: 'Send files and supporting evidence securely',
-    icon: Upload,
+    key: 'physical-documents',
+    title: 'KYC Document Requirements',
+    subtitle: 'Track physical documents requested by the firm',
+    icon: FileText,
     variant: 'documents',
     size: 'wide',
-    path: '/portal/documents/upload',
+    path: '/portal/documents',
   },
   {
     key: 'membership',
@@ -102,7 +101,7 @@ export default function PortalDashboard() {
       <DashboardHero
         badge='Client Portal'
         title={`Welcome${firstName ? `, ${firstName}` : ''}`}
-        description='Manage consultations, upload documents, track onboarding progress, and communicate securely with the legal team.'
+        description='Manage consultations, track physical KYC document requirements, follow onboarding progress, and communicate securely with the legal team.'
         statusTitle={client.is_verified ? 'Verified' : 'Pending Review'}
         statusDescription={
           isFetching

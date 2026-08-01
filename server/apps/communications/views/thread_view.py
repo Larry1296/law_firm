@@ -214,6 +214,11 @@ class SecretaryCaseThreadListView(APIView):
             )
 
         try:
+            for case in ChatService._case_queryset_for_user(request.user):
+                ChatService.get_or_create_case_thread(
+                    user=request.user,
+                    case_id=case.id,
+                )
             threads = ChatService.list_threads(
                 request.user,
                 thread_type=ChatThreadType.CASE_CLIENT,

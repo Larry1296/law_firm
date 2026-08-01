@@ -44,15 +44,6 @@ export default function NewIntakeForm() {
 
   const mutedText = isDark ? "text-text-muted-dark" : "text-slate-500";
 
-  const inputClass = `
-    w-full rounded-2xl border px-4 py-3 outline-none transition-all
-    ${
-      isDark
-        ? "bg-black/20 border-border-dark text-white placeholder:text-slate-500 focus:border-brand-primary"
-        : "bg-white border-border-light text-slate-800 placeholder:text-slate-400 focus:border-brand-primary"
-    }
-  `;
-
   const handleChange = (e) => {
     setFormData((prev) => ({
       ...prev,
@@ -237,13 +228,11 @@ export default function NewIntakeForm() {
                   </div>
                 </div>
 
-                <h3 className="font-semibold text-lg mb-2">Upload Documents</h3>
+                <h3 className="font-semibold text-lg mb-2">Physical KYC Documents</h3>
 
                 <p className={`text-sm mb-5 ${mutedText}`}>
-                  PDF, DOCX, JPG, PNG files accepted.
+                  Deliver required originals or physical copies to the firm secretary for recording under your KYC drawer reference.
                 </p>
-
-                <input type="file" multiple className={inputClass} />
               </div>
             </Card>
           </div>

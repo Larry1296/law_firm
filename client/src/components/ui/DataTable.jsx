@@ -108,8 +108,8 @@ export default function DataTable({
             <table className={fitToContainer ? 'w-full table-fixed' : 'w-full min-w-max table-auto'}>
               <thead
                 className='
-                  bg-slate-100
-                  dark:bg-[#18233A]
+                  bg-gradient-to-r from-slate-100 via-white to-blue-50
+                  dark:bg-none dark:bg-[#18233A]
                   border-b
                   border-border-light
                   dark:border-border-dark
@@ -124,7 +124,9 @@ export default function DataTable({
                         py-4
                         text-left
                         text-sm
-                        font-semibold
+                        font-bold
+                        uppercase
+                        tracking-[0.08em]
                         text-slate-700
                         dark:text-white
                         ${fitToContainer ? 'whitespace-normal break-words' : 'whitespace-nowrap'}

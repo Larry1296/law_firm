@@ -11,7 +11,7 @@ class DocumentRequest(TimestampedModel):
         AWAITING_SECRETARY_DISPATCH = "AWAITING_SECRETARY_DISPATCH", "Awaiting secretary dispatch"
         OPEN = "OPEN", "Required"
         PENDING_SECRETARY = "PENDING_SECRETARY", "Uploaded - awaiting secretary verification"
-        UPLOADED = "UPLOADED", "Secretary verified - awaiting advocate review"
+        UPLOADED = "UPLOADED", "Physical document received - awaiting advocate review"
         ACCEPTED = "ACCEPTED", "Accepted"
         REPLACEMENT_REQUIRED = "REPLACEMENT_REQUIRED", "Replacement required"
         CANCELLED = "CANCELLED", "Cancelled"

@@ -21,7 +21,7 @@ export default function CourtroomTodayPanel({
         shadow
         className='min-h-[260px] p-5 sm:p-6'
       >
-        <div className='mb-4 flex items-center justify-between gap-3'>
+        <div className='mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
           <div className='flex items-center gap-3'>
             <div className='rounded-2xl border border-white/20 bg-white/15 p-3 text-white backdrop-blur-sm'>
               <Video size={20} />
@@ -38,7 +38,7 @@ export default function CourtroomTodayPanel({
           <button
             type='button'
             onClick={refetch}
-            className='rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20'
+            className='min-h-11 w-full rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 sm:w-auto'
           >
             Refresh
           </button>

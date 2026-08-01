@@ -1,11 +1,10 @@
 from datetime import date
 
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import resolve, reverse
 from rest_framework.test import APIClient
 
-from apps.cases.models import Case
+from apps.cases.models import Case, CaseParty
 from apps.clients.models import Client, ClientDocument, NGOClient
 from apps.common.choices import UserRole
 from apps.firm.models.law_firm import LawFirm
@@ -191,22 +190,33 @@ class SecretaryEndpointTests(TestCase):
             client_type=Client.ClientType.INDIVIDUAL,
             access_type=Client.AccessType.ASSISTED,
             lifecycle_status=Client.LifecycleStatus.OFFICIAL,
+            kyc_drawer_reference="KYC-2026-040",
         )
         self.client.force_authenticate(user=secretary_user)
 
         response = self.client.post(
             reverse("secretary-documents"),
             {
+                "action": "register_physical",
                 "client_id": str(client.id),
                 "title": "Client instructions",
                 "document_type": "EVIDENCE",
-                "file": SimpleUploadedFile("instructions.pdf", b"%PDF-1.4 test", content_type="application/pdf"),
+                "document_reference": "NID-711000020",
+                "received_from": "Document Client",
+                "physical_storage_location": "KYC DRAWER / CLIENT-TEST / FILE-001",
             },
-            format="multipart",
+            format="json",
         )
 
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertTrue(ClientDocument.objects.filter(client=client, title="Client instructions").exists())
+        document = ClientDocument.objects.get(client=client, title="Client instructions")
+        self.assertEqual(document.reference, "NID-711000020")
+        self.assertEqual(document.received_from, "Document Client")
+        self.assertEqual(document.received_by, secretary_user)
+        self.assertIsNotNone(document.received_at)
+        self.assertFalse(document.file)
+        self.assertEqual(response.data["document"]["drawer_reference"], client.kyc_drawer_reference)
+        self.assertTrue(document.physical_copy_retained)
 
     def test_secretary_without_manage_permission_can_view_secretarial_case_and_client_data(self):
         secretary_user = User.objects.create_user(
@@ -240,7 +250,7 @@ class SecretaryEndpointTests(TestCase):
             access_type=Client.AccessType.ASSISTED,
             lifecycle_status=Client.LifecycleStatus.OFFICIAL,
         )
-        Case.objects.create(
+        case = Case.objects.create(
             firm=self.firm,
             client=client,
             created_by=self.admin_user,
@@ -248,8 +258,21 @@ class SecretaryEndpointTests(TestCase):
             title="Secretary Visible Case",
             case_type=Case.CaseType.CIVIL,
             court_type=Case.CourtType.HIGH_COURT,
+            matter_status=Case.MatterStatus.MATTER_OPEN,
+            court_stage=Case.CourtStage.NOT_FILED,
+            priority=Case.Priority.MEDIUM,
+            procedure_track=Case.ProcedureTrack.CIVIL_SUIT,
+            court_station="Nairobi",
+            registry="Civil Registry",
             assigned_lawyer=lawyer,
             assigned_secretary=secretary,
+        )
+        CaseParty.objects.create(
+            case=case,
+            client=client,
+            name=client.full_name,
+            party_role=CaseParty.PartyRole.PLAINTIFF,
+            is_our_client=True,
         )
 
         self.client.force_authenticate(user=secretary_user)
@@ -257,6 +280,16 @@ class SecretaryEndpointTests(TestCase):
         cases_response = self.client.get(reverse("secretary-cases"))
         self.assertEqual(cases_response.status_code, 200, cases_response.data)
         self.assertEqual(len(cases_response.data["cases"]), 1)
+        listed_case = cases_response.data["cases"][0]
+        self.assertEqual(listed_case["case_owner"]["full_name"], client.full_name)
+        self.assertEqual(listed_case["case_owner"]["party_role_label"], "Plaintiff")
+        self.assertEqual(listed_case["matter_status_label"], "Matter open")
+        self.assertEqual(listed_case["court_stage_label"], "Not filed")
+        for restricted_field in (
+            "priority", "procedure_track", "court_name", "court_station",
+            "registry", "is_active", "description", "notes", "analytics",
+        ):
+            self.assertNotIn(restricted_field, listed_case)
 
         clients_response = self.client.get(reverse("secretary-clients"))
         self.assertEqual(clients_response.status_code, 200, clients_response.data)

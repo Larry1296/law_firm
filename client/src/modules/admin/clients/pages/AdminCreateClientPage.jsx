@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import Swal from '@/core/utils/themedSwal';
 
@@ -22,7 +22,6 @@ import {
   getRepresentativeContactAutofill,
 } from '@/modules/admin/clients/utils/legalEntityClientPayload';
 import ClientCreationSuccessPanel from '@/modules/admin/clients/components/ClientCreationSuccessPanel';
-import KycDocumentUploads from '@/modules/admin/clients/components/KycDocumentUploads';
 import KenyanAddressFields from '@/modules/clients/shared/KenyanAddressFields';
 
 export default function AdminCreateClientPage() {
@@ -120,9 +119,6 @@ export default function AdminCreateClientPage() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
   const [successData, setSuccessData] = useState(null);
-  const [kycAttachments, setKycAttachments] = useState([]);
-  const [kycUploadWarning, setKycUploadWarning] = useState('');
-  const handleKycAttachmentsChange = useCallback((items) => setKycAttachments(items), []);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -792,17 +788,6 @@ export default function AdminCreateClientPage() {
         ? await secretaryClientsService.createClient(payload, clientType)
         : await adminClientsService.createClient(payload, clientType);
 
-      const responseBody = response?.data || response;
-      const responseClient = responseBody?.client;
-      const newClientId = responseClient?.id || responseClient?.detail?.id;
-      if (newClientId && kycAttachments.length) {
-        const results = await Promise.allSettled(
-          kycAttachments.map((attachment) => adminClientsService.uploadKycDocument(newClientId, attachment)),
-        );
-        const failed = results.filter((item) => item.status === 'rejected').length;
-        setKycUploadWarning(failed ? `${failed} optional KYC scan${failed === 1 ? '' : 's'} could not be uploaded. The client was created; upload the outstanding scan from the client document desk.` : '');
-      }
-
       setSuccessData(response);
       return;
     } catch (error) {
@@ -1274,7 +1259,6 @@ export default function AdminCreateClientPage() {
 
       {successData && (
         <>
-        {kycUploadWarning && <div className='rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100'>{kycUploadWarning}</div>}
         <ClientCreationSuccessPanel
           title={successTitle}
           description={successDescription}
@@ -2911,7 +2895,6 @@ export default function AdminCreateClientPage() {
 		            </h3>
 		          )}
 
-          <KycDocumentUploads formData={formData} onChange={handleKycAttachmentsChange} />
 
           <div className='flex gap-3 pt-4'>
             <Button3D type='submit' variant='primary' disabled={isSubmitting}>

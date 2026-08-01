@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Swal from '@/core/utils/themedSwal';
+import useAuth from '@/core/hooks/useAuth';
 
 import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
@@ -15,6 +16,7 @@ import useCaseDetails from '@/modules/admin/cases/hooks/useAdminCaseDetails';
 import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
 import CaseProceedingsWorkflow from '@/modules/cases/shared/CaseProceedingsWorkflow';
 import CreateNextCaseEventPanel from '@/modules/admin/cases/components/CreateNextCaseEventPanel';
+import AssignedAdvocateMatterDesk from '@/modules/admin/cases/components/AssignedAdvocateMatterDesk';
 import { COURT_LEVELS, COURT_TYPES } from '@/modules/cases/shared/create/caseCreateOptions';
 
 const PRIORITIES = [
@@ -104,6 +106,7 @@ const SectionNote = ({ children, tone = 'info' }) => {
 
 const AdminCaseDetailsPage = () => {
   const { id } = useParams();
+  const { user } = useAuth() || {};
 
   const {
     caseData,
@@ -1658,6 +1661,11 @@ const AdminCaseDetailsPage = () => {
       </Card>
 
       <CaseProcedurePanels caseData={caseData} />
+
+      {caseData.assigned_lawyer?.email
+        && caseData.assigned_lawyer.email.toLowerCase() === user?.email?.toLowerCase() && (
+          <AssignedAdvocateMatterDesk caseId={id} />
+      )}
             {/* =========================================================
                 CREATE NEXT CASE EVENT (chained from previous event)
             ========================================================= */}

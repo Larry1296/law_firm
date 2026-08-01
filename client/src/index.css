@@ -90,19 +90,6 @@
     color: #fecaca;
   }
 
-  .dashboard-grid .rounded-none,
-  .dashboard-grid .rounded-sm,
-  .dashboard-grid .rounded-md,
-  .dashboard-grid .rounded-lg,
-  .dashboard-grid .rounded-xl,
-  .dashboard-grid .rounded-2xl,
-  .dashboard-grid .rounded-3xl,
-  .dashboard-grid .rounded-t-xl,
-  .dashboard-grid .rounded-b-xl,
-  .dashboard-grid .rounded-t-2xl,
-  .dashboard-grid .rounded-b-2xl {
-    border-radius: 0 !important;
-  }
 }
 
 @keyframes dashboard-tile-photo-arrive {
@@ -278,6 +265,108 @@
   text-shadow:
     1px 1px 0 #000,
     2px 2px 3px rgba(0, 0, 0, 0.95);
+}
+
+.public-section-eyebrow {
+  border-radius: 0.625rem !important;
+  padding: 0.55rem 0.9rem !important;
+  font-size: clamp(0.72rem, 0.7rem + 0.15vw, 0.85rem) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.11em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.12);
+}
+
+.public-callout {
+  border-radius: clamp(1.25rem, 2vw, 2rem) !important;
+  box-shadow: 0 22px 65px rgba(2, 6, 23, 0.22) !important;
+}
+
+.public-callout-content {
+  padding: clamp(1.5rem, 3.5vw, 4.5rem) !important;
+}
+
+.public-callout-title {
+  font-size: clamp(2rem, 2.6vw + 1rem, 4.25rem) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.035em;
+  line-height: 1.05 !important;
+}
+
+.public-callout-copy {
+  max-width: 58rem;
+  font-size: clamp(0.95rem, 0.85rem + 0.35vw, 1.2rem) !important;
+  line-height: 1.75 !important;
+}
+
+.public-feature-title {
+  font-size: clamp(1.2rem, 1rem + 0.45vw, 1.65rem) !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.018em;
+  line-height: 1.25;
+}
+
+.public-feature-copy {
+  font-size: clamp(0.9rem, 0.84rem + 0.18vw, 1.05rem) !important;
+  line-height: 1.7 !important;
+}
+
+.app-shell {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(18, 56, 90, 0.11), transparent 30rem),
+    radial-gradient(circle at 95% 28%, rgba(184, 138, 43, 0.09), transparent 34rem),
+    var(--background);
+}
+
+.app-main {
+  background-color: transparent !important;
+  background-image:
+    radial-gradient(circle at 88% 10%, rgba(18, 56, 90, 0.08), transparent 30rem),
+    radial-gradient(circle at 8% 72%, rgba(184, 138, 43, 0.07), transparent 34rem);
+  background-attachment: local;
+}
+
+/* Light dashboards use a dark presentation canvas so tile gutters feel
+   intentional and continuous with the hero/topbar instead of like white gaps. */
+html:not(.dark) .app-main:has(.dashboard-grid) {
+  color: #ffffff;
+  background-color: #090d13 !important;
+  background-image:
+    radial-gradient(circle at 88% 6%, rgba(37, 99, 235, 0.16), transparent 30rem),
+    radial-gradient(circle at 8% 62%, rgba(184, 138, 43, 0.1), transparent 34rem),
+    linear-gradient(145deg, #151b24 0%, #090d13 48%, #111827 100%) !important;
+  background-attachment: local;
+}
+
+html:not(.dark) .app-main:has(.dashboard-grid) .dashboard-grid {
+  background: transparent;
+}
+
+.dark .app-shell {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.14), transparent 32rem),
+    radial-gradient(circle at 92% 35%, rgba(6, 182, 212, 0.08), transparent 34rem),
+    var(--background-dark);
+}
+
+.dark .app-main {
+  background-image:
+    radial-gradient(circle at 90% 8%, rgba(37, 99, 235, 0.09), transparent 32rem),
+    radial-gradient(circle at 8% 76%, rgba(99, 102, 241, 0.07), transparent 36rem);
+}
+
+.app-main h1,
+.app-main h2 {
+  letter-spacing: -0.03em;
+}
+
+.app-main h1 {
+  font-weight: 800;
+}
+
+.app-main h2 {
+  font-weight: 750;
 }
 
 /* Form controls intentionally use a single underline, including on focus. */

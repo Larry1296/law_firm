@@ -13,11 +13,11 @@ export default function ClientLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="app-shell flex h-screen overflow-hidden">
       {/* SIDEBAR */}
       <aside
         className={`
-          fixed lg:static inset-y-0 left-0 z-50 w-64
+          fixed lg:static inset-y-0 left-0 z-50 w-[min(86vw,20rem)] lg:w-64
           transform transition-transform duration-300
           ${theme === "dark" ? "bg-black" : "bg-[#222222]"}
           ${
@@ -50,7 +50,7 @@ export default function ClientLayout() {
         {/* MAIN CONTENT */}
         <main
           className={`
-            flex-1 flex flex-col overflow-y-auto
+            app-main flex-1 flex flex-col overflow-y-auto
             ${
               theme === "dark"
                 ? "bg-[color:var(--background-dark)] text-white"
