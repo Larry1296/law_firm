@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -14,6 +14,7 @@ import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
 import lawyerCasesService from '@/modules/staff/lawyer/cases/services/lawyerCasesService';
 import { enumLabel } from '@/core/utils/textFormatter';
 import { formatDateTime } from '@/core/utils/dateFormatter';
+import { PRACTICE_AREAS } from '@/modules/cases/shared/create/caseCreateOptions';
 
 const SOURCE_OPTIONS = [
   { value: 'CURRENT_CLIENTS', label: 'Current clients' },
@@ -214,6 +215,12 @@ export default function ClientConflictCheckPage() {
     enabled: !isNew && !!clientId && !!checkId,
   });
 
+  useEffect(() => {
+    if (check?.jurisdiction_facts) {
+      setJurisdictionFacts((current) => ({ ...current, ...check.jurisdiction_facts }));
+    }
+  }, [check?.jurisdiction_facts]);
+
   const lawyerOptions = useMemo(
     () => (lawyers || []).map((lawyer) => ({
       value: lawyer.membership_id || lawyer.id,
@@ -412,7 +419,7 @@ export default function ClientConflictCheckPage() {
           {!check.jurisdiction?.is_final && (
             <form className='mt-5 grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); jurisdictionSuggestionMutation.mutate(); }}>
               <Input3D label='Dispute category' value={jurisdictionFacts.dispute_category} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, dispute_category: e.target.value }))} />
-              <Input3D label='Practice area' value={jurisdictionFacts.practice_area} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, practice_area: e.target.value }))} />
+              <Select3D label='Practice area' value={jurisdictionFacts.practice_area} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, practice_area: e.target.value }))} options={PRACTICE_AREAS} placeholder='Select the proposed matter practice area' required />
               <Input3D
                 label='Claim value (KES)'
                 type='number'

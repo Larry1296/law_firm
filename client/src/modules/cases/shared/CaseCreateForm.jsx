@@ -11,6 +11,7 @@ import Select3D from '@/components/ui/Select3D';
 import { caseCreateInitialValues } from './create/caseCreateInitialValues';
 import { buildCaseCreatePayload } from './create/caseCreatePayload';
 import { validateCaseCreateForm } from './create/caseCreateValidation';
+import { practiceAreaFromConflictCheck } from './create/practiceAreaSelection';
 import {
   CASE_TYPES,
   COURT_DIVISIONS,
@@ -79,6 +80,7 @@ const buildInitialFormData = (initialClientId, initialConflictCheckId, initialCo
 
   return {
     ...next,
+    practice_area: practiceAreaFromConflictCheck(initialConflictCheck) || next.practice_area,
     title: initialConflictCheck.proposed_matter_title || next.title,
     description: initialConflictCheck.factual_summary || initialConflictCheck.proposed_instructions || next.description,
     urgency_level: initialConflictCheck.urgency_level || next.urgency_level,
@@ -667,7 +669,7 @@ export default function CaseCreateForm({
 
         {step === 2 && (
           <Section title='Classification'>
-            <SelectField label='Practice Area' name='practice_area' value={formData.practice_area} onChange={handleChange} options={PRACTICE_AREAS} />
+            <SelectField label='Practice Area' name='practice_area' value={formData.practice_area} onChange={handleChange} options={PRACTICE_AREAS} required />
             <SelectField label='Matter Nature' name='matter_nature' value={formData.matter_nature} onChange={handleChange} options={MATTER_NATURES} />
             <SelectField label='Forum' name='forum' value={formData.forum} onChange={handleChange} options={FORUMS} />
             <SelectField label='Matter Category' name='case_type' value={formData.case_type} onChange={handleChange} options={CASE_TYPES} error={errors.case_type} required />

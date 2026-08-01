@@ -294,7 +294,8 @@ export default function Login() {
                 <input
                   type='checkbox'
                   checked={rememberMe}
-                  onChange={() => setRememberMe(!rememberMe)}
+                  onChange={(event) => setRememberMe(event.target.checked)}
+                  aria-describedby='remember-me-help'
                 />
                 Remember me
               </label>
@@ -317,6 +318,9 @@ export default function Login() {
                 </Link>
               </div>
             </div>
+            <p id='remember-me-help' className='-mt-3 text-xs text-gray-600 dark:text-gray-400'>
+              Keep me signed in on this device after the browser is closed. Leave unchecked on a shared device.
+            </p>
 
             <Button3D type='submit' className='w-full' disabled={loading}>
               {openingDashboard

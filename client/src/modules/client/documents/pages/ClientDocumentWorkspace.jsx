@@ -50,7 +50,7 @@ export default function ClientDocumentWorkspace({ caseId = '', compact = false }
         <input className='rounded-xl border p-3 dark:bg-background-dark' placeholder='Short description (optional)' value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
       </div>
       {upload.error && <p className='mt-3 text-sm text-error'>{upload.error?.response?.data?.detail || 'Upload failed.'}</p>}
-      {upload.isSuccess && <p className='mt-3 text-sm text-success'>Document uploaded and the legal team has been notified where requested.</p>}
+      {upload.isSuccess && <p className='mt-3 text-sm text-success'>Document sent to the firm successfully.</p>}
       <button className='mt-4 flex items-center gap-2 rounded-xl bg-brand-primary px-4 py-2 text-white disabled:opacity-50' disabled={!form.file || upload.isPending} onClick={() => upload.mutate()}><UploadCloud size={17} />{upload.isPending ? 'Uploading…' : 'Upload document'}</button>
     </Card>
     {requests.length > 0 && <Card className='p-5'><h3 className='font-semibold'>Documents requested by your advocate</h3><div className='mt-3 space-y-2'>{requests.map((item) => <div key={item.id} className='rounded-xl border p-3'><strong>{item.title}</strong><p className='text-sm'>{item.case_number} · {item.status.replaceAll('_', ' ')}</p>{item.instructions && <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>{item.instructions}</p>}</div>)}</div></Card>}

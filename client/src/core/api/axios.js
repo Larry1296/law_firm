@@ -17,9 +17,6 @@ const cleanBaseURL = import.meta.env.VITE_API_BASE_URL?.trim().replace(
 
 const axiosInstance = axios.create({
   baseURL: cleanBaseURL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 /* =========================================================
@@ -31,6 +28,17 @@ axiosInstance.interceptors.request.use(
     const token = storage.getItem('accessToken');
 
     config.headers = config.headers ?? {};
+
+    // Let Axios choose JSON for plain objects and let the browser add the
+    // required multipart boundary for FormData uploads. A global JSON header
+    // causes uploaded files to arrive at Django as an empty request body.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (typeof config.headers.delete === 'function') {
+        config.headers.delete('Content-Type');
+      } else {
+        delete config.headers['Content-Type'];
+      }
+    }
 
     const isAuthEndpoint =
       config.url?.includes('/login') ||
