@@ -255,6 +255,12 @@ class Client(models.Model):
             return False
         if self.documents.exists():
             return False
+        if self.kyc_reference_history.exists():
+            return False
+        if self.document_receipts.exists():
+            return False
+        if self.document_requirements.exists():
+            return False
         return True
 
     @property

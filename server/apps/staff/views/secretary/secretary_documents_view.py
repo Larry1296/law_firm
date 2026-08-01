@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -26,8 +27,24 @@ class SecretaryDocumentsView(SecretaryBaseView):
                 return Response({"receipt_number": receipt.receipt_number}, status=201)
             if request.data.get("action") != "register_physical":
                 return Response({"detail": "Document uploads are disabled. Record the physical KYC drawer entry."}, status=400)
-            document = SecretaryDocumentService.register_physical_document(request.user, request.data)
-            return Response({"document": DocumentWorkflowService.serialize_document(document)}, status=201)
+            with transaction.atomic():
+                document = SecretaryDocumentService.register_physical_document(request.user, request.data)
+                receipt = SecretaryDocumentService.create_receipt(
+                    request.user,
+                    {
+                        "client_id": str(document.client_id),
+                        "document_ids": [str(document.id)],
+                        "received_from": document.received_from,
+                        "received_at": document.received_at,
+                    },
+                )
+            return Response(
+                {
+                    "document": DocumentWorkflowService.serialize_document(document),
+                    "receipt_number": receipt.receipt_number,
+                },
+                status=201,
+            )
         except Exception as exc:
             return Response({"detail": getattr(exc, "detail", str(exc))}, status=getattr(exc, "status_code", 400))
 

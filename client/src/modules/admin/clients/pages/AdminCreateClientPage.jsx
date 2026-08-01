@@ -7,6 +7,7 @@ import Button3D from '@/components/ui/Button3D';
 import SectionHeading from '@/components/ui/SectionHeading';
 import FloatingInput from '@/components/ui/FloatingInput';
 import Select3D from '@/components/ui/Select3D';
+import FormSection from '@/components/ui/FormSection';
 
 import adminClientsService from '@/modules/admin/clients/services/adminClientsService';
 import secretaryClientsService from '@/modules/staff/secretary/clients/services/secretaryClientServices';
@@ -1357,10 +1358,10 @@ export default function AdminCreateClientPage() {
 	          )}
 
           {!isCompanyClient && !isIndividual && !isAssistedIndividual && (
-            <section className='space-y-4'>
-              <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-                Access type
-              </h3>
+            <FormSection
+              title='Client Access'
+              description='Choose how the firm will manage this client and whether an authorised contact needs portal access.'
+            >
               <Select3D
                 label='Client Access'
                 name='entity_access_type'
@@ -1411,26 +1412,27 @@ export default function AdminCreateClientPage() {
                   required={isProspect}
                 />
               </div>
-            </section>
+            </FormSection>
           )}
 
           {!isIndividual && (
-            <section className='space-y-4'>
-              <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>Physical / Registered Office Address</h3>
-              <p className='text-sm text-[color:var(--text-secondary)]'>This is the client&apos;s physical location. For Kenya, County and Nearest City / Town appear directly below.</p>
+            <FormSection
+              title='Registered Office Address'
+              description='Record the client’s physical or registered office location using the controlled Kenyan address fields where applicable.'
+            >
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 <KenyanAddressFields formData={formData} onChange={handleChange} errors={fieldErrors} />
                 <FloatingInput label='Postal Code' name='postal_code' value={formData.postal_code} onChange={handleChange} error={fieldErrors.postal_code} />
                 <FloatingInput label='Full Physical Address' name='full_address' value={formData.full_address} onChange={handleChange} error={fieldErrors.full_address} required={isCompanyClient || isProspect} />
               </div>
-            </section>
+            </FormSection>
           )}
 
           {canonicalEntityTypes.includes(clientType) && (
-            <section className='space-y-5'>
-              <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-                Legal identity and authority
-              </h3>
+            <FormSection
+              title='Legal Identity and Authority'
+              description='Capture the entity’s registered identity, legal status, authorised officials, and authority to instruct the firm.'
+            >
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 <FloatingInput
                   label='Legal / Registered Name'
@@ -1678,7 +1680,7 @@ export default function AdminCreateClientPage() {
                 )}
                 <FloatingInput label='Authorized Contact Phone' name='contact_phone_number' value={formData.contact_phone_number} onChange={handleChange} />
               </div>
-            </section>
+            </FormSection>
           )}
 
           {isCompany && !isCompanyClient && (

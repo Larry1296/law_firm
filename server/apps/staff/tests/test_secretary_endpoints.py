@@ -8,6 +8,7 @@ from apps.cases.models import Case, CaseParty
 from apps.clients.models import Client, ClientDocument, NGOClient
 from apps.common.choices import UserRole
 from apps.firm.models.law_firm import LawFirm
+from apps.documents.models import PhysicalDocumentReceipt
 from apps.staff.models import Lawyer, Secretary, SecretaryPermission, SecretaryPermissionGrant
 from apps.users.models import User
 
@@ -201,7 +202,7 @@ class SecretaryEndpointTests(TestCase):
                 "client_id": str(client.id),
                 "title": "Client instructions",
                 "document_type": "EVIDENCE",
-                "document_reference": "NID-711000020",
+                "document_reference": "KYC-2026-040/D1",
                 "received_from": "Document Client",
                 "physical_storage_location": "KYC DRAWER / CLIENT-TEST / FILE-001",
             },
@@ -210,13 +211,64 @@ class SecretaryEndpointTests(TestCase):
 
         self.assertEqual(response.status_code, 201, response.data)
         document = ClientDocument.objects.get(client=client, title="Client instructions")
-        self.assertEqual(document.reference, "NID-711000020")
+        self.assertEqual(document.reference, "KYC-2026-040/D1")
         self.assertEqual(document.received_from, "Document Client")
         self.assertEqual(document.received_by, secretary_user)
         self.assertIsNotNone(document.received_at)
         self.assertFalse(document.file)
         self.assertEqual(response.data["document"]["drawer_reference"], client.kyc_drawer_reference)
+        self.assertRegex(response.data["receipt_number"], r"^REC-\d{4}-\d{5}$")
+        receipt = PhysicalDocumentReceipt.objects.get(
+            receipt_number=response.data["receipt_number"]
+        )
+        self.assertEqual(receipt.client, client)
+        self.assertEqual(receipt.items.get().document, document)
         self.assertTrue(document.physical_copy_retained)
+
+    def test_secretary_cannot_assign_a_second_kyc_drawer_to_client(self):
+        secretary_user = User.objects.create_user(
+            email="secretary-drawer@example.com",
+            password="strong-pass123",
+            first_name="Sec",
+            last_name="Drawer",
+            phone_number="+254711000029",
+            national_id_number="711000029",
+            role=UserRole.STAFF,
+        )
+        Secretary.objects.create(
+            user=secretary_user,
+            law_firm=self.firm,
+            staff_number="SEC-DRAWER-001",
+            date_hired=date(2026, 8, 1),
+        )
+        client = Client.objects.create(
+            firm=self.firm,
+            created_by=self.admin_user,
+            full_name="Permanent Drawer Client",
+            client_type=Client.ClientType.NGO,
+            access_type=Client.AccessType.ASSISTED,
+            lifecycle_status=Client.LifecycleStatus.OFFICIAL,
+            kyc_drawer_reference="KYC-2026-050",
+            kyc_cabinet_location="Cabinet A / Drawer 1",
+        )
+        self.client.force_authenticate(user=secretary_user)
+
+        response = self.client.post(
+            reverse("secretary-documents"),
+            {
+                "action": "assign_drawer",
+                "client_id": str(client.id),
+                "kyc_drawer_reference": "KYC-2026-051",
+                "cabinet_location": "Cabinet A / Drawer 2",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("already has a permanent KYC drawer", str(response.data))
+        client.refresh_from_db()
+        self.assertEqual(client.kyc_drawer_reference, "KYC-2026-050")
+        self.assertEqual(client.kyc_cabinet_location, "Cabinet A / Drawer 1")
 
     def test_secretary_without_manage_permission_can_view_secretarial_case_and_client_data(self):
         secretary_user = User.objects.create_user(

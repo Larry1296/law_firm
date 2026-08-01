@@ -36,6 +36,15 @@ class SecretaryDocumentService:
             client = Client.objects.select_for_update().get(id=data.get("client_id"), firm=secretary.law_firm)
         except (Client.DoesNotExist, ValueError, TypeError) as exc:
             raise ValidationError({"client_id": "Select a client file."}) from exc
+        if client.kyc_drawer_reference:
+            raise ValidationError(
+                {
+                    "kyc_drawer_reference": (
+                        "This client already has a permanent KYC drawer. "
+                        "A second drawer cannot be assigned."
+                    )
+                }
+            )
         reference = (data.get("kyc_drawer_reference") or "").strip().upper()
         if not SecretaryDocumentService.DRAWER_REFERENCE_PATTERN.fullmatch(reference):
             raise ValidationError({"kyc_drawer_reference": "Use the physical drawer format KYC-2026-039."})
@@ -43,8 +52,6 @@ class SecretaryDocumentService:
             raise ValidationError({"kyc_drawer_reference": "This physical KYC drawer number is already assigned."})
         cabinet_location = (data.get("cabinet_location") or "").strip()
         reason = (data.get("reason") or "Initial physical KYC file assignment").strip()
-        if client.kyc_drawer_reference and client.kyc_drawer_reference != reference and not data.get("reason"):
-            raise ValidationError({"reason": "Explain why the physical KYC file reference is changing."})
         previous_reference = client.kyc_drawer_reference or ""
         previous_location = client.kyc_cabinet_location
         client.kyc_drawer_reference = reference
@@ -331,8 +338,29 @@ class SecretaryDocumentService:
             raise ValidationError({"category": "Select a valid broad document category."})
         if (data.get("subtype") or ClientDocument.Subtype.OTHER) not in ClientDocument.Subtype.values:
             raise ValidationError({"subtype": "Select a valid exact document type."})
+        category = data.get("category") or ClientDocument.Category.OTHER
+        document_identifier = (data.get("document_identifier") or "").strip()
+        if category in {
+            ClientDocument.Category.KYC_IDENTITY,
+            ClientDocument.Category.KYC_TAX,
+            ClientDocument.Category.ENTITY_RECORD,
+        } and not document_identifier:
+            raise ValidationError(
+                {
+                    "document_identifier": (
+                        "Record the official ID, KRA PIN, registration number, "
+                        "or authority reference for this KYC document."
+                    )
+                }
+            )
         if (data.get("source_copy_type") or ClientDocument.SourceCopyType.CLIENT_COPY) not in ClientDocument.SourceCopyType.values:
             raise ValidationError({"source_copy_type": "Select original, certified copy, ordinary copy, or official electronic record."})
+        try:
+            page_count = int(data.get("page_count") or 1)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({"page_count": "Record a valid physical page count."}) from exc
+        if page_count < 1:
+            raise ValidationError({"page_count": "A received document must contain at least one page."})
         received_at = data.get("received_at") or timezone.now()
         if isinstance(received_at, str):
             received_at = parse_datetime(received_at)
@@ -349,13 +377,13 @@ class SecretaryDocumentService:
             category=data.get("category") or ClientDocument.Category.OTHER,
             subtype=data.get("subtype") or ClientDocument.Subtype.OTHER,
             document_owner_subject=(data.get("document_owner_subject") or client.full_name).strip(),
-            document_identifier=(data.get("document_identifier") or "").strip(),
+            document_identifier=document_identifier,
             issuing_authority=(data.get("issuing_authority") or "").strip(),
             document_date=data.get("document_date") or None,
             issue_date=data.get("issue_date") or None,
             expiry_date=data.get("expiry_date") or None,
             source_copy_type=data.get("source_copy_type") or ClientDocument.SourceCopyType.CLIENT_COPY,
-            page_count=data.get("page_count") or 1,
+            page_count=page_count,
             return_required=str(data.get("return_required", "")).lower() in {"true", "1", "yes", "on"},
             expected_return_date=data.get("expected_return_date") or None,
             visible_damage_or_alteration=str(data.get("visible_damage_or_alteration", "")).lower() in {"true", "1", "yes", "on"},

@@ -1,3 +1,9 @@
+import {
+  formattedInputEvent,
+  shouldTitleCaseInput,
+  toTitleCase,
+} from '@/core/forms/formTextFormatting';
+
 export default function Input({
   label,
   name,
@@ -11,6 +17,8 @@ export default function Input({
   autoCapitalize,
   spellCheck,
   error,
+  format = 'auto',
+  onBlur,
   ...rest
 }) {
   const supportsWritingAssist = ![
@@ -25,6 +33,7 @@ export default function Input({
     'checkbox',
     'radio',
   ].includes(type);
+  const titleCaseOnBlur = shouldTitleCaseInput({ name, type, format });
 
   return (
     <div data-form-field className='space-y-1'>
@@ -43,6 +52,15 @@ export default function Input({
         type={type}
         value={value}
         onChange={onChange}
+        onBlur={(event) => {
+          if (titleCaseOnBlur) {
+            const formattedValue = toTitleCase(event.currentTarget.value);
+            if (formattedValue !== event.currentTarget.value) {
+              onChange?.(formattedInputEvent(event, formattedValue));
+            }
+          }
+          onBlur?.(event);
+        }}
         placeholder={placeholder}
         autoComplete={autoComplete ?? (type === 'password' ? 'current-password' : 'on')}
         autoCorrect={autoCorrect ?? (supportsWritingAssist ? 'on' : 'off')}

@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import {
+  formattedInputEvent,
+  shouldTitleCaseInput,
+  toTitleCase,
+} from '@/core/forms/formTextFormatting';
 
 export default function FloatingInput({
   label,
@@ -18,6 +23,8 @@ export default function FloatingInput({
   spellCheck,
   onWheel,
   onKeyDown,
+  onBlur,
+  format = 'auto',
   ...props
 }) {
   const [focused, setFocused] = useState(false);
@@ -47,6 +54,7 @@ export default function FloatingInput({
     'checkbox',
     'radio',
   ].includes(type);
+  const titleCaseOnBlur = shouldTitleCaseInput({ name, type, format });
 
   return (
     <div data-form-field className={`w-full mb-8 ${className}`}>
@@ -82,7 +90,16 @@ export default function FloatingInput({
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${name}-error` : undefined}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={(event) => {
+            setFocused(false);
+            if (titleCaseOnBlur) {
+              const formattedValue = toTitleCase(event.currentTarget.value);
+              if (formattedValue !== event.currentTarget.value) {
+                onChange?.(formattedInputEvent(event, formattedValue));
+              }
+            }
+            onBlur?.(event);
+          }}
           onWheel={(event) => {
             if (isNumber) {
               event.currentTarget.blur();

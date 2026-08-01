@@ -6,7 +6,14 @@ from rest_framework.test import APIClient
 
 from apps.cases.models import Case
 from apps.common.choices import FirmRole, UserRole
-from apps.clients.models import Client, ClientAddress, ClientContact, IndividualClient, NGOClient
+from apps.clients.models import (
+    Client,
+    ClientAddress,
+    ClientContact,
+    ClientKYCReferenceHistory,
+    IndividualClient,
+    NGOClient,
+)
 from apps.firm.models import LawFirm, LawFirmMember
 from apps.users.models import User
 
@@ -156,6 +163,37 @@ class AdminClientUrlTests(TestCase):
             Client.LifecycleStatus.OFFICIAL_CLIENT,
         )
         self.assertIsNotNone(client.soft_deleted_at)
+
+    def test_client_with_kyc_reference_history_is_archived_instead_of_hard_deleted(self):
+        client = Client.objects.create(
+            firm=self.firm,
+            full_name="Audited Prospect",
+            email="audited-prospect@example.com",
+            phone_number="+254700000125",
+            client_type=Client.ClientType.INDIVIDUAL,
+            access_type=Client.AccessType.PROSPECT,
+            lifecycle_status=Client.LifecycleStatus.PROSPECT,
+        )
+        ClientKYCReferenceHistory.objects.create(
+            client=client,
+            new_reference="KYC-001",
+            reason="Initial reference assignment",
+            changed_by=self.admin_user,
+        )
+        self.client.force_authenticate(user=self.admin_user)
+
+        response = self.client.delete(
+            reverse("admin-client-delete", kwargs={"client_id": str(client.id)})
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["action"], "archived")
+        client.refresh_from_db()
+        self.assertFalse(client.is_active)
+        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.ARCHIVED)
+        self.assertTrue(
+            ClientKYCReferenceHistory.objects.filter(client=client).exists()
+        )
 
     def test_archived_client_can_be_restored_to_previous_state(self):
         client = Client.objects.create(
