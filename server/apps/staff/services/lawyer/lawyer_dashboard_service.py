@@ -23,7 +23,12 @@ class LawyerDashboardService:
         pending_document_requests = DocumentRequest.objects.filter(
             case__assigned_lawyer=lawyer,
             case__is_active=True,
-            status__in=[DocumentRequest.Status.OPEN, DocumentRequest.Status.UPLOADED, DocumentRequest.Status.REPLACEMENT_REQUIRED],
+            status__in=[
+                DocumentRequest.Status.AWAITING_SECRETARY_DISPATCH,
+                DocumentRequest.Status.OPEN,
+                DocumentRequest.Status.UPLOADED,
+                DocumentRequest.Status.REPLACEMENT_REQUIRED,
+            ],
         ).count()
         next_hearing = active_cases.filter(next_court_date__isnull=False).order_by("next_court_date").values_list("next_court_date", flat=True).first()
         next_deadline = active_cases.filter(internal_deadline__isnull=False).order_by("internal_deadline").values_list("internal_deadline", flat=True).first()

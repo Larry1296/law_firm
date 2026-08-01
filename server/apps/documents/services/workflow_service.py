@@ -48,6 +48,13 @@ class DocumentWorkflowService:
         if physical_retained and not physical_location:
             raise ValidationError({"physical_storage_location": "Record where the physical KYC document is held."})
         case = DocumentWorkflowService._case_for_client(client, data.get("case_id"))
+        received_via = data.get("received_via") or (
+            ClientDocument.ReceivedVia.CLIENT_PORTAL
+            if getattr(user, "client_profile", None)
+            else ClientDocument.ReceivedVia.IN_PERSON
+        )
+        if received_via not in ClientDocument.ReceivedVia.values:
+            raise ValidationError({"received_via": "Select how the document was received."})
         request = None
         request_id = data.get("request_id")
         if request_id:
@@ -77,6 +84,7 @@ class DocumentWorkflowService:
             physical_copy_retained=physical_retained,
             physical_storage_location=physical_location,
             custody_notes=(data.get("custody_notes") or "").strip(),
+            received_via=received_via,
         )
         if case:
             MatterDocumentReference.objects.create(
@@ -90,10 +98,31 @@ class DocumentWorkflowService:
             request.fulfilled_document = document
             request.fulfilled_by = user
             request.fulfilled_at = timezone.now()
-            request.status = DocumentRequest.Status.UPLOADED
-            request.save(update_fields=["fulfilled_document", "fulfilled_by", "fulfilled_at", "status", "updated_at"])
-            DocumentWorkflowService._notify_lawyer_of_upload(request, user)
+            if getattr(user, "secretary_profile", None):
+                request.status = DocumentRequest.Status.UPLOADED
+                request.secretary_verified_by = user
+                request.secretary_verified_at = timezone.now()
+                request.secretary_verification_notes = "Received and filed by secretary on the client's behalf."
+                request.save(update_fields=["fulfilled_document", "fulfilled_by", "fulfilled_at", "status", "secretary_verified_by", "secretary_verified_at", "secretary_verification_notes", "updated_at"])
+                DocumentWorkflowService._notify_lawyer_of_upload(request, user)
+            else:
+                request.status = DocumentRequest.Status.PENDING_SECRETARY
+                request.save(update_fields=["fulfilled_document", "fulfilled_by", "fulfilled_at", "status", "updated_at"])
+                DocumentWorkflowService._notify_secretary_of_client_upload(request, user)
         return document
+
+    @staticmethod
+    def _notify_secretary_of_client_upload(request, actor):
+        secretary = request.case.assigned_secretary
+        if not secretary or not secretary.user_id:
+            return
+        NotificationService.create(
+            firm=request.firm, recipient=secretary.user, actor=actor, case=request.case,
+            title="Client document awaiting receipt verification",
+            message=f'{request.client.full_name} uploaded "{request.title}" for {request.case.case_number}.',
+            action_url="/secretary/documents",
+            event_key=f"document-request-secretary-review:{request.id}:{request.fulfilled_document_id}",
+        )
 
     @staticmethod
     def _notify_lawyer_of_upload(request, actor):
@@ -125,6 +154,9 @@ class DocumentWorkflowService:
             "source_reference": document.source_reference,
             "source_copy_type": document.source_copy_type,
             "physical_copy_retained": document.physical_copy_retained,
+            "physical_storage_location": document.physical_storage_location,
+            "custody_notes": document.custody_notes,
+            "received_via": document.received_via,
             "uploaded_at": document.created_at.isoformat(),
             "uploaded_by": document.uploaded_by.full_name if document.uploaded_by else "Unknown",
             "matters": [{"id": str(ref.case_id), "case_number": ref.case.case_number,
@@ -140,6 +172,12 @@ class DocumentWorkflowService:
             "case_title": item.case.title, "client_id": str(item.client_id),
             "client_name": item.client.full_name,
             "fulfilled_document_id": str(item.fulfilled_document_id) if item.fulfilled_document_id else None,
+            "secretary_verified_by": item.secretary_verified_by.full_name if item.secretary_verified_by else None,
+            "secretary_verified_at": item.secretary_verified_at.isoformat() if item.secretary_verified_at else None,
+            "secretary_verification_notes": item.secretary_verification_notes,
+            "dispatched_by": item.dispatched_by.full_name if item.dispatched_by else None,
+            "dispatched_at": item.dispatched_at.isoformat() if item.dispatched_at else None,
+            "dispatch_message": item.dispatch_message,
             "created_at": item.created_at.isoformat(),
         }
 
@@ -153,8 +191,11 @@ class DocumentWorkflowService:
         return qs.order_by("-created_at").distinct()
 
     @staticmethod
-    def requests_for_client(client, *, case_id=None):
-        qs = DocumentRequest.objects.filter(client=client).select_related("case", "client", "fulfilled_document")
+    def requests_for_client(client, *, case_id=None, include_undispatched=False):
+        qs = DocumentRequest.objects.filter(client=client)
+        if not include_undispatched:
+            qs = qs.exclude(status=DocumentRequest.Status.AWAITING_SECRETARY_DISPATCH)
+        qs = qs.select_related("case", "client", "fulfilled_document", "secretary_verified_by", "dispatched_by")
         if case_id:
             qs = qs.filter(case_id=case_id)
         return qs
@@ -187,5 +228,5 @@ class DocumentWorkflowService:
         docs = ClientDocument.objects.filter(client_id__in=client_ids).select_related("client", "uploaded_by").prefetch_related("matter_references__case")
         if query:
             docs = docs.filter(Q(title__icontains=query) | Q(reference__icontains=query) | Q(file_name__icontains=query))
-        requests = DocumentRequest.objects.filter(case__in=cases).select_related("case", "client", "fulfilled_document")
+        requests = DocumentRequest.objects.filter(case__in=cases).select_related("case", "client", "fulfilled_document", "secretary_verified_by", "dispatched_by")
         return docs.order_by("-created_at").distinct(), requests

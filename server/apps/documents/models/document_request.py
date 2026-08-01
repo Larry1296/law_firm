@@ -8,8 +8,10 @@ from apps.common.models.timestamped_model import TimestampedModel
 
 class DocumentRequest(TimestampedModel):
     class Status(models.TextChoices):
+        AWAITING_SECRETARY_DISPATCH = "AWAITING_SECRETARY_DISPATCH", "Awaiting secretary dispatch"
         OPEN = "OPEN", "Required"
-        UPLOADED = "UPLOADED", "Uploaded - awaiting review"
+        PENDING_SECRETARY = "PENDING_SECRETARY", "Uploaded - awaiting secretary verification"
+        UPLOADED = "UPLOADED", "Secretary verified - awaiting advocate review"
         ACCEPTED = "ACCEPTED", "Accepted"
         REPLACEMENT_REQUIRED = "REPLACEMENT_REQUIRED", "Replacement required"
         CANCELLED = "CANCELLED", "Cancelled"
@@ -35,6 +37,18 @@ class DocumentRequest(TimestampedModel):
         related_name="fulfilled_document_requests"
     )
     fulfilled_at = models.DateTimeField(null=True, blank=True)
+    secretary_verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="secretary_verified_document_requests"
+    )
+    secretary_verified_at = models.DateTimeField(null=True, blank=True)
+    secretary_verification_notes = models.TextField(blank=True, default="")
+    dispatched_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="dispatched_document_requests"
+    )
+    dispatched_at = models.DateTimeField(null=True, blank=True)
+    dispatch_message = models.TextField(blank=True, default="")
 
     class Meta:
         db_table = "document_requests"

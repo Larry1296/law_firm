@@ -3,6 +3,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.documents.models import DocumentRequest, MatterDocumentReference
 from apps.documents.services.workflow_service import DocumentWorkflowService
+from apps.notifications.services import NotificationService
 
 
 class LawyerDocumentService:
@@ -41,6 +42,7 @@ class LawyerDocumentService:
             firm=case.firm, client=case.client, case=case, requested_by=user, title=title,
             document_type=data.get("document_type") or "OTHER",
             instructions=(data.get("instructions") or "").strip(), due_date=data.get("due_date") or None,
+            status=DocumentRequest.Status.AWAITING_SECRETARY_DISPATCH,
         )
         return DocumentWorkflowService.serialize_request(item)
 
@@ -72,12 +74,20 @@ class LawyerDocumentService:
         except DocumentRequest.DoesNotExist as exc:
             raise PermissionDenied("Document request was not found.") from exc
         decision = data.get("decision")
-        if decision not in {"ACCEPTED", "REPLACEMENT_REQUIRED"} or not item.fulfilled_document_id:
-            raise ValidationError("An uploaded document can be accepted or returned for replacement.")
+        if decision not in {"ACCEPTED", "REPLACEMENT_REQUIRED"} or not item.fulfilled_document_id or item.status != DocumentRequest.Status.UPLOADED:
+            raise ValidationError("Only a secretary-verified upload can be accepted or returned for replacement.")
         item.status = decision
         item.fulfilled_document.review_status = "ACCEPTED" if decision == "ACCEPTED" else "NEEDS_REPLACEMENT"
         item.fulfilled_document.review_notes = (data.get("notes") or "").strip()
         item.fulfilled_document.is_verified = decision == "ACCEPTED"
         item.fulfilled_document.save(update_fields=["review_status", "review_notes", "is_verified", "updated_at"])
         item.save(update_fields=["status", "updated_at"])
+        if item.client.user_id:
+            NotificationService.create(
+                firm=item.firm, recipient=item.client.user, actor=user, case=item.case,
+                title="Document accepted" if decision == "ACCEPTED" else "Replacement document required",
+                message=f'"{item.title}" was accepted.' if decision == "ACCEPTED" else f'Please replace "{item.title}". {item.fulfilled_document.review_notes}'.strip(),
+                action_url=f"/client/cases/{item.case_id}/documents",
+                event_key=f"document-request-review:{item.id}:{decision}:{item.updated_at.isoformat()}",
+            )
         return DocumentWorkflowService.serialize_request(item)

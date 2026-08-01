@@ -19,7 +19,12 @@ class SecretaryDashboardService:
         clients = SecretaryClientService.list_clients(user)
         documents_to_prepare = DocumentRequest.objects.filter(
             case__in=cases,
-            status__in=[DocumentRequest.Status.OPEN, DocumentRequest.Status.REPLACEMENT_REQUIRED],
+            status__in=[
+                DocumentRequest.Status.AWAITING_SECRETARY_DISPATCH,
+                DocumentRequest.Status.OPEN,
+                DocumentRequest.Status.REPLACEMENT_REQUIRED,
+                DocumentRequest.Status.PENDING_SECRETARY,
+            ],
         ).count()
 
         return {

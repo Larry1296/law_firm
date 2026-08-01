@@ -1,11 +1,12 @@
 from datetime import date
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import resolve, reverse
 from rest_framework.test import APIClient
 
 from apps.cases.models import Case
-from apps.clients.models import Client, NGOClient
+from apps.clients.models import Client, ClientDocument, NGOClient
 from apps.common.choices import UserRole
 from apps.firm.models.law_firm import LawFirm
 from apps.staff.models import Lawyer, Secretary, SecretaryPermission, SecretaryPermissionGrant
@@ -165,6 +166,47 @@ class SecretaryEndpointTests(TestCase):
         self.client.force_authenticate(user=secretary_user)
         allowed_cases_response = self.client.get(reverse("secretary-cases"))
         self.assertEqual(allowed_cases_response.status_code, 200)
+
+    def test_secretary_files_general_document_to_selected_client_without_matter(self):
+        secretary_user = User.objects.create_user(
+            email="secretary-documents@example.com",
+            password="strong-pass123",
+            first_name="Sec",
+            last_name="Documents",
+            phone_number="+254711000019",
+            national_id_number="711000019",
+            role=UserRole.STAFF,
+        )
+        Secretary.objects.create(
+            user=secretary_user,
+            law_firm=self.firm,
+            staff_number="SEC-DOC-001",
+            date_hired=date(2026, 7, 31),
+        )
+        client = Client.objects.create(
+            firm=self.firm,
+            created_by=self.admin_user,
+            full_name="Document Client",
+            phone_number="+254711000020",
+            client_type=Client.ClientType.INDIVIDUAL,
+            access_type=Client.AccessType.ASSISTED,
+            lifecycle_status=Client.LifecycleStatus.OFFICIAL,
+        )
+        self.client.force_authenticate(user=secretary_user)
+
+        response = self.client.post(
+            reverse("secretary-documents"),
+            {
+                "client_id": str(client.id),
+                "title": "Client instructions",
+                "document_type": "EVIDENCE",
+                "file": SimpleUploadedFile("instructions.pdf", b"%PDF-1.4 test", content_type="application/pdf"),
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(ClientDocument.objects.filter(client=client, title="Client instructions").exists())
 
     def test_secretary_without_manage_permission_can_view_secretarial_case_and_client_data(self):
         secretary_user = User.objects.create_user(

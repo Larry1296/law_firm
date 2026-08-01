@@ -31,6 +31,14 @@ class ClientDocument(TimestampedModel):
         CLIENT_COPY = "CLIENT_COPY", "Client-supplied copy"
         OFFICIAL_ELECTRONIC = "OFFICIAL_ELECTRONIC", "Official electronic record"
 
+    class ReceivedVia(models.TextChoices):
+        CLIENT_PORTAL = "CLIENT_PORTAL", "Client portal"
+        IN_PERSON = "IN_PERSON", "Delivered in person"
+        EMAIL = "EMAIL", "Email"
+        WHATSAPP = "WHATSAPP", "WhatsApp"
+        COURIER = "COURIER", "Courier"
+        OTHER = "OTHER", "Other"
+
     client = models.ForeignKey(
         Client,
         on_delete=models.CASCADE,
@@ -81,6 +89,9 @@ class ClientDocument(TimestampedModel):
     physical_copy_retained = models.BooleanField(default=False)
     physical_storage_location = models.CharField(max_length=255, blank=True, default="")
     custody_notes = models.TextField(blank=True, default="")
+    received_via = models.CharField(
+        max_length=30, choices=ReceivedVia.choices, default=ReceivedVia.CLIENT_PORTAL
+    )
 
     uploaded_by = models.ForeignKey(
         "users.User",

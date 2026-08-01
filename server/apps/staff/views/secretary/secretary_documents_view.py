@@ -15,7 +15,25 @@ class SecretaryDocumentsView(SecretaryBaseView):
 
     def post(self, request):
         try:
+            if request.data.get("action") == "request":
+                return Response(SecretaryDocumentService.create_request(request.user, request.data), status=201)
             document = SecretaryDocumentService.upload(request.user, request.data)
             return Response({"document": DocumentWorkflowService.serialize_document(document)}, status=201)
+        except Exception as exc:
+            return Response({"detail": getattr(exc, "detail", str(exc))}, status=getattr(exc, "status_code", 400))
+
+
+class SecretaryDocumentVerificationView(SecretaryBaseView):
+    def patch(self, request, request_id):
+        try:
+            return Response(SecretaryDocumentService.verify_client_upload(request.user, request_id, request.data))
+        except Exception as exc:
+            return Response({"detail": getattr(exc, "detail", str(exc))}, status=getattr(exc, "status_code", 400))
+
+
+class SecretaryDocumentDispatchView(SecretaryBaseView):
+    def post(self, request, request_id):
+        try:
+            return Response(SecretaryDocumentService.dispatch_request(request.user, request_id, request.data))
         except Exception as exc:
             return Response({"detail": getattr(exc, "detail", str(exc))}, status=getattr(exc, "status_code", 400))
