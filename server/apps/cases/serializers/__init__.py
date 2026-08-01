@@ -19,6 +19,14 @@ from .case_serializer import CaseSerializer
 from .case_status_serializer import CaseStatusSerializer
 from .case_task_serializer import CaseTaskSerializer
 from .case_update_serializer import CaseUpdateSerializer
+from .proposed_matter_serializer import (
+    ProposedMatterConvertSerializer,
+    ProposedMatterCreateSerializer,
+    ProposedMatterDetailSerializer,
+    ProposedMatterUpdateSerializer,
+    ProposedMatterWithdrawSerializer,
+)
+from .proceedings_serializer import ProceedingOutcomeSerializer
 
 __all__ = [
     "CaseAttachmentSerializer",
@@ -38,5 +46,10 @@ __all__ = [
     "CaseStatusSerializer",
     "CaseTaskSerializer",
     "CaseUpdateSerializer",
+    "ProceedingOutcomeSerializer",
+    "ProposedMatterConvertSerializer",
+    "ProposedMatterCreateSerializer",
+    "ProposedMatterDetailSerializer",
+    "ProposedMatterUpdateSerializer",
+    "ProposedMatterWithdrawSerializer",
 ]
-from .proceedings_serializer import ProceedingOutcomeSerializer

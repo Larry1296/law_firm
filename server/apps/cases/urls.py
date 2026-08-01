@@ -14,6 +14,11 @@ from apps.cases.views import (
     VirtualCourtroomLinkUpdateView,
     VirtualCourtroomTodayView,
     AllowedNextEventsView,
+    ProposedMatterConvertView,
+    ProposedMatterDetailView,
+    ProposedMatterListCreateView,
+    ProposedMatterSubmitView,
+    ProposedMatterWithdrawView,
     RecordProceedingOutcomeView,
 )
 
@@ -33,4 +38,11 @@ urlpatterns = [
     path("<uuid:case_id>/status/", CaseStatusView.as_view(), name="case-status"),
     path("<uuid:case_id>/reassign-lawyer/", CaseReassignLawyerView.as_view(), name="case-reassign-lawyer"),
     path("<uuid:case_id>/reassign-secretary/", CaseReassignSecretaryView.as_view(), name="case-reassign-secretary"),
+
+    # ── Proposed matters (pre-conflict-check) ─────────────────────────
+    path("proposed/", ProposedMatterListCreateView.as_view(), name="proposed-matter-list-create"),
+    path("proposed/<uuid:proposed_matter_id>/", ProposedMatterDetailView.as_view(), name="proposed-matter-detail"),
+    path("proposed/<uuid:proposed_matter_id>/submit/", ProposedMatterSubmitView.as_view(), name="proposed-matter-submit"),
+    path("proposed/<uuid:proposed_matter_id>/withdraw/", ProposedMatterWithdrawView.as_view(), name="proposed-matter-withdraw"),
+    path("proposed/<uuid:proposed_matter_id>/convert/", ProposedMatterConvertView.as_view(), name="proposed-matter-convert"),
 ]

@@ -11,6 +11,13 @@ from .case_jurisdiction_view import CaseJurisdictionVerificationView
 from .case_lifecycle_transition_view import CaseLifecycleTransitionView
 from .case_status_view import CaseStatusView
 from .proceedings_view import AllowedNextEventsView, RecordProceedingOutcomeView
+from .proposed_matter_view import (
+    ProposedMatterConvertView,
+    ProposedMatterDetailView,
+    ProposedMatterListCreateView,
+    ProposedMatterSubmitView,
+    ProposedMatterWithdrawView,
+)
 
 __all__ = [
     "CaseEventListCreateView",
@@ -27,4 +34,9 @@ __all__ = [
     "VirtualCourtroomTodayView",
     "AllowedNextEventsView",
     "RecordProceedingOutcomeView",
+    "ProposedMatterConvertView",
+    "ProposedMatterDetailView",
+    "ProposedMatterListCreateView",
+    "ProposedMatterSubmitView",
+    "ProposedMatterWithdrawView",
 ]

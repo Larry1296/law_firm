@@ -24,6 +24,7 @@ from .matter_details import (
     SuccessionMatterDetails,
     TribunalProceeding,
 )
+from .proposed_matter import ProposedMatter
 
 __all__ = [
     "ArbitrationProceeding",
@@ -49,6 +50,7 @@ __all__ = [
     "LandMatterDetails",
     "MonetaryRelief",
     "NonContentiousMatterDetails",
+    "ProposedMatter",
     "SuccessionMatterDetails",
     "TribunalProceeding",
 ]
