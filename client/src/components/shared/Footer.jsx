@@ -9,7 +9,7 @@ export default function Footer() {
         {/* LOGO / ABOUT */}
         <div>
           <Brand size="h-16 w-16" textSize="text-2xl" textColor="text-white" />
-          <p className="mt-4 text-sm text-white/80">
+          <p className="mt-4 text-sm text-white dark:text-white/80">
             Professional legal services you can trust. We provide reliable and
             efficient legal solutions tailored to your needs.
           </p>
@@ -17,8 +17,8 @@ export default function Footer() {
 
         {/* CONTACT */}
         <div>
-          <h3 className="font-semibold mb-4 text-white/90">Contact</h3>
-          <div className="space-y-3 text-sm text-white/70">
+          <h3 className="font-semibold mb-4 text-white dark:text-white/90">Contact</h3>
+          <div className="space-y-3 text-sm text-white dark:text-white/70">
             <div className="flex items-center gap-2">
               <MapPin size={16} />
               <span>Nairobi, Kenya</span>
@@ -36,8 +36,8 @@ export default function Footer() {
 
         {/* SOCIAL */}
         <div>
-          <h3 className="font-semibold mb-4 text-white/90">Follow Us</h3>
-          <div className="flex gap-4 text-white/80">
+          <h3 className="font-semibold mb-4 text-white dark:text-white/90">Follow Us</h3>
+          <div className="flex gap-4 text-white dark:text-white/80">
             <a href="#" className="hover:text-white transition">
               <FaFacebook />
             </a>
@@ -52,7 +52,7 @@ export default function Footer() {
       </div>
 
       {/* BOTTOM */}
-      <div className="border-t border-white/30 text-center py-4 text-sm text-white/70">
+      <div className="border-t border-white/30 text-center py-4 text-sm text-white dark:text-white/70">
         © {new Date().getFullYear()} Sheria Desk. All rights reserved.
       </div>
     </footer>

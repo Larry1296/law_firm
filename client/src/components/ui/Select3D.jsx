@@ -95,11 +95,11 @@ export default function Select3D({
   };
 
   return (
-    <div ref={wrapperRef} className={`relative w-full mb-8 ${wrapperClassName}`}>
+    <div ref={wrapperRef} data-form-field className={`relative w-full mb-8 ${wrapperClassName}`}>
       {label && (
         <label
           htmlFor={name}
-          className='block pb-2 text-sm font-semibold text-text-primary-light dark:text-text-primary-dark'
+          className={`block pb-1 text-base italic font-bold tracking-wide transition-colors ${error ? 'text-red-600 dark:text-red-400' : 'text-[color:var(--text-muted)]'}`}
         >
           {label}{required ? ' *' : ''}
         </label>
@@ -111,16 +111,18 @@ export default function Select3D({
         disabled={disabled}
         aria-haspopup='listbox'
         aria-expanded={open}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${name}-error` : undefined}
         onClick={() => {
           if (!disabled) setOpen((current) => !current);
         }}
         onBlur={props.onBlur}
         className={`
-          flex h-12 min-h-12 w-full items-center justify-between rounded-2xl border
-          border-border-light bg-surface-light px-4 py-0 text-left
-          text-text-primary-light shadow-soft transition-all
-          dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark
-          focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary
+          flex h-12 min-h-12 w-full items-center justify-between rounded-none border-0 border-b
+          bg-transparent px-0 py-0 text-left text-text-primary-light transition-colors
+          ${error ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-400' : 'border-border-light dark:border-border-dark'}
+          dark:bg-transparent dark:text-text-primary-dark
+          focus:outline-none focus:border-brand-primary
           disabled:cursor-not-allowed disabled:opacity-60
           ${className}
         `}
@@ -171,7 +173,7 @@ export default function Select3D({
         </div>
       )}
 
-      {error && <p className='mt-2 text-sm text-red-500'>{error}</p>}
+      {error && <p id={`${name}-error`} className='mt-2 text-sm text-red-500'>{error}</p>}
     </div>
   );
 }

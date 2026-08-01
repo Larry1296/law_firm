@@ -21,6 +21,75 @@
 }
 
 @layer components {
+  form input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  form select,
+  form textarea {
+    border-width: 0 0 1px !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  form input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
+  form select:focus,
+  form textarea:focus {
+    border-bottom-color: var(--brand-primary) !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  form[data-validation-attempted='true'] input:invalid,
+  form[data-validation-attempted='true'] select:invalid,
+  form[data-validation-attempted='true'] textarea:invalid,
+  [data-form-field].form-field-invalid > div,
+  [data-form-field] [aria-invalid='true'] {
+    border-color: #dc2626 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  [data-form-field].form-field-invalid > div {
+    border-width: 0 0 1px !important;
+  }
+
+  [data-form-field].form-field-invalid label,
+  form[data-validation-attempted='true'] :invalid::placeholder,
+  [data-form-field] [aria-invalid='true']::placeholder {
+    color: #dc2626 !important;
+    opacity: 1;
+  }
+
+  .form-validation-field-message {
+    margin-top: 0.5rem;
+    color: #dc2626;
+    font-size: 0.875rem;
+    line-height: 1.35;
+  }
+
+  .form-validation-summary {
+    width: 100%;
+    margin-top: 0.75rem;
+    border: 1px solid #f87171;
+    border-radius: 0.75rem;
+    background: #fef2f2;
+    padding: 0.875rem 1rem;
+    color: #991b1b;
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+
+  .form-validation-summary ul {
+    margin: 0.5rem 0 0;
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+
+  .dark .form-validation-summary {
+    border-color: #991b1b;
+    background: rgba(69, 10, 10, 0.72);
+    color: #fecaca;
+  }
+
   .dashboard-grid .rounded-none,
   .dashboard-grid .rounded-sm,
   .dashboard-grid .rounded-md,
@@ -104,11 +173,8 @@
 
 @layer utilities {
   .bg-shell-light {
-    background-color: #0b121c;
-    background-image:
-      radial-gradient(circle at 14% -20%, rgba(148, 163, 184, 0.2), transparent 38%),
-      radial-gradient(circle at 88% 115%, rgba(30, 64, 175, 0.14), transparent 34%),
-      linear-gradient(135deg, #36404a 0%, #293440 38%, #172538 68%, #07101e 100%);
+    background-color: #000000;
+    background-image: none;
     color: #FFFFFF;
   }
 
@@ -157,11 +223,8 @@
 
 
 .shell-surface {
-  background-color: #0b121c;
-  background-image:
-    radial-gradient(circle at 14% -20%, rgba(148, 163, 184, 0.2), transparent 38%),
-    radial-gradient(circle at 88% 115%, rgba(30, 64, 175, 0.14), transparent 34%),
-    linear-gradient(135deg, #36404a 0%, #293440 38%, #172538 68%, #07101e 100%);
+  background-color: #000000;
+  background-image: none;
   background-attachment: fixed;
   background-position: left top;
   background-repeat: no-repeat;
@@ -178,13 +241,103 @@
 }
 
 .shell-hover:hover {
-  background-color: #343b44;
-  background-image: linear-gradient(135deg, rgba(226, 232, 240, 0.16), rgba(9, 12, 16, 0.24));
+  background-color: #181818;
+  background-image: none;
 }
 
 .dark .shell-hover:hover {
   background-color: #0B2A5B;
   background-image: linear-gradient(135deg, #0B2A5B 0%, #0B2A5B 100%);
+}
+
+.hero-heading-3d {
+  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.72);
+  paint-order: stroke fill;
+  text-shadow:
+    1px 1px 0 #111827,
+    2px 2px 0 #0f172a,
+    3px 3px 0 #020617,
+    5px 6px 10px rgba(0, 0, 0, 0.9),
+    0 0 24px rgba(0, 0, 0, 0.75);
+}
+
+.hero-heading-3d span {
+  filter: drop-shadow(3px 4px 1px rgba(2, 6, 23, 0.92));
+}
+
+.hero-copy-3d {
+  -webkit-text-stroke: 0.35px rgba(0, 0, 0, 0.8);
+  paint-order: stroke fill;
+  text-shadow:
+    1px 1px 0 rgba(0, 0, 0, 0.95),
+    2px 3px 5px rgba(0, 0, 0, 0.95),
+    0 0 14px rgba(0, 0, 0, 0.85);
+}
+
+.hero-kicker-3d {
+  text-shadow:
+    1px 1px 0 #000,
+    2px 2px 3px rgba(0, 0, 0, 0.95);
+}
+
+/* Form controls intentionally use a single underline, including on focus. */
+[data-form-field] > label,
+[data-form-field] > div:first-child > label {
+  color: var(--text-muted);
+  font-size: 1rem !important;
+  font-style: italic;
+  font-weight: 700 !important;
+  letter-spacing: 0.035em;
+  line-height: 1.25;
+  text-transform: none;
+}
+
+[data-form-field].form-field-invalid > label,
+[data-form-field].form-field-invalid > div:first-child > label,
+[data-form-field] [aria-invalid='true'] ~ label {
+  color: #dc2626 !important;
+}
+
+[data-form-field] input,
+[data-form-field] select,
+[data-form-field] textarea,
+[data-form-field] button[aria-haspopup='listbox'] {
+  font-style: normal;
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+form input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
+form select:focus,
+form textarea:focus,
+[data-form-field] button[aria-haspopup='listbox']:focus,
+[data-form-field] button[aria-haspopup='listbox']:focus-visible {
+  border-style: solid !important;
+  border-width: 0 0 2px !important;
+  border-radius: 0 !important;
+  border-bottom-color: var(--brand-primary) !important;
+  outline: none !important;
+  box-shadow: none !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+}
+
+[data-form-field] > div:has(> input),
+[data-form-field] > div:has(> textarea),
+[data-form-field] > div:has(> input):focus-within,
+[data-form-field] > div:has(> textarea):focus-within {
+  border-style: solid !important;
+  border-width: 0 0 1px !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+[data-form-field] > div:has(> input):focus-within,
+[data-form-field] > div:has(> textarea):focus-within {
+  border-bottom-width: 2px !important;
+  border-bottom-color: var(--brand-primary) !important;
 }
 
 /* CSS Variables for theme-aware colors */

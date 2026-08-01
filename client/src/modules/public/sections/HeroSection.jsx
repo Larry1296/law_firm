@@ -1,10 +1,31 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import Button3D from '@/components/ui/Button3D';
 
 import courtroom from '@/assets/images/court-room.png';
+import courtroomModern from '@/assets/images/court-room-modern.png';
+import courtroomAppellate from '@/assets/images/court-room-appellate.png';
+import courtroomContemporary from '@/assets/images/court-room-contemporary.png';
+
+const heroBackgrounds = [
+  { src: courtroom, alt: 'Traditional courtroom interior' },
+  { src: courtroomModern, alt: 'Modern mahogany courtroom interior' },
+  { src: courtroomAppellate, alt: 'Appellate courtroom interior' },
+  { src: courtroomContemporary, alt: 'Contemporary high court interior' },
+];
 
 export default function HeroSection() {
+  const [activeBackground, setActiveBackground] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setActiveBackground((current) => (current + 1) % heroBackgrounds.length);
+    }, 5000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
   return (
     <section className='relative w-full min-h-screen overflow-hidden bg-[#050816] flex items-center justify-center py-0'>
       {/* Background Glow */}
@@ -49,42 +70,35 @@ export default function HeroSection() {
       >
         {/* Image Container */}
         <div className='relative w-full h-screen overflow-hidden bg-black'>
-          {/* Background Image */}
-          <motion.img
-            src={courtroom}
-            alt='Courtroom'
-            animate={{
-              scale: [1, 1.06, 1],
-            }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-            className='absolute inset-0 w-full h-full object-cover'
-          />
-
-          {/* Dark Overlay */}
-          <div className='absolute inset-0 bg-black/65' />
-
-          {/* Cinematic Gradient */}
-          <div className='absolute inset-0 bg-gradient-to-br from-blue-950/40 via-black/20 to-indigo-950/50' />
-
-          {/* Glass Shine */}
-          <div className='absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent pointer-events-none' />
-
-          {/* Floating Particles */}
-          <div className='absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15)_1px,transparent_1px)] bg-[size:32px_32px]' />
+          {/* Five-second background carousel */}
+          {heroBackgrounds.map((background, index) => (
+            <motion.img
+              key={background.src}
+              src={background.src}
+              alt={index === 0 ? background.alt : ''}
+              aria-hidden={index !== activeBackground}
+              initial={false}
+              animate={{
+                opacity: index === activeBackground ? 1 : 0,
+                scale: index === activeBackground ? 1 : 1.025,
+              }}
+              transition={{
+                opacity: { duration: 1.25 },
+                scale: { duration: 5, ease: 'linear' },
+              }}
+              className='absolute inset-0 h-full w-full object-cover'
+            />
+          ))}
 
           {/* Hero Content */}
           <div className='relative z-10 flex items-center justify-center min-h-screen px-6'>
-            <div className='text-center max-w-4xl'>
+            <div className='max-w-4xl text-center'>
               {/* Small Badge */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
-                className='inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md text-sm text-blue-100 shadow-lg mb-6'
+                className='hero-kicker-3d mb-6 inline-flex items-center gap-2 rounded-full border border-white/40 bg-black/35 px-4 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-sm'
               >
                 Modern Legal Management Platform
               </motion.div>
@@ -94,10 +108,10 @@ export default function HeroSection() {
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1 }}
-                className='text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-tight text-white'
+                className='hero-heading-3d text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-tight text-white'
               >
                 Simplify
-                <span className='block bg-gradient-to-r from-blue-300 via-cyan-200 to-indigo-300 bg-clip-text text-transparent'>
+                <span className='block text-white'>
                   Legal Operations
                 </span>
               </motion.h1>
@@ -107,7 +121,7 @@ export default function HeroSection() {
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 1 }}
-                className='mt-8 text-base sm:text-lg md:text-xl text-gray-200 leading-relaxed max-w-2xl mx-auto'
+                className='hero-copy-3d mx-auto mt-8 max-w-2xl text-base font-semibold leading-relaxed text-white sm:text-lg md:text-xl'
               >
                 Manage cases, clients, compliance, and legal workflows
                 seamlessly in one secure and intelligent platform designed for
@@ -143,6 +157,19 @@ export default function HeroSection() {
                   </Link>
                 </motion.div>
               </motion.div>
+
+              <div className='mt-10 flex items-center justify-center gap-2' aria-label='Hero background selector'>
+                {heroBackgrounds.map((background, index) => (
+                  <button
+                    key={background.src}
+                    type='button'
+                    onClick={() => setActiveBackground(index)}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${index === activeBackground ? 'w-8 bg-white' : 'w-3 bg-white/45 hover:bg-white/75'}`}
+                    aria-label={`Show background ${index + 1}`}
+                    aria-current={index === activeBackground ? 'true' : undefined}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>

@@ -49,12 +49,12 @@ export default function FloatingInput({
   ].includes(type);
 
   return (
-    <div className={`w-full mb-8 ${className}`}>
+    <div data-form-field className={`w-full mb-8 ${className}`}>
       <div className='min-h-[1.75rem]'>
         {showTopLabel && (
           <label
             htmlFor={name}
-            className='block pb-2 text-sm font-semibold text-[color:var(--text-primary)] dark:text-slate-100'
+            className={`block pb-1 text-base italic font-bold tracking-wide transition-colors ${error ? 'text-red-600 dark:text-red-400' : 'text-[color:var(--text-muted)]'}`}
           >
             {label}{props.required ? ' *' : ''}
           </label>
@@ -64,10 +64,9 @@ export default function FloatingInput({
       {/* INPUT WRAPPER */}
       <div
         className={`
-          relative w-full rounded-xl border transition-all duration-200
-          bg-[color:var(--surface-raised)] border-[color:var(--border)]
-          shadow-sm
-          ${focused ? 'shadow-md border-[color:var(--brand-primary)]' : ''}
+          relative w-full border-0 border-b transition-colors duration-200
+          bg-transparent ${error ? 'border-red-600' : 'border-[color:var(--border)]'}
+          ${focused && !error ? 'border-[color:var(--brand-primary)]' : ''}
           ${disabled ? 'opacity-60 cursor-not-allowed' : ''}
         `}
       >
@@ -80,6 +79,8 @@ export default function FloatingInput({
           onChange={onChange}
           placeholder={inputPlaceholder}
           disabled={disabled}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${name}-error` : undefined}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           onWheel={(event) => {
@@ -101,10 +102,10 @@ export default function FloatingInput({
           step={isNumber ? props.step ?? 'any' : props.step}
           {...props}
           className={`
-            floating-input-field w-full rounded-xl bg-transparent px-4 py-4 outline-none
+            floating-input-field w-full rounded-none bg-transparent px-0 py-3 outline-none
             text-[color:var(--text-primary)] placeholder:font-normal placeholder:text-[color:var(--text-muted)] placeholder:opacity-70
             dark:text-slate-100 dark:placeholder:text-slate-400 dark:[color-scheme:dark]
-            disabled:cursor-not-allowed
+            disabled:cursor-not-allowed aria-[invalid=true]:placeholder:text-red-500
           `}
         />
 
@@ -121,7 +122,7 @@ export default function FloatingInput({
       </div>
 
       {/* ERROR */}
-      {error && <p className='mt-2 text-sm text-red-500'>{error}</p>}
+      {error && <p id={`${name}-error`} className='mt-2 text-sm text-red-500'>{error}</p>}
     </div>
   );
 }

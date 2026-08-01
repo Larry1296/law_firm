@@ -22,7 +22,7 @@ export default function SidebarNavLink({
   const inactiveClasses =
     theme === "dark"
       ? "text-white/90 hover:bg-white/10"
-      : "text-white/80 hover:bg-white/20";
+      : "text-white hover:bg-white/20";
 
   return (
     <NavLink to={to} end={end} onClick={onClick}>

@@ -10,6 +10,7 @@ export default function Input({
   autoCorrect,
   autoCapitalize,
   spellCheck,
+  error,
   ...rest
 }) {
   const supportsWritingAssist = ![
@@ -26,11 +27,11 @@ export default function Input({
   ].includes(type);
 
   return (
-    <div className='space-y-2'>
+    <div data-form-field className='space-y-1'>
       {label && (
         <label
           htmlFor={name}
-          className='block text-sm font-semibold text-[color:var(--text-primary)]'
+          className={`block text-base italic font-bold tracking-wide ${error ? 'text-red-600 dark:text-red-400' : 'text-[color:var(--text-muted)]'}`}
         >
           {label}
         </label>
@@ -47,25 +48,23 @@ export default function Input({
         autoCorrect={autoCorrect ?? (supportsWritingAssist ? 'on' : 'off')}
         autoCapitalize={autoCapitalize ?? (supportsWritingAssist ? 'sentences' : 'none')}
         spellCheck={spellCheck ?? supportsWritingAssist}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${name}-error` : undefined}
         className={`
           w-full
-          px-4
+          px-0
           py-3
-          rounded-xl
-          border
-          bg-surface-light
-          dark:bg-surface-dark
-          border-border-light
-          dark:border-border-dark
+          rounded-none
+          border-0 border-b
+          bg-transparent
+          dark:bg-transparent
+          ${error ? 'border-red-600 placeholder:text-red-500' : 'border-border-light dark:border-border-dark'}
           text-[color:var(--text-primary)]
           placeholder:text-[color:var(--text-muted)]
-          shadow-soft
           transition-all
           duration-200
 
           focus:outline-none
-          focus:ring-2
-          focus:ring-brand-primary
           focus:border-brand-primary
 
           disabled:opacity-60
@@ -75,6 +74,7 @@ export default function Input({
         `}
         {...rest}
       />
+      {error && <p id={`${name}-error`} className='text-sm text-red-500'>{error}</p>}
     </div>
   );
 }
