@@ -19,8 +19,10 @@ class LawyerDocumentsView(LawyerBaseView):
                 result = LawyerDocumentService.create_request(request.user, request.data)
             elif action == "reference":
                 result = LawyerDocumentService.reference_document(request.user, request.data)
+            elif action == "matter_document":
+                result = LawyerDocumentService.create_matter_document(request.user, request.data)
             else:
-                return Response({"detail": "Document uploads are disabled. Use action=request or action=reference."}, status=400)
+                return Response({"detail": "Client-document uploads are disabled. Use request, reference, or matter_document."}, status=400)
             return Response(result, status=status.HTTP_201_CREATED)
         except Exception as exc:
             return Response({"detail": getattr(exc, "detail", str(exc))}, status=getattr(exc, "status_code", 400))

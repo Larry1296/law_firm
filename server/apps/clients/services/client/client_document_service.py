@@ -6,7 +6,7 @@ class ClientDocumentService:
     def workspace(client, params):
         documents = DocumentWorkflowService.documents_for_client(
             client, query=params.get("q", "").strip(), case_id=params.get("case_id")
-        )
+        ).filter(is_client_visible=True)
         requests = DocumentWorkflowService.requests_for_client(client, case_id=params.get("case_id"))
         cases = client.cases.filter(is_active=True).values("id", "case_number", "title")
         return {

@@ -1,4 +1,4 @@
-from .client import Client
+from .client import Client, ClientKYCReferenceHistory
 
 from .individual_client import ClientDueDiligence, IndividualClient
 from .company_client import CompanyBeneficialOwner, CompanyClient, CompanyDirector
@@ -26,7 +26,10 @@ from .client_contact import (
     ContactType,
     CommunicationChannel,
 )
-from .client_document import ClientDocument
+from .client_document import (
+    ClientDocument, ClientDocumentCustodyMovement,
+    ClientDocumentReferenceCorrection, ClientDocumentReferenceSequence,
+)
 from .client_matter_conflict_check import (
     ClientMatterConflictCheck,
     ClientMatterConflictReferenceSequence,
@@ -40,6 +43,7 @@ from .client_matter_conflict_check import (
 
 __all__ = [
     "Client",
+    "ClientKYCReferenceHistory",
 
     "IndividualClient",
     "ClientDueDiligence",
@@ -70,6 +74,9 @@ __all__ = [
     "ContactType",
     "CommunicationChannel",
     "ClientDocument",
+    "ClientDocumentCustodyMovement",
+    "ClientDocumentReferenceCorrection",
+    "ClientDocumentReferenceSequence",
     "ClientMatterConflictCheck",
     "ClientMatterConflictReferenceSequence",
     "ConflictCheckHistory",

@@ -12,6 +12,11 @@ from apps.clients.models import (
 )
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.cases.models import Case
+from apps.clients.models import ClientDocument
+from apps.documents.models import (
+    DocumentRequirement, DocumentRequirementTemplate, MatterDocumentReference,
+    ProposedMatterDocumentReference,
+)
 from apps.staff.models import Lawyer, LawyerPermission
 
 
@@ -48,6 +53,171 @@ class ClientMatterConflictService:
         ConflictCheckStatus.CONFLICT_CONFIRMED,
     }
     AUTOMATIC_SEARCH_MINIMUM_RECORDS = 5
+
+    @classmethod
+    def available_documents(cls, *, user, client_id, check_id, query=""):
+        check = cls.get_check(user=user, client_id=client_id, check_id=check_id)
+        queryset = ClientDocument.objects.filter(
+            firm=check.firm, client=check.client, archived_at__isnull=True
+        ).select_related("client", "verified_by")
+        if query:
+            queryset = queryset.filter(
+                models.Q(reference__icontains=query) | models.Q(title__icontains=query)
+                | models.Q(subtype__icontains=query) | models.Q(document_identifier__icontains=query)
+                | models.Q(description__icontains=query)
+            )
+        return queryset.order_by("reference")
+
+    @classmethod
+    @transaction.atomic
+    def add_document_reference(cls, *, user, client_id, check_id, data):
+        check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
+        if check.is_consumed or check.status in {
+            ConflictCheckStatus.CONFLICT_CONFIRMED, ConflictCheckStatus.CLOSED_WITHOUT_DECISION
+        }:
+            raise ValidationError({"status": "Finalised proposed-matter document references are read-only."})
+        try:
+            document = ClientDocument.objects.get(
+                id=data.get("document_id"), client=check.client, firm=check.firm, archived_at__isnull=True
+            )
+        except ClientDocument.DoesNotExist as exc:
+            raise ValidationError({"document_id": "Select a registered document belonging to this client."}) from exc
+        purpose = str(data.get("purpose") or "").strip()
+        if not purpose:
+            raise ValidationError({"purpose": "Record how this document supports the proposed matter."})
+        reference, created = ProposedMatterDocumentReference.objects.get_or_create(
+            proposed_matter=check, document=document,
+            defaults={
+                "purpose": purpose, "relevance_notes": str(data.get("notes") or "").strip(),
+                "referenced_by": user,
+                "required_status": data.get("required_status") or ProposedMatterDocumentReference.RequiredStatus.SUPPORTING,
+                "review_status": data.get("review_status") or ProposedMatterDocumentReference.ReviewStatus.NOT_REVIEWED,
+            },
+        )
+        if not created:
+            reference.purpose = purpose
+            reference.relevance_notes = str(data.get("notes") or "").strip()
+            reference.required_status = data.get("required_status") or reference.required_status
+            reference.review_status = data.get("review_status") or reference.review_status
+            reference.is_active = True
+            reference.removed_by = None
+            reference.removed_at = None
+            reference.removal_reason = ""
+            reference.save()
+        requirement_id = data.get("requirement_id")
+        if requirement_id:
+            try:
+                requirement = DocumentRequirement.objects.select_for_update().select_related("template").get(
+                    id=requirement_id, proposed_matter=check, client=check.client
+                )
+            except DocumentRequirement.DoesNotExist as exc:
+                raise ValidationError({"requirement_id": "The checklist requirement does not belong to this proposed matter."}) from exc
+            if requirement.template.document_category and requirement.template.document_category != document.category:
+                raise ValidationError({"document_id": "This document category is not compatible with the requirement."})
+            if requirement.template.document_subtype and requirement.template.document_subtype != document.subtype:
+                raise ValidationError({"document_id": "This document type is not compatible with the requirement."})
+            requirement.selected_document = document
+            requirement.save(update_fields=["selected_document", "updated_at"])
+        return reference
+
+    @classmethod
+    @transaction.atomic
+    def remove_document_reference(cls, *, user, client_id, check_id, reference_id, reason):
+        check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
+        if check.is_consumed or check.status not in {ConflictCheckStatus.NOT_STARTED, ConflictCheckStatus.AWAITING_INFORMATION}:
+            raise ValidationError({"status": "References can only be removed while the proposed matter is editable."})
+        try:
+            reference = check.document_references.select_for_update().get(id=reference_id, is_active=True)
+        except ProposedMatterDocumentReference.DoesNotExist as exc:
+            raise ValidationError({"reference_id": "Document reference was not found."}) from exc
+        removal_reason = str(reason or "").strip()
+        if not removal_reason:
+            raise ValidationError({"reason": "Record why the reference is being removed."})
+        reference.is_active = False
+        reference.removed_by = user
+        reference.removed_at = timezone.now()
+        reference.removal_reason = removal_reason
+        reference.save(update_fields=["is_active", "removed_by", "removed_at", "removal_reason", "updated_at"])
+        return reference
+
+    @classmethod
+    def carry_document_references_to_case(cls, *, check, case, actor):
+        """Idempotently link active proposed-matter records to the accepted matter.
+
+        The caller is the atomic matter-opening transaction; no master document is copied.
+        """
+        if check.client_id != case.client_id or check.firm_id != case.firm_id:
+            raise ValidationError({"documents": "Proposed-matter documents do not belong to this matter."})
+        for source in check.document_references.select_related("document").filter(is_active=True):
+            reference, created = MatterDocumentReference.objects.get_or_create(
+                case=case, document=source.document,
+                defaults={
+                    "purpose": MatterDocumentReference.Purpose.CLIENT_INSTRUCTION,
+                    "notes": source.relevance_notes,
+                    "referenced_by": actor,
+                    "originating_proposed_reference": source,
+                },
+            )
+            if not created and reference.originating_proposed_reference_id is None:
+                reference.originating_proposed_reference = source
+                reference.save(update_fields=["originating_proposed_reference", "updated_at"])
+        return MatterDocumentReference.objects.filter(case=case, originating_proposed_reference__proposed_matter=check)
+
+    @classmethod
+    def instantiate_proposed_requirements(cls, *, check, actor):
+        facts = check.jurisdiction_facts or {}
+        stages = {
+            DocumentRequirementTemplate.Stage.PROSPECTIVE_KYC,
+            DocumentRequirementTemplate.Stage.PROPOSED_MATTER,
+            DocumentRequirementTemplate.Stage.CONFLICT_CHECK,
+            DocumentRequirementTemplate.Stage.FIRM_ACCEPTANCE,
+        }
+        for template in DocumentRequirementTemplate.objects.filter(firm=check.firm, is_active=True, stage__in=stages):
+            dimensions = {
+                "client_type": check.client.client_type,
+                "practice_area": facts.get("practice_area", ""),
+                "matter_nature": facts.get("matter_nature", ""),
+                "forum": facts.get("forum", ""),
+                "procedure": facts.get("procedure", ""),
+            }
+            if any(getattr(template, key) and getattr(template, key) != value for key, value in dimensions.items()):
+                continue
+            DocumentRequirement.objects.get_or_create(
+                template=template, client=check.client, proposed_matter=check,
+                defaults={"requested_by": actor, "notes": template.notes},
+            )
+
+    @classmethod
+    def carry_and_instantiate_matter_requirements(cls, *, check, case, actor):
+        for source in check.document_requirements.select_related("template", "selected_document"):
+            DocumentRequirement.objects.get_or_create(
+                template=source.template, client=case.client, case=case,
+                defaults={
+                    "selected_document": source.selected_document, "notes": source.notes,
+                    "requested_by": actor, "is_client_visible": source.is_client_visible,
+                },
+            )
+        stages = {
+            DocumentRequirementTemplate.Stage.MATTER_OPENING,
+            DocumentRequirementTemplate.Stage.PRE_FILING,
+            DocumentRequirementTemplate.Stage.FILING,
+            DocumentRequirementTemplate.Stage.HEARING,
+            DocumentRequirementTemplate.Stage.CLOSURE,
+        }
+        dimensions = {
+            "client_type": case.client.client_type,
+            "practice_area": case.practice_area,
+            "matter_nature": case.matter_nature,
+            "forum": case.forum,
+            "procedure": case.procedure_type,
+        }
+        for template in DocumentRequirementTemplate.objects.filter(firm=case.firm, is_active=True, stage__in=stages):
+            if any(getattr(template, key) and getattr(template, key) != value for key, value in dimensions.items()):
+                continue
+            DocumentRequirement.objects.get_or_create(
+                template=template, client=case.client, case=case,
+                defaults={"requested_by": actor, "notes": template.notes},
+            )
 
 
     @classmethod
@@ -362,6 +532,7 @@ class ClientMatterConflictService:
             no_adverse_party_currently_known=data.get("no_adverse_party_currently_known", False),
             no_adverse_party_explanation=data.get("no_adverse_party_explanation", ""),
         )
+        cls.instantiate_proposed_requirements(check=check, actor=user)
         ConflictCheckParty.objects.create(
             conflict_check=check,
             name=client.full_name,
@@ -720,6 +891,8 @@ class ClientMatterConflictService:
             raise ValidationError({"conflict_check_id": "This conflict check has already been consumed."})
         if check.status != ConflictCheckStatus.CLEARED:
             raise ValidationError({"conflict_check_id": "Only cleared conflict checks can be consumed."})
+        cls.carry_document_references_to_case(check=check, case=case, actor=actor)
+        cls.carry_and_instantiate_matter_requirements(check=check, case=case, actor=actor)
         check.created_case = case
         check.consumed_at = timezone.now()
         check.save(update_fields=["created_case", "consumed_at", "updated_at"])

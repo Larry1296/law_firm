@@ -91,6 +91,8 @@ export default function AdminClientDetailsPage() {
       label: 'KRA PIN',
       value: client.kra_pin?.toUpperCase(),
     },
+    { label: 'KYC file reference', value: client.kyc_drawer_reference },
+    { label: 'KYC cabinet location', value: client.kyc_cabinet_location },
     {
       label: 'Date of Birth',
       value: client.date_of_birth,
@@ -195,6 +197,7 @@ export default function AdminClientDetailsPage() {
         title={pageTitle}
         subtitle='Client Details'
       />
+      <div className='flex justify-end'><Button3D variant='primary' onClick={() => navigate(`/admin/clients/${id}/documents`)}>Open Physical Document Register</Button3D></div>
 
       <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
         <StatsCard title='Addresses' value={analytics.addresses ?? 0} color='blue' />

@@ -11,6 +11,7 @@ class CaseAttachmentSerializer(serializers.ModelSerializer):
         model = CaseAttachment
         fields = [
             "id",
+            "document_reference",
             "filing",
             "attachment_type",
             "attachment_type_label",

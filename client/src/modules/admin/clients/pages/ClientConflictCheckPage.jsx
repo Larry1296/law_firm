@@ -202,6 +202,8 @@ export default function ClientConflictCheckPage() {
   const [acceptanceDraft, setAcceptanceDraft] = useState(emptyAcceptanceDraft);
   const [jurisdictionFacts, setJurisdictionFacts] = useState(emptyJurisdictionFacts);
   const [jurisdictionDecision, setJurisdictionDecision] = useState(emptyJurisdictionDecision);
+  const [documentSearch, setDocumentSearch] = useState('');
+  const [documentDraft, setDocumentDraft] = useState({ document_id: '', purpose: '', notes: '', required_status: 'SUPPORTING' });
   const { lawyers = [] } = useFirmLawyers();
 
   const { data: clientData } = useQuery({
@@ -213,6 +215,11 @@ export default function ClientConflictCheckPage() {
     queryKey: ['client-conflict-check', isLawyer, clientId, checkId],
     queryFn: () => service.getConflictCheck(clientId, checkId),
     enabled: !isNew && !!clientId && !!checkId,
+  });
+  const { data: availableDocuments = [] } = useQuery({
+    queryKey: ['proposed-matter-documents', isLawyer, clientId, checkId, documentSearch],
+    queryFn: () => service.getProposedMatterDocuments(clientId, checkId, documentSearch),
+    enabled: !isNew && !!checkId,
   });
 
   useEffect(() => {
@@ -280,6 +287,17 @@ export default function ClientConflictCheckPage() {
   });
   const jurisdictionConfirmMutation = useMutation({
     mutationFn: () => service.confirmJurisdiction(clientId, checkId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] }),
+  });
+  const addDocumentMutation = useMutation({
+    mutationFn: () => service.addProposedMatterDocument(clientId, checkId, documentDraft),
+    onSuccess: () => {
+      setDocumentDraft({ document_id: '', purpose: '', notes: '', required_status: 'SUPPORTING' });
+      queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] });
+    },
+  });
+  const removeDocumentMutation = useMutation({
+    mutationFn: ({ referenceId, reason }) => service.removeProposedMatterDocument(clientId, checkId, referenceId, reason),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] }),
   });
 
@@ -408,6 +426,42 @@ export default function ClientConflictCheckPage() {
             </Button3D>
           )}
         </div>
+      </Card>
+
+      <Card className='p-6'>
+        <h3 className='text-lg font-semibold'>Supporting client documents</h3>
+        <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
+          These are references to the client&apos;s master physical register. No document is copied or renamed. Client KYC file: <strong>{check.client_kyc_reference || 'Not assigned'}</strong>
+        </p>
+        <div className='mt-4 space-y-3'>
+          {(check.document_references || []).filter((item) => item.is_active).map((item) => (
+            <div key={item.id} className='border-b border-border-light py-3 dark:border-border-dark'>
+              <p className='font-semibold'>{item.document_reference} — {item.document_title}</p>
+              <p className='text-sm'>{item.category_label} · {item.subtype_label} · {enumLabel(item.verification_status)} · {enumLabel(item.copy_type)}</p>
+              <p className='text-sm'>Purpose: {item.purpose}{item.physical_location ? ` · Location: ${item.physical_location}` : ''}</p>
+              {['NOT_STARTED', 'AWAITING_INFORMATION'].includes(check.status) && (
+                <button type='button' className='mt-1 text-sm font-semibold text-error' onClick={() => {
+                  const reason = window.prompt('Why is this document reference being removed?');
+                  if (reason) removeDocumentMutation.mutate({ referenceId: item.id, reason });
+                }}>Remove reference</button>
+              )}
+            </div>
+          ))}
+          {!(check.document_references || []).some((item) => item.is_active) && <p>No supporting document references recorded. A conflict check may still begin when identity, instructions, parties and relationships are sufficient.</p>}
+        </div>
+        {!check.consumed_at && !['CONFLICT_CONFIRMED', 'CLOSED_WITHOUT_DECISION'].includes(check.status) && (
+          <form className='mt-5 grid gap-3 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); addDocumentMutation.mutate(); }}>
+            <input className='border-b p-3 dark:bg-background-dark' placeholder='Search by reference, title, type, identifier or description' value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} />
+            <select className='border-b p-3 dark:bg-background-dark' value={documentDraft.document_id} onChange={(event) => setDocumentDraft((value) => ({ ...value, document_id: event.target.value }))} required>
+              <option value=''>Select a registered client document</option>
+              {availableDocuments.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+            <input className='border-b p-3 dark:bg-background-dark' placeholder='Purpose in this proposed matter' value={documentDraft.purpose} onChange={(event) => setDocumentDraft((value) => ({ ...value, purpose: event.target.value }))} required />
+            <select className='border-b p-3 dark:bg-background-dark' value={documentDraft.required_status} onChange={(event) => setDocumentDraft((value) => ({ ...value, required_status: event.target.value }))}><option value='SUPPORTING'>Supporting record</option><option value='REQUIRED'>Required</option><option value='OPTIONAL'>Optional</option></select>
+            <textarea className='border-b p-3 dark:bg-background-dark md:col-span-2' placeholder='Relevance or review notes' value={documentDraft.notes} onChange={(event) => setDocumentDraft((value) => ({ ...value, notes: event.target.value }))} />
+            <Button3D type='submit' variant='primary' disabled={!documentDraft.document_id || !documentDraft.purpose || addDocumentMutation.isPending}>Reference Client Document</Button3D>
+          </form>
+        )}
       </Card>
 
       {check.status === 'CLEARED' && (

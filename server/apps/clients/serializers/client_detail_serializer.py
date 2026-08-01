@@ -82,6 +82,11 @@ class ClientDetailSerializer(
     )
 
     cases = serializers.SerializerMethodField()
+    documents = serializers.SerializerMethodField()
+    proposed_matters = serializers.SerializerMethodField()
+    accepted_matters = serializers.SerializerMethodField()
+    kyc_reference_history = serializers.SerializerMethodField()
+    document_receipts = serializers.SerializerMethodField()
 
     class Meta:
         model = Client
@@ -111,6 +116,9 @@ class ClientDetailSerializer(
 
             "created_at",
             "updated_at",
+            "kyc_drawer_reference",
+            "kyc_cabinet_location",
+            "kyc_reference_assigned_at",
 
             "type_profile",
             "registered_address",
@@ -125,6 +133,11 @@ class ClientDetailSerializer(
 
             # Future-ready
             "cases",
+            "documents",
+            "proposed_matters",
+            "accepted_matters",
+            "kyc_reference_history",
+            "document_receipts",
         ]
 
     def get_type_profile(
@@ -166,7 +179,46 @@ class ClientDetailSerializer(
         self,
         obj,
     ):
-        """
-        Placeholder until Cases module exists.
-        """
-        return []
+        return self.get_accepted_matters(obj)
+
+    def get_documents(self, obj):
+        from apps.documents.services.workflow_service import DocumentWorkflowService
+        return [DocumentWorkflowService.serialize_document(item) for item in obj.documents.select_related(
+            "client", "uploaded_by", "received_by", "verified_by"
+        ).prefetch_related("matter_references__case").filter(archived_at__isnull=True)]
+
+    def get_proposed_matters(self, obj):
+        return [{
+            "id": str(item.id), "reference": item.reference_number,
+            "title": item.proposed_matter_title, "status": item.status,
+            "acceptance_decision": item.acceptance_decision,
+            "opened_matter_id": str(item.created_case_id) if item.created_case_id else None,
+        } for item in obj.matter_conflict_checks.order_by("-created_at")]
+
+    def get_accepted_matters(self, obj):
+        return [{
+            "id": str(item.id), "reference": item.case_number, "title": item.title,
+            "matter_status": item.matter_status, "court_stage": item.court_stage,
+            "originating_proposed_matter": item.originating_conflict_check.reference_number
+                if hasattr(item, "originating_conflict_check") else None,
+        } for item in obj.cases.order_by("-created_at")]
+
+    def get_kyc_reference_history(self, obj):
+        return [{
+            "previous_reference": item.previous_reference, "new_reference": item.new_reference,
+            "previous_cabinet_location": item.previous_cabinet_location,
+            "new_cabinet_location": item.new_cabinet_location, "reason": item.reason,
+            "changed_by": item.changed_by.full_name, "changed_at": item.changed_at,
+        } for item in obj.kyc_reference_history.select_related("changed_by")]
+
+    def get_document_receipts(self, obj):
+        return [{
+            "id": str(receipt.id), "receipt_number": receipt.receipt_number,
+            "received_from": receipt.received_from, "received_by": receipt.received_by.full_name,
+            "received_at": receipt.received_at,
+            "documents": [{
+                "reference": line.document_reference_snapshot, "title": line.title_snapshot,
+                "copy_type": line.copy_type_snapshot, "page_count": line.page_count_snapshot,
+                "condition": line.condition_snapshot, "return_required": line.return_required_snapshot,
+            } for line in receipt.items.all()],
+        } for receipt in obj.document_receipts.select_related("received_by").prefetch_related("items")]

@@ -17,7 +17,7 @@ class DocumentWorkflowService:
     @staticmethod
     def register_in_kyc_drawer(*, client, case, user, title, document_type, description=""):
         document = ClientDocument.objects.create(
-            client=client,
+            client=client, firm=client.firm,
             document_type=document_type,
             title=title,
             description=description,
@@ -212,12 +212,30 @@ class DocumentWorkflowService:
             "description": document.description, "mime_type": document.mime_type,
             "review_status": document.review_status, "review_notes": document.review_notes,
             "source_reference": document.source_reference,
+            "category": document.category,
+            "category_label": document.get_category_display(),
+            "subtype": document.subtype,
+            "subtype_label": document.get_subtype_display(),
+            "document_identifier": document.document_identifier,
+            "document_owner_subject": document.document_owner_subject,
+            "issuing_authority": document.issuing_authority,
+            "document_date": document.document_date,
+            "issue_date": document.issue_date,
+            "expiry_date": document.expiry_date,
             "drawer_reference": document.client.kyc_drawer_reference,
             "digital_copy_reference": document.reference,
             "digital_copy_available": bool(document.file),
             "record_authority": "PHYSICAL_KYC_DRAWER",
             "source_copy_type": document.source_copy_type,
             "physical_copy_retained": document.physical_copy_retained,
+            "page_count": document.page_count,
+            "return_required": document.return_required,
+            "expected_return_date": document.expected_return_date,
+            "visible_damage_or_alteration": document.visible_damage_or_alteration,
+            "condition_description": document.condition_description,
+            "confidentiality_level": document.confidentiality_level,
+            "verification_status": document.verification_status,
+            "verification_method": document.verification_method,
             "physical_storage_location": document.physical_storage_location,
             "custody_notes": document.custody_notes,
             "received_via": document.received_via,
@@ -255,7 +273,11 @@ class DocumentWorkflowService:
     def documents_for_client(client, *, query="", case_id=None):
         qs = ClientDocument.objects.filter(client=client).select_related("client", "uploaded_by").prefetch_related("matter_references__case")
         if query:
-            qs = qs.filter(Q(title__icontains=query) | Q(reference__icontains=query) | Q(file_name__icontains=query))
+            qs = qs.filter(
+                Q(title__icontains=query) | Q(reference__icontains=query) | Q(file_name__icontains=query)
+                | Q(subtype__icontains=query) | Q(document_identifier__icontains=query)
+                | Q(description__icontains=query)
+            )
         if case_id:
             qs = qs.filter(matter_references__case_id=case_id)
         return qs.order_by("-created_at").distinct()
@@ -297,6 +319,10 @@ class DocumentWorkflowService:
         client_ids = cases.values_list("client_id", flat=True)
         docs = ClientDocument.objects.filter(client_id__in=client_ids).select_related("client", "uploaded_by").prefetch_related("matter_references__case")
         if query:
-            docs = docs.filter(Q(title__icontains=query) | Q(reference__icontains=query) | Q(file_name__icontains=query))
+            docs = docs.filter(
+                Q(title__icontains=query) | Q(reference__icontains=query) | Q(file_name__icontains=query)
+                | Q(subtype__icontains=query) | Q(document_identifier__icontains=query)
+                | Q(description__icontains=query)
+            )
         requests = DocumentRequest.objects.filter(case__in=cases).select_related("case", "client", "fulfilled_document", "secretary_verified_by", "dispatched_by")
         return docs.order_by("-created_at").distinct(), requests

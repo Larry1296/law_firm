@@ -1,6 +1,6 @@
 from .case import Case
 from .case_activity import CaseActivity
-from .case_attachment import CaseAttachment
+from .case_attachment import CaseAttachment, CaseAttachmentReferenceSequence, CaseAttachmentVersion
 from .case_conflict_check import CaseConflictCheck
 from .case_courtroom import CaseCourtroom
 from .case_event import CaseEvent
@@ -30,6 +30,8 @@ __all__ = [
     "Case",
     "CaseActivity",
     "CaseAttachment",
+    "CaseAttachmentReferenceSequence",
+    "CaseAttachmentVersion",
     "CaseConflictCheck",
     "CaseCourtroom",
     "CaseEvent",

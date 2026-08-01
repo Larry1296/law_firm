@@ -16,6 +16,12 @@ const lawyerDocumentsService = {
     const { data } = await axiosInstance.patch(`/staff/lawyer/documents/requests/${requestId}/review/`, payload);
     return data;
   },
+  async createMatterDocument(payload) {
+    const body = new FormData();
+    Object.entries({ ...payload, action: 'matter_document' }).forEach(([key, value]) => body.append(key, value));
+    const { data } = await axiosInstance.post('/staff/lawyer/documents/', body);
+    return data;
+  },
 };
 
 export default lawyerDocumentsService;

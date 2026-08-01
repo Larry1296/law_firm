@@ -6,12 +6,15 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.cases.models import Case, CaseActivity, CaseEvent
-from apps.clients.models import Client
+from apps.clients.models import Client, ClientDocument, ClientDocumentCustodyMovement
 from apps.clients.models import ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.common.choices import FirmRole
 from apps.firm.models import LawFirm, LawFirmMember
 from apps.notifications.models import Notification
+from apps.documents.models import MatterDocumentReference, ProposedMatterDocumentReference
+from apps.staff.services.secretary.secretary_document_service import SecretaryDocumentService
+from apps.clients.services.conflict import ClientMatterConflictService
 from apps.staff.models import Lawyer, Secretary, SecretaryPermissionGrant, SecretaryPermission
 from apps.users.models import User
 
@@ -187,53 +190,91 @@ class CaseApiTests(TestCase):
         self.assertEqual(created.priority, Case.Priority.HIGH)
 
         self.client.refresh_from_db()
-        self.assertEqual(
-            self.client.lifecycle_status,
-            Client.LifecycleStatus.OFFICIAL,
-        )
-        self.assertEqual(
-            self.client.access_type,
-            Client.AccessType.ASSISTED,
-        )
+        self.assertEqual(self.client.lifecycle_status, Client.LifecycleStatus.OFFICIAL)
+        self.assertEqual(self.client.access_type, Client.AccessType.ASSISTED)
         self.assertFalse(self.client.is_verified)
-        self.assertTrue(
-            Notification.objects.filter(
-                recipient=self.lawyer.user,
-                case=created,
-                notification_type=Notification.NotificationType.CASE_ASSIGNMENT,
-                read_at__isnull=True,
-            ).exists()
-        )
-        self.assertTrue(
-            Notification.objects.filter(
-                recipient=self.secretary.user,
-                case=created,
-                notification_type=Notification.NotificationType.CASE_ASSIGNMENT,
-                read_at__isnull=True,
-            ).exists()
-        )
+        self.assertTrue(Notification.objects.filter(recipient=self.lawyer.user, case=created, notification_type=Notification.NotificationType.CASE_ASSIGNMENT, read_at__isnull=True).exists())
+        self.assertTrue(Notification.objects.filter(recipient=self.secretary.user, case=created, notification_type=Notification.NotificationType.CASE_ASSIGNMENT, read_at__isnull=True).exists())
 
         self.client_api.force_authenticate(user=self.lawyer.user)
         lawyer_dashboard = self.client_api.get(reverse("lawyer-dashboard"))
         self.assertEqual(lawyer_dashboard.status_code, 200, lawyer_dashboard.data)
         self.assertEqual(lawyer_dashboard.data["summary"]["unread_notifications"], 1)
-        self.assertEqual(
-            lawyer_dashboard.data["recent_notifications"][0]["notification_type"],
-            Notification.NotificationType.CASE_ASSIGNMENT,
-        )
-        self.assertEqual(
-            lawyer_dashboard.data["recent_notifications"][0]["case"],
-            str(created.id),
-        )
+        self.assertEqual(lawyer_dashboard.data["recent_notifications"][0]["notification_type"], Notification.NotificationType.CASE_ASSIGNMENT)
+        self.assertEqual(lawyer_dashboard.data["recent_notifications"][0]["case"], str(created.id))
 
         self.client_api.force_authenticate(user=self.secretary.user)
         secretary_dashboard = self.client_api.get(reverse("secretary-dashboard"))
         self.assertEqual(secretary_dashboard.status_code, 200, secretary_dashboard.data)
         self.assertEqual(secretary_dashboard.data["summary"]["unread_notifications"], 1)
-        self.assertEqual(
-            secretary_dashboard.data["recent_notifications"][0]["notification_type"],
-            Notification.NotificationType.CASE_ASSIGNMENT,
+        self.assertEqual(secretary_dashboard.data["recent_notifications"][0]["notification_type"], Notification.NotificationType.CASE_ASSIGNMENT)
+
+    def test_physical_register_references_and_firm_scoped_kyc_reference(self):
+        result = SecretaryDocumentService.assign_kyc_drawer(self.secretary.user, {
+            "client_id": self.client.id, "kyc_drawer_reference": "KYC-2026-039",
+            "cabinet_location": "Cabinet A / Drawer 3",
+        })
+        self.assertEqual(result["kyc_drawer_reference"], "KYC-2026-039")
+        self.assertEqual(result["cabinet_location"], "Cabinet A / Drawer 3")
+        first = SecretaryDocumentService.register_physical_document(self.secretary.user, {
+            "client_id": self.client.id, "document_reference": "KYC-2026-039/D1",
+            "title": "National ID", "document_type": "IDENTIFICATION",
+            "category": "KYC_IDENTITY", "subtype": "NATIONAL_ID",
+            "source_copy_type": "CERTIFIED_COPY", "received_from": "Mary Wanjiku",
+            "physical_storage_location": "Cabinet A / Drawer 3 / KYC file",
+        })
+        second = SecretaryDocumentService.register_physical_document(self.secretary.user, {
+            "client_id": self.client.id, "document_reference": "KYC-2026-039/D2",
+            "title": "KRA PIN Certificate", "document_type": "TAX",
+            "category": "KYC_TAX", "subtype": "KRA_PIN",
+            "document_identifier": "A001234567Z", "received_from": "Mary Wanjiku",
+            "physical_storage_location": "Cabinet A / Drawer 3 / KYC file",
+        })
+        self.assertEqual(str(first), "KYC-2026-039/D1 — National ID")
+        self.assertEqual(second.reference, "KYC-2026-039/D2")
+        self.assertEqual(ClientDocumentCustodyMovement.objects.filter(document=first).count(), 1)
+        with self.assertRaises(Exception):
+            SecretaryDocumentService.register_physical_document(self.secretary.user, {
+                "client_id": self.client.id, "document_reference": "KYC-2026-039/D2",
+                "title": "Duplicate", "received_from": "Mary Wanjiku",
+            })
+
+        other_admin = User.objects.create_user(
+            email="other-owner@example.com", password="pass", first_name="Other", last_name="Owner",
+            phone_number="+254700999001", national_id_number="999001", role=UserRole.ADMIN,
         )
+        other_firm = LawFirm.objects.create(name="Other Firm", registration_number="OTHER-001", owner=other_admin)
+        other_client = Client.objects.create(
+            firm=other_firm, created_by=other_admin, full_name="Other Mutiso",
+            client_type=Client.ClientType.INDIVIDUAL, kyc_drawer_reference="KYC-2026-039",
+        )
+        self.client.refresh_from_db()
+        self.assertEqual(other_client.kyc_drawer_reference, self.client.kyc_drawer_reference)
+
+    def test_proposed_document_reference_is_client_scoped_and_carried_to_matter(self):
+        self.client.kyc_drawer_reference = "KYC-2026-039"
+        self.client.save(update_fields=["kyc_drawer_reference", "updated_at"])
+        document = ClientDocument.objects.create(
+            client=self.client, firm=self.firm, reference="KYC-2026-039/D1",
+            document_type="IDENTIFICATION", category="KYC_IDENTITY", subtype="NATIONAL_ID",
+            title="National ID", received_from=self.client.full_name,
+        )
+        check = self.cleared_conflict_check(lawyer=self.lawyer)
+        reference = ClientMatterConflictService.add_document_reference(
+            user=self.admin, client_id=self.client.id, check_id=check.id,
+            data={"document_id": document.id, "purpose": "Confirm identity and instructions"},
+        )
+        self.assertEqual(reference.document_id, document.id)
+        self.assertEqual(ProposedMatterDocumentReference.objects.count(), 1)
+        response = self.client_api.post(reverse("case-create"), {
+            **self.payload(), "conflict_check_id": str(check.id),
+        }, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        matter = Case.objects.get(id=response.data["data"]["id"])
+        carried = MatterDocumentReference.objects.get(case=matter, document=document)
+        self.assertEqual(carried.originating_proposed_reference, reference)
+        ClientMatterConflictService.carry_document_references_to_case(check=check, case=matter, actor=self.admin)
+        self.assertEqual(MatterDocumentReference.objects.filter(case=matter, document=document).count(), 1)
 
     def test_case_creation_rejects_missing_client(self):
         payload = self.payload()

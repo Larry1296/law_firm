@@ -16,6 +16,8 @@ from apps.clients.views.admin.client_matter_conflict_check_view import (
     ProposedMatterJurisdictionDecisionView,
     ProposedMatterJurisdictionReopenView,
     ProposedMatterJurisdictionView,
+    ProposedMatterDocumentsView,
+    ProposedMatterDocumentReferenceDetailView,
 )
 from apps.staff.views.lawyer.lawyer_calendar_view import LawyerCalendarView
 from apps.staff.views.lawyer.lawyer_cases_view import LawyerCaseCreateOptionsView, LawyerCasesView
@@ -37,6 +39,8 @@ urlpatterns = [
     path("clients/<uuid:client_id>/conflict-checks/", ClientMatterConflictCheckListCreateView.as_view(), name="lawyer-client-conflict-checks"),
     path("clients/<uuid:client_id>/conflict-checks/cleared-unconsumed/", ClientMatterConflictCheckClearedUnconsumedView.as_view(), name="lawyer-client-conflict-checks-cleared-unconsumed"),
     path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/", ClientMatterConflictCheckDetailView.as_view(), name="lawyer-client-conflict-check-detail"),
+    path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/documents/", ProposedMatterDocumentsView.as_view(), name="lawyer-proposed-matter-documents"),
+    path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/documents/<uuid:reference_id>/", ProposedMatterDocumentReferenceDetailView.as_view(), name="lawyer-proposed-matter-document-detail"),
     path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/start/", ClientMatterConflictCheckStartView.as_view(), name="lawyer-client-conflict-check-start"),
     path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/request-information/", ClientMatterConflictCheckRequestInformationView.as_view(), name="lawyer-client-conflict-check-request-information"),
     path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/resume/", ClientMatterConflictCheckResumeView.as_view(), name="lawyer-client-conflict-check-resume"),

@@ -69,11 +69,16 @@ class Client(models.Model):
 
     kyc_drawer_reference = models.CharField(
         max_length=40,
-        unique=True,
         blank=True,
         null=True,
         db_index=True,
     )
+    kyc_cabinet_location = models.CharField(max_length=255, blank=True, default="")
+    kyc_reference_assigned_by = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="assigned_client_kyc_references",
+    )
+    kyc_reference_assigned_at = models.DateTimeField(null=True, blank=True)
 
     firm = models.ForeignKey(
         "firm.LawFirm",
@@ -227,6 +232,13 @@ class Client(models.Model):
             models.Index(fields=["national_id"]),
             models.Index(fields=["passport_number"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["firm", "kyc_drawer_reference"],
+                condition=models.Q(kyc_drawer_reference__isnull=False) & ~models.Q(kyc_drawer_reference=""),
+                name="unique_client_kyc_reference_per_firm",
+            ),
+        ]
 
     def __str__(self):
         return self.full_name
@@ -260,3 +272,19 @@ class Client(models.Model):
             self.previous_access_type = self.access_type
         self.previous_is_active = self.is_active
         self.soft_deleted_at = timezone.now()
+
+
+class ClientKYCReferenceHistory(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name="kyc_reference_history")
+    previous_reference = models.CharField(max_length=40, blank=True, default="")
+    new_reference = models.CharField(max_length=40)
+    previous_cabinet_location = models.CharField(max_length=255, blank=True, default="")
+    new_cabinet_location = models.CharField(max_length=255, blank=True, default="")
+    reason = models.TextField()
+    changed_by = models.ForeignKey("users.User", on_delete=models.PROTECT, related_name="client_kyc_reference_changes")
+    changed_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = "client_kyc_reference_history"
+        ordering = ["-changed_at"]

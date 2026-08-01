@@ -16,7 +16,7 @@ class DocumentDownloadView(APIView):
         lawyer = getattr(user, "lawyer_profile", None)
         secretary = getattr(user, "secretary_profile", None)
         if client:
-            queryset = queryset.filter(client=client)
+            queryset = queryset.filter(client=client, is_client_visible=True)
         elif lawyer:
             queryset = queryset.filter(client__cases__assigned_lawyer=lawyer)
         elif secretary and secretary.is_active:
@@ -25,8 +25,8 @@ class DocumentDownloadView(APIView):
                 Q(client__cases__assigned_secretary=secretary)
                 | Q(client__cases__assigned_lawyer_id__in=lawyer_ids)
             )
-        elif getattr(user, "is_admin", False):
-            queryset = queryset.filter(client__firm__members__user=user, client__firm__members__is_active=True)
+        elif getattr(user, "owned_firm", None):
+            queryset = queryset.filter(firm=user.owned_firm)
         else:
             raise Http404
         try:

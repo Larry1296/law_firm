@@ -15,6 +15,18 @@ const secretaryDocumentsService = {
     const { data } = await axiosInstance.post('/staff/secretary/documents/', { ...payload, action: 'assign_drawer' });
     return data;
   },
+  async proposeReference(clientId) {
+    const { data } = await axiosInstance.post('/staff/secretary/documents/', { action: 'propose_reference', client_id: clientId });
+    return data;
+  },
+  async createReceipt(payload) {
+    const { data } = await axiosInstance.post('/staff/secretary/documents/', { ...payload, action: 'create_receipt' });
+    return data;
+  },
+  async recordCustodyMovement(documentId, payload) {
+    const { data } = await axiosInstance.post(`/staff/secretary/documents/${documentId}/actions/`, { ...payload, action: 'custody_movement' });
+    return data;
+  },
   async createRequest(payload) {
     const { data } = await axiosInstance.post('/staff/secretary/documents/', { ...payload, action: 'request' });
     return data;

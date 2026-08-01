@@ -82,6 +82,10 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     judiciary_cts_snapshots = serializers.SerializerMethodField()
     lifecycle_stage_label = serializers.CharField(source="get_lifecycle_stage_display", read_only=True)
     lifecycle_summary = serializers.SerializerMethodField()
+    client_kyc_reference = serializers.CharField(source="client.kyc_drawer_reference", read_only=True)
+    client_kyc_cabinet_location = serializers.CharField(source="client.kyc_cabinet_location", read_only=True)
+    referenced_client_documents = serializers.SerializerMethodField()
+    document_checklist = serializers.SerializerMethodField()
 
     def _client_visible_only(self):
         request = self.context.get("request")
@@ -99,6 +103,8 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "client_type": client.client_type,
             "access_type": client.access_type,
             "lifecycle_status": client.lifecycle_status,
+            "kyc_reference": client.kyc_drawer_reference,
+            "kyc_cabinet_location": client.kyc_cabinet_location,
         }
 
     def get_created_by(self, obj):
@@ -177,6 +183,35 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             queryset = queryset.filter(is_client_visible=True)
         return CaseAttachmentSerializer(queryset, many=True).data
 
+    def get_referenced_client_documents(self, obj):
+        if self._client_visible_only():
+            return []
+        return [{
+            "reference_id": str(ref.id), "document_id": str(ref.document_id),
+            "reference": ref.document.reference, "title": ref.document.title,
+            "category": ref.document.category, "category_label": ref.document.get_category_display(),
+            "subtype": ref.document.subtype, "subtype_label": ref.document.get_subtype_display(),
+            "verification_status": ref.document.verification_status,
+            "copy_type": ref.document.source_copy_type,
+            "physical_location": ref.document.physical_storage_location,
+            "digital_copy_available": ref.document.digital_copy_available,
+            "purpose": ref.purpose, "notes": ref.notes,
+            "originating_proposed_reference_id": str(ref.originating_proposed_reference_id) if ref.originating_proposed_reference_id else None,
+        } for ref in obj.document_references.select_related("document", "originating_proposed_reference").filter(is_active=True)]
+
+    def get_document_checklist(self, obj):
+        if self._client_visible_only():
+            queryset = obj.document_requirements.filter(is_client_visible=True)
+        else:
+            queryset = obj.document_requirements.all()
+        return [{
+            "id": str(item.id), "stage": item.template.stage, "name": item.template.name,
+            "required": item.template.is_required, "notes": item.notes,
+            "present": bool(item.selected_document_id),
+            "reference": item.selected_document.reference if item.selected_document_id else None,
+            "verification_status": item.selected_document.verification_status if item.selected_document_id else None,
+        } for item in queryset.select_related("template", "selected_document")]
+
     def get_notes(self, obj):
         queryset = obj.notes.all()
         if self._client_visible_only():
@@ -218,6 +253,10 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         model = Case
         fields = [
             "id",
+            "client_kyc_reference",
+            "client_kyc_cabinet_location",
+            "referenced_client_documents",
+            "document_checklist",
             "case_number",
             "internal_matter_number",
             "official_court_case_number",

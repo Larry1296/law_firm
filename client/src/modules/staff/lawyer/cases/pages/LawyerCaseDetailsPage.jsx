@@ -417,6 +417,9 @@ export default function LawyerCaseDetailsPage() {
             <p>
               <strong>Title:</strong> {safe(caseData.title)}
             </p>
+            <p><strong>Client:</strong> {safe(caseData.client?.full_name)}</p>
+            <p><strong>Client KYC file:</strong> {safe(caseData.client_kyc_reference, 'Not assigned')}</p>
+            <p><strong>Originating proposed matter:</strong> {safe(caseData.originating_conflict_check?.reference_number, 'Legacy / not linked')}</p>
             <p>
               <strong>Status:</strong> {friendly(caseData.matter_status)} (
               {friendly(caseData.court_stage)})
