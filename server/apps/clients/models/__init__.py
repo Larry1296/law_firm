@@ -27,6 +27,7 @@ from .client_contact import (
     CommunicationChannel,
 )
 from .client_document import ClientDocument
+from .client_kyc_folder import ClientKycFolder
 from .client_matter_conflict_check import (
     ClientMatterConflictCheck,
     ClientMatterConflictReferenceSequence,
@@ -70,6 +71,7 @@ __all__ = [
     "ContactType",
     "CommunicationChannel",
     "ClientDocument",
+    "ClientKycFolder",
     "ClientMatterConflictCheck",
     "ClientMatterConflictReferenceSequence",
     "ConflictCheckHistory",

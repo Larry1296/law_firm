@@ -31,6 +31,8 @@ from apps.cases.services.case_conflict_check_service import CaseConflictCheckSer
 from apps.cases.services.case_lifecycle_service import CaseLifecycleService
 from apps.events.serializers import EventSerializer
 from apps.events.services import EventService
+from apps.documents.serializers.matter_document_reference_serializer import MatterDocumentReferenceSerializer
+
 
 class CaseDetailSerializer(serializers.ModelSerializer):
     internal_matter_number = serializers.CharField(source="case_number", read_only=True)
@@ -45,6 +47,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     events = serializers.SerializerMethodField()
     filings = serializers.SerializerMethodField()
     documents = serializers.SerializerMethodField()
+    document_references = serializers.SerializerMethodField()
     notes = serializers.SerializerMethodField()
     tasks = serializers.SerializerMethodField()
     parties = serializers.SerializerMethodField()
@@ -177,6 +180,20 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             queryset = queryset.filter(is_client_visible=True)
         return CaseAttachmentSerializer(queryset, many=True).data
 
+
+    def get_document_references(self, obj):
+        """Return KYC document references linked to this matter.
+
+        Each entry includes the full custody reference (e.g. KYC-2026-039/D2),
+        the document type label, title, description, and physical storage
+        location — so an advocate can immediately identify what the
+        reference is without leaving the matter view.
+        """
+        qs = obj.document_references.select_related(
+            "document", "document__kyc_folder"
+        ).order_by("document__document_index")
+        return MatterDocumentReferenceSerializer(qs, many=True).data
+
     def get_notes(self, obj):
         queryset = obj.notes.all()
         if self._client_visible_only():
@@ -299,6 +316,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "events",
             "filings",
             "documents",
+            "document_references",
             "notes",
             "tasks",
             "parties",
