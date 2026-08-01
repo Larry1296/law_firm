@@ -76,6 +76,8 @@ class ClientDocument(TimestampedModel):
         NEEDS_REPLACEMENT = "NEEDS_REPLACEMENT", "Replacement required"
 
     class SourceCopyType(models.TextChoices):
+        ORIGINAL = "ORIGINAL", "Original"
+        COPY = "COPY", "Copy"
         ORIGINAL_INSPECTED = "ORIGINAL_INSPECTED", "Original inspected and scanned"
         CERTIFIED_COPY = "CERTIFIED_COPY", "Certified copy scanned"
         CLIENT_COPY = "CLIENT_COPY", "Client-supplied copy"
@@ -206,7 +208,8 @@ class ClientDocument(TimestampedModel):
             models.Index(fields=["client", "subtype"]),
         ]
         constraints = [models.UniqueConstraint(
-            fields=["firm", "reference"], condition=~models.Q(reference=""),
+            fields=["firm", "reference"],
+            condition=~models.Q(reference="") & models.Q(archived_at__isnull=True),
             name="unique_client_document_reference_per_firm"
         )]
 
@@ -220,6 +223,9 @@ class ClientDocument(TimestampedModel):
             raise ValidationError({"expected_return_date": "Record the expected return date."})
         if self.page_count < 1:
             raise ValidationError({"page_count": "Page count must be at least one."})
+        if self.reference and self.client_id and self.client.kyc_drawer_reference:
+            if not self.reference.startswith(f"{self.client.kyc_drawer_reference}/D"):
+                raise ValidationError({"reference": "The physical reference must belong to the client's KYC file."})
 
     def save(self, *args, **kwargs):
         if not self.file_name and self.file:
@@ -246,6 +252,19 @@ class ClientDocumentReferenceCorrection(TimestampedModel):
 
     class Meta:
         db_table = "client_document_reference_corrections"
+        ordering = ["-created_at"]
+
+
+class ClientDocumentRegisterRemoval(TimestampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    document = models.ForeignKey(ClientDocument, on_delete=models.PROTECT, related_name="register_removals")
+    reason = models.TextField()
+    removed_by = models.ForeignKey(
+        "users.User", on_delete=models.PROTECT, related_name="client_document_register_removals"
+    )
+
+    class Meta:
+        db_table = "client_document_register_removals"
         ordering = ["-created_at"]
 
 

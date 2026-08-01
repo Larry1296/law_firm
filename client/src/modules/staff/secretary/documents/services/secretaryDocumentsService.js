@@ -27,6 +27,10 @@ const secretaryDocumentsService = {
     const { data } = await axiosInstance.post(`/staff/secretary/documents/${documentId}/actions/`, { ...payload, action: 'custody_movement' });
     return data;
   },
+  async removeFromRegister(documentId, reason) {
+    const { data } = await axiosInstance.post(`/staff/secretary/documents/${documentId}/actions/`, { action: 'remove_from_register', reason });
+    return data;
+  },
   async createRequest(payload) {
     const { data } = await axiosInstance.post('/staff/secretary/documents/', { ...payload, action: 'request' });
     return data;

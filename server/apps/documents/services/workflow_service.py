@@ -227,6 +227,7 @@ class DocumentWorkflowService:
             "digital_copy_available": bool(document.file),
             "record_authority": "PHYSICAL_KYC_DRAWER",
             "source_copy_type": document.source_copy_type,
+            "source_copy_type_label": document.get_source_copy_type_display(),
             "physical_copy_retained": document.physical_copy_retained,
             "page_count": document.page_count,
             "return_required": document.return_required,
@@ -244,6 +245,8 @@ class DocumentWorkflowService:
             "received_at": document.received_at.isoformat() if document.received_at else None,
             "uploaded_at": document.created_at.isoformat(),
             "uploaded_by": document.uploaded_by.full_name if document.uploaded_by else "Unknown",
+            "receipt_number": document.receipt_items.select_related("receipt").first().receipt.receipt_number
+                              if document.receipt_items.exists() else None,
             "matters": [{"id": str(ref.case_id), "case_number": ref.case.case_number,
                          "title": ref.case.title, "purpose": ref.purpose} for ref in references],
         }
@@ -271,7 +274,7 @@ class DocumentWorkflowService:
 
     @staticmethod
     def documents_for_client(client, *, query="", case_id=None):
-        qs = ClientDocument.objects.filter(client=client).select_related("client", "uploaded_by").prefetch_related("matter_references__case")
+        qs = ClientDocument.objects.filter(client=client, archived_at__isnull=True).select_related("client", "uploaded_by").prefetch_related("matter_references__case")
         if query:
             qs = qs.filter(
                 Q(title__icontains=query) | Q(reference__icontains=query) | Q(file_name__icontains=query)
@@ -317,7 +320,7 @@ class DocumentWorkflowService:
         if client_id:
             cases = cases.filter(client_id=client_id)
         client_ids = cases.values_list("client_id", flat=True)
-        docs = ClientDocument.objects.filter(client_id__in=client_ids).select_related("client", "uploaded_by").prefetch_related("matter_references__case")
+        docs = ClientDocument.objects.filter(client_id__in=client_ids, archived_at__isnull=True).select_related("client", "uploaded_by").prefetch_related("matter_references__case")
         if query:
             docs = docs.filter(
                 Q(title__icontains=query) | Q(reference__icontains=query) | Q(file_name__icontains=query)

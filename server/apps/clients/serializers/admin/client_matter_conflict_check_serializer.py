@@ -16,6 +16,7 @@ from apps.documents.models import ProposedMatterDocumentReference
 class ProposedMatterDocumentReferenceSerializer(serializers.ModelSerializer):
     document_reference = serializers.CharField(source="document.reference", read_only=True)
     document_title = serializers.CharField(source="document.title", read_only=True)
+    document_identifier = serializers.CharField(source="document.document_identifier", read_only=True)
     category = serializers.CharField(source="document.category", read_only=True)
     category_label = serializers.CharField(source="document.get_category_display", read_only=True)
     subtype = serializers.CharField(source="document.subtype", read_only=True)
@@ -29,7 +30,7 @@ class ProposedMatterDocumentReferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProposedMatterDocumentReference
         fields = [
-            "id", "document", "document_reference", "document_title", "category", "category_label",
+            "id", "document", "document_reference", "document_title", "document_identifier", "category", "category_label",
             "subtype", "subtype_label", "verification_status", "copy_type", "physical_location",
             "digital_copy_available", "purpose", "relevance_notes", "required_status", "review_status",
             "is_active", "referenced_by_name", "created_at", "removed_at", "removal_reason",

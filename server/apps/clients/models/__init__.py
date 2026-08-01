@@ -29,6 +29,7 @@ from .client_contact import (
 from .client_document import (
     ClientDocument, ClientDocumentCustodyMovement,
     ClientDocumentReferenceCorrection, ClientDocumentReferenceSequence,
+    ClientDocumentRegisterRemoval,
 )
 from .client_matter_conflict_check import (
     ClientMatterConflictCheck,
@@ -77,6 +78,7 @@ __all__ = [
     "ClientDocumentCustodyMovement",
     "ClientDocumentReferenceCorrection",
     "ClientDocumentReferenceSequence",
+    "ClientDocumentRegisterRemoval",
     "ClientMatterConflictCheck",
     "ClientMatterConflictReferenceSequence",
     "ConflictCheckHistory",

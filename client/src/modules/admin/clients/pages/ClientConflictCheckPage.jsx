@@ -37,6 +37,21 @@ const STATUS_ACTIONS = {
   CLOSED_WITHOUT_DECISION: 'close',
 };
 
+const documentReferencePurpose = (document) => ({
+  NATIONAL_ID: 'Confirm the identity of the authorised representative',
+  PASSPORT: 'Confirm the identity of the authorised representative',
+  KRA_PIN: 'Confirm the client’s tax identity',
+  INCORPORATION: 'Confirm the client entity’s legal registration and capacity',
+  CR12: 'Confirm the client entity’s current officers and ownership particulars',
+  AUTHORITY_TO_INSTRUCT: 'Confirm authority to instruct the firm in this proposed matter',
+  CONTRACT: 'Record the agreement supporting the proposed instructions',
+  SALE_AGREEMENT: 'Record the agreement supporting the proposed instructions',
+  INVOICE: 'Support the amount claimed in the proposed matter',
+  DELIVERY_NOTE: 'Support delivery or performance under the agreement',
+  RECEIPT: 'Support payment or receipt relevant to the proposed matter',
+  CORRESPONDENCE: 'Record correspondence relevant to the proposed instructions',
+}[document?.subtype] || `Reference ${document?.subtype_label || document?.title || 'this physical document'} for the proposed instructions`);
+
 const emptyDraft = {
   proposed_matter_title: '',
   proposed_instructions: '',
@@ -428,17 +443,41 @@ export default function ClientConflictCheckPage() {
         </div>
       </Card>
 
+      {nextOptions.length > 0 && (
+        <Card className='p-6'>
+          <h3 className='mb-4 text-lg font-semibold'>Next outcome</h3>
+          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); if (!isOutcomeBlocked) actionMutation.mutate(); }}>
+            <Select3D value={actionDraft.next_status} onChange={(e) => setActionDraft((v) => ({ ...v, next_status: e.target.value }))} options={nextOptions} placeholder='Select next outcome' />
+            {actionDraft.next_status === 'AWAITING_INFORMATION' && <TextArea label='Information missing' value={actionDraft.information_missing} onChange={(value) => setActionDraft((v) => ({ ...v, information_missing: value }))} required />}
+            {actionDraft.next_status === 'POTENTIAL_CONFLICT' && <TextArea label='First reviewer findings' value={actionDraft.first_reviewer_findings} onChange={(value) => setActionDraft((v) => ({ ...v, first_reviewer_findings: value }))} required />}
+            {actionDraft.next_status === 'ESCALATED_FOR_REVIEW' && <Select3D label='Review advocate' value={actionDraft.review_assigned_to_id} onChange={(e) => setActionDraft((v) => ({ ...v, review_assigned_to_id: e.target.value }))} options={lawyerOptions} placeholder='Select reviewer' />}
+            {actionDraft.next_status === 'ESCALATED_FOR_REVIEW' && <TextArea label='Escalation summary' value={actionDraft.summary} onChange={(value) => setActionDraft((v) => ({ ...v, summary: value }))} required />}
+            {actionDraft.next_status === 'CLEARED' && <Input3D label='Names checked, comma separated' value={actionDraft.names_checked} onChange={(e) => setActionDraft((v) => ({ ...v, names_checked: e.target.value }))} required />}
+            {actionDraft.next_status === 'CLEARED' && <SourceCheckboxGroup selectedSources={actionDraft.source_categories_checked} onToggle={toggleSourceCategory} error={sourceValidationMessage} />}
+            {actionDraft.next_status === 'CLEARED' && requiresOtherSourceDescription && <TextArea label='Other source description' value={actionDraft.other_source_description} onChange={(value) => setActionDraft((v) => ({ ...v, other_source_description: value }))} required />}
+            {actionDraft.next_status === 'CLEARED' && <TextArea label='Clearance summary' value={actionDraft.result_summary} onChange={(value) => setActionDraft((v) => ({ ...v, result_summary: value }))} required />}
+            {actionDraft.next_status === 'CONFLICT_CONFIRMED' && <TextArea label='Internal reason' value={actionDraft.internal_reason} onChange={(value) => setActionDraft((v) => ({ ...v, internal_reason: value }))} required />}
+            {actionDraft.next_status === 'CLOSED_WITHOUT_DECISION' && <TextArea label='Closure reason' value={actionDraft.closure_reason} onChange={(value) => setActionDraft((v) => ({ ...v, closure_reason: value }))} required />}
+            {['CLEARED', 'CONFLICT_CONFIRMED'].includes(actionDraft.next_status) && <label className='flex items-center gap-2 text-sm md:col-span-2'><input type='checkbox' checked={actionDraft.decision_confirmation} onChange={(e) => setActionDraft((v) => ({ ...v, decision_confirmation: e.target.checked }))} />I confirm this professional conflict decision for these proposed instructions only.</label>}
+            <Button3D type='submit' variant='primary' disabled={isOutcomeBlocked}>{actionMutation.isPending ? 'Recording...' : 'Record Outcome'}</Button3D>
+          </form>
+        </Card>
+      )}
+
       <Card className='p-6'>
         <h3 className='text-lg font-semibold'>Supporting client documents</h3>
         <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
-          These are references to the client&apos;s master physical register. No document is copied or renamed. Client KYC file: <strong>{check.client_kyc_reference || 'Not assigned'}</strong>
+          Choose existing entries from the client&apos;s master physical register. This adds only a reference; no document is created, copied or renamed. Client KYC file: <strong>{check.client_kyc_reference || 'Not assigned'}</strong>
         </p>
         <div className='mt-4 space-y-3'>
           {(check.document_references || []).filter((item) => item.is_active).map((item) => (
             <div key={item.id} className='border-b border-border-light py-3 dark:border-border-dark'>
-              <p className='font-semibold'>{item.document_reference} — {item.document_title}</p>
-              <p className='text-sm'>{item.category_label} · {item.subtype_label} · {enumLabel(item.verification_status)} · {enumLabel(item.copy_type)}</p>
-              <p className='text-sm'>Purpose: {item.purpose}{item.physical_location ? ` · Location: ${item.physical_location}` : ''}</p>
+              <details>
+                <summary className='cursor-pointer font-semibold text-brand-primary'>{item.document_reference}</summary>
+                <p className='mt-1 text-sm'>{item.subtype_label}{item.document_identifier ? ` · ${item.document_identifier}` : ''} · {enumLabel(item.copy_type)}</p>
+                <p className='text-sm'>Physical location: {item.physical_location || 'Not recorded'}</p>
+              </details>
+              <p className='text-sm'>Purpose: {item.purpose}</p>
               {['NOT_STARTED', 'AWAITING_INFORMATION'].includes(check.status) && (
                 <button type='button' className='mt-1 text-sm font-semibold text-error' onClick={() => {
                   const reason = window.prompt('Why is this document reference being removed?');
@@ -452,14 +491,14 @@ export default function ClientConflictCheckPage() {
         {!check.consumed_at && !['CONFLICT_CONFIRMED', 'CLOSED_WITHOUT_DECISION'].includes(check.status) && (
           <form className='mt-5 grid gap-3 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); addDocumentMutation.mutate(); }}>
             <input className='border-b p-3 dark:bg-background-dark' placeholder='Search by reference, title, type, identifier or description' value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} />
-            <select className='border-b p-3 dark:bg-background-dark' value={documentDraft.document_id} onChange={(event) => setDocumentDraft((value) => ({ ...value, document_id: event.target.value }))} required>
-              <option value=''>Select a registered client document</option>
+            <select className='border-b p-3 dark:bg-background-dark' value={documentDraft.document_id} onChange={(event) => { const selected = availableDocuments.find((item) => String(item.id) === event.target.value); setDocumentDraft((value) => ({ ...value, document_id: event.target.value, purpose: selected ? documentReferencePurpose(selected) : '' })); }} required>
+              <option value=''>Select an existing physical-register document</option>
               {availableDocuments.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
             </select>
-            <input className='border-b p-3 dark:bg-background-dark' placeholder='Purpose in this proposed matter' value={documentDraft.purpose} onChange={(event) => setDocumentDraft((value) => ({ ...value, purpose: event.target.value }))} required />
+            <input className='border-b p-3 dark:bg-background-dark' aria-label='Reference purpose' placeholder='Reference purpose (filled automatically)' value={documentDraft.purpose} onChange={(event) => setDocumentDraft((value) => ({ ...value, purpose: event.target.value }))} required />
             <select className='border-b p-3 dark:bg-background-dark' value={documentDraft.required_status} onChange={(event) => setDocumentDraft((value) => ({ ...value, required_status: event.target.value }))}><option value='SUPPORTING'>Supporting record</option><option value='REQUIRED'>Required</option><option value='OPTIONAL'>Optional</option></select>
             <textarea className='border-b p-3 dark:bg-background-dark md:col-span-2' placeholder='Relevance or review notes' value={documentDraft.notes} onChange={(event) => setDocumentDraft((value) => ({ ...value, notes: event.target.value }))} />
-            <Button3D type='submit' variant='primary' disabled={!documentDraft.document_id || !documentDraft.purpose || addDocumentMutation.isPending}>Reference Client Document</Button3D>
+            <Button3D type='submit' variant='primary' disabled={!documentDraft.document_id || !documentDraft.purpose || addDocumentMutation.isPending}>Add Existing Document Reference</Button3D>
           </form>
         )}
       </Card>
@@ -572,42 +611,6 @@ export default function ClientConflictCheckPage() {
             {acceptanceDraft.decision !== 'ACCEPTED' && <TextArea label='Restricted internal reason' value={acceptanceDraft.internal_reason} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, internal_reason: value }))} required />}
             <Button3D type='submit' variant='primary' disabled={acceptanceMutation.isPending}>
               {acceptanceMutation.isPending ? 'Recording...' : 'Record Acceptance Decision'}
-            </Button3D>
-          </form>
-        </Card>
-      )}
-
-      {nextOptions.length > 0 && (
-        <Card className='p-6'>
-          <h3 className='mb-4 text-lg font-semibold'>Next outcome</h3>
-          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); if (!isOutcomeBlocked) actionMutation.mutate(); }}>
-            <Select3D value={actionDraft.next_status} onChange={(e) => setActionDraft((v) => ({ ...v, next_status: e.target.value }))} options={nextOptions} placeholder='Select next outcome' />
-            {actionDraft.next_status === 'AWAITING_INFORMATION' && <TextArea label='Information missing' value={actionDraft.information_missing} onChange={(value) => setActionDraft((v) => ({ ...v, information_missing: value }))} required />}
-            {actionDraft.next_status === 'POTENTIAL_CONFLICT' && <TextArea label='First reviewer findings' value={actionDraft.first_reviewer_findings} onChange={(value) => setActionDraft((v) => ({ ...v, first_reviewer_findings: value }))} required />}
-            {actionDraft.next_status === 'ESCALATED_FOR_REVIEW' && <Select3D label='Review advocate' value={actionDraft.review_assigned_to_id} onChange={(e) => setActionDraft((v) => ({ ...v, review_assigned_to_id: e.target.value }))} options={lawyerOptions} placeholder='Select reviewer' />}
-            {actionDraft.next_status === 'ESCALATED_FOR_REVIEW' && <TextArea label='Escalation summary' value={actionDraft.summary} onChange={(value) => setActionDraft((v) => ({ ...v, summary: value }))} required />}
-            {actionDraft.next_status === 'CLEARED' && <Input3D label='Names checked, comma separated' value={actionDraft.names_checked} onChange={(e) => setActionDraft((v) => ({ ...v, names_checked: e.target.value }))} required />}
-            {actionDraft.next_status === 'CLEARED' && (
-              <SourceCheckboxGroup
-                selectedSources={actionDraft.source_categories_checked}
-                onToggle={toggleSourceCategory}
-                error={sourceValidationMessage}
-              />
-            )}
-            {actionDraft.next_status === 'CLEARED' && requiresOtherSourceDescription && (
-              <TextArea label='Other source description' value={actionDraft.other_source_description} onChange={(value) => setActionDraft((v) => ({ ...v, other_source_description: value }))} required />
-            )}
-            {actionDraft.next_status === 'CLEARED' && <TextArea label='Clearance summary' value={actionDraft.result_summary} onChange={(value) => setActionDraft((v) => ({ ...v, result_summary: value }))} required />}
-            {actionDraft.next_status === 'CONFLICT_CONFIRMED' && <TextArea label='Internal reason' value={actionDraft.internal_reason} onChange={(value) => setActionDraft((v) => ({ ...v, internal_reason: value }))} required />}
-            {actionDraft.next_status === 'CLOSED_WITHOUT_DECISION' && <TextArea label='Closure reason' value={actionDraft.closure_reason} onChange={(value) => setActionDraft((v) => ({ ...v, closure_reason: value }))} required />}
-            {['CLEARED', 'CONFLICT_CONFIRMED'].includes(actionDraft.next_status) && (
-              <label className='flex items-center gap-2 text-sm md:col-span-2'>
-                <input type='checkbox' checked={actionDraft.decision_confirmation} onChange={(e) => setActionDraft((v) => ({ ...v, decision_confirmation: e.target.checked }))} />
-                I confirm this professional conflict decision for these proposed instructions only.
-              </label>
-            )}
-            <Button3D type='submit' variant='primary' disabled={isOutcomeBlocked}>
-              {actionMutation.isPending ? 'Recording...' : 'Record Outcome'}
             </Button3D>
           </form>
         </Card>

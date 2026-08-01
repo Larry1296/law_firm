@@ -203,7 +203,7 @@ class SecretaryEndpointTests(TestCase):
                 "title": "Client instructions",
                 "document_type": "EVIDENCE",
                 "document_reference": "KYC-2026-040/D1",
-                "received_from": "Document Client",
+                "received_from": "Spoofed browser value",
                 "physical_storage_location": "KYC DRAWER / CLIENT-TEST / FILE-001",
             },
             format="json",
@@ -217,12 +217,41 @@ class SecretaryEndpointTests(TestCase):
         self.assertIsNotNone(document.received_at)
         self.assertFalse(document.file)
         self.assertEqual(response.data["document"]["drawer_reference"], client.kyc_drawer_reference)
-        self.assertRegex(response.data["receipt_number"], r"^REC-\d{4}-\d{5}$")
+        self.assertIsNone(response.data["receipt_number"])
+        second_response = self.client.post(
+            reverse("secretary-documents"),
+            {
+                "action": "register_physical",
+                "client_id": str(client.id),
+                "title": "KRA PIN Certificate",
+                "document_type": "TAX",
+                "subtype": "KRA_PIN",
+                "document_reference": "KYC-2026-040/D2",
+                "received_from_contact": "CLIENT",
+                "physical_storage_location": "KYC DRAWER / CLIENT-TEST / FILE-001",
+            },
+            format="json",
+        )
+        self.assertEqual(second_response.status_code, 201, second_response.data)
+        second_document = ClientDocument.objects.get(id=second_response.data["document"]["id"])
+        receipt_response = self.client.post(
+            reverse("secretary-documents"),
+            {
+                "action": "create_receipt",
+                "client_id": str(client.id),
+                "document_ids": [str(document.id), str(second_document.id)],
+                "received_from_contact": "CLIENT",
+            },
+            format="json",
+        )
+        self.assertEqual(receipt_response.status_code, 201, receipt_response.data)
+        self.assertRegex(receipt_response.data["receipt_number"], r"^REC-\d{4}-\d{5}$")
         receipt = PhysicalDocumentReceipt.objects.get(
-            receipt_number=response.data["receipt_number"]
+            receipt_number=receipt_response.data["receipt_number"]
         )
         self.assertEqual(receipt.client, client)
-        self.assertEqual(receipt.items.get().document, document)
+        self.assertEqual(receipt.received_at, min(document.received_at, second_document.received_at))
+        self.assertSetEqual(set(receipt.items.values_list("document_id", flat=True)), {document.id, second_document.id})
         self.assertTrue(document.physical_copy_retained)
 
     def test_secretary_cannot_assign_a_second_kyc_drawer_to_client(self):

@@ -6,7 +6,10 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.cases.models import Case, CaseActivity, CaseEvent
-from apps.clients.models import Client, ClientDocument, ClientDocumentCustodyMovement
+from apps.clients.models import (
+    Client, ClientDocument, ClientDocumentCustodyMovement,
+    ClientDocumentRegisterRemoval, ClientRepresentative,
+)
 from apps.clients.models import ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.common.choices import FirmRole
@@ -216,6 +219,13 @@ class CaseApiTests(TestCase):
         })
         self.assertEqual(result["kyc_drawer_reference"], "KYC-2026-039")
         self.assertEqual(result["cabinet_location"], "Cabinet A / Drawer 3")
+        proposed = SecretaryDocumentService.propose_document_reference(self.secretary.user, self.client.id)
+        self.assertEqual(proposed["document_reference"], "KYC-2026-039/D1")
+        self.assertEqual(ClientDocument.objects.filter(client=self.client).count(), 0)
+        self.assertEqual(
+            SecretaryDocumentService.propose_document_reference(self.secretary.user, self.client.id)["document_reference"],
+            "KYC-2026-039/D1",
+        )
         first = SecretaryDocumentService.register_physical_document(self.secretary.user, {
             "client_id": self.client.id, "document_reference": "KYC-2026-039/D1",
             "title": "National ID", "document_type": "IDENTIFICATION",
@@ -232,12 +242,33 @@ class CaseApiTests(TestCase):
         })
         self.assertEqual(str(first), "KYC-2026-039/D1 — National ID")
         self.assertEqual(second.reference, "KYC-2026-039/D2")
+        self.assertEqual(MatterDocumentReference.objects.count(), 0)
+        self.assertEqual(ProposedMatterDocumentReference.objects.count(), 0)
         self.assertEqual(ClientDocumentCustodyMovement.objects.filter(document=first).count(), 1)
         with self.assertRaises(Exception):
             SecretaryDocumentService.register_physical_document(self.secretary.user, {
                 "client_id": self.client.id, "document_reference": "KYC-2026-039/D2",
                 "title": "Duplicate", "received_from": "Mary Wanjiku",
             })
+        SecretaryDocumentService.remove_from_register(self.secretary.user, first.id, {
+            "reason": "Physical index entry was recorded against the wrong document.",
+        })
+        first.refresh_from_db()
+        self.assertIsNotNone(first.archived_at)
+        removal = ClientDocumentRegisterRemoval.objects.get(document=first)
+        self.assertEqual(removal.removed_by, self.secretary.user)
+        self.assertIn("wrong document", removal.reason)
+        replacement = SecretaryDocumentService.register_physical_document(self.secretary.user, {
+            "client_id": self.client.id, "document_reference": "KYC-2026-039/D1",
+            "title": "Correct National ID", "document_type": "IDENTIFICATION",
+            "category": "KYC_IDENTITY", "subtype": "NATIONAL_ID",
+            "source_copy_type": "COPY", "received_from_contact": "CLIENT",
+            "physical_storage_location": "Cabinet A / Drawer 3 / KYC file",
+        })
+        self.assertEqual(replacement.reference, "KYC-2026-039/D1")
+        self.assertEqual(ClientDocument.objects.filter(
+            client=self.client, reference="KYC-2026-039/D1", archived_at__isnull=True,
+        ).count(), 1)
 
         other_admin = User.objects.create_user(
             email="other-owner@example.com", password="pass", first_name="Other", last_name="Owner",
@@ -266,6 +297,19 @@ class CaseApiTests(TestCase):
         )
         self.assertEqual(reference.document_id, document.id)
         self.assertEqual(ProposedMatterDocumentReference.objects.count(), 1)
+        other_client = Client.objects.create(
+            firm=self.firm, created_by=self.admin, full_name="Different Client",
+            client_type=Client.ClientType.INDIVIDUAL, kyc_drawer_reference="KYC-2026-099",
+        )
+        foreign_document = ClientDocument.objects.create(
+            client=other_client, firm=self.firm, reference="KYC-2026-099/D1",
+            document_type="IDENTIFICATION", title="Foreign ID",
+        )
+        with self.assertRaises(Exception):
+            ClientMatterConflictService.add_document_reference(
+                user=self.admin, client_id=self.client.id, check_id=check.id,
+                data={"document_id": foreign_document.id, "purpose": "Forged selection"},
+            )
         response = self.client_api.post(reverse("case-create"), {
             **self.payload(), "conflict_check_id": str(check.id),
         }, format="json")
@@ -275,6 +319,30 @@ class CaseApiTests(TestCase):
         self.assertEqual(carried.originating_proposed_reference, reference)
         ClientMatterConflictService.carry_document_references_to_case(check=check, case=matter, actor=self.admin)
         self.assertEqual(MatterDocumentReference.objects.filter(case=matter, document=document).count(), 1)
+
+    def test_entity_identity_document_belongs_to_authorised_representative(self):
+        entity = Client.objects.create(
+            firm=self.firm, created_by=self.admin, full_name="Nairobi Justice Initiative",
+            client_type=Client.ClientType.NON_PROFIT_ORGANIZATION,
+            kyc_drawer_reference="KYC-2026-101", kyc_cabinet_location="Cabinet A / Drawer 1",
+        )
+        representative = ClientRepresentative.objects.create(
+            client=entity, full_legal_name="Ms. Lucy Wanjiru Maina",
+            representative_category=ClientRepresentative.RepresentativeCategory.PBO_OFFICIAL,
+            role_title="NGO Official", authority_type="Client Instruction Authority",
+            is_primary=True, is_litigation_representative=True,
+        )
+        document = SecretaryDocumentService.register_physical_document(self.secretary.user, {
+            "client_id": entity.id, "document_reference": "KYC-2026-101/D1",
+            "title": "National ID", "document_type": "IDENTIFICATION",
+            "category": "KYC_IDENTITY", "subtype": "NATIONAL_ID",
+            "document_owner_contact": f"REP:{representative.pk}",
+            "received_from_contact": f"REP:{representative.pk}",
+            "physical_storage_location": entity.kyc_cabinet_location,
+        })
+        self.assertEqual(document.document_owner_subject, representative.full_legal_name)
+        self.assertEqual(document.received_from, representative.full_legal_name)
+        self.assertEqual(document.title, "National ID — Ms. Lucy Wanjiru Maina")
 
     def test_case_creation_rejects_missing_client(self):
         payload = self.payload()

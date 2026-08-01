@@ -104,7 +104,12 @@ class ProposedMatterDocumentsView(APIView):
                 "copy_type": item.source_copy_type,
                 "physical_location": item.physical_storage_location,
                 "digital_copy_available": item.digital_copy_available,
-                "label": f"{item.reference} — {item.title} — {item.get_subtype_display()} — {item.get_verification_status_display()} — {item.get_source_copy_type_display()}"
+                "label": f"{item.reference} — {item.get_subtype_display()}"
+                         + (f" — {item.title}" if item.title and item.title != item.get_subtype_display() else "")
+                         + (f" — {item.document_identifier}" if item.document_identifier else "")
+                         + f" — {item.get_source_copy_type_display()}"
+                         + (f" — {item.page_count} pages" if item.page_count else "")
+                         + (f" — {item.get_verification_status_display()}" if item.verification_status else "")
                          + (f" — {item.physical_storage_location}" if item.physical_storage_location else ""),
             } for item in documents
         ]})

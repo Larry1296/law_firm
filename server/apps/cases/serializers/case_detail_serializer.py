@@ -189,10 +189,12 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         return [{
             "reference_id": str(ref.id), "document_id": str(ref.document_id),
             "reference": ref.document.reference, "title": ref.document.title,
+            "document_identifier": ref.document.document_identifier,
             "category": ref.document.category, "category_label": ref.document.get_category_display(),
             "subtype": ref.document.subtype, "subtype_label": ref.document.get_subtype_display(),
             "verification_status": ref.document.verification_status,
             "copy_type": ref.document.source_copy_type,
+            "copy_type_label": ref.document.get_source_copy_type_display(),
             "physical_location": ref.document.physical_storage_location,
             "digital_copy_available": ref.document.digital_copy_available,
             "purpose": ref.purpose, "notes": ref.notes,

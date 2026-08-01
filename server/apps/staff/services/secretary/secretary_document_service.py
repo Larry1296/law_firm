@@ -1,22 +1,19 @@
 import re
 
 from rest_framework.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 
 from apps.clients.models import Client
 from apps.clients.models import (
     ClientDocument, ClientDocumentCustodyMovement,
     ClientDocumentReferenceCorrection, ClientDocumentReferenceSequence,
-    ClientKYCReferenceHistory,
+    ClientDocumentRegisterRemoval, ClientKYCReferenceHistory,
 )
-from apps.cases.models import Case
 from apps.documents.models import (
     DocumentRequest, PhysicalDocumentReceipt, PhysicalDocumentReceiptItem,
     PhysicalDocumentReceiptSequence,
 )
-from apps.documents.models import MatterDocumentReference
 from apps.communications.services import ChatService
 from apps.documents.services.workflow_service import DocumentWorkflowService
 
@@ -24,6 +21,65 @@ from apps.documents.services.workflow_service import DocumentWorkflowService
 class SecretaryDocumentService:
     DRAWER_REFERENCE_PATTERN = re.compile(r"^KYC-\d{4}-\d{3,}$")
     DOCUMENT_REFERENCE_PATTERN = re.compile(r"^KYC-\d{4}-\d{3,}/[A-Z0-9][A-Z0-9._/-]{0,39}$")
+
+    @staticmethod
+    def received_from_options(client):
+        if client.client_type == Client.ClientType.INDIVIDUAL:
+            return [{"value": "CLIENT", "label": client.full_name, "name": client.full_name}]
+
+        today = timezone.localdate()
+        representatives = client.representatives.exclude(authority_type="").filter(
+            models.Q(authority_start_date__isnull=True) | models.Q(authority_start_date__lte=today),
+            models.Q(authority_end_date__isnull=True) | models.Q(authority_end_date__gte=today),
+        ).order_by("-is_primary", "-is_litigation_representative", "full_legal_name")
+        options = [{
+            "value": f"REP:{item.pk}",
+            "label": (
+                f"{item.full_legal_name}"
+                f"{f' — {item.role_title}' if item.role_title else ''}"
+                f" — {item.get_representative_category_display()}"
+            ),
+            "name": item.full_legal_name,
+        } for item in representatives]
+        if options:
+            return options
+
+        contacts = client.contacts.filter(
+            is_verified=True,
+            contact_type="LEGAL_REPRESENTATIVE",
+        ).order_by("-is_primary", "full_name")
+        return [{
+            "value": f"CONTACT:{item.pk}",
+            "label": f"{item.full_name}{f' — {item.role_or_designation}' if item.role_or_designation else ''}",
+            "name": item.full_name,
+        } for item in contacts if item.full_name]
+
+    @staticmethod
+    def resolve_received_from(client, selection):
+        options = SecretaryDocumentService.received_from_options(client)
+        selected = next((item for item in options if item["value"] == selection), None)
+        if selected:
+            return selected["name"]
+        if not options:
+            raise ValidationError({"received_from_contact": "Record an authorised representative with instruction authority for this organisation first."})
+        raise ValidationError({"received_from_contact": "Select an authorised contact recorded for this client."})
+
+    @staticmethod
+    def resolve_document_subject(client, subtype, selection):
+        personal_identity_types = {
+            ClientDocument.Subtype.NATIONAL_ID,
+            ClientDocument.Subtype.PASSPORT,
+            ClientDocument.Subtype.ALIEN_ID,
+        }
+        if client.client_type == Client.ClientType.INDIVIDUAL or subtype not in personal_identity_types:
+            return client.full_name
+        options = SecretaryDocumentService.received_from_options(client)
+        selected = next((item for item in options if item["value"] == selection), None)
+        if not selected:
+            raise ValidationError({
+                "document_owner_contact": "Select the authorised representative whose identity document is being filed."
+            })
+        return selected["name"]
 
     @staticmethod
     @staticmethod
@@ -92,8 +148,14 @@ class SecretaryDocumentService:
             raise ValidationError({"client_id": "Select a client file."}) from exc
         if not client.kyc_drawer_reference:
             raise ValidationError({"kyc_drawer_reference": "Assign the client's KYC file reference first."})
-        # A proposal reserves a number so concurrent users cannot receive the same value.
-        return {"document_reference": SecretaryDocumentService._next_document_reference(client)}
+        sequence, _ = ClientDocumentReferenceSequence.objects.get_or_create(client=client)
+        next_number = sequence.next_number
+        while ClientDocument.objects.filter(
+            firm=client.firm, reference=f"{client.kyc_drawer_reference}/D{next_number}"
+        ).exists():
+            next_number += 1
+        # Preview only: allocation happens when an actual physical record is saved.
+        return {"document_reference": f"{client.kyc_drawer_reference}/D{next_number}"}
 
     @staticmethod
     def create_request(user, data):
@@ -226,8 +288,10 @@ class SecretaryDocumentService:
                 {
                     "id": str(item.id),
                     "name": item.full_name,
+                    "client_type": item.client_type,
                     "kyc_drawer_reference": item.kyc_drawer_reference,
                     "kyc_cabinet_location": item.kyc_cabinet_location,
+                    "received_from_options": SecretaryDocumentService.received_from_options(item),
                 }
                 for item in clients
             ],
@@ -277,45 +341,45 @@ class SecretaryDocumentService:
         if not secretary or not secretary.is_active or not secretary.can_receive_documents:
             raise ValidationError({"detail": "Only active secretaries can register physical client documents."})
 
-        cases = DocumentWorkflowService.accessible_cases_for_secretary(user)
         request = None
         request_id = data.get("request_id")
         if request_id:
             try:
                 request = DocumentRequest.objects.select_for_update().select_related("case", "client").get(
                     id=request_id,
-                    case__in=cases,
+                    firm=secretary.law_firm,
                 )
             except DocumentRequest.DoesNotExist as exc:
                 raise ValidationError({"request_id": "The document request is not accessible."}) from exc
             if request.status in {DocumentRequest.Status.ACCEPTED, DocumentRequest.Status.CANCELLED}:
                 raise ValidationError({"request_id": "This document request is already closed."})
-            case = request.case
             client = request.client
         else:
-            case_id = data.get("case_id")
             client_id = data.get("client_id")
-            case = None
-            if case_id:
-                try:
-                    case = cases.select_related("client").get(id=case_id)
-                except Case.DoesNotExist as exc:
-                    raise ValidationError({"case_id": "Select an accessible matter."}) from exc
-                client = case.client
-            else:
-                try:
-                    client = Client.objects.get(id=client_id, firm=secretary.law_firm)
-                except (Client.DoesNotExist, ValueError, TypeError) as exc:
-                    raise ValidationError({"client_id": "Select a client file."}) from exc
+            try:
+                client = Client.objects.select_for_update().get(id=client_id, firm=secretary.law_firm)
+            except (Client.DoesNotExist, ValueError, TypeError) as exc:
+                raise ValidationError({"client_id": "Select a client file."}) from exc
 
+        subtype = data.get("subtype") or ClientDocument.Subtype.OTHER
+        document_owner_subject = SecretaryDocumentService.resolve_document_subject(
+            client, subtype, data.get("document_owner_contact")
+        )
         title = (data.get("title") or (request.title if request else "")).strip()
         if not title:
             raise ValidationError({"title": "Record the physical document title."})
+        if client.client_type != Client.ClientType.INDIVIDUAL and subtype in {
+            ClientDocument.Subtype.NATIONAL_ID,
+            ClientDocument.Subtype.PASSPORT,
+            ClientDocument.Subtype.ALIEN_ID,
+        }:
+            type_label = dict(ClientDocument.Subtype.choices)[subtype]
+            title = f"{type_label} — {document_owner_subject}"
         if not client.kyc_drawer_reference:
             raise ValidationError({"kyc_drawer_reference": "Assign the client's physical KYC drawer number before recording documents."})
+        Client.objects.select_for_update().get(pk=client.pk)
         document_reference = (data.get("document_reference") or "").strip().upper()
         if not document_reference and str(data.get("automatic_reference", "")).lower() in {"true", "1", "yes", "on"}:
-            Client.objects.select_for_update().get(pk=client.pk)
             document_reference = SecretaryDocumentService._next_document_reference(client)
         if not document_reference:
             raise ValidationError({"document_reference": "Confirm the exact physical reference or choose automatic numbering."})
@@ -323,12 +387,16 @@ class SecretaryDocumentService:
             raise ValidationError({"document_reference": f"Use a reference under this KYC file, for example {client.kyc_drawer_reference}/D1."})
         if not document_reference.startswith(f"{client.kyc_drawer_reference}/"):
             raise ValidationError({"document_reference": "The document reference must belong to the selected client's KYC file."})
-        if ClientDocument.objects.filter(firm=client.firm, reference=document_reference).exists():
+        if ClientDocument.objects.filter(
+            firm=client.firm, reference=document_reference, archived_at__isnull=True
+        ).exists():
             raise ValidationError({"document_reference": "This physical document reference is already recorded in this firm."})
-        received_from = (data.get("received_from") or "").strip()
-        if not received_from:
-            raise ValidationError({"received_from": "Record the person or organisation that delivered the document."})
-        drawer_location = (data.get("physical_storage_location") or f"KYC DRAWER / {client.kyc_drawer_reference}").strip()
+        received_from = SecretaryDocumentService.resolve_received_from(
+            client, data.get("received_from_contact") or "CLIENT"
+        )
+        drawer_location = (data.get("physical_storage_location") or client.kyc_cabinet_location or "").strip()
+        if not drawer_location:
+            raise ValidationError({"physical_storage_location": "Record the document's exact physical location."})
         verification_status = data.get("verification_status") or ClientDocument.VerificationStatus.NOT_VERIFIED
         if verification_status not in ClientDocument.VerificationStatus.values:
             raise ValidationError({"verification_status": "Select a valid verification status."})
@@ -338,21 +406,7 @@ class SecretaryDocumentService:
             raise ValidationError({"category": "Select a valid broad document category."})
         if (data.get("subtype") or ClientDocument.Subtype.OTHER) not in ClientDocument.Subtype.values:
             raise ValidationError({"subtype": "Select a valid exact document type."})
-        category = data.get("category") or ClientDocument.Category.OTHER
         document_identifier = (data.get("document_identifier") or "").strip()
-        if category in {
-            ClientDocument.Category.KYC_IDENTITY,
-            ClientDocument.Category.KYC_TAX,
-            ClientDocument.Category.ENTITY_RECORD,
-        } and not document_identifier:
-            raise ValidationError(
-                {
-                    "document_identifier": (
-                        "Record the official ID, KRA PIN, registration number, "
-                        "or authority reference for this KYC document."
-                    )
-                }
-            )
         if (data.get("source_copy_type") or ClientDocument.SourceCopyType.CLIENT_COPY) not in ClientDocument.SourceCopyType.values:
             raise ValidationError({"source_copy_type": "Select original, certified copy, ordinary copy, or official electronic record."})
         try:
@@ -361,13 +415,7 @@ class SecretaryDocumentService:
             raise ValidationError({"page_count": "Record a valid physical page count."}) from exc
         if page_count < 1:
             raise ValidationError({"page_count": "A received document must contain at least one page."})
-        received_at = data.get("received_at") or timezone.now()
-        if isinstance(received_at, str):
-            received_at = parse_datetime(received_at)
-            if received_at is None:
-                raise ValidationError({"received_at": "Enter a valid date and time received."})
-            if timezone.is_naive(received_at):
-                received_at = timezone.make_aware(received_at)
+        received_at = timezone.now()
         document = ClientDocument.objects.create(
             client=client, firm=client.firm,
             document_type=(request.document_type if request else data.get("document_type")) or "OTHER",
@@ -375,8 +423,8 @@ class SecretaryDocumentService:
             reference=document_reference,
             description=(data.get("description") or "").strip(),
             category=data.get("category") or ClientDocument.Category.OTHER,
-            subtype=data.get("subtype") or ClientDocument.Subtype.OTHER,
-            document_owner_subject=(data.get("document_owner_subject") or client.full_name).strip(),
+            subtype=subtype,
+            document_owner_subject=document_owner_subject,
             document_identifier=document_identifier,
             issuing_authority=(data.get("issuing_authority") or "").strip(),
             document_date=data.get("document_date") or None,
@@ -417,15 +465,12 @@ class SecretaryDocumentService:
             purpose="Initial receipt into the firm's physical document register.",
             expected_return_at=None, notes=document.custody_notes,
         )
-        if case:
-            MatterDocumentReference.objects.get_or_create(
-                case=case,
-                document=document,
-                defaults={
-                    "purpose": data.get("purpose") or MatterDocumentReference.Purpose.CLIENT_INSTRUCTION,
-                    "referenced_by": user,
-                },
-            )
+        match = re.fullmatch(rf"{re.escape(client.kyc_drawer_reference)}/D(\d+)", document_reference)
+        if match:
+            sequence, _ = ClientDocumentReferenceSequence.objects.get_or_create(client=client)
+            sequence = ClientDocumentReferenceSequence.objects.select_for_update().get(client=client)
+            sequence.next_number = max(sequence.next_number, int(match.group(1)) + 1)
+            sequence.save(update_fields=["next_number", "updated_at"])
         if request:
             request.fulfilled_document = document
             request.fulfilled_by = user
@@ -469,6 +514,29 @@ class SecretaryDocumentService:
 
     @staticmethod
     @transaction.atomic
+    def remove_from_register(user, document_id, data):
+        secretary = getattr(user, "secretary_profile", None)
+        if not secretary or not secretary.is_active or not secretary.can_receive_documents:
+            raise ValidationError({"detail": "Only authorised records staff can remove physical register entries."})
+        try:
+            document = ClientDocument.objects.select_for_update().get(
+                id=document_id, firm=secretary.law_firm, archived_at__isnull=True
+            )
+        except ClientDocument.DoesNotExist as exc:
+            raise ValidationError({"document": "This active physical document entry was not found."}) from exc
+        reason = (data.get("reason") or "").strip()
+        if not reason:
+            raise ValidationError({"reason": "Record why this document is being removed from the active register."})
+        document.archived_at = timezone.now()
+        document.updated_by = user
+        document.save(update_fields=["archived_at", "updated_by", "updated_at"])
+        ClientDocumentRegisterRemoval.objects.create(
+            document=document, reason=reason, removed_by=user,
+        )
+        return document
+
+    @staticmethod
+    @transaction.atomic
     def record_custody_movement(user, document_id, data):
         secretary = getattr(user, "secretary_profile", None)
         if not secretary or not secretary.is_active or not secretary.can_receive_documents:
@@ -501,9 +569,26 @@ class SecretaryDocumentService:
         if not secretary or not secretary.is_active or not secretary.can_receive_documents:
             raise ValidationError({"detail": "Only authorised records staff can issue document receipts."})
         client = Client.objects.select_for_update().get(id=data.get("client_id"), firm=secretary.law_firm)
-        documents = list(ClientDocument.objects.filter(id__in=data.get("document_ids") or [], client=client, firm=secretary.law_firm))
+        requested_ids = {str(item) for item in (data.get("document_ids") or [])}
+        documents = list(ClientDocument.objects.select_for_update().filter(
+            id__in=requested_ids, client=client, firm=secretary.law_firm,
+            archived_at__isnull=True,
+        ))
         if not documents:
-            raise ValidationError({"document_ids": "Select at least one registered physical document."})
+            raise ValidationError({"document_ids": "Select at least one unreceipted physical document."})
+        if len(documents) != len(requested_ids):
+            raise ValidationError({"document_ids": "Every selected document must be an unreceipted record belonging to this client."})
+        if PhysicalDocumentReceiptItem.objects.filter(document__in=documents).exists():
+            raise ValidationError({"document_ids": "A selected document already appears on a receipt."})
+        received_from = SecretaryDocumentService.resolve_received_from(
+            client, data.get("received_from_contact") or "CLIENT"
+        )
+        received_timestamps = [item.received_at for item in documents if item.received_at]
+        if len(received_timestamps) != len(documents):
+            raise ValidationError({"document_ids": "Every selected document must have an authoritative received timestamp."})
+        # One receipt represents the delivery batch. Use the first server-recorded
+        # intake timestamp; the individual document timestamps remain unchanged.
+        received_at = min(received_timestamps)
         year = timezone.now().year
         sequence, _ = PhysicalDocumentReceiptSequence.objects.get_or_create(
             firm=secretary.law_firm, defaults={"year": year, "next_number": 1}
@@ -517,8 +602,8 @@ class SecretaryDocumentService:
         receipt = PhysicalDocumentReceipt.objects.create(
             firm=secretary.law_firm, client=client,
             receipt_number=f"REC-{timezone.now().year}-{number:05d}",
-            received_from=(data.get("received_from") or documents[0].received_from).strip(),
-            received_by=user, received_at=data.get("received_at") or documents[0].received_at or timezone.now(),
+            received_from=received_from,
+            received_by=user, received_at=received_at,
             kyc_reference_snapshot=client.kyc_drawer_reference,
             firm_details_snapshot={"name": secretary.law_firm.name},
         )

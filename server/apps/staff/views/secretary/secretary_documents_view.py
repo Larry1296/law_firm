@@ -1,4 +1,3 @@
-from django.db import transaction
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -27,21 +26,11 @@ class SecretaryDocumentsView(SecretaryBaseView):
                 return Response({"receipt_number": receipt.receipt_number}, status=201)
             if request.data.get("action") != "register_physical":
                 return Response({"detail": "Document uploads are disabled. Record the physical KYC drawer entry."}, status=400)
-            with transaction.atomic():
-                document = SecretaryDocumentService.register_physical_document(request.user, request.data)
-                receipt = SecretaryDocumentService.create_receipt(
-                    request.user,
-                    {
-                        "client_id": str(document.client_id),
-                        "document_ids": [str(document.id)],
-                        "received_from": document.received_from,
-                        "received_at": document.received_at,
-                    },
-                )
+            document = SecretaryDocumentService.register_physical_document(request.user, request.data)
             return Response(
                 {
                     "document": DocumentWorkflowService.serialize_document(document),
-                    "receipt_number": receipt.receipt_number,
+                    "receipt_number": None,
                 },
                 status=201,
             )
@@ -74,6 +63,9 @@ class SecretaryPhysicalDocumentActionView(SecretaryBaseView):
             if request.data.get("action") == "custody_movement":
                 movement = SecretaryDocumentService.record_custody_movement(request.user, document_id, request.data)
                 return Response({"movement": {"id": str(movement.id), "from": movement.from_location_or_custodian, "to": movement.to_location_or_custodian, "movement_type": movement.movement_type, "moved_at": movement.moved_at, "purpose": movement.purpose}}, status=201)
+            if request.data.get("action") == "remove_from_register":
+                document = SecretaryDocumentService.remove_from_register(request.user, document_id, request.data)
+                return Response({"document_id": str(document.id), "removed": True})
             return Response({"detail": "Select a supported controlled document action."}, status=400)
         except Exception as exc:
             return Response({"detail": getattr(exc, "detail", str(exc))}, status=getattr(exc, "status_code", 400))
