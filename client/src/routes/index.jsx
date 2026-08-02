@@ -755,7 +755,7 @@ const AppRoutes = () => {
 
           {/* COURTROOM */}
           <Route path='courtroom' element={<AdminVirtualCourtroomPage />} />
-          <Route path='courtroom/sessions' element={<AdminCourtroomPage />} />
+          <Route path='courtroom/sessions' element={<Navigate to='../courtroom' replace />} />
           <Route path='courtroom/:id' element={<AdminCourtroomDetailsPage />} />
           <Route path='hearings' element={<Navigate to='../courtroom' replace />} />
 

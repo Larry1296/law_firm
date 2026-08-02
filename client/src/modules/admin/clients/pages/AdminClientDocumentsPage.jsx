@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 import BackLink from '@/components/ui/BackLink';
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
+import TableHeaderText from '@/components/ui/TableHeaderText';
 import { enumLabel } from '@/core/utils/textFormatter';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import adminClientsService from '../services/adminClientsService';
@@ -36,7 +37,7 @@ export default function AdminClientDocumentsPage() {
     </div>
 
     {active === tabs[0] && <Card className='overflow-x-auto p-5'>
-      <table className='min-w-full text-left text-sm'><thead><tr>{['Reference', 'Title', 'Category / type', 'Identifier', 'Original / copy', 'Verification', 'Physical location', 'Proposed matters', 'Accepted matters', 'Digital copy', 'Return'].map((item) => <th key={item} className='border-b p-2'>{item}</th>)}</tr></thead>
+      <table className='min-w-full text-left text-sm'><thead><tr>{['Reference', 'Title', 'Category / type', 'Identifier', 'Original / copy', 'Verification', 'Physical location', 'Proposed matters', 'Accepted matters', 'Digital copy', 'Return'].map((item) => <th key={item} className='border-b p-2'><TableHeaderText>{item}</TableHeaderText></th>)}</tr></thead>
       <tbody>{documents.map((document) => <tr key={document.id} className='align-top'>
         <td className='border-b p-2 font-semibold'>{document.reference}</td><td className='border-b p-2'>{document.title}</td>
         <td className='border-b p-2'>{document.category_label} / {document.subtype_label}</td><td className='border-b p-2'>{document.document_identifier || '—'}</td>

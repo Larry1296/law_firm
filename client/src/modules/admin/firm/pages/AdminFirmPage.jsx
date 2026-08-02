@@ -14,6 +14,7 @@ import adminFirmService from '@/modules/admin/firm/services/adminFirmService';
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
 import StatsCard from '@/components/ui/StatsCard';
+import TableHeaderText from '@/components/ui/TableHeaderText';
 import Swal from '@/core/utils/themedSwal';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 
@@ -1086,11 +1087,7 @@ export default function AdminFirmPage() {
           <table className='w-full text-left text-sm'>
             <thead className='bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-300'>
               <tr>
-                <th className='px-4 py-3 font-semibold'>Name</th>
-                <th className='px-4 py-3 font-semibold'>Branch Head</th>
-                <th className='px-4 py-3 font-semibold'>Location</th>
-                <th className='px-4 py-3 font-semibold'>Status</th>
-                <th className='px-4 py-3 text-right font-semibold'>Actions</th>
+                {['Name', 'Branch Head', 'Location', 'Status', 'Actions'].map((label) => <th key={label} className={`px-4 py-3 font-semibold ${label === 'Actions' ? 'text-right' : ''}`}><TableHeaderText>{label}</TableHeaderText></th>)}
               </tr>
             </thead>
             <tbody className='divide-y divide-border-light dark:divide-border-dark'>
@@ -1196,13 +1193,9 @@ export default function AdminFirmPage() {
             <table className='w-full text-left text-sm'>
               <thead className='bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-300'>
                 <tr>
-                  <th className='px-4 py-3 font-semibold'>Name</th>
-                  <th className='px-4 py-3 font-semibold'>Description</th>
-                  <th className='px-4 py-3 font-semibold'>Branch</th>
-                  <th className='px-4 py-3 font-semibold'>Head</th>
-                  <th className='px-4 py-3 font-semibold'>Status</th>
+                  {['Name', 'Description', 'Branch', 'Head', 'Status'].map((label) => <th key={label} className='px-4 py-3 font-semibold'><TableHeaderText>{label}</TableHeaderText></th>)}
                   <th className='px-4 py-3 text-right font-semibold'>
-                    Actions
+                    <TableHeaderText>Actions</TableHeaderText>
                   </th>
                 </tr>
               </thead>

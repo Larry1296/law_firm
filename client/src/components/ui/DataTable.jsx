@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Card from '@/components/ui/Card';
+import TableHeaderText from '@/components/ui/TableHeaderText';
 
 export default function DataTable({
   columns = [],
@@ -123,16 +124,16 @@ export default function DataTable({
                         px-4
                         py-4
                         text-left
-                        text-sm
+                        text-[0.9375rem]
                         font-bold
                         uppercase
                         tracking-[0.08em]
                         text-slate-700
                         dark:text-white
-                        ${fitToContainer ? 'whitespace-normal break-words' : 'whitespace-nowrap'}
+                        whitespace-nowrap
                       `}
                     >
-                      {column.label}
+                      <TableHeaderText>{column.label}</TableHeaderText>
                     </th>
                   ))}
 
@@ -142,14 +143,14 @@ export default function DataTable({
                         px-4
                         py-4
                         text-left
-                        text-sm
+                        text-[0.9375rem]
                         font-semibold
                         text-slate-700
                         dark:text-white
-                        ${fitToContainer ? 'whitespace-normal break-words' : 'whitespace-nowrap'}
+                        whitespace-nowrap
                       `}
                     >
-                      Actions
+                      <TableHeaderText>Actions</TableHeaderText>
                     </th>
                   )}
                 </tr>

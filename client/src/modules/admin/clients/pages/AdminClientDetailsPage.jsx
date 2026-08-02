@@ -10,6 +10,7 @@ import SectionHeading from '@/components/ui/SectionHeading';
 import BackLink from '@/components/ui/BackLink';
 import Button3D from '@/components/ui/Button3D';
 import PageSectionNav from '@/components/ui/PageSectionNav';
+import TableHeaderText from '@/components/ui/TableHeaderText';
 
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { titleCase, enumLabel } from '@/core/utils/textFormatter';
@@ -301,14 +302,9 @@ export default function AdminClientDetailsPage() {
             <table className='min-w-full text-left text-sm'>
               <thead className='text-text-muted-light dark:text-text-muted-dark'>
                 <tr>
-                  <th className='py-2 pr-4'>Reference</th>
-                  <th className='py-2 pr-4'>Proposed matter</th>
-                  <th className='py-2 pr-4'>Adverse parties</th>
-                  <th className='py-2 pr-4'>Responsible advocate</th>
-                  <th className='py-2 pr-4'>Status</th>
-                  <th className='py-2 pr-4'>Urgency / deadline</th>
-                  <th className='py-2 pr-4'>Linked case</th>
-                  <th className='py-2 pr-4'>Action</th>
+                  {['Reference', 'Proposed matter', 'Adverse parties', 'Responsible advocate', 'Status', 'Urgency / deadline', 'Linked case', 'Action'].map((label) => (
+                    <th key={label} className='py-2 pr-4'><TableHeaderText>{label}</TableHeaderText></th>
+                  ))}
                 </tr>
               </thead>
               <tbody>

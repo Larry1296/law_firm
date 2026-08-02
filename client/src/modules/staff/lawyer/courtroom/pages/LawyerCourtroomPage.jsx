@@ -2,7 +2,7 @@ import { MonitorUp, RefreshCw } from 'lucide-react';
 
 import Card from '@/components/ui/Card';
 import { formatDateTime } from '@/core/utils/dateFormatter';
-import CourtroomVideoPlayer from '@/modules/courtroom/components/CourtroomVideoPlayer';
+import CourtroomLauncher from '@/modules/courtroom/components/CourtroomLauncher';
 import { useCourtroomSessions } from '@/modules/courtroom/hooks/useCourtroom';
 
 export default function LawyerCourtroomPage() {
@@ -16,7 +16,7 @@ export default function LawyerCourtroomPage() {
             <MonitorUp size={22} className='text-blue-600' />
             <div>
               <h1 className='text-xl font-bold text-slate-900 dark:text-white'>
-                Courtroom Monitor
+                Today’s Court Appearances
               </h1>
               <p className='text-sm text-slate-500 dark:text-slate-300'>
                 Follow today’s assigned courtrooms from one screen.
@@ -49,19 +49,13 @@ export default function LawyerCourtroomPage() {
       <div className='grid gap-5 xl:grid-cols-2'>
         {sessions.map((session) => (
           <Card key={session.id} className='p-4'>
-            <CourtroomVideoPlayer
-              url={session.join_url}
-              title={`${session.event?.case?.case_number || 'Case'} - ${session.event?.title || 'Courtroom'}`}
-              status={session.status}
-              providerName={session.provider_name}
-            />
+            <CourtroomLauncher session={session} />
             <div className='mt-3 space-y-1 text-sm text-slate-500 dark:text-slate-300'>
               <p className='font-semibold text-slate-800 dark:text-slate-100'>
-                {session.event?.case?.title || 'Assigned matter'}
+                {session.event_summary?.matter_title || 'Assigned matter'}
               </p>
-              <p>{session.event?.starts_at ? formatDateTime(session.event.starts_at) : 'Time not set'}</p>
-              <p>{session.event?.court_station || 'Court not set'} · {session.event?.courtroom || 'Room not set'}</p>
-              <p>{session.attendance_count || 0} attendance logs · {session.recording_count || 0} recordings</p>
+              <p>{session.event_summary?.starts_at ? formatDateTime(session.event_summary.starts_at) : 'Time not set'}</p>
+              <p>{session.event_summary?.court_station || 'Court not set'} · {session.event_summary?.courtroom || 'Room not set'}</p>
             </div>
           </Card>
         ))}

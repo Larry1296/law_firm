@@ -117,10 +117,14 @@ export default function ClientCasesPage() {
         <DataTable
           data={filteredCases}
           mobileTitleKey='title'
-          mobileSubtitleKey='case_number'
           emptyMessage='No cases available.'
           columns={[
-            { key: 'case_number', label: 'Case No' },
+            { key: 'case_number', label: 'Internal Matter Number' },
+            {
+              key: 'official_court_case_number',
+              label: 'Official Court Case Number',
+              render: (value, row) => row.court_proceeding?.official_court_case_number || value || 'Not filed / not recorded',
+            },
             { key: 'title', label: 'Title' },
             {
               key: 'represented_party',

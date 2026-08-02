@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 from apps.cases.models import Case, CaseEvent
 from apps.clients.models import Client
 from apps.common.choices import FirmRole, UserRole
-from apps.courtroom.models import CourtroomAttendanceLog, CourtroomProvider, CourtroomRecording, CourtroomSession
+from apps.courtroom.models import CourtRecordingPermission, CourtroomAttendanceLog, CourtroomProvider, CourtroomRecording, CourtroomSession
 from apps.firm.models import LawFirm, LawFirmMember
 from apps.staff.models import Lawyer
 from apps.users.models import User
@@ -101,8 +101,8 @@ class CourtroomApiTests(TestCase):
             reverse("courtroom-provider-list-create"),
             {
                 "name": "Milimani Virtual Court",
-                "provider_type": CourtroomProvider.ProviderType.JUDICIARY,
-                "base_url": "https://court.example.test",
+                "provider_type": CourtroomProvider.ProviderType.ZOOM,
+                "base_url": "https://zoom.us",
                 "is_default": True,
             },
             format="json",
@@ -114,9 +114,8 @@ class CourtroomApiTests(TestCase):
             {
                 "event_id": str(self.event.id),
                 "provider": provider_response.data["id"],
-                "join_url": "https://court.example.test/session",
+                "join_url": "https://zoom.us/j/123456789",
                 "status": CourtroomSession.Status.WAITING,
-                "allow_recording_downloads": True,
             },
             format="json",
         )
@@ -129,12 +128,14 @@ class CourtroomApiTests(TestCase):
                 "attendee_name": "Advocate One",
                 "attendee_email": "advocate@example.test",
                 "attendee_role": CourtroomAttendanceLog.AttendanceRole.LAWYER,
-                "status": CourtroomAttendanceLog.AttendanceStatus.JOINED,
+                "status": CourtroomAttendanceLog.AttendanceStatus.JOIN_CONFIRMED,
             },
             format="json",
         )
         self.assertEqual(attendance_response.status_code, 201, attendance_response.data)
 
+        session = CourtroomSession.objects.get(id=session_id)
+        CourtRecordingPermission.objects.create(session=session, permission_status=CourtRecordingPermission.Status.GRANTED, granted_by="Presiding court", granted_at=timezone.now(), audio_allowed=True)
         recording_response = self.api.post(
             reverse("courtroom-recordings", kwargs={"session_id": session_id}),
             {
@@ -158,13 +159,13 @@ class CourtroomApiTests(TestCase):
         provider = CourtroomProvider.objects.create(
             firm=self.firm,
             name="Judiciary",
-            provider_type=CourtroomProvider.ProviderType.JUDICIARY,
+            provider_type=CourtroomProvider.ProviderType.ZOOM,
             created_by=self.admin,
         )
         CourtroomSession.objects.create(
             event=self.event,
             provider=provider,
-            join_url="https://court.example.test/session",
+            join_url="https://zoom.us/j/123456789",
             created_by=self.admin,
         )
 
@@ -184,13 +185,17 @@ class CourtroomApiTests(TestCase):
         provider = CourtroomProvider.objects.create(
             firm=self.firm,
             name="Judiciary",
-            provider_type=CourtroomProvider.ProviderType.JUDICIARY,
+            provider_type=CourtroomProvider.ProviderType.YOUTUBE_LIVE,
             created_by=self.admin,
         )
         CourtroomSession.objects.create(
             event=self.event,
             provider=provider,
             join_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            client_access_enabled=True,
+            client_attendance_requirement=CourtroomSession.ClientAttendance.OPTIONAL,
+            client_access_from=timezone.now() - timedelta(minutes=5),
+            client_access_until=timezone.now() + timedelta(hours=2),
             created_by=self.admin,
         )
 
@@ -229,5 +234,5 @@ class CourtroomApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["event"]["case"]["id"], str(self.case.id))
-        self.assertEqual(response.data[0]["join_url"], "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        self.assertEqual(response.data[0]["event_summary"]["case_id"], str(self.case.id))
+        self.assertNotIn("join_url", response.data[0])

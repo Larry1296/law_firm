@@ -437,6 +437,10 @@ export default function LawyerCaseDetailsPage() {
               {safe(caseData.case_number, 'Not recorded')}
             </p>
             <p>
+              <strong>Official Court Case Number:</strong>{' '}
+              {safe(caseData.court_proceeding?.official_court_case_number || caseData.official_court_case_number, 'Not filed / not recorded')}
+            </p>
+            <p>
               <strong>Title:</strong> {safe(caseData.title)}
             </p>
             <p><strong>Client:</strong> {safe(caseData.client?.full_name)}</p>

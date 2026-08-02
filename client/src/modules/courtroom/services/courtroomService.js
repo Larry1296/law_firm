@@ -2,7 +2,7 @@ import axiosInstance from '@/core/api/axios';
 
 const courtroomService = {
   async getTodayCourtroomEvents() {
-    const { data } = await axiosInstance.get('/events/courtroom/today/');
+    const { data } = await axiosInstance.get('/events/', { params: { scope: 'upcoming' } });
     return data;
   },
 
@@ -81,6 +81,22 @@ const courtroomService = {
 
   async getAnalytics() {
     const { data } = await axiosInstance.get('/courtroom/analytics/');
+    return data;
+  },
+  async requestLaunch(sessionId) {
+    const { data } = await axiosInstance.post(`/courtroom/sessions/${sessionId}/launch/`);
+    return data;
+  },
+  async openLaunch(token) {
+    const { data } = await axiosInstance.post(`/courtroom/launch/${token}/open/`);
+    return data;
+  },
+  async attendanceAction(sessionId, payload) {
+    const { data } = await axiosInstance.post(`/courtroom/sessions/${sessionId}/attendance-action/`, payload);
+    return data;
+  },
+  async updateStatus(sessionId, payload) {
+    const { data } = await axiosInstance.post(`/courtroom/sessions/${sessionId}/status/`, payload);
     return data;
   },
 };

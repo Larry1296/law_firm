@@ -23,8 +23,8 @@ export default function SecretaryCaseDetailsPage() {
     <Card className='p-5'>
       <h3 className='font-semibold'>Matter coordination</h3>
       <div className='mt-3 grid gap-3 md:grid-cols-2'>
-        <p><strong>Internal matter:</strong> {caseData.case_number}</p>
-        <p><strong>Court number:</strong> {caseData.official_court_case_number || 'Not filed / not recorded'}</p>
+        <p><strong>Internal Matter Number:</strong> {caseData.case_number}</p>
+        <p><strong>Official Court Case Number:</strong> {caseData.court_proceeding?.official_court_case_number || caseData.official_court_case_number || 'Not filed / not recorded'}</p>
         <p><strong>Matter status:</strong> {caseData.matter_status_label}</p>
         <p><strong>Court stage:</strong> {caseData.court_stage_label}</p>
         <p><strong>Client:</strong> {client.full_name}</p>

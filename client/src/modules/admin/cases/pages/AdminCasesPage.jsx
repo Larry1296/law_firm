@@ -57,7 +57,11 @@ export default function AdminCasesPage() {
       )
       .filter((caseItem) => {
       if (!term) return true;
-      const caseNumber = [caseItem.case_number];
+      const caseNumber = [
+        caseItem.case_number,
+        caseItem.official_court_case_number,
+        caseItem.court_proceeding?.official_court_case_number,
+      ];
       const title = [caseItem.title];
       const client = [casePartyName(caseItem), casePartyLabel(caseItem)];
       const status = [
@@ -162,7 +166,7 @@ export default function AdminCasesPage() {
             wrapperClassName='mb-0'
             options={[
               { value: 'ALL', label: 'All fields' },
-              { value: 'CASE_NUMBER', label: 'Case number' },
+              { value: 'CASE_NUMBER', label: 'Internal / official number' },
               { value: 'TITLE', label: 'Title' },
               { value: 'CLIENT', label: 'Client / party' },
               { value: 'STATUS', label: 'Status / stage' },
@@ -199,13 +203,17 @@ export default function AdminCasesPage() {
         <DataTable
           data={filteredCases}
           mobileTitleKey='title'
-          mobileSubtitleKey='case_number'
           fitToContainer
           emptyMessage='No cases found.'
           columns={[
           {
             key: 'case_number',
-            label: 'Case No',
+            label: 'Internal Matter Number',
+          },
+          {
+            key: 'official_court_case_number',
+            label: 'Official Court Case Number',
+            render: (value, row) => row.court_proceeding?.official_court_case_number || value || 'Not filed / not recorded',
           },
           {
             key: 'title',

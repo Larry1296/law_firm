@@ -173,14 +173,14 @@ class VirtualCourtroomTests(TestCase):
         self.api.force_authenticate(user=self.client_user)
         client_today = self.api.get(reverse("virtual-courtroom-today"))
         self.assertEqual(client_today.status_code, 200, client_today.data)
-        self.assertEqual(client_today.data["events"][0]["virtual_courtroom_url"], "https://court.example.test/live")
+        self.assertNotIn("virtual_courtroom_url", client_today.data["events"][0])
 
         self.api.force_authenticate(user=self.other_lawyer_user)
         other_today = self.api.get(reverse("virtual-courtroom-today"))
         self.assertEqual(other_today.status_code, 200, other_today.data)
         self.assertEqual(other_today.data["events"], [])
 
-    def test_secretary_can_update_assigned_case_courtroom_link(self):
+    def test_secretary_cannot_administer_assigned_case_courtroom_link(self):
         event = CaseEvent.objects.create(
             case=self.case,
             event_type=CaseEvent.EventType.MENTION,
@@ -201,12 +201,11 @@ class VirtualCourtroomTests(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data["event"]["virtual_courtroom_url"], "https://court.example.test/mention")
+        self.assertEqual(response.status_code, 403, response.data)
         self.assertEqual(
             Notification.objects.filter(
                 notification_type=Notification.NotificationType.COURTROOM_LINK,
                 case=self.case,
             ).count(),
-            3,
+            0,
         )

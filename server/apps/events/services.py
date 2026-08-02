@@ -555,6 +555,9 @@ class EventService:
         case_id = validated_data.pop("case_id")
         case = cls.scoped_cases(user).get(id=case_id)
         cls.ensure_can_manage(user, case)
+        courtroom_fields = {"virtual_meeting_url", "virtual_access_instructions", "virtual_courtroom_url", "virtual_courtroom_available_from", "virtual_courtroom_available_until", "is_virtual_courtroom_enabled"}
+        if any(validated_data.get(field) for field in courtroom_fields) and not cls.is_admin_for_firm(user, case.firm):
+            raise PermissionError("Only the firm administrator may configure courtroom access.")
         if validated_data.get("event_type") in cls.COURT_EVENT_TYPES:
             validated_data.setdefault(
                 "hearing_mode",
@@ -593,6 +596,9 @@ class EventService:
         notify_participants = validated_data.pop("notify_participants", True)
         event = cls.scoped_events(user).select_for_update(of=("self",)).get(id=event_id)
         cls.ensure_can_manage(user, event.case)
+        courtroom_fields = {"virtual_meeting_url", "virtual_access_instructions", "virtual_courtroom_url", "virtual_courtroom_available_from", "virtual_courtroom_available_until", "is_virtual_courtroom_enabled"}
+        if courtroom_fields.intersection(validated_data) and not cls.is_admin_for_firm(user, event.case.firm):
+            raise PermissionError("Only the firm administrator may configure courtroom access.")
         for field, value in validated_data.items():
             setattr(event, field, value)
         event.save()
