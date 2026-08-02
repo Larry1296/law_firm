@@ -95,11 +95,11 @@ export default function Select3D({
   };
 
   return (
-    <div ref={wrapperRef} data-form-field className={`relative w-full mb-8 ${wrapperClassName}`}>
+    <div ref={wrapperRef} data-form-field className={`relative w-full space-y-1.5 ${wrapperClassName}`}>
       {label && (
         <label
           htmlFor={name}
-          className={`block pb-1 text-base italic font-bold tracking-wide transition-colors ${error ? 'text-red-600 dark:text-red-400' : 'text-[color:var(--text-muted)]'}`}
+          className={`block text-sm font-semibold leading-5 transition-colors ${error ? 'text-error dark:text-red-400' : 'text-text-primary-light dark:text-text-primary-dark'}`}
         >
           {label}{required ? ' *' : ''}
         </label>
@@ -118,11 +118,11 @@ export default function Select3D({
         }}
         onBlur={props.onBlur}
         className={`
-          flex h-12 min-h-12 w-full items-center justify-between rounded-none border-0 border-b
-          bg-transparent px-0 py-0 text-left text-text-primary-light transition-colors
+          flex min-h-11 w-full items-center justify-between rounded-lg border
+          bg-white px-3.5 py-2.5 text-left text-sm text-text-primary-light transition
           ${error ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-400' : 'border-border-light dark:border-border-dark'}
-          dark:bg-transparent dark:text-text-primary-dark
-          focus:outline-none focus:border-brand-primary
+          dark:bg-slate-950/35 dark:text-text-primary-dark
+          focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20
           disabled:cursor-not-allowed disabled:opacity-60
           ${className}
         `}

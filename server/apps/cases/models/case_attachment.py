@@ -6,6 +6,12 @@ from apps.common.models.timestamped_model import TimestampedModel
 
 
 class CaseAttachment(TimestampedModel):
+    class PhysicalCopyType(models.TextChoices):
+        ORIGINAL = "ORIGINAL", "Original"
+        OFFICE_COPY = "OFFICE_COPY", "Office Copy"
+        CERTIFIED_COPY = "CERTIFIED_COPY", "Certified Copy"
+        COURT_STAMPED_COPY = "COURT_STAMPED_COPY", "Court-stamped Copy"
+        PHOTOCOPY = "PHOTOCOPY", "Photocopy"
     class AttachmentType(models.TextChoices):
         PLEADING = "PLEADING", "Pleading"
         AFFIDAVIT = "AFFIDAVIT", "Affidavit"
@@ -33,9 +39,16 @@ class CaseAttachment(TimestampedModel):
     attachment_type = models.CharField(max_length=40, choices=AttachmentType.choices, default=AttachmentType.OTHER)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
-    file = models.FileField(upload_to="case_attachments/")
+    file = models.FileField(upload_to="case_attachments/", blank=True)
     file_name = models.CharField(max_length=255, blank=True, default="")
     mime_type = models.CharField(max_length=100, blank=True, default="")
+    physical_copy_type = models.CharField(
+        max_length=30,
+        choices=PhysicalCopyType.choices,
+        default=PhysicalCopyType.OFFICE_COPY,
+    )
+    physical_storage_location = models.CharField(max_length=255, blank=True, default="")
+    document_date = models.DateField(null=True, blank=True)
     uploaded_by = models.ForeignKey(
         "users.User",
         on_delete=models.SET_NULL,

@@ -6,7 +6,7 @@ from django.urls import Resolver404, resolve, reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.cases.models import Case, CaseActivity, CaseAttachment, CaseEvent
+from apps.cases.models import Case, CaseActivity, CaseAttachment, CaseEvent, CaseTask
 from apps.clients.models import (
     Client, ClientDocument, ClientDocumentCustodyMovement,
     ClientDocumentRegisterRemoval, ClientRepresentative,
@@ -324,6 +324,15 @@ class CaseApiTests(TestCase):
             "case_id": str(matter.id), "document_id": str(document.id), "purpose": "EVIDENCE",
         })
         self.assertTrue(MatterDocumentReference.objects.filter(case=matter, document=document).exists())
+        searched_workspace = LawyerDocumentService.workspace(
+            self.lawyer.user,
+            {"case_id": str(matter.id), "q": "no matching search text"},
+        )
+        self.assertEqual(searched_workspace["documents"], [])
+        self.assertEqual(
+            {item["id"] for item in searched_workspace["referenced_documents"]},
+            {str(document.id)},
+        )
         with self.assertRaises(Exception):
             LawyerDocumentService.reference_document(self.lawyer.user, {
                 "case_id": str(matter.id), "document_id": str(foreign_document.id), "purpose": "EVIDENCE",
@@ -332,11 +341,38 @@ class CaseApiTests(TestCase):
         client_document_count = ClientDocument.objects.count()
         generated = LawyerDocumentService.create_matter_document(self.lawyer.user, {
             "case_id": str(matter.id), "title": "Demand Letter", "attachment_type": "CORRESPONDENCE",
-            "file": SimpleUploadedFile("demand.pdf", b"%PDF-1.4 demand", content_type="application/pdf"),
+            "physical_copy_type": "OFFICE_COPY",
+            "physical_storage_location": f"Active Matters / {matter.case_number} / Correspondence / Item 1",
         })
         self.assertTrue(generated["document_reference"].endswith("/D001"))
         self.assertTrue(CaseAttachment.objects.filter(case=matter, title="Demand Letter").exists())
+        matter_document = CaseAttachment.objects.get(case=matter, title="Demand Letter")
+        self.assertFalse(matter_document.file)
+        self.assertEqual(matter_document.physical_copy_type, CaseAttachment.PhysicalCopyType.OFFICE_COPY)
         self.assertEqual(ClientDocument.objects.count(), client_document_count)
+
+    def test_secretary_matter_workspace_lists_all_physical_client_documents_before_reference(self):
+        self.client.kyc_drawer_reference = "KYC-2026-039"
+        self.client.save(update_fields=["kyc_drawer_reference", "updated_at"])
+        document = ClientDocument.objects.create(
+            client=self.client, firm=self.firm, reference="KYC-2026-039/D1",
+            document_type="CONTRACT", subtype="CONTRACT", title="Supply Agreement",
+            physical_copy_retained=True, physical_storage_location="Cabinet A/Drawer 1",
+        )
+        matter = Case.objects.create(
+            firm=self.firm, client=self.client, created_by=self.admin,
+            case_number="MAT-2026-00991", title="Unpaid supply invoice",
+            case_type=Case.CaseType.CIVIL, court_type=Case.CourtType.HIGH_COURT,
+            assigned_lawyer=self.lawyer, assigned_secretary=self.secretary,
+        )
+
+        workspace = SecretaryDocumentService.workspace(
+            self.secretary.user, {"case_id": str(matter.id)}
+        )
+
+        self.assertEqual(workspace["selected_client_id"], str(self.client.id))
+        self.assertEqual({item["id"] for item in workspace["documents"]}, {str(document.id)})
+        self.assertFalse(MatterDocumentReference.objects.filter(case=matter).exists())
 
     def test_entity_identity_document_belongs_to_authorised_representative(self):
         entity = Client.objects.create(
@@ -715,3 +751,28 @@ class CaseApiTests(TestCase):
                 read_at__isnull=True,
             ).exists()
         )
+
+    def test_admin_creates_internal_task_for_assigned_advocate(self):
+        response = self.client_api.post(reverse("case-create"), self.payload(), format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        created = Case.objects.get(id=response.data["data"]["id"])
+
+        task_response = self.client_api.post(
+            reverse("case-task-list-create", kwargs={"case_id": created.id}),
+            {
+                "title": "Review debt-recovery supporting records",
+                "description": "Review the agreement, invoice, delivery acknowledgment and reminders.",
+                "task_type": CaseTask.TaskType.DOCUMENT_PREPARATION,
+                "priority": CaseTask.Priority.HIGH,
+                "due_at": "2026-08-03T17:00:00+03:00",
+                "is_client_visible": False,
+            },
+            format="json",
+        )
+
+        self.assertEqual(task_response.status_code, 201, task_response.data)
+        task = CaseTask.objects.get(id=task_response.data["task"]["id"])
+        self.assertEqual(task.case, created)
+        self.assertEqual(task.assigned_to, created.assigned_lawyer.user)
+        self.assertEqual(task.priority, CaseTask.Priority.HIGH)
+        self.assertFalse(task.is_client_visible)

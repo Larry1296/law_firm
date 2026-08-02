@@ -57,12 +57,12 @@ export default function FloatingInput({
   const titleCaseOnBlur = shouldTitleCaseInput({ name, type, format });
 
   return (
-    <div data-form-field className={`w-full mb-8 ${className}`}>
-      <div className='min-h-[1.75rem]'>
+    <div data-form-field className={`w-full space-y-1.5 ${className}`}>
+      <div>
         {showTopLabel && (
           <label
             htmlFor={name}
-            className={`block pb-1 text-base italic font-bold tracking-wide transition-colors ${error ? 'text-red-600 dark:text-red-400' : 'text-[color:var(--text-muted)]'}`}
+            className={`block text-sm font-semibold leading-5 transition-colors ${error ? 'text-error dark:text-red-400' : 'text-text-primary-light dark:text-text-primary-dark'}`}
           >
             {label}{props.required ? ' *' : ''}
           </label>
@@ -72,9 +72,9 @@ export default function FloatingInput({
       {/* INPUT WRAPPER */}
       <div
         className={`
-          relative w-full border-0 border-b transition-colors duration-200
-          bg-transparent ${error ? 'border-red-600' : 'border-[color:var(--border)]'}
-          ${focused && !error ? 'border-[color:var(--brand-primary)]' : ''}
+          relative w-full rounded-lg border transition duration-150
+          bg-white dark:bg-slate-950/35 ${error ? 'border-error ring-2 ring-error/20' : 'border-border-light dark:border-border-dark'}
+          ${focused && !error ? 'border-brand-primary ring-2 ring-brand-primary/20' : ''}
           ${disabled ? 'opacity-60 cursor-not-allowed' : ''}
         `}
       >
@@ -119,7 +119,7 @@ export default function FloatingInput({
           step={isNumber ? props.step ?? 'any' : props.step}
           {...props}
           className={`
-            floating-input-field w-full rounded-none bg-transparent px-0 py-3 outline-none
+            floating-input-field min-h-11 w-full rounded-lg bg-transparent px-3.5 py-2.5 text-sm outline-none
             text-[color:var(--text-primary)] placeholder:font-normal placeholder:text-[color:var(--text-muted)] placeholder:opacity-70
             dark:text-slate-100 dark:placeholder:text-slate-400 dark:[color-scheme:dark]
             disabled:cursor-not-allowed aria-[invalid=true]:placeholder:text-red-500

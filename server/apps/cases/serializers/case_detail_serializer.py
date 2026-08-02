@@ -102,6 +102,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "national_id": client.national_id,
             "client_type": client.client_type,
             "access_type": client.access_type,
+            "portal_access_exists": bool(client.user_id and client.user.is_active),
             "lifecycle_status": client.lifecycle_status,
             "kyc_reference": client.kyc_drawer_reference,
             "kyc_cabinet_location": client.kyc_cabinet_location,

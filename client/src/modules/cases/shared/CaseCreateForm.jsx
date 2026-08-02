@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Swal from '@/core/utils/themedSwal';
 
 import Card from '@/components/ui/Card';
-import Button3D from '@/components/ui/Button3D';
+import { FormButton as Button3D } from '@/components/forms';
 import ElasticTextInput from '@/components/ui/ElasticTextInput';
 import FloatingInput from '@/components/ui/FloatingInput';
 import Select3D from '@/components/ui/Select3D';

@@ -17,9 +17,10 @@ const lawyerDocumentsService = {
     return data;
   },
   async createMatterDocument(payload) {
-    const body = new FormData();
-    Object.entries({ ...payload, action: 'matter_document' }).forEach(([key, value]) => body.append(key, value));
-    const { data } = await axiosInstance.post('/staff/lawyer/documents/', body);
+    const { data } = await axiosInstance.post('/staff/lawyer/documents/', {
+      ...payload,
+      action: 'matter_document',
+    });
     return data;
   },
 };

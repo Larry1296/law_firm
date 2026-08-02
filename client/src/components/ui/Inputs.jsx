@@ -36,11 +36,11 @@ export default function Input({
   const titleCaseOnBlur = shouldTitleCaseInput({ name, type, format });
 
   return (
-    <div data-form-field className='space-y-1'>
+    <div data-form-field className='space-y-1.5'>
       {label && (
         <label
           htmlFor={name}
-          className={`block text-base italic font-bold tracking-wide ${error ? 'text-red-600 dark:text-red-400' : 'text-[color:var(--text-muted)]'}`}
+          className={`block text-sm font-semibold leading-5 ${error ? 'text-error dark:text-red-400' : 'text-text-primary-light dark:text-text-primary-dark'}`}
         >
           {label}
         </label>
@@ -70,12 +70,9 @@ export default function Input({
         aria-describedby={error ? `${name}-error` : undefined}
         className={`
           w-full
-          px-0
-          py-3
-          rounded-none
-          border-0 border-b
-          bg-transparent
-          dark:bg-transparent
+          min-h-11 px-3.5 py-2.5
+          rounded-lg border
+          bg-white dark:bg-slate-950/35
           ${error ? 'border-red-600 placeholder:text-red-500' : 'border-border-light dark:border-border-dark'}
           text-[color:var(--text-primary)]
           placeholder:text-[color:var(--text-muted)]
@@ -83,7 +80,7 @@ export default function Input({
           duration-200
 
           focus:outline-none
-          focus:border-brand-primary
+          focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20
 
           disabled:opacity-60
           disabled:cursor-not-allowed

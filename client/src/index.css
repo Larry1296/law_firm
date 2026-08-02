@@ -21,41 +21,19 @@
 }
 
 @layer components {
-  form input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
-  form select,
-  form textarea {
-    border-width: 0 0 1px !important;
-    border-radius: 0 !important;
-    background-color: transparent !important;
-    box-shadow: none !important;
-  }
-
-  form input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
-  form select:focus,
-  form textarea:focus {
-    border-bottom-color: var(--brand-primary) !important;
-    box-shadow: none !important;
-    outline: none !important;
-  }
-
   form[data-validation-attempted='true'] input:invalid,
   form[data-validation-attempted='true'] select:invalid,
   form[data-validation-attempted='true'] textarea:invalid,
   [data-form-field].form-field-invalid > div,
   [data-form-field] [aria-invalid='true'] {
-    border-color: #dc2626 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-  }
-
-  [data-form-field].form-field-invalid > div {
-    border-width: 0 0 1px !important;
+    border-color: #c2413a;
+    box-shadow: 0 0 0 2px rgba(194, 65, 58, 0.14);
   }
 
   [data-form-field].form-field-invalid label,
   form[data-validation-attempted='true'] :invalid::placeholder,
   [data-form-field] [aria-invalid='true']::placeholder {
-    color: #dc2626 !important;
+    color: #c2413a;
     opacity: 1;
   }
 

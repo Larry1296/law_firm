@@ -189,7 +189,7 @@ class SecretaryDocumentService:
             raise ValidationError({"request_id": "The document request is not accessible."}) from exc
         if item.status != DocumentRequest.Status.AWAITING_SECRETARY_DISPATCH:
             raise ValidationError({"status": "Only a request awaiting secretary dispatch can be sent."})
-        if not item.client.user_id:
+        if not ChatService.case_supports_client_chat(item.case):
             raise ValidationError({"client": "Enable this client's portal account before sending the request."})
 
         covering_message = (data.get("message") or "").strip()
@@ -266,7 +266,6 @@ class SecretaryDocumentService:
                 documents = DocumentWorkflowService.documents_for_client(
                     selected_client,
                     query=(params.get("q") or "").strip(),
-                    case_id=case_id,
                 )
                 requests = DocumentWorkflowService.requests_for_client(
                     selected_client, case_id=case_id, include_undispatched=True

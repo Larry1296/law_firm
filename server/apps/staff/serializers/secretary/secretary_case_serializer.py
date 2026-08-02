@@ -17,7 +17,8 @@ class SecretaryCaseSerializer(serializers.ModelSerializer):
     def get_client(self, obj):
         return {"id": str(obj.client_id), "full_name": obj.client.full_name,
                 "email": obj.client.email, "phone_number": obj.client.phone_number,
-                "access_type": obj.client.access_type}
+                "access_type": obj.client.access_type,
+                "portal_access_exists": bool(obj.client.user_id and obj.client.user.is_active)}
 
     def get_case_owner(self, obj):
         party = obj.parties.filter(client=obj.client, is_our_client=True).first()

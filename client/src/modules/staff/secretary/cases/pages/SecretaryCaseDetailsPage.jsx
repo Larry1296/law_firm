@@ -33,11 +33,13 @@ export default function SecretaryCaseDetailsPage() {
         <p><strong>Next court date:</strong> {caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not recorded'}</p>
       </div>
     </Card>
-    <SecretaryCaseCommunication
-      caseId={id}
-      caseNumber={caseData.case_number}
-      hasAssignedLawyer={Boolean(caseData.assigned_lawyer?.id)}
-    />
+    {client.access_type === 'PORTAL_ENABLED' && client.portal_access_exists && (
+      <SecretaryCaseCommunication
+        caseId={id}
+        caseNumber={caseData.case_number}
+        hasAssignedLawyer={Boolean(caseData.assigned_lawyer?.id)}
+      />
+    )}
     <SecretaryDocuments caseId={id} compact />
   </div>;
 }

@@ -108,7 +108,9 @@ export default function LawyerCaseDetailsPage() {
   const navigate = useNavigate();
 
   const { data, isLoading, error } = useMyCase(id);
-  const lawyerThreadQuery = useCaseLawyerThread(id);
+  const resolvedCaseData = data?.data || data;
+  const matterChatEnabled = resolvedCaseData?.client?.access_type === 'PORTAL_ENABLED' && Boolean(resolvedCaseData?.client?.portal_access_exists);
+  const lawyerThreadQuery = useCaseLawyerThread(matterChatEnabled ? id : null);
   const lawyerThread = lawyerThreadQuery.data?.thread;
   const lawyerMessagesQuery = useThreadMessages(lawyerThread?.id);
   const sendThreadMessage = useSendThreadMessage();
@@ -187,7 +189,7 @@ export default function LawyerCaseDetailsPage() {
     );
   }
 
-  const caseData = data?.data || data;
+  const caseData = resolvedCaseData;
 
   if (!caseData) {
     return (
@@ -893,7 +895,7 @@ export default function LawyerCaseDetailsPage() {
         </p>
       </Card>
 
-      <ChatWorkspace
+      {matterChatEnabled && <ChatWorkspace
         title='Secretary Coordination'
         subtitle='Case-attached internal chat with the assigned secretary.'
         threads={lawyerThreads}
@@ -909,7 +911,7 @@ export default function LawyerCaseDetailsPage() {
           lawyerMessagesQuery.refetch();
         }}
         emptyThreadMessage='No secretary coordination thread yet.'
-      />
+      />}
 
       <Card className='p-6'>
         <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>

@@ -122,6 +122,7 @@ class CommunicationApiTests(TestCase):
             national_id="755000005",
             client_type=Client.ClientType.INDIVIDUAL,
             lifecycle_status=Client.LifecycleStatus.OFFICIAL_CLIENT,
+            access_type=Client.AccessType.PORTAL_ENABLED,
             kyc_drawer_reference="KYC-2026-039",
         )
         self.case = Case.objects.create(
@@ -646,6 +647,45 @@ class CommunicationApiTests(TestCase):
         self.assertEqual(len(response.data["threads"]), 1)
         self.assertEqual(response.data["threads"][0]["case"]["id"], str(self.case.id))
         self.assertEqual(ChatThread.objects.count(), 1)
+
+    def test_assisted_client_matter_does_not_create_or_expose_client_thread(self):
+        self.client.access_type = Client.AccessType.ASSISTED
+        self.client.save(update_fields=["access_type", "updated_at"])
+        self.api.force_authenticate(user=self.secretary_user)
+
+        detail = self.api.get(
+            reverse("communication-case-thread", kwargs={"case_id": self.case.id})
+        )
+        lawyer_detail = self.api.get(
+            reverse("communication-case-lawyer-thread", kwargs={"case_id": self.case.id})
+        )
+        inbox = self.api.get(reverse("secretary-case-thread-list"))
+
+        self.assertEqual(detail.status_code, 403, detail.data)
+        self.assertEqual(lawyer_detail.status_code, 403, lawyer_detail.data)
+        self.assertIn("assisted client", detail.data["detail"])
+        self.assertEqual(inbox.status_code, 200, inbox.data)
+        self.assertEqual(inbox.data["threads"], [])
+        self.assertFalse(
+            ChatThread.objects.filter(
+                case=self.case,
+                thread_type="CASE_CLIENT",
+            ).exists()
+        )
+
+    def test_revoked_portal_access_hides_an_existing_client_thread(self):
+        self.api.force_authenticate(user=self.secretary_user)
+        created = self.api.get(
+            reverse("communication-case-thread", kwargs={"case_id": self.case.id})
+        )
+        self.assertEqual(created.status_code, 200, created.data)
+        self.client.access_type = Client.AccessType.ASSISTED
+        self.client.save(update_fields=["access_type", "updated_at"])
+
+        inbox = self.api.get(reverse("secretary-case-thread-list"))
+
+        self.assertEqual(inbox.status_code, 200, inbox.data)
+        self.assertEqual(inbox.data["threads"], [])
 
     def test_advocate_document_request_is_routed_through_assigned_lawyer_secretary(self):
         self.case.assigned_secretary = None

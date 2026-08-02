@@ -43,6 +43,11 @@ const adminCasesService = {
     return data;
   },
 
+  async createCaseTask(caseId, payload) {
+    const { data } = await axiosInstance.post(`/cases/${caseId}/tasks/`, payload);
+    return data;
+  },
+
   async reassignLawyer(caseId, membershipId) {
     const { data } = await axiosInstance.patch(
       `/cases/${caseId}/reassign-lawyer/`,

@@ -17,6 +17,7 @@ import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
 import CaseProceedingsWorkflow from '@/modules/cases/shared/CaseProceedingsWorkflow';
 import CreateNextCaseEventPanel from '@/modules/admin/cases/components/CreateNextCaseEventPanel';
 import AssignedAdvocateMatterDesk from '@/modules/admin/cases/components/AssignedAdvocateMatterDesk';
+import MatterTasksCard from '@/modules/admin/cases/components/MatterTasksCard';
 import { COURT_LEVELS, COURT_TYPES } from '@/modules/cases/shared/create/caseCreateOptions';
 
 const PRIORITIES = [
@@ -128,6 +129,8 @@ const AdminCaseDetailsPage = () => {
     isVerifyingJurisdiction,
     createCaseEvent,
     isCreatingCaseEvent,
+    createCaseTask,
+    isCreatingCaseTask,
   } = useCaseDetails(id);
 
   const [selectedLawyer, setSelectedLawyer] = useState('');
@@ -204,7 +207,6 @@ const AdminCaseDetailsPage = () => {
   });
   const [eventErrors, setEventErrors] = useState({});
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
-
   const hasVerifiedJurisdiction = Boolean(caseData?.jurisdiction_verified);
   const hasVerifiedCts = Boolean(caseData?.cts_reference || caseData?.court_proceeding?.cts_reference);
 
@@ -881,23 +883,55 @@ const AdminCaseDetailsPage = () => {
   };
 
   return (
-    <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
+    <div className='mx-auto max-w-[1200px] space-y-6 p-4 md:p-6 animate-fadeIn'>
       <BackLink label='Back to Cases' fallbackPath='/admin/cases' />
 
       <SectionHeading
         title={pageTitle}
-        subtitle='Matter record, court proceeding, parties and activity'
-        align='center'
+        subtitle='Matter record, workbench, proceeding controls and history'
+        align='left'
       />
-      <nav aria-label='Matter administration shortcuts' className='flex flex-wrap justify-center gap-3'>
+      <nav aria-label='Matter page sections' className='sticky top-2 z-20 flex flex-wrap gap-2 rounded-xl border border-border-light bg-surface-light/95 p-2 shadow-sm backdrop-blur dark:border-border-dark dark:bg-surface-dark/95'>
         <a
-          href='#case-assignments'
-          className='rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 motion-reduce:transition-none'
+          href='#matter-tasks'
+          className='rounded-lg bg-brand-primary px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary'
         >
-          Assign lawyer or secretary
+          Priority work
         </a>
+        <a href='#advocate-workspace' className='rounded-lg px-3 py-2 text-sm font-semibold text-text-primary-light hover:bg-slate-100 dark:text-text-primary-dark dark:hover:bg-slate-800'>Documents</a>
+        <a href='#matter-controls' className='rounded-lg px-3 py-2 text-sm font-semibold text-text-primary-light hover:bg-slate-100 dark:text-text-primary-dark dark:hover:bg-slate-800'>Matter controls</a>
+        <a href='#case-assignments' className='rounded-lg px-3 py-2 text-sm font-semibold text-text-primary-light hover:bg-slate-100 dark:text-text-primary-dark dark:hover:bg-slate-800'>Team</a>
+        <a href='#matter-history' className='rounded-lg px-3 py-2 text-sm font-semibold text-text-primary-light hover:bg-slate-100 dark:text-text-primary-dark dark:hover:bg-slate-800'>History</a>
       </nav>
       <CaseProceedingsWorkflow caseData={caseData} />
+
+      <section aria-labelledby='matter-work-heading' className='space-y-4'>
+        <div className='border-b border-border-light pb-3 dark:border-border-dark'>
+          <p className='text-xs font-semibold uppercase tracking-[0.18em] text-brand-primary'>01 · Act now</p>
+          <h2 id='matter-work-heading' className='mt-1 text-xl font-semibold text-text-primary-light dark:text-text-primary-dark'>Matter workbench</h2>
+          <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>Complete the next legal and coordination work before changing the proceeding stage.</p>
+        </div>
+        <MatterTasksCard
+          caseId={id}
+          tasks={tasks}
+          assignedLawyerName={caseData.assigned_lawyer?.full_name}
+          createTask={createCaseTask}
+          isCreating={isCreatingCaseTask}
+        />
+        {caseData.assigned_lawyer?.email
+          && caseData.assigned_lawyer.email.toLowerCase() === user?.email?.toLowerCase() && (
+            <AssignedAdvocateMatterDesk
+              caseId={id}
+              matterChatEnabled={caseData.client?.access_type === 'PORTAL_ENABLED' && Boolean(caseData.client?.portal_access_exists)}
+            />
+        )}
+      </section>
+
+      <div id='matter-controls' className='scroll-mt-24 border-b border-border-light pb-3 pt-2 dark:border-border-dark'>
+        <p className='text-xs font-semibold uppercase tracking-[0.18em] text-brand-primary'>02 · Matter foundation</p>
+        <h2 className='mt-1 text-xl font-semibold text-text-primary-light dark:text-text-primary-dark'>Matter record and controlled lifecycle</h2>
+        <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>Instructions, conflict clearance, jurisdiction, parties and financial claim.</p>
+      </div>
 
       <Card className='p-6'>
         <div className='mb-5 flex flex-col gap-3 border-b border-border-light pb-5 dark:border-border-dark md:flex-row md:items-start md:justify-between'>
@@ -1666,12 +1700,14 @@ const AdminCaseDetailsPage = () => {
         )}
       </Card>
 
+      <div className='border-b border-border-light pb-3 pt-2 dark:border-border-dark'>
+        <p className='text-xs font-semibold uppercase tracking-[0.18em] text-brand-primary'>03 · Proceeding work</p>
+        <h2 className='mt-1 text-xl font-semibold text-text-primary-light dark:text-text-primary-dark'>Events and next procedural step</h2>
+        <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>Use only the actions permitted by the current court stage.</p>
+      </div>
+
       <CaseProcedurePanels caseData={caseData} />
 
-      {caseData.assigned_lawyer?.email
-        && caseData.assigned_lawyer.email.toLowerCase() === user?.email?.toLowerCase() && (
-          <AssignedAdvocateMatterDesk caseId={id} />
-      )}
             {/* =========================================================
                 CREATE NEXT CASE EVENT (chained from previous event)
             ========================================================= */}
@@ -1680,6 +1716,11 @@ const AdminCaseDetailsPage = () => {
               onCreateEvent={createCaseEvent}
               isCreating={isCreatingCaseEvent}
             />
+
+      <div className='border-b border-border-light pb-3 pt-2 dark:border-border-dark'>
+        <p className='text-xs font-semibold uppercase tracking-[0.18em] text-brand-primary'>04 · Administration</p>
+        <h2 className='mt-1 text-xl font-semibold text-text-primary-light dark:text-text-primary-dark'>Responsibility and matter priority</h2>
+      </div>
 
       <Card className='p-6'>
         <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
@@ -1797,6 +1838,12 @@ const AdminCaseDetailsPage = () => {
           </div>
         </div>
       </Card>
+
+      <div id='matter-history' className='scroll-mt-24 border-b border-border-light pb-3 pt-2 dark:border-border-dark'>
+        <p className='text-xs font-semibold uppercase tracking-[0.18em] text-brand-primary'>05 · Record</p>
+        <h2 className='mt-1 text-xl font-semibold text-text-primary-light dark:text-text-primary-dark'>History, events and audit trail</h2>
+        <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>Completed activity and historical records are kept below active work.</p>
+      </div>
 
       <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
         <StatsCard
@@ -2243,29 +2290,6 @@ const AdminCaseDetailsPage = () => {
         )}
       </Card>
 
-      <Card className='p-6'>
-        <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-          Tasks and Deadlines
-        </h3>
-        {tasks.length === 0 ? (
-          <p className='text-text-muted-light dark:text-text-muted-dark'>
-            No tasks or deadlines recorded.
-          </p>
-        ) : (
-          <div className='space-y-3'>
-            {tasks.map((task, index) => (
-              <div key={task.id || index} className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
-                <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
-                  {task.title || task.action || 'Task'}
-                </p>
-                <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
-                  {task.due_date ? formatDateTime(task.due_date) : 'No due date'}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
     </div>
   );
 };

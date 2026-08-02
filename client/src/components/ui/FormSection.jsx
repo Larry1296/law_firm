@@ -6,10 +6,10 @@ export default function FormSection({
 }) {
   return (
     <section
-      className={`rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-raised)]/35 p-5 shadow-sm md:p-6 ${className}`}
+      className={`rounded-xl border border-border-light bg-surface-light p-5 shadow-soft dark:border-border-dark dark:bg-surface-dark md:p-6 ${className}`}
     >
-      <header className='mb-6 border-b border-[color:var(--border)] pb-4'>
-        <h3 className='text-lg font-semibold tracking-tight text-[color:var(--text-primary)]'>
+      <header className='mb-5 border-b border-border-light pb-3 dark:border-border-dark'>
+        <h3 className='text-base font-bold tracking-tight text-text-primary-light dark:text-text-primary-dark'>
           {title}
         </h3>
         {description && (
@@ -18,7 +18,7 @@ export default function FormSection({
           </p>
         )}
       </header>
-      <div className='space-y-5'>{children}</div>
+      <div className='space-y-4'>{children}</div>
     </section>
   );
 }

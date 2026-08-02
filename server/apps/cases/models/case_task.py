@@ -6,6 +6,12 @@ from apps.common.models.timestamped_model import TimestampedModel
 
 
 class CaseTask(TimestampedModel):
+    class Priority(models.TextChoices):
+        LOW = "LOW", "Low"
+        MEDIUM = "MEDIUM", "Medium"
+        HIGH = "HIGH", "High"
+        URGENT = "URGENT", "Urgent"
+
     class TaskType(models.TextChoices):
         LIMITATION = "LIMITATION", "Limitation Deadline"
         FILING_DEADLINE = "FILING_DEADLINE", "Filing Deadline"
@@ -33,6 +39,7 @@ class CaseTask(TimestampedModel):
     description = models.TextField(blank=True, default="")
     task_type = models.CharField(max_length=40, choices=TaskType.choices, default=TaskType.OTHER)
     status = models.CharField(max_length=30, choices=TaskStatus.choices, default=TaskStatus.PENDING)
+    priority = models.CharField(max_length=20, choices=Priority.choices, default=Priority.MEDIUM)
     due_at = models.DateTimeField(null=True, blank=True)
     reminder_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)

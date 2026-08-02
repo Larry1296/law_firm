@@ -10,6 +10,7 @@ from .case_list_create_view import CaseListCreateView
 from .case_jurisdiction_view import CaseJurisdictionVerificationView
 from .case_lifecycle_transition_view import CaseLifecycleTransitionView
 from .case_status_view import CaseStatusView
+from .case_task_view import CaseTaskListCreateView
 from .proceedings_view import AllowedNextEventsView, RecordProceedingOutcomeView
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     "CaseReassignLawyerView",
     "CaseReassignSecretaryView",
     "CaseStatusView",
+    "CaseTaskListCreateView",
     "VirtualCourtroomLinkUpdateView",
     "VirtualCourtroomTodayView",
     "AllowedNextEventsView",

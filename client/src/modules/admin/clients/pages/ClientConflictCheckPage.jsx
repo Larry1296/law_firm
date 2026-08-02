@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import BackLink from '@/components/ui/BackLink';
-import Button3D from '@/components/ui/Button3D';
+import { FormButton as Button3D } from '@/components/forms';
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
 import Select3D from '@/components/ui/Select3D';

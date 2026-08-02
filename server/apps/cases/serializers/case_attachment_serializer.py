@@ -6,6 +6,7 @@ from apps.cases.models import CaseAttachment
 class CaseAttachmentSerializer(serializers.ModelSerializer):
     attachment_type_label = serializers.CharField(source="get_attachment_type_display", read_only=True)
     uploaded_by_name = serializers.CharField(source="uploaded_by.full_name", read_only=True)
+    physical_copy_type_label = serializers.CharField(source="get_physical_copy_type_display", read_only=True)
 
     class Meta:
         model = CaseAttachment
@@ -20,6 +21,10 @@ class CaseAttachmentSerializer(serializers.ModelSerializer):
             "file",
             "file_name",
             "mime_type",
+            "physical_copy_type",
+            "physical_copy_type_label",
+            "physical_storage_location",
+            "document_date",
             "uploaded_by_name",
             "is_client_visible",
             "is_confidential",

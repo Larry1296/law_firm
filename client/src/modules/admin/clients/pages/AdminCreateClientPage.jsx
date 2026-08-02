@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import Swal from '@/core/utils/themedSwal';
 
-import Card from '@/components/ui/Card';
-import Button3D from '@/components/ui/Button3D';
 import SectionHeading from '@/components/ui/SectionHeading';
 import FloatingInput from '@/components/ui/FloatingInput';
 import Select3D from '@/components/ui/Select3D';
@@ -24,6 +22,7 @@ import {
 } from '@/modules/admin/clients/utils/legalEntityClientPayload';
 import ClientCreationSuccessPanel from '@/modules/admin/clients/components/ClientCreationSuccessPanel';
 import KenyanAddressFields from '@/modules/clients/shared/KenyanAddressFields';
+import { FormActions, FormAlert, FormCard, FormPage, FormValidationSummary } from '@/components/forms';
 
 export default function AdminCreateClientPage() {
   const navigate = useNavigate();
@@ -1252,7 +1251,7 @@ export default function AdminCreateClientPage() {
       ];
 
   return (
-    <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
+    <FormPage className='animate-fadeIn'>
       <SectionHeading
         title='Create Client'
         subtitle={individualSubtitle}
@@ -1276,13 +1275,12 @@ export default function AdminCreateClientPage() {
       )}
 
 		      {!successData && (
-      <Card className='p-6'>
-        <form onSubmit={handleSubmit} className='space-y-6'>
+      <FormCard>
+        <form onSubmit={handleSubmit} className='space-y-7' noValidate={false}>
           {generalError && (
-            <div className='rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200'>
-              {generalError}
-            </div>
+            <FormAlert title='The client could not be created'>{generalError}</FormAlert>
           )}
+          <FormValidationSummary errors={fieldErrors} />
 	          {isIndividual && (
 	            <section className='space-y-4'>
 	              <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
@@ -2898,24 +2896,15 @@ export default function AdminCreateClientPage() {
 		          )}
 
 
-          <div className='flex gap-3 pt-4'>
-            <Button3D type='submit' variant='primary' disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Client'}
-            </Button3D>
-
-            <Button3D
-              type='button'
-              variant='secondary'
-              onClick={() =>
-                navigate(isSecretaryCreate ? '/secretary/clients' : '/admin/clients')
-              }
-            >
-              Cancel
-            </Button3D>
-          </div>
+          <FormActions
+            sticky
+            primaryLabel='Create Client'
+            primaryProps={{ loading: isSubmitting, loadingText: 'Creating…' }}
+            onSecondary={() => navigate(isSecretaryCreate ? '/secretary/clients' : '/admin/clients')}
+          />
         </form>
-      </Card>
+      </FormCard>
       )}
-    </div>
+    </FormPage>
   );
 }

@@ -4,6 +4,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from apps.cases.models import Case
+from apps.clients.models import Client
 from apps.common.choices import FirmRole, UserRole
 from apps.communications.choices import ChatMessageType, ChatThreadType
 from apps.communications.models import ChatMessage, ChatThread, ChatThreadParticipant
@@ -138,6 +139,16 @@ class CommunicationAccessService:
 
 class ChatService:
     @staticmethod
+    def case_supports_client_chat(case):
+        """Matter chat exists only when the client has an active portal identity."""
+        return bool(
+            case.client_id
+            and case.client.access_type == Client.AccessType.PORTAL_ENABLED
+            and case.client.user_id
+            and case.client.user.is_active
+        )
+
+    @staticmethod
     def _thread_queryset():
         return (
             ChatThread.objects.select_related(
@@ -189,6 +200,18 @@ class ChatService:
 
         if thread_type:
             queryset = queryset.filter(thread_type=thread_type)
+
+        # Never expose legacy client threads after portal access is absent or revoked.
+        queryset = queryset.exclude(
+            case__isnull=False,
+            case__client__access_type__in=[
+                Client.AccessType.ASSISTED,
+                Client.AccessType.ASSISTED_CLIENT,
+            ],
+        ).exclude(
+            case__isnull=False,
+            case__client__user__isnull=True,
+        )
 
         return queryset.distinct()
 
@@ -390,6 +413,10 @@ class ChatService:
     @transaction.atomic
     def get_or_create_case_thread(*, user, case_id):
         case = ChatService._case_queryset_for_user(user).get(id=case_id)
+        if not ChatService.case_supports_client_chat(case):
+            raise PermissionDenied(
+                "Client communication is unavailable because this matter belongs to an assisted client without portal access."
+            )
         thread_key = f"case_client:{case.id}"
         subject = f"{case.case_number} - {case.title}"
 
@@ -456,6 +483,11 @@ class ChatService:
             raise PermissionDenied("Only the assigned secretary or lawyer can open this case chat.")
 
         case = case_queryset.get(id=case_id)
+
+        if not ChatService.case_supports_client_chat(case):
+            raise PermissionDenied(
+                "Matter chat is unavailable because this matter belongs to an assisted client without portal access."
+            )
 
         if case.assigned_lawyer is None or case.assigned_lawyer.user is None:
             raise PermissionDenied("This case has no assigned lawyer chat target.")

@@ -5,7 +5,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from apps.documents.models import DocumentRequest, MatterDocumentReference
 from apps.documents.services.workflow_service import DocumentWorkflowService
 from apps.notifications.services import NotificationService
-from apps.cases.models import CaseAttachment, CaseAttachmentReferenceSequence, CaseAttachmentVersion
+from apps.cases.models import CaseAttachment, CaseAttachmentReferenceSequence
 
 
 class LawyerDocumentService:
@@ -29,8 +29,24 @@ class LawyerDocumentService:
         cases = DocumentWorkflowService.accessible_cases_for_lawyer(user)
         documents, requests = DocumentWorkflowService.staff_workspace(cases, params)
         scoped_cases = cases.filter(id=params.get("case_id")) if params.get("case_id") else cases
+        referenced_documents = []
+        if params.get("case_id"):
+            referenced_documents = [
+                reference.document
+                for reference in MatterDocumentReference.objects.filter(
+                    case__in=scoped_cases,
+                    is_active=True,
+                    document__archived_at__isnull=True,
+                ).select_related("document", "document__client").prefetch_related(
+                    "document__matter_references__case",
+                    "document__receipt_items__receipt",
+                ).order_by("created_at")
+            ]
         return {
             "documents": [DocumentWorkflowService.serialize_document(item) for item in documents],
+            "referenced_documents": [
+                DocumentWorkflowService.serialize_document(item) for item in referenced_documents
+            ],
             "requests": [DocumentWorkflowService.serialize_request(item) for item in requests],
             "cases": [{"id": str(item.id), "case_number": item.case_number, "title": item.title,
                        "client_id": str(item.client_id), "client_name": item.client.full_name,
@@ -42,6 +58,10 @@ class LawyerDocumentService:
                 "attachment_type": item.attachment_type,
                 "attachment_type_label": item.get_attachment_type_display(),
                 "file_name": item.file_name,
+                "physical_copy_type": item.physical_copy_type,
+                "physical_copy_type_label": item.get_physical_copy_type_display(),
+                "physical_storage_location": item.physical_storage_location,
+                "document_date": item.document_date,
                 "is_client_visible": item.is_client_visible,
                 "version_count": item.versions.count(),
                 "created_at": item.created_at,
@@ -95,11 +115,12 @@ class LawyerDocumentService:
             case = cases.select_for_update().get(id=data.get("case_id"))
         except Exception as exc:
             raise ValidationError({"case_id": "Select one of your assigned matters."}) from exc
-        upload = data.get("file")
-        DocumentWorkflowService._validate_file(upload)
         title = (data.get("title") or "").strip()
         if not title:
             raise ValidationError({"title": "Record the matter document title."})
+        physical_storage_location = (data.get("physical_storage_location") or "").strip()
+        if not physical_storage_location:
+            raise ValidationError({"physical_storage_location": "Record where the physical matter document is filed."})
         sequence, _ = CaseAttachmentReferenceSequence.objects.get_or_create(case=case)
         sequence = CaseAttachmentReferenceSequence.objects.select_for_update().get(case=case)
         while True:
@@ -112,22 +133,17 @@ class LawyerDocumentService:
             case=case, document_reference=reference,
             attachment_type=data.get("attachment_type") or CaseAttachment.AttachmentType.OTHER,
             title=title, description=(data.get("description") or "").strip(),
-            file=upload, file_name=upload.name,
-            mime_type=getattr(upload, "content_type", "") or "application/octet-stream",
+            physical_copy_type=data.get("physical_copy_type") or CaseAttachment.PhysicalCopyType.OFFICE_COPY,
+            physical_storage_location=physical_storage_location,
+            document_date=data.get("document_date") or None,
             uploaded_by=user,
             is_client_visible=str(data.get("is_client_visible", "")).lower() in {"true", "1", "yes", "on"},
             is_confidential=str(data.get("is_confidential", "true")).lower() in {"true", "1", "yes", "on"},
         )
-        CaseAttachmentVersion.objects.create(
-            attachment=attachment, version_number=1, file=upload,
-            file_name=upload.name, mime_type=attachment.mime_type,
-            file_size=getattr(upload, "size", None),
-            change_notes="Initial matter-document version.", created_by=user,
-        )
         return {
             "id": str(attachment.id), "document_reference": attachment.document_reference,
             "title": attachment.title, "attachment_type": attachment.attachment_type,
-            "version_number": 1,
+            "physical_storage_location": attachment.physical_storage_location,
         }
 
     @staticmethod

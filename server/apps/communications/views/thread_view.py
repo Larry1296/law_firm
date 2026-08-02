@@ -215,6 +215,8 @@ class SecretaryCaseThreadListView(APIView):
 
         try:
             for case in ChatService._case_queryset_for_user(request.user):
+                if not ChatService.case_supports_client_chat(case):
+                    continue
                 ChatService.get_or_create_case_thread(
                     user=request.user,
                     case_id=case.id,

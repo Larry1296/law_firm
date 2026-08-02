@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Card from '@/components/ui/Card';
-import Button3D from '@/components/ui/Button3D';
+import { FormButton as Button3D } from '@/components/forms';
 import FloatingInput from '@/components/ui/FloatingInput';
 import FormSection from '@/components/ui/FormSection';
 import SectionHeading from '@/components/ui/SectionHeading';
