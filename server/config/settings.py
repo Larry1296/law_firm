@@ -250,7 +250,20 @@ REST_FRAMEWORK = {
     ],
 
     "EXCEPTION_HANDLER": "apps.common.exceptions.custom_exception_handler",
+    "DEFAULT_THROTTLE_RATES": {
+        "knowledge_base_ask": config("KNOWLEDGE_BASE_RATE_LIMIT", default="10/hour"),
+    },
 }
+
+OPENAI_API_KEY = config("OPENAI_API_KEY", default="")
+OPENAI_MODEL = config("OPENAI_MODEL", default="", cast=str)
+KNOWLEDGE_BASE_MAX_CONTEXT_ITEMS = config("KNOWLEDGE_BASE_MAX_CONTEXT_ITEMS", default=4, cast=int)
+KNOWLEDGE_BASE_MIN_RELEVANCE = config("KNOWLEDGE_BASE_MIN_RELEVANCE", default=0.15, cast=float)
+KNOWLEDGE_BASE_REQUEST_TIMEOUT = config("KNOWLEDGE_BASE_REQUEST_TIMEOUT", default=20, cast=int)
+AI_EXTERNAL_RESEARCH_ENABLED = config("AI_EXTERNAL_RESEARCH_ENABLED", default=False, cast=bool)
+AI_CASE_ASSESSMENT_RETENTION_DAYS = config("AI_CASE_ASSESSMENT_RETENTION_DAYS", default=365, cast=int)
+AI_AUTOMATIC_REASSESSMENT_ENABLED = config("AI_AUTOMATIC_REASSESSMENT_ENABLED", default=False, cast=bool)
+AI_KNOWLEDGE_INDEX_MODE = config("AI_KNOWLEDGE_INDEX_MODE", default="database")
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",

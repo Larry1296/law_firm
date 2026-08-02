@@ -917,3 +917,10 @@ html:not(.dark) .public-home #home [class*="bg-black/65"] {
 html:not(.dark) .public-home #home [class*="via-black"] {
   --tw-gradient-via: rgba(18, 56, 90, 0.18) var(--tw-gradient-via-position) !important;
 }
+@media (prefers-reduced-motion: reduce) {
+  .floating-ai-trigger,
+  .floating-ai-trigger * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

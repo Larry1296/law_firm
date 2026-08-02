@@ -1,189 +1,203 @@
-import { useState, useRef, useEffect } from 'react';
-import Button3D from '@/components/ui/Button3D';
+import { useEffect, useId, useRef, useState } from 'react';
+import { ExternalLink, MessageCircle, RefreshCw, Send, X } from 'lucide-react';
 
-const sectionPrompts = {
-  home: 'Have any legal or firm-related question?',
-  about: 'Want to learn more about our firm?',
-  services: 'Need help choosing the right legal service?',
-  'how-it-works': 'Want to understand how our process works?',
-  features: 'Curious how our legal platform supports you?',
-  cta: 'Ready to take the next step with us?',
-  testimonials: 'Want to hear more from our clients?',
-  contact: 'Need help reaching the right legal team?',
+import Button3D from '@/components/ui/Button3D';
+import { askKnowledgeBase, getKnowledgeBaseCategories } from './knowledgeBaseService';
+
+const SECTION_COPY = {
+  home: {
+    launcher: 'Ask a Kenyan legal question',
+    welcome: 'Ask about Kenyan law or the firm. I use approved information and show the sources I rely on.',
+  },
+  about: {
+    launcher: 'Ask about the firm',
+    welcome: 'Would you like to learn about the firm or its consultation process? I use only approved public firm information.',
+  },
+  practice_areas: {
+    launcher: 'Ask about our practice areas',
+    welcome: 'Would you like to know more about one of the firm’s published practice areas?',
+  },
+  consultation: {
+    launcher: 'Need to speak to an advocate?',
+    welcome: 'I can explain the firm’s approved consultation process or help you find a way to speak to an advocate.',
+  },
+  contact: {
+    launcher: 'Need to speak to an advocate?',
+    welcome: 'I can help with the firm’s approved contact and consultation information.',
+  },
 };
 
-const sectionIds = Object.keys(sectionPrompts);
+const GENERIC_SUGGESTIONS = [
+  'What legal services does the firm provide?',
+  'What does access to justice mean in Kenya?',
+  'What principles apply to personal data in Kenya?',
+];
 
-export default function FloatingAIChat() {
+function welcomeMessage(section) {
+  return { role: 'assistant', content: SECTION_COPY[section]?.welcome ?? SECTION_COPY.home.welcome, sources: [] };
+}
+
+function errorMessage(error) {
+  if (error?.code === 'ECONNABORTED') return 'The request timed out. Please try again.';
+  if (error?.response?.status === 429) return 'Too many questions have been sent from this connection. Please try again later.';
+  if (error?.response?.status >= 500) return 'The assistant is temporarily unavailable. Please try again later or contact the firm.';
+  return error?.response?.data?.message || 'I could not connect to the assistant. Check your connection and try again.';
+}
+
+export default function FloatingAIChat({ activeSection = 'home' }) {
+  const safeSection = Object.hasOwn(SECTION_COPY, activeSection) ? activeSection : 'home';
+  const titleId = useId();
   const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState('');
-  const [activeSection, setActiveSection] = useState('home');
-  const chatRef = useRef(null);
+  const [draft, setDraft] = useState('');
+  const [messages, setMessages] = useState([welcomeMessage('home')]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const abortRef = useRef(null);
+  const textareaRef = useRef(null);
+  const messagesRef = useRef(null);
 
-  // Close on outside click
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (chatRef.current && !chatRef.current.contains(event.target)) {
-        setOpen(false);
+    if (!open) return undefined;
+    const controller = new AbortController();
+    getKnowledgeBaseCategories(safeSection, controller.signal)
+      .then((items) => setSuggestions(items.filter(Boolean).slice(0, 4)))
+      .catch(() => setSuggestions(GENERIC_SUGGESTIONS));
+    textareaRef.current?.focus();
+    return () => controller.abort();
+  }, [open, safeSection]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+  }, [messages, loading]);
+
+  const resizeInput = () => {
+    const input = textareaRef.current;
+    if (!input) return;
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 120)}px`;
+  };
+
+  const close = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setLoading(false);
+    setOpen(false);
+  };
+
+  const reset = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setLoading(false);
+    setDraft('');
+    setMessages([welcomeMessage(safeSection)]);
+    requestAnimationFrame(() => {
+      resizeInput();
+      textareaRef.current?.focus();
+    });
+  };
+
+  const sendQuestion = async (value = draft) => {
+    const question = value.trim();
+    if (!question || loading) return;
+    const prior = messages
+      .filter((item) => !item.error)
+      .slice(-10)
+      .map(({ role, content }) => ({ role, content }));
+    setMessages((items) => [...items, { role: 'user', content: question }]);
+    setDraft('');
+    setLoading(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const result = await askKnowledgeBase(question, prior, safeSection, controller.signal);
+      if (controller.signal.aborted) return;
+      setMessages((items) => [...items, {
+        role: 'assistant', content: result.answer, sources: result.sources ?? [], needsLawyer: result.needs_lawyer,
+      }]);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setMessages((items) => [...items, { role: 'assistant', content: errorMessage(error), error: true }]);
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setLoading(false);
       }
     }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    const updateActiveSection = () => {
-      let currentSection = 'home';
-
-      sectionIds.forEach((sectionId) => {
-        const section = document.getElementById(sectionId);
-        if (!section) return;
-
-        const rect = section.getBoundingClientRect();
-
-        if (rect.top <= window.innerHeight * 0.45 && rect.bottom >= 160) {
-          currentSection = sectionId;
-        }
-      });
-
-      setActiveSection(currentSection);
-    };
-
-    updateActiveSection();
-    window.addEventListener('scroll', updateActiveSection, { passive: true });
-    window.addEventListener('resize', updateActiveSection);
-
-    return () => {
-      window.removeEventListener('scroll', updateActiveSection);
-      window.removeEventListener('resize', updateActiveSection);
-    };
-  }, []);
-
-  const promptText = sectionPrompts[activeSection] || sectionPrompts.home;
-
-  const sendMessage = () => {
-    if (!message.trim()) return;
-    setMessage('');
   };
 
   const handleKeyDown = (event) => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    sendMessage();
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      sendQuestion();
+    }
   };
 
   return (
-    <div
-      ref={chatRef}
-      className='fixed bottom-6 right-6 z-[9999] flex flex-col items-end'
-    >
-      {/* Chat Panel */}
+    <div className='fixed bottom-4 right-4 z-[9999] flex flex-col items-end sm:bottom-6 sm:right-6'>
       {open && (
-        <div
-          className='
-            w-[340px] sm:w-[380px]
-            h-[420px]
-            mb-3
-            rounded-2xl
-            shadow-strong
-            border
-            border-border-light dark:border-border-dark
-            bg-surface-light dark:bg-surface-dark
-            flex flex-col
-            animate-fadeIn
-            overflow-hidden
-          '
+        <section
+          role='dialog'
+          aria-modal='false'
+          aria-labelledby={titleId}
+          className='mb-3 flex h-[min(680px,calc(100vh-7rem))] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border-light bg-surface-light shadow-strong dark:border-border-dark dark:bg-surface-dark sm:w-[430px]'
         >
-          {/* Header */}
-          <div className='px-4 py-3 border-b border-border-light dark:border-border-dark'>
-            <p className='text-sm font-semibold text-text-primary-light dark:text-text-primary-dark'>
-              Legal Assistant
-            </p>
-            <p className='text-xs text-text-muted-light dark:text-text-muted-dark'>
-              {promptText}
-            </p>
-          </div>
-
-          {/* Messages */}
-          <div className='flex-1 p-3 overflow-y-auto'>
-            <div className='text-sm text-text-muted-light dark:text-text-muted-dark'>
-              Start by typing your question...
+          <header className='flex items-start justify-between gap-3 border-b border-border-light px-4 py-3 dark:border-border-dark'>
+            <div>
+              <h2 id={titleId} className='text-sm font-bold text-text-primary-light dark:text-text-primary-dark'>Kenyan Legal Information Assistant</h2>
+              <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>Verified general information, not legal advice</p>
             </div>
-          </div>
-
-          {/* Input */}
-          <div className='p-3 border-t border-border-light dark:border-border-dark'>
-            <div className='flex items-center gap-2'>
-              <input
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder='Ask your legal question...'
-                autoComplete='on'
-                autoCorrect='on'
-                autoCapitalize='sentences'
-                spellCheck
-                className='
-                  flex-1
-                  px-3 py-2
-                  rounded-md
-                  bg-background-light dark:bg-background-dark
-                  border border-border-light dark:border-border-dark
-                  text-text-primary-light dark:text-text-primary-dark
-                  placeholder:text-text-muted-light dark:placeholder:text-text-muted-dark
-                  focus:outline-none focus:ring-2 focus:ring-success
-                '
-              />
-
-              <button
-                type='button'
-                onClick={sendMessage}
-                disabled={!message.trim()}
-                className='
-                  px-3 py-2
-                  rounded-md
-                  bg-success
-                  text-white
-                  font-semibold
-                  hover:opacity-90
-                  transition
-                  disabled:opacity-50
-                '
-              >
-                Send
-              </button>
+            <div className='flex gap-1'>
+              <button type='button' onClick={reset} aria-label='Start a new conversation' className='rounded-md p-2 text-text-muted-light hover:bg-background-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:text-text-muted-dark dark:hover:bg-background-dark'><RefreshCw size={17} /></button>
+              <button type='button' onClick={close} aria-label='Close assistant' className='rounded-md p-2 text-text-muted-light hover:bg-background-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:text-text-muted-dark dark:hover:bg-background-dark'><X size={18} /></button>
             </div>
+          </header>
+
+          <div ref={messagesRef} aria-live='polite' aria-busy={loading} className='flex-1 space-y-4 overflow-y-auto p-4'>
+            {messages.map((item, index) => (
+              <article key={`${item.role}-${index}`} className={item.role === 'user' ? 'ml-10 rounded-2xl rounded-br-sm bg-brand-primary p-3 text-sm text-white' : `mr-5 rounded-2xl rounded-bl-sm border p-3 text-sm ${item.error ? 'border-red-300 bg-red-50 text-red-800' : 'border-border-light bg-background-light text-text-primary-light dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark'}`}>
+                <p className='whitespace-pre-wrap break-words'>{index === 0 && messages.length === 1 ? SECTION_COPY[safeSection].welcome : item.content}</p>
+                {item.sources?.length > 0 && (
+                  <div className='mt-3 space-y-2 border-t border-border-light pt-2 dark:border-border-dark'>
+                    <p className='text-xs font-bold'>Sources</p>
+                    {item.sources.map((source) => (
+                      <div key={`${source.title}-${source.source_reference}`} className='rounded-lg border border-border-light p-2 text-xs dark:border-border-dark'>
+                        <p className='font-semibold'>{source.title}</p>
+                        <p className='mt-1 text-text-muted-light dark:text-text-muted-dark'>{source.source_name}{source.source_reference ? ` · ${source.source_reference}` : ''}</p>
+                        {source.source_url && <a href={source.source_url} target='_blank' rel='noreferrer' className='mt-1 inline-flex items-center gap-1 text-blue-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:text-blue-300'>Open official source <ExternalLink size={12} /></a>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(item.needsLawyer || (item.role === 'assistant' && index > 0)) && <a href='#contact' onClick={close} className='mt-3 inline-flex rounded-md bg-success px-3 py-2 text-xs font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'>Speak to an advocate</a>}
+              </article>
+            ))}
+            {messages.length === 1 && <div aria-label='Suggested questions' className='flex flex-wrap gap-2'>{(suggestions.length ? suggestions : GENERIC_SUGGESTIONS).map((suggestion) => <button key={suggestion} type='button' onClick={() => sendQuestion(suggestion)} className='rounded-full border border-border-light px-3 py-2 text-left text-xs text-text-primary-light hover:bg-background-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:border-border-dark dark:text-text-primary-dark dark:hover:bg-background-dark'>{suggestion}</button>)}</div>}
+            {loading && <div role='status' className='mr-20 rounded-2xl bg-background-light p-3 text-sm text-text-muted-light dark:bg-background-dark dark:text-text-muted-dark'>Checking verified sources…</div>}
           </div>
-        </div>
+
+          <div className='border-t border-border-light p-3 dark:border-border-dark'>
+            <p className='mb-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300'>Do not submit confidential, privileged, or highly sensitive information.</p>
+            <div className='flex items-end gap-2'>
+              <label htmlFor={`${titleId}-input`} className='sr-only'>Ask a question</label>
+              <textarea id={`${titleId}-input`} ref={textareaRef} rows={1} maxLength={1200} value={draft} onChange={(event) => { setDraft(event.target.value); resizeInput(); }} onKeyDown={handleKeyDown} disabled={loading} placeholder='Ask about Kenyan law or the firm…' className='max-h-[120px] min-h-10 flex-1 resize-none rounded-lg border border-border-light bg-background-light px-3 py-2 text-sm text-text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark' />
+              <button type='button' onClick={() => sendQuestion()} disabled={!draft.trim() || loading} aria-label='Send question' className='rounded-lg bg-success p-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'><Send size={18} /></button>
+            </div>
+            <p className='mt-2 text-[10px] leading-relaxed text-text-muted-light dark:text-text-muted-dark'>General information only. No advocate-client relationship is created.</p>
+          </div>
+        </section>
       )}
 
-      {/* Floating Button (Dark mode optimized) */}
-      <Button3D
-        type='button'
-        variant='aiGlow'
-        size='md'
-        onClick={() => setOpen(!open)}
-        className='
-          floating-ai-trigger
-          relative
-          overflow-hidden
-          max-w-[calc(100vw-3rem)]
-          font-extrabold
-          hover:scale-[1.04]
-          transition-all
-          before:absolute
-          before:inset-0
-          before:bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.58),transparent)]
-          before:-translate-x-full
-          hover:before:translate-x-full
-          before:transition-transform
-          before:duration-700
-        '
-      >
-        <span className='relative z-10 whitespace-nowrap'>
-          {open ? '✕' : promptText}
-        </span>
+      <Button3D type='button' variant='aiGlow' size='md' onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} aria-haspopup='dialog' aria-label={open ? 'Close Kenyan Legal Information Assistant' : `Open assistant: ${SECTION_COPY[safeSection].launcher}`} className='floating-ai-trigger max-w-[calc(100vw-2rem)] font-extrabold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2'>
+        <span className='flex items-center gap-2 transition-opacity duration-150 motion-reduce:transition-none'>{open ? <X size={18} /> : <MessageCircle size={18} />}{open ? 'Close' : SECTION_COPY[safeSection].launcher}</span>
       </Button3D>
     </div>
   );

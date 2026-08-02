@@ -1,11 +1,12 @@
 from datetime import date, timedelta
 
 from django.test import TestCase
-from django.urls import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import Resolver404, resolve, reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.cases.models import Case, CaseActivity, CaseEvent
+from apps.cases.models import Case, CaseActivity, CaseAttachment, CaseEvent
 from apps.clients.models import (
     Client, ClientDocument, ClientDocumentCustodyMovement,
     ClientDocumentRegisterRemoval, ClientRepresentative,
@@ -15,8 +16,9 @@ from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus
 from apps.common.choices import FirmRole
 from apps.firm.models import LawFirm, LawFirmMember
 from apps.notifications.models import Notification
-from apps.documents.models import MatterDocumentReference, ProposedMatterDocumentReference
+from apps.documents.models import MatterDocumentReference
 from apps.staff.services.secretary.secretary_document_service import SecretaryDocumentService
+from apps.staff.services.lawyer.lawyer_document_service import LawyerDocumentService
 from apps.clients.services.conflict import ClientMatterConflictService
 from apps.staff.models import Lawyer, Secretary, SecretaryPermissionGrant, SecretaryPermission
 from apps.users.models import User
@@ -174,6 +176,16 @@ class CaseApiTests(TestCase):
             "defendant": "John Doe",
         }
 
+    def test_proposed_matter_document_reference_api_routes_are_removed(self):
+        base = (
+            "/api/admin/clients/11111111-1111-1111-1111-111111111111/"
+            "conflict-checks/22222222-2222-2222-2222-222222222222/documents/"
+        )
+        with self.assertRaises(Resolver404):
+            resolve(base)
+        with self.assertRaises(Resolver404):
+            resolve(f"{base}33333333-3333-3333-3333-333333333333/")
+
     def test_admin_creates_case_for_existing_client_and_promotes_client(self):
         response = self.client_api.post(reverse("case-create"), self.payload(), format="json")
 
@@ -243,7 +255,6 @@ class CaseApiTests(TestCase):
         self.assertEqual(str(first), "KYC-2026-039/D1 — National ID")
         self.assertEqual(second.reference, "KYC-2026-039/D2")
         self.assertEqual(MatterDocumentReference.objects.count(), 0)
-        self.assertEqual(ProposedMatterDocumentReference.objects.count(), 0)
         self.assertEqual(ClientDocumentCustodyMovement.objects.filter(document=first).count(), 1)
         with self.assertRaises(Exception):
             SecretaryDocumentService.register_physical_document(self.secretary.user, {
@@ -282,7 +293,7 @@ class CaseApiTests(TestCase):
         self.client.refresh_from_db()
         self.assertEqual(other_client.kyc_drawer_reference, self.client.kyc_drawer_reference)
 
-    def test_proposed_document_reference_is_client_scoped_and_carried_to_matter(self):
+    def test_opening_matter_does_not_create_client_document_references(self):
         self.client.kyc_drawer_reference = "KYC-2026-039"
         self.client.save(update_fields=["kyc_drawer_reference", "updated_at"])
         document = ClientDocument.objects.create(
@@ -291,34 +302,41 @@ class CaseApiTests(TestCase):
             title="National ID", received_from=self.client.full_name,
         )
         check = self.cleared_conflict_check(lawyer=self.lawyer)
-        reference = ClientMatterConflictService.add_document_reference(
-            user=self.admin, client_id=self.client.id, check_id=check.id,
-            data={"document_id": document.id, "purpose": "Confirm identity and instructions"},
-        )
-        self.assertEqual(reference.document_id, document.id)
-        self.assertEqual(ProposedMatterDocumentReference.objects.count(), 1)
-        other_client = Client.objects.create(
-            firm=self.firm, created_by=self.admin, full_name="Different Client",
-            client_type=Client.ClientType.INDIVIDUAL, kyc_drawer_reference="KYC-2026-099",
-        )
-        foreign_document = ClientDocument.objects.create(
-            client=other_client, firm=self.firm, reference="KYC-2026-099/D1",
-            document_type="IDENTIFICATION", title="Foreign ID",
-        )
-        with self.assertRaises(Exception):
-            ClientMatterConflictService.add_document_reference(
-                user=self.admin, client_id=self.client.id, check_id=check.id,
-                data={"document_id": foreign_document.id, "purpose": "Forged selection"},
-            )
         response = self.client_api.post(reverse("case-create"), {
             **self.payload(), "conflict_check_id": str(check.id),
         }, format="json")
         self.assertEqual(response.status_code, 201, response.data)
         matter = Case.objects.get(id=response.data["data"]["id"])
-        carried = MatterDocumentReference.objects.get(case=matter, document=document)
-        self.assertEqual(carried.originating_proposed_reference, reference)
-        ClientMatterConflictService.carry_document_references_to_case(check=check, case=matter, actor=self.admin)
-        self.assertEqual(MatterDocumentReference.objects.filter(case=matter, document=document).count(), 1)
+        self.assertFalse(MatterDocumentReference.objects.filter(case=matter, document=document).exists())
+
+        foreign_client = Client.objects.create(
+            firm=self.firm, created_by=self.admin, full_name="Different Client",
+            client_type=Client.ClientType.INDIVIDUAL, kyc_drawer_reference="KYC-2026-099",
+        )
+        foreign_document = ClientDocument.objects.create(
+            client=foreign_client, firm=self.firm, reference="KYC-2026-099/D1",
+            document_type="IDENTIFICATION", title="Foreign ID",
+        )
+        workspace = LawyerDocumentService.workspace(self.lawyer.user, {"case_id": str(matter.id)})
+        self.assertEqual({item["id"] for item in workspace["documents"]}, {str(document.id)})
+
+        LawyerDocumentService.reference_document(self.lawyer.user, {
+            "case_id": str(matter.id), "document_id": str(document.id), "purpose": "EVIDENCE",
+        })
+        self.assertTrue(MatterDocumentReference.objects.filter(case=matter, document=document).exists())
+        with self.assertRaises(Exception):
+            LawyerDocumentService.reference_document(self.lawyer.user, {
+                "case_id": str(matter.id), "document_id": str(foreign_document.id), "purpose": "EVIDENCE",
+            })
+
+        client_document_count = ClientDocument.objects.count()
+        generated = LawyerDocumentService.create_matter_document(self.lawyer.user, {
+            "case_id": str(matter.id), "title": "Demand Letter", "attachment_type": "CORRESPONDENCE",
+            "file": SimpleUploadedFile("demand.pdf", b"%PDF-1.4 demand", content_type="application/pdf"),
+        })
+        self.assertTrue(generated["document_reference"].endswith("/D001"))
+        self.assertTrue(CaseAttachment.objects.filter(case=matter, title="Demand Letter").exists())
+        self.assertEqual(ClientDocument.objects.count(), client_document_count)
 
     def test_entity_identity_document_belongs_to_authorised_representative(self):
         entity = Client.objects.create(

@@ -9,12 +9,14 @@ import Testimonials from '@/modules/public/sections/Testimonials';
 import ContactSection from '@/modules/public/sections/ContactSection';
 
 import FloatingAIChat from '@/components/ai/FloatingAIChat';
+import useActiveHomeSection from '@/modules/public/hooks/useActiveHomeSection';
 
 export default function HomePage() {
+  const activeSection = useActiveHomeSection();
   return (
     <div className='public-home overflow-x-hidden bg-[color:var(--bg)] text-[color:var(--text-primary)]'>
       {/* AI Chat */}
-      <FloatingAIChat />
+      <FloatingAIChat activeSection={activeSection} />
 
       {/* Hero / Landing */}
       <section id='home' className='w-full pt-0'>

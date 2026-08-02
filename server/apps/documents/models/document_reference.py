@@ -28,10 +28,6 @@ class MatterDocumentReference(TimestampedModel):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="matter_document_references"
     )
-    originating_proposed_reference = models.ForeignKey(
-        "documents.ProposedMatterDocumentReference", on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="carried_matter_references",
-    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -47,53 +43,6 @@ class MatterDocumentReference(TimestampedModel):
                 raise ValidationError("A matter may only reference documents belonging to its client.")
             if self.case.firm_id != self.document.firm_id:
                 raise ValidationError("A matter may only reference documents belonging to its firm.")
-
-
-class ProposedMatterDocumentReference(TimestampedModel):
-    class RequiredStatus(models.TextChoices):
-        REQUIRED = "REQUIRED", "Required"
-        OPTIONAL = "OPTIONAL", "Optional"
-        SUPPORTING = "SUPPORTING", "Supporting record"
-
-    class ReviewStatus(models.TextChoices):
-        NOT_REVIEWED = "NOT_REVIEWED", "Not reviewed"
-        SUFFICIENT = "SUFFICIENT", "Sufficient"
-        INSUFFICIENT = "INSUFFICIENT", "Insufficient"
-        REPLACEMENT_REQUIRED = "REPLACEMENT_REQUIRED", "Replacement required"
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    proposed_matter = models.ForeignKey(
-        "clients.ClientMatterConflictCheck", on_delete=models.PROTECT, related_name="document_references"
-    )
-    document = models.ForeignKey(
-        "clients.ClientDocument", on_delete=models.PROTECT, related_name="proposed_matter_references"
-    )
-    purpose = models.CharField(max_length=255)
-    relevance_notes = models.TextField(blank=True, default="")
-    referenced_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="proposed_document_references"
-    )
-    required_status = models.CharField(max_length=20, choices=RequiredStatus.choices, default=RequiredStatus.SUPPORTING)
-    review_status = models.CharField(max_length=30, choices=ReviewStatus.choices, default=ReviewStatus.NOT_REVIEWED)
-    is_active = models.BooleanField(default=True)
-    removed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
-        related_name="removed_proposed_document_references",
-    )
-    removed_at = models.DateTimeField(null=True, blank=True)
-    removal_reason = models.TextField(blank=True, default="")
-
-    class Meta:
-        db_table = "proposed_matter_document_references"
-        ordering = ["created_at"]
-        constraints = [models.UniqueConstraint(fields=["proposed_matter", "document"], name="unique_document_reference_per_proposed_matter")]
-
-    def clean(self):
-        if self.proposed_matter_id and self.document_id:
-            if self.proposed_matter.client_id != self.document.client_id:
-                raise ValidationError("A proposed matter may only reference its client's documents.")
-            if self.proposed_matter.firm_id != self.document.firm_id:
-                raise ValidationError("A proposed matter may only reference its firm's documents.")
 
 
 class PhysicalDocumentReceipt(TimestampedModel):

@@ -70,19 +70,6 @@ const lawyerCasesService = {
     );
     return data.conflict_check;
   },
-  async getProposedMatterDocuments(clientId, checkId, q = '') {
-    const { data } = await axiosInstance.get(`/staff/lawyer/clients/${clientId}/conflict-checks/${checkId}/documents/`, { params: { q } });
-    return data.documents || [];
-  },
-  async addProposedMatterDocument(clientId, checkId, payload) {
-    const { data } = await axiosInstance.post(`/staff/lawyer/clients/${clientId}/conflict-checks/${checkId}/documents/`, payload);
-    return data.document_reference;
-  },
-  async removeProposedMatterDocument(clientId, checkId, referenceId, reason) {
-    const { data } = await axiosInstance.delete(`/staff/lawyer/clients/${clientId}/conflict-checks/${checkId}/documents/${referenceId}/`, { data: { reason } });
-    return data.document_reference;
-  },
-
   async generateJurisdictionSuggestion(clientId, checkId, payload = {}) {
     const { data } = await axiosInstance.post(`/staff/lawyer/clients/${clientId}/conflict-checks/${checkId}/jurisdiction/`, payload);
     return data.jurisdiction;

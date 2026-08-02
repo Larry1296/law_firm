@@ -21,7 +21,6 @@ from apps.clients.serializers.admin.client_matter_conflict_check_serializer impo
     JurisdictionReopenSerializer,
     JurisdictionSuggestionInputSerializer,
     ProposedMatterJurisdictionSerializer,
-    ProposedMatterDocumentReferenceSerializer,
 )
 from apps.clients.services.conflict import ClientMatterConflictService
 from apps.clients.services.jurisdiction_suggestion_service import JurisdictionSuggestionService
@@ -84,52 +83,6 @@ class ClientMatterConflictCheckDetailView(APIView):
             {"conflict_check": ClientMatterConflictCheckDetailSerializer(check).data},
             status=status.HTTP_200_OK,
         )
-
-
-class ProposedMatterDocumentsView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, client_id, check_id):
-        documents = ClientMatterConflictService.available_documents(
-            user=request.user, client_id=client_id, check_id=check_id,
-            query=(request.query_params.get("q") or "").strip(),
-        )
-        return Response({"documents": [
-            {
-                "id": str(item.id), "reference": item.reference, "title": item.title,
-                "category": item.category, "category_label": item.get_category_display(),
-                "subtype": item.subtype, "subtype_label": item.get_subtype_display(),
-                "document_identifier": item.document_identifier,
-                "verification_status": item.verification_status,
-                "copy_type": item.source_copy_type,
-                "physical_location": item.physical_storage_location,
-                "digital_copy_available": item.digital_copy_available,
-                "label": f"{item.reference} — {item.get_subtype_display()}"
-                         + (f" — {item.title}" if item.title and item.title != item.get_subtype_display() else "")
-                         + (f" — {item.document_identifier}" if item.document_identifier else "")
-                         + f" — {item.get_source_copy_type_display()}"
-                         + (f" — {item.page_count} pages" if item.page_count else "")
-                         + (f" — {item.get_verification_status_display()}" if item.verification_status else "")
-                         + (f" — {item.physical_storage_location}" if item.physical_storage_location else ""),
-            } for item in documents
-        ]})
-
-    def post(self, request, client_id, check_id):
-        reference = ClientMatterConflictService.add_document_reference(
-            user=request.user, client_id=client_id, check_id=check_id, data=request.data,
-        )
-        return Response({"document_reference": ProposedMatterDocumentReferenceSerializer(reference).data}, status=201)
-
-
-class ProposedMatterDocumentReferenceDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def delete(self, request, client_id, check_id, reference_id):
-        reference = ClientMatterConflictService.remove_document_reference(
-            user=request.user, client_id=client_id, check_id=check_id,
-            reference_id=reference_id, reason=request.data.get("reason"),
-        )
-        return Response({"document_reference": ProposedMatterDocumentReferenceSerializer(reference).data})
 
 
 class ClientMatterConflictCheckRejectedListView(APIView):

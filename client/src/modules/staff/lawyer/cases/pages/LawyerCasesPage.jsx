@@ -162,6 +162,13 @@ export default function LawyerCasesPage() {
               >
                 View
               </Button3D>
+              <Button3D
+                size='sm'
+                variant='success'
+                onClick={() => navigate(`/lawyer/cases/${caseItem.id}/ai-analysis`)}
+              >
+                AI Analysis
+              </Button3D>
             </div>
           )}
         />

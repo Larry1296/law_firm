@@ -198,8 +198,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "physical_location": ref.document.physical_storage_location,
             "digital_copy_available": ref.document.digital_copy_available,
             "purpose": ref.purpose, "notes": ref.notes,
-            "originating_proposed_reference_id": str(ref.originating_proposed_reference_id) if ref.originating_proposed_reference_id else None,
-        } for ref in obj.document_references.select_related("document", "originating_proposed_reference").filter(is_active=True)]
+        } for ref in obj.document_references.select_related("document").filter(is_active=True)]
 
     def get_document_checklist(self, obj):
         if self._client_visible_only():

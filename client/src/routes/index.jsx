@@ -318,6 +318,10 @@ const LawyerAI = lazy(
   () => import('@/modules/staff/lawyer/ai/pages/LawyerAIPage'),
 );
 
+const LawyerCaseAIAnalysisPage = lazy(
+  () => import('@/modules/staff/lawyer/ai/pages/LawyerCaseAIAnalysisPage'),
+);
+
 const LawyerResearchAI = lazy(
   () => import('@/modules/staff/lawyer/ai/pages/LawyerResearchAIPage'),
 );
@@ -827,6 +831,7 @@ const AppRoutes = () => {
           <Route path='cases' element={<LawyerCases />} />
           <Route path='cases/create' element={<Navigate to='../clients' replace />} />
           <Route path='cases/:id' element={<LawyerCaseDetailsPage />} />
+          <Route path='cases/:id/ai-analysis' element={<LawyerCaseAIAnalysisPage />} />
           <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/conflict-checks/:checkId' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/conflict-checks/:checkId/open-matter' element={<LawyerCreateCase />} />

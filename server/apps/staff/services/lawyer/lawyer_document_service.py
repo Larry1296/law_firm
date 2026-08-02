@@ -33,7 +33,8 @@ class LawyerDocumentService:
             "documents": [DocumentWorkflowService.serialize_document(item) for item in documents],
             "requests": [DocumentWorkflowService.serialize_request(item) for item in requests],
             "cases": [{"id": str(item.id), "case_number": item.case_number, "title": item.title,
-                       "client_id": str(item.client_id), "client_name": item.client.full_name}
+                       "client_id": str(item.client_id), "client_name": item.client.full_name,
+                       "kyc_drawer_reference": item.client.kyc_drawer_reference}
                       for item in cases.select_related("client").order_by("-created_at")],
             "matter_documents": [{
                 "id": str(item.id), "case_id": str(item.case_id),

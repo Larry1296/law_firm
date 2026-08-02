@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Swal from '@/core/utils/themedSwal';
 
 import StatsCard from '@/components/ui/StatsCard';
@@ -105,6 +105,7 @@ const toIsoDateTime = (value) => {
 
 export default function LawyerCaseDetailsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const { data, isLoading, error } = useMyCase(id);
   const lawyerThreadQuery = useCaseLawyerThread(id);
@@ -399,7 +400,10 @@ export default function LawyerCaseDetailsPage() {
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <BackLink label='Back to Cases' fallbackPath='/lawyer/cases' />
+      <div className='flex flex-wrap items-center justify-between gap-3'>
+        <BackLink label='Back to Cases' fallbackPath='/lawyer/cases' />
+        <button type='button' onClick={() => navigate(`/lawyer/cases/${id}/ai-analysis`)} className='rounded-lg bg-success px-4 py-2 font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success'>Open AI Case Analysis</button>
+      </div>
 
       <SectionHeading
         title={pageTitle}

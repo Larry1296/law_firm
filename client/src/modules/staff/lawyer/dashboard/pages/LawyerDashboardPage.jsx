@@ -18,6 +18,7 @@ import { getFirstName } from '@/core/utils/personName';
 import { displayEnum } from '@/core/utils/textFormatter';
 import CourtroomTodayPanel from '@/modules/courtroom/components/CourtroomTodayPanel';
 import useLawyerDashboard from '@/modules/staff/lawyer/dashboard/hooks/useLawyerDashboard';
+import { useLawyerAIPriorities } from '@/modules/staff/lawyer/ai/hooks/useLawyerAI';
 
 const lawyerTiles = [
   {
@@ -96,6 +97,7 @@ const lawyerTiles = [
 export default function LawyerDashboardPage() {
   const navigate = useNavigate();
   const { data } = useLawyerDashboard();
+  const aiPriorities = useLawyerAIPriorities({ sort: 'priority' });
   const summary = data?.summary || {};
   const profile = data?.lawyer || {};
   const firstName = getFirstName(profile.first_name, profile.full_name, profile.email);
@@ -176,6 +178,18 @@ export default function LawyerDashboardPage() {
             );
           })}
         </DashboardGrid>
+      </section>
+
+      <section aria-labelledby='ai-priorities-title' className='border-y border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark sm:p-6'>
+        <div className='flex flex-wrap items-center justify-between gap-3'>
+          <div><h2 id='ai-priorities-title' className='text-xl font-bold'>AI case priorities</h2><p className='text-sm text-text-muted-light dark:text-text-muted-dark'>Your authorized matters, ordered by explainable urgency and risk—not predicted outcome.</p></div>
+          <button type='button' onClick={() => navigate('/lawyer/ai')} className='rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white'>View and filter all</button>
+        </div>
+        {aiPriorities.isLoading && <p role='status' className='mt-4'>Loading case priorities…</p>}
+        {aiPriorities.error && <p role='alert' className='mt-4 text-red-700'>AI case priorities are unavailable or not enabled for this account.</p>}
+        <div className='mt-4 grid gap-3 lg:grid-cols-3'>
+          {(aiPriorities.data?.matters || []).slice(0, 3).map((matter) => <button key={matter.id} type='button' onClick={() => navigate(`/lawyer/cases/${matter.id}/ai-analysis`)} className='rounded-xl border border-border-light p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:border-border-dark'><span className='text-xs font-bold'>{matter.priority} · {matter.case_number}</span><strong className='mt-1 block'>{matter.title}</strong><span className='mt-2 block text-sm'>Urgency {matter.scores.time_urgency}/100 · Preparedness {matter.scores.overall_preparedness}/100</span><span className='mt-1 block text-xs'>{matter.priority_reasons[0]}</span></button>)}
+        </div>
       </section>
 
       <CourtroomTodayPanel className='mt-0' />

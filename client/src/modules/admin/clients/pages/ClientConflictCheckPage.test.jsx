@@ -115,6 +115,14 @@ describe('ClientConflictCheckPage source checks', () => {
     window.history.pushState({}, '', '/admin/clients/client-1/conflict-checks/check-1');
   });
 
+  it('does not render proposed-matter document references', async () => {
+    renderPage();
+    await screen.findByText('CC-2026-00001');
+    expect(screen.queryByText('Supporting client documents')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add Existing Document Reference')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/search by reference/i)).not.toBeInTheDocument();
+  });
+
   it('allows several sources to be checked and keeps them visibly checked', async () => {
     const user = renderPage();
 

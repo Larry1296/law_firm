@@ -9,6 +9,7 @@ export default function Button3D({
   variant = "primary", // primary, success, accent, outlineLight, darkAccent, aiGlow
   size = "md", // sm, md, lg
   disabled = false,
+  ...buttonProps
 }) {
   const context = useContext(ThemeContext);
   const theme = context?.theme ?? "light";
@@ -85,6 +86,7 @@ export default function Button3D({
 
   return (
     <button
+      {...buttonProps}
       type={type}
       onClick={onClick}
       disabled={disabled}

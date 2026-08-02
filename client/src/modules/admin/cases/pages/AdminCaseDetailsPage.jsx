@@ -284,9 +284,7 @@ const AdminCaseDetailsPage = () => {
   const currentSecretaryId = caseData?.assigned_secretary?.membership_id || '';
 
   const selectableLawyers = lawyers.filter(
-    (lawyer) =>
-      lawyer.membership_id !== currentLawyerId &&
-      lawyer.system_role !== 'ADMIN',
+    (lawyer) => lawyer.membership_id !== currentLawyerId,
   );
 
   const selectableSecretaries = secretaries.filter(
@@ -891,6 +889,14 @@ const AdminCaseDetailsPage = () => {
         subtitle='Matter record, court proceeding, parties and activity'
         align='center'
       />
+      <nav aria-label='Matter administration shortcuts' className='flex flex-wrap justify-center gap-3'>
+        <a
+          href='#case-assignments'
+          className='rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 motion-reduce:transition-none'
+        >
+          Assign lawyer or secretary
+        </a>
+      </nav>
       <CaseProceedingsWorkflow caseData={caseData} />
 
       <Card className='p-6'>
@@ -1709,7 +1715,7 @@ const AdminCaseDetailsPage = () => {
         </div>
       </Card>
 
-      <Card className='p-6'>
+      <Card id='case-assignments' className='scroll-mt-24 p-6'>
         <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
           Assignments
         </h3>

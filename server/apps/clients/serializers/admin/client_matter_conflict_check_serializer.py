@@ -10,32 +10,6 @@ from apps.clients.models import (
     ProposedMatterJurisdictionHistory,
 )
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus
-from apps.documents.models import ProposedMatterDocumentReference
-
-
-class ProposedMatterDocumentReferenceSerializer(serializers.ModelSerializer):
-    document_reference = serializers.CharField(source="document.reference", read_only=True)
-    document_title = serializers.CharField(source="document.title", read_only=True)
-    document_identifier = serializers.CharField(source="document.document_identifier", read_only=True)
-    category = serializers.CharField(source="document.category", read_only=True)
-    category_label = serializers.CharField(source="document.get_category_display", read_only=True)
-    subtype = serializers.CharField(source="document.subtype", read_only=True)
-    subtype_label = serializers.CharField(source="document.get_subtype_display", read_only=True)
-    verification_status = serializers.CharField(source="document.verification_status", read_only=True)
-    copy_type = serializers.CharField(source="document.source_copy_type", read_only=True)
-    physical_location = serializers.CharField(source="document.physical_storage_location", read_only=True)
-    digital_copy_available = serializers.BooleanField(source="document.digital_copy_available", read_only=True)
-    referenced_by_name = serializers.CharField(source="referenced_by.full_name", read_only=True)
-
-    class Meta:
-        model = ProposedMatterDocumentReference
-        fields = [
-            "id", "document", "document_reference", "document_title", "document_identifier", "category", "category_label",
-            "subtype", "subtype_label", "verification_status", "copy_type", "physical_location",
-            "digital_copy_available", "purpose", "relevance_notes", "required_status", "review_status",
-            "is_active", "referenced_by_name", "created_at", "removed_at", "removal_reason",
-        ]
-        read_only_fields = fields
 
 
 class ConflictCheckPartySerializer(serializers.ModelSerializer):
@@ -210,8 +184,6 @@ class ClientMatterConflictCheckDetailSerializer(ClientMatterConflictCheckListSer
     acceptance_history = FirmAcceptanceHistorySerializer(many=True, read_only=True)
     client_name = serializers.CharField(source="client.full_name", read_only=True)
     jurisdiction = ProposedMatterJurisdictionSerializer(read_only=True)
-    document_references = ProposedMatterDocumentReferenceSerializer(many=True, read_only=True)
-    client_kyc_reference = serializers.CharField(source="client.kyc_drawer_reference", read_only=True)
     document_requirements = serializers.SerializerMethodField()
 
     def get_document_requirements(self, obj):
@@ -256,8 +228,6 @@ class ClientMatterConflictCheckDetailSerializer(ClientMatterConflictCheckListSer
             "parties",
             "history",
             "acceptance_history",
-            "document_references",
-            "client_kyc_reference",
             "document_requirements",
         ]
         read_only_fields = fields

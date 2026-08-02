@@ -148,21 +148,6 @@ const adminClientsService = {
     return data.conflict_check;
   },
 
-  async getProposedMatterDocuments(clientId, checkId, q = '') {
-    const { data } = await axiosInstance.get(`/admin/clients/${clientId}/conflict-checks/${checkId}/documents/`, { params: { q } });
-    return data.documents || [];
-  },
-
-  async addProposedMatterDocument(clientId, checkId, payload) {
-    const { data } = await axiosInstance.post(`/admin/clients/${clientId}/conflict-checks/${checkId}/documents/`, payload);
-    return data.document_reference;
-  },
-
-  async removeProposedMatterDocument(clientId, checkId, referenceId, reason) {
-    const { data } = await axiosInstance.delete(`/admin/clients/${clientId}/conflict-checks/${checkId}/documents/${referenceId}/`, { data: { reason } });
-    return data.document_reference;
-  },
-
   async generateJurisdictionSuggestion(clientId, checkId, payload = {}) {
     const { data } = await axiosInstance.post(`/admin/clients/${clientId}/conflict-checks/${checkId}/jurisdiction/`, payload);
     return data.jurisdiction;

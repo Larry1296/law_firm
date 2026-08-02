@@ -1,12 +1,11 @@
 from .document_reference import (
     DocumentRequirement, DocumentRequirementTemplate, MatterDocumentReference,
     PhysicalDocumentReceipt, PhysicalDocumentReceiptItem, PhysicalDocumentReceiptSequence,
-    ProposedMatterDocumentReference,
 )
 from .document_request import DocumentRequest
 
 __all__ = [
-    "MatterDocumentReference", "ProposedMatterDocumentReference", "DocumentRequest",
+    "MatterDocumentReference", "DocumentRequest",
     "PhysicalDocumentReceipt", "PhysicalDocumentReceiptItem",
     "PhysicalDocumentReceiptSequence",
     "DocumentRequirement", "DocumentRequirementTemplate",
