@@ -4,6 +4,10 @@ from django.urls import path, include
 urlpatterns = [
     path("admin/", admin.site.urls),
 
+    # Public knowledge-base (no auth required)
+    path("api/knowledge-base/", include("apps.knowledge_base.urls")),
+
+
     path("api/auth/", include("apps.authentication.urls")),
     path("api/cases/", include("apps.cases.urls")),
     path("api/events/", include("apps.events.urls")),

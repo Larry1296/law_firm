@@ -68,6 +68,7 @@ LOCAL_APPS = [
     "apps.reports",
     "apps.audit_logs",
     "apps.portal",
+    "apps.knowledge_base",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -250,6 +251,15 @@ REST_FRAMEWORK = {
     ],
 
     "EXCEPTION_HANDLER": "apps.common.exceptions.custom_exception_handler",
+
+    # Throttle: anonymous users limited to 20 requests/minute for the
+    # public knowledge-base endpoint.
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "20/minute",
+    },
 }
 
 CORS_ALLOWED_ORIGINS = [
