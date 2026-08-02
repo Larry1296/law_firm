@@ -7,6 +7,7 @@ import { formatDateTime } from '@/core/utils/dateFormatter';
 import useSecretaryCaseDetails from '../hooks/useSecretaryCaseDetails';
 import SecretaryDocuments from '../../documents/pages/SecretaryDocuments';
 import SecretaryCaseCommunication from '../../communication/components/SecretaryCaseCommunication';
+import PhysicalMatterFileCard from '@/modules/cases/shared/PhysicalMatterFileCard';
 
 export default function SecretaryCaseDetailsPage() {
   const { id } = useParams();
@@ -33,6 +34,7 @@ export default function SecretaryCaseDetailsPage() {
         <p><strong>Next court date:</strong> {caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not recorded'}</p>
       </div>
     </Card>
+    <PhysicalMatterFileCard physicalFile={caseData.physical_matter_file} caseId={id} canManage />
     {client.access_type === 'PORTAL_ENABLED' && client.portal_access_exists && (
       <SecretaryCaseCommunication
         caseId={id}

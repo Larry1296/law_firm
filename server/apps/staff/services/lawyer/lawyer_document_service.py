@@ -5,7 +5,8 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from apps.documents.models import DocumentRequest, MatterDocumentReference
 from apps.documents.services.workflow_service import DocumentWorkflowService
 from apps.notifications.services import NotificationService
-from apps.cases.models import CaseAttachment, CaseAttachmentReferenceSequence
+from apps.cases.models import CaseAttachment, MatterPhysicalFile
+from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
 
 
 class LawyerDocumentService:
@@ -62,10 +63,18 @@ class LawyerDocumentService:
                 "physical_copy_type_label": item.get_physical_copy_type_display(),
                 "physical_storage_location": item.physical_storage_location,
                 "document_date": item.document_date,
+                "physical_section": item.physical_section,
+                "physical_section_label": item.get_physical_section_display(),
+                "parent_file_reference": item.physical_file.reference if item.physical_file_id else "",
                 "is_client_visible": item.is_client_visible,
                 "version_count": item.versions.count(),
                 "created_at": item.created_at,
-            } for item in CaseAttachment.objects.filter(case__in=scoped_cases).prefetch_related("versions").order_by("-created_at")],
+            } for item in CaseAttachment.objects.filter(case__in=scoped_cases).select_related("physical_file").prefetch_related("versions").order_by("-created_at")],
+            "physical_file": (
+                MatterPhysicalFileService.serialize(scoped_cases.first().physical_file, include_history=False)
+                if params.get("case_id") and scoped_cases.first() and hasattr(scoped_cases.first(), "physical_file")
+                else None
+            ),
         }
 
     @staticmethod
@@ -118,24 +127,29 @@ class LawyerDocumentService:
         title = (data.get("title") or "").strip()
         if not title:
             raise ValidationError({"title": "Record the matter document title."})
-        physical_storage_location = (data.get("physical_storage_location") or "").strip()
-        if not physical_storage_location:
-            raise ValidationError({"physical_storage_location": "Record where the physical matter document is filed."})
-        sequence, _ = CaseAttachmentReferenceSequence.objects.get_or_create(case=case)
-        sequence = CaseAttachmentReferenceSequence.objects.select_for_update().get(case=case)
-        while True:
-            reference = f"{case.case_number}/D{sequence.next_number:03d}"
-            sequence.next_number += 1
-            sequence.save(update_fields=["next_number", "updated_at"])
-            if not CaseAttachment.objects.filter(case=case, document_reference=reference).exists():
-                break
+        try:
+            physical_file = MatterPhysicalFile.objects.select_for_update().get(matter=case, firm=case.firm)
+        except MatterPhysicalFile.DoesNotExist as exc:
+            raise ValidationError({"physical_file": "The physical matter-file preparation request is missing."}) from exc
+        if physical_file.status != MatterPhysicalFile.Status.ACTIVE:
+            raise ValidationError({"physical_file": "The secretary must prepare and assign the physical matter file before documents can be registered."})
+        section = data.get("physical_section") or CaseAttachment.PhysicalSection.OTHER
+        if section not in CaseAttachment.PhysicalSection.values:
+            raise ValidationError({"physical_section": "Select a controlled matter-file section."})
+        item_location_detail = (data.get("item_location_detail") or "").strip()
+        section_label = dict(CaseAttachment.PhysicalSection.choices)[section]
+        physical_storage_location = " / ".join(filter(None, [physical_file.location, physical_file.reference, section_label, item_location_detail]))
+        reference = MatterPhysicalFileService.next_document_reference(case)
         attachment = CaseAttachment.objects.create(
-            case=case, document_reference=reference,
+            case=case, physical_file=physical_file, document_reference=reference,
             attachment_type=data.get("attachment_type") or CaseAttachment.AttachmentType.OTHER,
             title=title, description=(data.get("description") or "").strip(),
             physical_copy_type=data.get("physical_copy_type") or CaseAttachment.PhysicalCopyType.OFFICE_COPY,
             physical_storage_location=physical_storage_location,
             document_date=data.get("document_date") or None,
+            physical_section=section,
+            item_location_detail=item_location_detail,
+            origin=data.get("origin") or CaseAttachment.Origin.FIRM_GENERATED,
             uploaded_by=user,
             is_client_visible=str(data.get("is_client_visible", "")).lower() in {"true", "1", "yes", "on"},
             is_confidential=str(data.get("is_confidential", "true")).lower() in {"true", "1", "yes", "on"},

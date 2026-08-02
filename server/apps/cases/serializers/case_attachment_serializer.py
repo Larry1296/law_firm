@@ -7,6 +7,7 @@ class CaseAttachmentSerializer(serializers.ModelSerializer):
     attachment_type_label = serializers.CharField(source="get_attachment_type_display", read_only=True)
     uploaded_by_name = serializers.CharField(source="uploaded_by.full_name", read_only=True)
     physical_copy_type_label = serializers.CharField(source="get_physical_copy_type_display", read_only=True)
+    physical_section_label = serializers.CharField(source="get_physical_section_display", read_only=True)
 
     class Meta:
         model = CaseAttachment
@@ -25,6 +26,11 @@ class CaseAttachmentSerializer(serializers.ModelSerializer):
             "physical_copy_type_label",
             "physical_storage_location",
             "document_date",
+            "physical_file",
+            "physical_section",
+            "physical_section_label",
+            "item_location_detail",
+            "origin",
             "uploaded_by_name",
             "is_client_visible",
             "is_confidential",

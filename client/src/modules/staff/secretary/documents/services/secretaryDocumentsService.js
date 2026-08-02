@@ -15,6 +15,20 @@ const secretaryDocumentsService = {
     const { data } = await axiosInstance.post('/staff/secretary/documents/', { ...payload, action: 'assign_drawer' });
     return data;
   },
+  async assignMatterFile(caseId, payload) {
+    const { data } = await axiosInstance.post(`/cases/${caseId}/physical-file/`, {
+      ...payload,
+      operation: 'assign',
+    });
+    return data;
+  },
+  async transferMatterEvidence(caseId, payload) {
+    const { data } = await axiosInstance.post(`/cases/${caseId}/physical-file/`, {
+      ...payload,
+      operation: 'transfer_document',
+    });
+    return data;
+  },
   async proposeReference(clientId) {
     const { data } = await axiosInstance.post('/staff/secretary/documents/', { action: 'propose_reference', client_id: clientId });
     return data;

@@ -93,6 +93,7 @@ class CaseService:
                 "assigned_secretary",
                 "assigned_secretary__user",
                 "created_by",
+                "physical_file",
             )
             .prefetch_related(
                 "timeline",
@@ -471,6 +472,8 @@ class CaseService:
             case_number=case_number,
             **case_payload,
         )
+        from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
+        MatterPhysicalFileService.ensure_pending(case, user)
         if not (case.next_action or "").strip():
             from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
 

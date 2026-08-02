@@ -18,6 +18,20 @@ import CaseProceedingsWorkflow from '@/modules/cases/shared/CaseProceedingsWorkf
 import CreateNextCaseEventPanel from '@/modules/admin/cases/components/CreateNextCaseEventPanel';
 import AssignedAdvocateMatterDesk from '@/modules/admin/cases/components/AssignedAdvocateMatterDesk';
 import MatterTasksCard from '@/modules/admin/cases/components/MatterTasksCard';
+import PhysicalMatterFileCard from '@/modules/cases/shared/PhysicalMatterFileCard';
+import PageSectionNav from '@/components/ui/PageSectionNav';
+
+const MATTER_SECTION_LINKS = [
+  ['case-overview', 'Overview'],
+  ['matter-workbench', 'Priority work'],
+  ['advocate-workspace', 'Documents'],
+  ['matter-controls', 'Matter record'],
+  ['physical-matter-file', 'Physical file'],
+  ['proceeding-work', 'Proceedings'],
+  ['matter-administration', 'Administration'],
+  ['case-assignments', 'Team'],
+  ['matter-history', 'History'],
+];
 import { COURT_LEVELS, COURT_TYPES } from '@/modules/cases/shared/create/caseCreateOptions';
 
 const PRIORITIES = [
@@ -184,6 +198,7 @@ const AdminCaseDetailsPage = () => {
     jurisdiction_notes: '',
   });
   const [ctsErrors, setCtsErrors] = useState({});
+
 
   const [eventDraft, setEventDraft] = useState({
     event_type: 'CASE_MANAGEMENT',
@@ -891,21 +906,15 @@ const AdminCaseDetailsPage = () => {
         subtitle='Matter record, workbench, proceeding controls and history'
         align='left'
       />
-      <nav aria-label='Matter page sections' className='sticky top-2 z-20 flex flex-wrap gap-2 rounded-xl border border-border-light bg-surface-light/95 p-2 shadow-sm backdrop-blur dark:border-border-dark dark:bg-surface-dark/95'>
-        <a
-          href='#matter-tasks'
-          className='rounded-lg bg-brand-primary px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary'
-        >
-          Priority work
-        </a>
-        <a href='#advocate-workspace' className='rounded-lg px-3 py-2 text-sm font-semibold text-text-primary-light hover:bg-slate-100 dark:text-text-primary-dark dark:hover:bg-slate-800'>Documents</a>
-        <a href='#matter-controls' className='rounded-lg px-3 py-2 text-sm font-semibold text-text-primary-light hover:bg-slate-100 dark:text-text-primary-dark dark:hover:bg-slate-800'>Matter controls</a>
-        <a href='#case-assignments' className='rounded-lg px-3 py-2 text-sm font-semibold text-text-primary-light hover:bg-slate-100 dark:text-text-primary-dark dark:hover:bg-slate-800'>Team</a>
-        <a href='#matter-history' className='rounded-lg px-3 py-2 text-sm font-semibold text-text-primary-light hover:bg-slate-100 dark:text-text-primary-dark dark:hover:bg-slate-800'>History</a>
-      </nav>
-      <CaseProceedingsWorkflow caseData={caseData} />
+      <PageSectionNav
+        ariaLabel='Matter page sections'
+        sections={MATTER_SECTION_LINKS.map(([sectionId, label]) => ({ id: sectionId, label, hidden: sectionId === 'advocate-workspace' && !(caseData.assigned_lawyer?.email && caseData.assigned_lawyer.email.toLowerCase() === user?.email?.toLowerCase()) }))}
+      />
+      <div id='case-overview' className='scroll-mt-28'>
+        <CaseProceedingsWorkflow caseData={caseData} />
+      </div>
 
-      <section aria-labelledby='matter-work-heading' className='space-y-4'>
+      <section id='matter-workbench' aria-labelledby='matter-work-heading' className='scroll-mt-28 space-y-4'>
         <div className='border-b border-border-light pb-3 dark:border-border-dark'>
           <p className='text-xs font-semibold uppercase tracking-[0.18em] text-brand-primary'>01 · Act now</p>
           <h2 id='matter-work-heading' className='mt-1 text-xl font-semibold text-text-primary-light dark:text-text-primary-dark'>Matter workbench</h2>
@@ -931,6 +940,10 @@ const AdminCaseDetailsPage = () => {
         <p className='text-xs font-semibold uppercase tracking-[0.18em] text-brand-primary'>02 · Matter foundation</p>
         <h2 className='mt-1 text-xl font-semibold text-text-primary-light dark:text-text-primary-dark'>Matter record and controlled lifecycle</h2>
         <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>Instructions, conflict clearance, jurisdiction, parties and financial claim.</p>
+      </div>
+
+      <div id='physical-matter-file' className='scroll-mt-28'>
+        <PhysicalMatterFileCard physicalFile={caseData.physical_matter_file} caseId={id} canManage canRequest />
       </div>
 
       <Card className='p-6'>
@@ -1700,7 +1713,7 @@ const AdminCaseDetailsPage = () => {
         )}
       </Card>
 
-      <div className='border-b border-border-light pb-3 pt-2 dark:border-border-dark'>
+      <div id='proceeding-work' className='scroll-mt-28 border-b border-border-light pb-3 pt-2 dark:border-border-dark'>
         <p className='text-xs font-semibold uppercase tracking-[0.18em] text-brand-primary'>03 · Proceeding work</p>
         <h2 className='mt-1 text-xl font-semibold text-text-primary-light dark:text-text-primary-dark'>Events and next procedural step</h2>
         <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>Use only the actions permitted by the current court stage.</p>
@@ -1717,7 +1730,7 @@ const AdminCaseDetailsPage = () => {
               isCreating={isCreatingCaseEvent}
             />
 
-      <div className='border-b border-border-light pb-3 pt-2 dark:border-border-dark'>
+      <div id='matter-administration' className='scroll-mt-28 border-b border-border-light pb-3 pt-2 dark:border-border-dark'>
         <p className='text-xs font-semibold uppercase tracking-[0.18em] text-brand-primary'>04 · Administration</p>
         <h2 className='mt-1 text-xl font-semibold text-text-primary-light dark:text-text-primary-dark'>Responsibility and matter priority</h2>
       </div>

@@ -6,6 +6,7 @@ import BackLink from '@/components/ui/BackLink';
 import { FormButton as Button3D } from '@/components/forms';
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 import Select3D from '@/components/ui/Select3D';
 import ElasticTextInput from '@/components/ui/ElasticTextInput';
 import { Input3D } from '@/components/ui/Input3D';
@@ -371,8 +372,18 @@ export default function ClientConflictCheckPage() {
     <div className='space-y-6 p-4 md:p-6'>
       <BackLink label='Back to Client' fallbackPath={`${basePath}/clients/${clientId}`} />
       <SectionHeading title={check.reference_number} subtitle={check.proposed_matter_title} />
+      <PageSectionNav
+        ariaLabel='Conflict workflow sections'
+        sections={[
+          { id: 'conflict-overview', label: 'Overview' },
+          { id: 'conflict-outcome', label: 'Conflict decision', hidden: nextOptions.length === 0 },
+          { id: 'conflict-jurisdiction', label: 'Jurisdiction', hidden: check.status !== 'CLEARED' },
+          { id: 'conflict-acceptance', label: 'Firm acceptance', hidden: !canRecordAcceptance },
+          { id: 'conflict-history', label: 'History' },
+        ]}
+      />
 
-      <Card className='p-6'>
+      <Card id='conflict-overview' className='scroll-mt-28 p-6'>
         <div className='grid gap-4 md:grid-cols-3'>
           <p><strong>Client:</strong> {check.client_name || clientData?.client?.full_name || 'Recorded'}</p>
           <p><strong>Status:</strong> {check.status_label || enumLabel(check.status)}</p>
@@ -411,7 +422,7 @@ export default function ClientConflictCheckPage() {
       </Card>
 
       {nextOptions.length > 0 && (
-        <Card className='p-6'>
+        <Card id='conflict-outcome' className='scroll-mt-28 p-6'>
           <h3 className='mb-4 text-lg font-semibold'>Next outcome</h3>
           <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); if (!isOutcomeBlocked) actionMutation.mutate(); }}>
             <Select3D value={actionDraft.next_status} onChange={(e) => setActionDraft((v) => ({ ...v, next_status: e.target.value }))} options={nextOptions} placeholder='Select next outcome' />
@@ -432,7 +443,7 @@ export default function ClientConflictCheckPage() {
       )}
 
       {check.status === 'CLEARED' && (
-        <Card className='p-6'>
+        <Card id='conflict-jurisdiction' className='scroll-mt-28 p-6'>
           <h3 className='text-lg font-semibold'>Jurisdiction Suggestion and Advocate Decision</h3>
           <p className='mt-2 text-sm text-text-muted-light dark:text-text-muted-dark'>
             This is a system-generated jurisdiction suggestion. The responsible advocate must independently review and confirm the appropriate court or tribunal.
@@ -529,7 +540,7 @@ export default function ClientConflictCheckPage() {
       )}
 
       {canRecordAcceptance && (
-        <Card className='p-6'>
+        <Card id='conflict-acceptance' className='scroll-mt-28 p-6'>
           <h3 className='mb-4 text-lg font-semibold'>Firm Acceptance Decision</h3>
           <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); acceptanceMutation.mutate(); }}>
             <Select3D label='Decision' value={acceptanceDraft.decision} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, decision: e.target.value }))} options={[{ value: 'ACCEPTED', label: 'Accept instructions' }, { value: 'DECLINED', label: 'Decline instructions' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }]} required />
@@ -544,7 +555,7 @@ export default function ClientConflictCheckPage() {
         </Card>
       )}
 
-      <Card className='p-6'>
+      <Card id='conflict-history' className='scroll-mt-28 p-6'>
         <h3 className='mb-4 text-lg font-semibold'>Immutable History</h3>
         <div className='space-y-3'>
           {(check.history || []).map((item) => (

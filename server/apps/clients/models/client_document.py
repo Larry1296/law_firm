@@ -20,6 +20,13 @@ class DocumentType(models.TextChoices):
 
 class ClientDocument(TimestampedModel):
 
+    class Classification(models.TextChoices):
+        CLIENT_KYC = "CLIENT_KYC", "Client KYC"
+        MATTER_SPECIFIC = "MATTER_SPECIFIC", "Matter Specific"
+        CLIENT_GENERAL = "CLIENT_GENERAL", "Client General"
+        VALUABLE_ORIGINAL = "VALUABLE_ORIGINAL", "Valuable Original"
+        UNCLASSIFIED_PENDING_REVIEW = "UNCLASSIFIED_PENDING_REVIEW", "Unclassified Pending Review"
+
     class Category(models.TextChoices):
         KYC_IDENTITY = "KYC_IDENTITY", "KYC / identity"
         KYC_TAX = "KYC_TAX", "KYC / tax identification"
@@ -127,6 +134,12 @@ class ClientDocument(TimestampedModel):
     )
 
     reference = models.CharField(max_length=80, blank=True, db_index=True)
+    classification = models.CharField(
+        max_length=40,
+        choices=Classification.choices,
+        default=Classification.UNCLASSIFIED_PENDING_REVIEW,
+    )
+    temporary_intake_reference = models.CharField(max_length=80, blank=True, default="", db_index=True)
     category = models.CharField(max_length=40, choices=Category.choices, default=Category.OTHER)
     subtype = models.CharField(max_length=50, choices=Subtype.choices, default=Subtype.OTHER)
     document_owner_subject = models.CharField(max_length=255, blank=True, default="")
@@ -226,6 +239,12 @@ class ClientDocument(TimestampedModel):
         if self.reference and self.client_id and self.client.kyc_drawer_reference:
             if not self.reference.startswith(f"{self.client.kyc_drawer_reference}/D"):
                 raise ValidationError({"reference": "The physical reference must belong to the client's KYC file."})
+        matter_subtypes = {
+            self.Subtype.SALE_AGREEMENT, self.Subtype.CONTRACT, self.Subtype.INVOICE,
+            self.Subtype.RECEIPT, self.Subtype.DELIVERY_NOTE, self.Subtype.CORRESPONDENCE,
+        }
+        if self.classification == self.Classification.CLIENT_KYC and self.subtype in matter_subtypes:
+            raise ValidationError({"classification": "This transactional or evidence document cannot normally be classified as KYC."})
 
     def save(self, *args, **kwargs):
         if not self.file_name and self.file:

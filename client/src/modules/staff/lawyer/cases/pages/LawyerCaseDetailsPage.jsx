@@ -26,6 +26,8 @@ import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
 import CaseProceedingsWorkflow from '@/modules/cases/shared/CaseProceedingsWorkflow';
 import CaseCourtroomPanel from '@/modules/courtroom/components/CaseCourtroomPanel';
 import LawyerDocumentsPage from '@/modules/staff/lawyer/documents/pages/LawyerDocumentsPage';
+import PhysicalMatterFileCard from '@/modules/cases/shared/PhysicalMatterFileCard';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 
 const CASE_STATUS_OPTIONS = [
   { value: 'PENDING', label: 'Pending Review' },
@@ -411,9 +413,23 @@ export default function LawyerCaseDetailsPage() {
         title={pageTitle}
         subtitle='Your assigned legal matter overview'
       />
-      <CaseProceedingsWorkflow caseData={caseData} />
+      <PageSectionNav
+        ariaLabel='Advocate matter sections'
+        sections={[
+          { id: 'lawyer-case-overview', label: 'Overview' },
+          { id: 'lawyer-physical-file', label: 'Physical file' },
+          { id: 'lawyer-matter-record', label: 'Matter record' },
+          { id: 'lawyer-proceedings', label: 'Proceedings' },
+          { id: 'lawyer-lifecycle', label: 'Lifecycle' },
+          { id: 'lawyer-coordination', label: 'Coordination', hidden: !matterChatEnabled },
+          { id: 'lawyer-history', label: 'History' },
+          { id: 'lawyer-documents', label: 'Documents' },
+        ]}
+      />
+      <div id='lawyer-case-overview' className='scroll-mt-28'><CaseProceedingsWorkflow caseData={caseData} /></div>
+      <div id='lawyer-physical-file' className='scroll-mt-28'><PhysicalMatterFileCard physicalFile={caseData.physical_matter_file} caseId={id} canRequest /></div>
 
-      <Card className='p-6'>
+      <Card id='lawyer-matter-record' className='scroll-mt-28 p-6'>
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
             <p>
@@ -573,13 +589,14 @@ export default function LawyerCaseDetailsPage() {
         )}
       </Card>
 
-      <CaseProcedurePanels caseData={caseData} />
-
-      <CaseCourtroomPanel
-        caseId={id}
-        title='Case Courtroom'
-        emptyMessage='No courtroom session has been attached to this assigned case yet.'
-      />
+      <div id='lawyer-proceedings' className='scroll-mt-28 space-y-6'>
+        <CaseProcedurePanels caseData={caseData} />
+        <CaseCourtroomPanel
+          caseId={id}
+          title='Case Courtroom'
+          emptyMessage='No courtroom session has been attached to this assigned case yet.'
+        />
+      </div>
 
       <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
         <StatsCard
@@ -606,7 +623,7 @@ export default function LawyerCaseDetailsPage() {
         />
       </div>
 
-      <Card className='p-6'>
+      <Card id='lawyer-lifecycle' className='scroll-mt-28 p-6'>
         <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
           Case Status
         </h3>
@@ -895,7 +912,7 @@ export default function LawyerCaseDetailsPage() {
         </p>
       </Card>
 
-      {matterChatEnabled && <ChatWorkspace
+      {matterChatEnabled && <div id='lawyer-coordination' className='scroll-mt-28'><ChatWorkspace
         title='Secretary Coordination'
         subtitle='Case-attached internal chat with the assigned secretary.'
         threads={lawyerThreads}
@@ -911,9 +928,9 @@ export default function LawyerCaseDetailsPage() {
           lawyerMessagesQuery.refetch();
         }}
         emptyThreadMessage='No secretary coordination thread yet.'
-      />}
+      /></div>}
 
-      <Card className='p-6'>
+      <Card id='lawyer-history' className='scroll-mt-28 p-6'>
         <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
           Timeline
         </h3>
@@ -944,7 +961,7 @@ export default function LawyerCaseDetailsPage() {
         )}
       </Card>
 
-      <LawyerDocumentsPage caseId={id} compact />
+      <div id='lawyer-documents' className='scroll-mt-28'><LawyerDocumentsPage caseId={id} compact /></div>
     </div>
   );
 }

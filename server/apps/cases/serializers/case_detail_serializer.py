@@ -29,6 +29,7 @@ from apps.cases.serializers.matter_detail_serializers import (
 )
 from apps.cases.services.case_conflict_check_service import CaseConflictCheckService
 from apps.cases.services.case_lifecycle_service import CaseLifecycleService
+from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
 from apps.events.serializers import EventSerializer
 from apps.events.services import EventService
 
@@ -86,6 +87,22 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     client_kyc_cabinet_location = serializers.CharField(source="client.kyc_cabinet_location", read_only=True)
     referenced_client_documents = serializers.SerializerMethodField()
     document_checklist = serializers.SerializerMethodField()
+    physical_matter_file = serializers.SerializerMethodField()
+    matter_evidence_documents = serializers.SerializerMethodField()
+    matter_work_product_documents = serializers.SerializerMethodField()
+
+    def get_physical_matter_file(self, obj):
+        try:
+            physical_file = obj.physical_file
+        except Exception:
+            return None
+        return MatterPhysicalFileService.serialize(physical_file)
+
+    def get_matter_evidence_documents(self, obj):
+        return CaseAttachmentSerializer(obj.attachments.filter(origin="CLIENT_SUPPLIED"), many=True).data
+
+    def get_matter_work_product_documents(self, obj):
+        return CaseAttachmentSerializer(obj.attachments.exclude(origin="CLIENT_SUPPLIED"), many=True).data
 
     def _client_visible_only(self):
         request = self.context.get("request")
@@ -199,7 +216,11 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "physical_location": ref.document.physical_storage_location,
             "digital_copy_available": ref.document.digital_copy_available,
             "purpose": ref.purpose, "notes": ref.notes,
-        } for ref in obj.document_references.select_related("document").filter(is_active=True)]
+        } for ref in obj.document_references.select_related("document").filter(
+            is_active=True,
+            document__classification="CLIENT_KYC",
+            document__archived_at__isnull=True,
+        )]
 
     def get_document_checklist(self, obj):
         if self._client_visible_only():
@@ -259,6 +280,9 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "client_kyc_cabinet_location",
             "referenced_client_documents",
             "document_checklist",
+            "physical_matter_file",
+            "matter_evidence_documents",
+            "matter_work_product_documents",
             "case_number",
             "internal_matter_number",
             "official_court_case_number",

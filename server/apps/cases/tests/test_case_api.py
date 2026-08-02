@@ -6,7 +6,11 @@ from django.urls import Resolver404, resolve, reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.cases.models import Case, CaseActivity, CaseAttachment, CaseEvent, CaseTask
+from apps.cases.models import (
+    Case, CaseActivity, CaseAttachment, CaseEvent, CaseTask,
+    MatterDocumentTransfer, MatterPhysicalFile, MatterPhysicalFileMovement,
+)
+from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
 from apps.clients.models import (
     Client, ClientDocument, ClientDocumentCustodyMovement,
     ClientDocumentRegisterRemoval, ClientRepresentative,
@@ -339,17 +343,125 @@ class CaseApiTests(TestCase):
             })
 
         client_document_count = ClientDocument.objects.count()
+        physical_file = MatterPhysicalFileService.ensure_pending(matter, self.admin)
+        MatterPhysicalFileService.assign(self.secretary.user, matter, {
+            "storage_zone": "Active Matters", "cabinet": "Cabinet B",
+            "shelf_or_drawer": "Shelf 3", "reason": "Test folder prepared.",
+        })
         generated = LawyerDocumentService.create_matter_document(self.lawyer.user, {
             "case_id": str(matter.id), "title": "Demand Letter", "attachment_type": "CORRESPONDENCE",
             "physical_copy_type": "OFFICE_COPY",
-            "physical_storage_location": f"Active Matters / {matter.case_number} / Correspondence / Item 1",
+            "physical_section": "DEMAND_PRE_ACTION", "item_location_detail": "Item 1",
         })
         self.assertTrue(generated["document_reference"].endswith("/D001"))
         self.assertTrue(CaseAttachment.objects.filter(case=matter, title="Demand Letter").exists())
         matter_document = CaseAttachment.objects.get(case=matter, title="Demand Letter")
         self.assertFalse(matter_document.file)
         self.assertEqual(matter_document.physical_copy_type, CaseAttachment.PhysicalCopyType.OFFICE_COPY)
+        self.assertEqual(matter_document.physical_file, physical_file)
+        self.assertIn("Cabinet B", matter_document.physical_storage_location)
         self.assertEqual(ClientDocument.objects.count(), client_document_count)
+
+    def test_matter_opening_creates_one_pending_physical_file_without_blocking_creation(self):
+        response = self.client_api.post(reverse("case-create"), self.payload(), format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        matter = Case.objects.get(id=response.data["data"]["id"])
+        physical_file = MatterPhysicalFile.objects.get(matter=matter)
+        self.assertEqual(physical_file.reference, matter.case_number)
+        self.assertEqual(physical_file.status, MatterPhysicalFile.Status.REQUESTED)
+        self.assertFalse(physical_file.location)
+        MatterPhysicalFileService.ensure_pending(matter, self.admin)
+        self.assertEqual(MatterPhysicalFile.objects.filter(matter=matter).count(), 1)
+        self.assertEqual(physical_file.movements.filter(action="REQUESTED").count(), 1)
+
+    def test_records_secretary_assigns_moves_and_returns_physical_file_with_history(self):
+        response = self.client_api.post(reverse("case-create"), self.payload(), format="json")
+        matter = Case.objects.get(id=response.data["data"]["id"])
+        physical_file = MatterPhysicalFileService.assign(self.secretary.user, matter, {
+            "storage_zone": "Active Matters", "cabinet": "Cabinet B", "shelf_or_drawer": "Shelf 3",
+            "reason": "Folder prepared and shelved.",
+        })
+        self.assertEqual(physical_file.status, MatterPhysicalFile.Status.ACTIVE)
+        self.assertEqual(physical_file.location, "Active Matters / Cabinet B / Shelf 3")
+        with self.assertRaises(Exception):
+            MatterPhysicalFileService.assign(self.secretary.user, matter, {
+                "storage_zone": "Active Matters", "cabinet": "Cabinet C", "shelf_or_drawer": "Shelf 1",
+            })
+        MatterPhysicalFileService.move(self.secretary.user, matter, {
+            "action": "CHECKED_OUT", "issued_to": str(self.lawyer.user_id), "reason": "Advocate review.",
+        })
+        physical_file.refresh_from_db()
+        self.assertEqual(physical_file.current_custodian, self.lawyer.user)
+        self.assertEqual(physical_file.status, MatterPhysicalFile.Status.CHECKED_OUT)
+        MatterPhysicalFileService.move(self.secretary.user, matter, {"action": "RETURNED", "reason": "Review complete."})
+        MatterPhysicalFileService.move(self.secretary.user, matter, {
+            "action": "RELOCATED", "storage_zone": "Active Matters", "cabinet": "Cabinet C",
+            "shelf_or_drawer": "Shelf 2", "reason": "Cabinet reorganisation.",
+        })
+        physical_file.refresh_from_db()
+        self.assertEqual(physical_file.custody_label, "Records room")
+        relocation = physical_file.movements.get(action="RELOCATED")
+        self.assertIn("Cabinet B", relocation.previous_location)
+        self.assertIn("Cabinet C", relocation.new_location)
+
+    def test_advocate_cannot_assign_physical_file_and_other_firm_cannot_access_api(self):
+        response = self.client_api.post(reverse("case-create"), self.payload(), format="json")
+        matter = Case.objects.get(id=response.data["data"]["id"])
+        with self.assertRaises(Exception):
+            MatterPhysicalFileService.assign(self.lawyer.user, matter, {
+                "storage_zone": "Active", "cabinet": "B", "shelf_or_drawer": "3",
+            })
+        other_admin = User.objects.create_user(email="other-records@example.com", password="pass", first_name="Other", last_name="Owner", role=UserRole.ADMIN)
+        LawFirm.objects.create(name="Other Firm", registration_number="OTHER-001", owner=other_admin)
+        self.client_api.force_authenticate(other_admin)
+        denied = self.client_api.get(reverse("matter-physical-file", kwargs={"case_id": matter.id}))
+        self.assertNotEqual(denied.status_code, 200)
+
+    def test_matter_evidence_transfer_preserves_custody_metadata_and_allocates_mat_reference(self):
+        response = self.client_api.post(reverse("case-create"), self.payload(), format="json")
+        matter = Case.objects.get(id=response.data["data"]["id"])
+        MatterPhysicalFileService.assign(self.secretary.user, matter, {
+            "storage_zone": "Active Matters", "cabinet": "Cabinet B", "shelf_or_drawer": "Shelf 3",
+        })
+        evidence = ClientDocument.objects.create(
+            client=self.client, firm=self.firm, reference="KYC-2026-001/D7",
+            title="Supply Agreement", document_type="CONTRACT", subtype="CONTRACT",
+            category="TRANSACTION", classification="MATTER_SPECIFIC", source_copy_type="ORIGINAL",
+            page_count=12, return_required=True, expected_return_date=date(2026, 9, 1),
+            visible_damage_or_alteration=True, condition_description="Staple damage",
+            physical_copy_retained=True, physical_storage_location="Temporary Intake Tray 2",
+        )
+        attachment = MatterPhysicalFileService.transfer_client_document(
+            self.secretary.user, matter, evidence.id,
+            {"physical_section": "EVIDENCE", "item_location_detail": "Item 1", "reason": "Correct classification and custody."},
+        )
+        self.assertEqual(attachment.document_reference, f"{matter.case_number}/D001")
+        self.assertEqual(attachment.origin, CaseAttachment.Origin.CLIENT_SUPPLIED)
+        transfer = MatterDocumentTransfer.objects.get(destination_attachment=attachment)
+        self.assertEqual(transfer.previous_reference, "KYC-2026-001/D7")
+        self.assertEqual(transfer.previous_location, "Temporary Intake Tray 2")
+        evidence.refresh_from_db()
+        self.assertIsNotNone(evidence.archived_at)
+        self.assertEqual(evidence.page_count, 12)
+        self.assertEqual(evidence.condition_description, "Staple damage")
+
+    def test_kyc_classification_accepts_identity_and_rejects_transactional_documents(self):
+        self.client.kyc_drawer_reference = "KYC-2026-001"
+        self.client.save(update_fields=["kyc_drawer_reference", "updated_at"])
+        national_id = ClientDocument(
+            client=self.client, firm=self.firm, reference="KYC-2026-001/D1",
+            title="National ID", document_type="IDENTIFICATION", subtype="NATIONAL_ID",
+            category="KYC_IDENTITY", classification="CLIENT_KYC",
+        )
+        national_id.full_clean()
+        for subtype, document_type in (("INVOICE", "FINANCIAL"), ("CONTRACT", "CONTRACT")):
+            document = ClientDocument(
+                client=self.client, firm=self.firm, reference="KYC-2026-001/D2",
+                title=subtype.title(), document_type=document_type, subtype=subtype,
+                category="TRANSACTION", classification="CLIENT_KYC",
+            )
+            with self.assertRaises(Exception):
+                document.full_clean()
 
     def test_secretary_matter_workspace_lists_all_physical_client_documents_before_reference(self):
         self.client.kyc_drawer_reference = "KYC-2026-039"

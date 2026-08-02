@@ -9,6 +9,7 @@ from .case_lifecycle_transition import CaseLifecycleTransition
 from .case_note import CaseNote
 from .case_party import CaseParty
 from .case_task import CaseTask
+from .matter_physical_file import MatterPhysicalFile, MatterPhysicalFileMovement, MatterDocumentTransfer
 from .case_timeline import CaseTimeline
 from .court_record_history import JudiciaryCTSSnapshot, JurisdictionAssessment
 from .matter_details import (
@@ -50,6 +51,9 @@ __all__ = [
     "InsuranceMatterDetails",
     "LandMatterDetails",
     "MonetaryRelief",
+    "MatterPhysicalFile",
+    "MatterPhysicalFileMovement",
+    "MatterDocumentTransfer",
     "NonContentiousMatterDetails",
     "SuccessionMatterDetails",
     "TribunalProceeding",

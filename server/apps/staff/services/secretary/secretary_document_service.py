@@ -16,6 +16,8 @@ from apps.documents.models import (
 )
 from apps.communications.services import ChatService
 from apps.documents.services.workflow_service import DocumentWorkflowService
+from apps.cases.models import CaseAttachment, MatterPhysicalFile
+from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
 
 
 class SecretaryDocumentService:
@@ -297,6 +299,21 @@ class SecretaryDocumentService:
             "cases": [{"id": str(item.id), "case_number": item.case_number, "title": item.title,
                        "client_id": str(item.client_id), "client_name": item.client.full_name}
                       for item in scoped_cases.select_related("client").order_by("-created_at")],
+            "physical_file_queue": [{
+                "case_id": str(item.matter_id), "case_number": item.reference,
+                "title": item.matter.title, "client_name": item.matter.client.full_name,
+                "responsible_advocate": item.matter.assigned_lawyer.user.full_name if item.matter.assigned_lawyer_id else "Not assigned",
+                "opened_at": item.matter.created_at, "priority": item.matter.get_priority_display(),
+                "status": item.status, "status_label": item.get_status_display(),
+            } for item in MatterPhysicalFile.objects.filter(
+                matter__in=cases,
+                status__in=[MatterPhysicalFile.Status.REQUESTED, MatterPhysicalFile.Status.AWAITING_PREPARATION],
+            ).select_related("matter__client", "matter__assigned_lawyer__user").order_by("matter__created_at")],
+            "physical_file": (
+                MatterPhysicalFileService.serialize(MatterPhysicalFile.objects.get(matter_id=case_id, firm=secretary.law_firm), include_history=False)
+                if case_id and MatterPhysicalFile.objects.filter(matter_id=case_id, firm=secretary.law_firm).exists()
+                else None
+            ),
         }
 
     @staticmethod
@@ -361,6 +378,25 @@ class SecretaryDocumentService:
                 raise ValidationError({"client_id": "Select a client file."}) from exc
 
         subtype = data.get("subtype") or ClientDocument.Subtype.OTHER
+        classification = data.get("classification") or ClientDocument.Classification.CLIENT_KYC
+        kyc_subtypes = {
+            ClientDocument.Subtype.NATIONAL_ID, ClientDocument.Subtype.PASSPORT,
+            ClientDocument.Subtype.ALIEN_ID, ClientDocument.Subtype.KRA_PIN,
+            ClientDocument.Subtype.PROOF_OF_ADDRESS, ClientDocument.Subtype.INCORPORATION,
+            ClientDocument.Subtype.CR12, ClientDocument.Subtype.BUSINESS_REGISTRATION,
+            ClientDocument.Subtype.TRUST_DEED, ClientDocument.Subtype.AUTHORITY_TO_INSTRUCT,
+        }
+        matter_subtypes = {
+            ClientDocument.Subtype.SALE_AGREEMENT, ClientDocument.Subtype.CONTRACT,
+            ClientDocument.Subtype.INVOICE, ClientDocument.Subtype.RECEIPT,
+            ClientDocument.Subtype.DELIVERY_NOTE, ClientDocument.Subtype.CORRESPONDENCE,
+        }
+        if classification != ClientDocument.Classification.CLIENT_KYC:
+            raise ValidationError({"classification": "Use the matter-evidence or controlled originals workflow for non-KYC documents."})
+        if subtype in matter_subtypes:
+            raise ValidationError({"subtype": "Contracts, invoices, delivery records and dispute correspondence cannot normally be registered in the KYC drawer."})
+        if subtype not in kyc_subtypes and not (data.get("exception_reason") or "").strip():
+            raise ValidationError({"exception_reason": "This is not a standard KYC document. Authorised records staff must record the exception reason."})
         document_owner_subject = SecretaryDocumentService.resolve_document_subject(
             client, subtype, data.get("document_owner_contact")
         )
@@ -420,6 +456,7 @@ class SecretaryDocumentService:
             document_type=(request.document_type if request else data.get("document_type")) or "OTHER",
             title=title,
             reference=document_reference,
+            classification=classification,
             description=(data.get("description") or "").strip(),
             category=data.get("category") or ClientDocument.Category.OTHER,
             subtype=subtype,

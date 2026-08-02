@@ -1625,6 +1625,14 @@ class CaseLifecycleService:
                 # Don't let notification failure break the transition
                 pass
 
+        if (
+            dimension == CaseLifecycleTransition.Dimension.MATTER_STATUS
+            and to_state in {Case.MatterStatus.CLOSED, Case.MatterStatus.CANCELLED}
+            and not is_correction
+        ):
+            from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
+            MatterPhysicalFileService.mark_closure_pending(case, actor)
+
 
 
         return transition

@@ -1,6 +1,7 @@
-export default function Card({ children, className = '' }) {
+export default function Card({ children, className = '', ...props }) {
   return (
     <div
+      {...props}
       className={`
         bg-white/80
         dark:bg-white/[0.07]

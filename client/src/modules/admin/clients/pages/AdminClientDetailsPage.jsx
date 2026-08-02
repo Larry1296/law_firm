@@ -9,6 +9,7 @@ import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
 import BackLink from '@/components/ui/BackLink';
 import Button3D from '@/components/ui/Button3D';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { titleCase, enumLabel } from '@/core/utils/textFormatter';
@@ -197,9 +198,20 @@ export default function AdminClientDetailsPage() {
         title={pageTitle}
         subtitle='Client Details'
       />
+      <PageSectionNav
+        ariaLabel='Client page sections'
+        sections={[
+          { id: 'client-overview', label: 'Overview' },
+          { id: 'client-identity', label: 'Identity' },
+          { id: 'client-matters', label: 'Proposed matters' },
+          { id: 'client-authority', label: 'Representatives' },
+          { id: 'client-addresses', label: 'Addresses' },
+          { id: 'client-contacts', label: 'Contacts' },
+        ]}
+      />
       <div className='flex justify-end'><Button3D variant='primary' onClick={() => navigate(`/admin/clients/${id}/documents`)}>Open Physical Document Register</Button3D></div>
 
-      <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
+      <div id='client-overview' className='scroll-mt-28 grid grid-cols-1 gap-4 md:grid-cols-4'>
         <StatsCard title='Addresses' value={analytics.addresses ?? 0} color='blue' />
 
         <StatsCard title='Contacts' value={analytics.contacts ?? 0} color='green' />
@@ -217,7 +229,7 @@ export default function AdminClientDetailsPage() {
         />
       </div>
 
-      <Card className='p-6'>
+      <Card id='client-identity' className='scroll-mt-28 p-6'>
         <h3 className='text-lg font-semibold mb-4'>Basic Information</h3>
 
         <div className='grid md:grid-cols-2 gap-4'>
@@ -275,7 +287,7 @@ export default function AdminClientDetailsPage() {
         </Card>
       )}
 
-      <Card className='p-6'>
+      <Card id='client-matters' className='scroll-mt-28 p-6'>
         <div className='mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
           <h3 className='text-lg font-semibold'>Proposed Matters and Conflict Checks</h3>
           <Button3D variant='primary' onClick={() => navigate(`/admin/clients/${id}/conflict-checks/new`)}>
@@ -325,7 +337,7 @@ export default function AdminClientDetailsPage() {
         )}
       </Card>
 
-      <Card className='p-6'>
+      <Card id='client-authority' className='scroll-mt-28 p-6'>
         <h3 className='text-lg font-semibold mb-4'>
           Authorized Representatives and Officeholders
         </h3>
@@ -351,7 +363,7 @@ export default function AdminClientDetailsPage() {
         )}
       </Card>
 
-      <Card className='p-6'>
+      <Card id='client-addresses' className='scroll-mt-28 p-6'>
         <h3 className='text-lg font-semibold mb-4'>Addresses</h3>
 
         {(client.addresses ?? []).length === 0 ? (
@@ -405,7 +417,7 @@ export default function AdminClientDetailsPage() {
         )}
       </Card>
 
-      <Card className='p-6'>
+      <Card id='client-contacts' className='scroll-mt-28 p-6'>
         <h3 className='text-lg font-semibold mb-4'>Contacts</h3>
 
         {(client.contacts ?? []).length === 0 ? (

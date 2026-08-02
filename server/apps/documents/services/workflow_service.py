@@ -16,6 +16,10 @@ class DocumentWorkflowService:
 
     @staticmethod
     def register_in_kyc_drawer(*, client, case, user, title, document_type, description=""):
+        if document_type in {"CONTRACT", "FINANCIAL", "EVIDENCE", "LEGAL"}:
+            raise ValidationError({
+                "document_type": "Matter evidence and transactional records must not be registered in the client KYC drawer."
+            })
         document = ClientDocument.objects.create(
             client=client, firm=client.firm,
             document_type=document_type,
@@ -26,6 +30,7 @@ class DocumentWorkflowService:
             is_confidential=True,
             physical_copy_retained=False,
             physical_storage_location="",
+            classification=ClientDocument.Classification.CLIENT_KYC,
         )
         document.physical_storage_location = f"KYC DRAWER / {client.kyc_drawer_reference}"
         document.save(update_fields=["physical_storage_location", "updated_at"])
@@ -212,6 +217,9 @@ class DocumentWorkflowService:
             "description": document.description, "mime_type": document.mime_type,
             "review_status": document.review_status, "review_notes": document.review_notes,
             "source_reference": document.source_reference,
+            "classification": document.classification,
+            "classification_label": document.get_classification_display(),
+            "temporary_intake_reference": document.temporary_intake_reference,
             "category": document.category,
             "category_label": document.get_category_display(),
             "subtype": document.subtype,
@@ -225,7 +233,7 @@ class DocumentWorkflowService:
             "drawer_reference": document.client.kyc_drawer_reference,
             "digital_copy_reference": document.reference,
             "digital_copy_available": bool(document.file),
-            "record_authority": "PHYSICAL_KYC_DRAWER",
+            "record_authority": "PHYSICAL_KYC_DRAWER" if document.classification == "CLIENT_KYC" else "PENDING_DESTINATION_REVIEW",
             "source_copy_type": document.source_copy_type,
             "source_copy_type_label": document.get_source_copy_type_display(),
             "physical_copy_retained": document.physical_copy_retained,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Card from '@/components/ui/Card';
@@ -17,14 +17,9 @@ const TYPES = [
   ['INCORPORATION', 'Certificate of Incorporation', 'REGISTRATION', 'ENTITY_RECORD'],
   ['CR12', 'CR12', 'REGISTRATION', 'ENTITY_RECORD'],
   ['AUTHORITY_TO_INSTRUCT', 'Authority/Resolution to Instruct', 'LEGAL', 'ENTITY_RECORD'],
-  ['TITLE_DEED', 'Title Deed', 'LEGAL', 'PROPERTY'],
-  ['CONTRACT', 'Agreement/Contract', 'CONTRACT', 'TRANSACTION'],
-  ['INVOICE', 'Invoice', 'FINANCIAL', 'TRANSACTION'],
-  ['RECEIPT', 'Receipt', 'FINANCIAL', 'TRANSACTION'],
-  ['DELIVERY_NOTE', 'Delivery Note', 'EVIDENCE', 'TRANSACTION'],
-  ['CORRESPONDENCE', 'Correspondence', 'LEGAL', 'CORRESPONDENCE'],
-  ['MEDICAL_RECORD', 'Medical Report', 'EVIDENCE', 'MEDICAL'],
-  ['POLICE_ABSTRACT', 'Police Abstract', 'EVIDENCE', 'POLICE'],
+  ['PROOF_OF_ADDRESS', 'Proof of Address', 'IDENTIFICATION', 'KYC_IDENTITY'],
+  ['BUSINESS_REGISTRATION', 'Business/Partnership Registration', 'REGISTRATION', 'ENTITY_RECORD'],
+  ['TRUST_DEED', 'Trust Registration/Deed', 'REGISTRATION', 'ENTITY_RECORD'],
   ['OTHER', 'Other', 'OTHER', 'OTHER'],
 ];
 
@@ -47,6 +42,7 @@ export default function SecretaryDocuments({ caseId = '', compact = false }) {
   const [form, setForm] = useState(blankForm);
   const [receipt, setReceipt] = useState({ document_ids: [], received_from_contact: '' });
   const [issuedReceipt, setIssuedReceipt] = useState('');
+  const [matterFileDraft, setMatterFileDraft] = useState({ case_id: '', storage_zone: 'Active Matters', cabinet: '', shelf_or_drawer: '', location_detail: '', notes: '' });
   const params = caseId ? { case_id: caseId } : (clientId ? { client_id: clientId } : {});
   const { data, isLoading } = useQuery({ queryKey: ['secretary-documents', caseId, clientId], queryFn: () => secretaryDocumentsService.getDocuments(params) });
   const selectedId = data?.selected_client_id || clientId;
@@ -56,8 +52,15 @@ export default function SecretaryDocuments({ caseId = '', compact = false }) {
   const isEntityClient = client?.client_type && client.client_type !== 'INDIVIDUAL';
   const isPersonalIdentityDocument = ['NATIONAL_ID', 'PASSPORT', 'ALIEN_ID'].includes(form.subtype);
   const effectiveDocumentOwnerContact = form.document_owner_contact || receivedFromOptions[0]?.value || '';
-  const documents = data?.documents || [];
-  const unreceiptedDocuments = documents.filter((item) => !item.receipt_number);
+  const documents = useMemo(() => data?.documents || [], [data?.documents]);
+  const kycDocuments = documents.filter((item) => item.classification === 'CLIENT_KYC');
+  const matterEvidence = documents.filter((item) => item.classification === 'MATTER_SPECIFIC');
+  const selectedMatterFile = data?.physical_file;
+  const physicalFileQueue = data?.physical_file_queue || [];
+  const unreceiptedDocuments = useMemo(
+    () => documents.filter((item) => !item.receipt_number),
+    [documents],
+  );
   const receiptSelectionKey = `${selectedId}:${unreceiptedDocuments.map((item) => item.id).sort().join(',')}`;
   const initializedReceiptSelection = useRef('');
 
@@ -68,14 +71,22 @@ export default function SecretaryDocuments({ caseId = '', compact = false }) {
       ...current,
       document_ids: unreceiptedDocuments.map((item) => item.id),
     }));
-  }, [receiptSelectionKey]);
+  }, [receiptSelectionKey, unreceiptedDocuments]);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['secretary-documents'] });
   const assign = useMutation({ mutationFn: () => secretaryDocumentsService.assignDrawer({ client_id: selectedId, kyc_drawer_reference: drawerReference, cabinet_location: cabinetLocation }), onSuccess: refresh });
+  const assignMatterFile = useMutation({
+    mutationFn: () => secretaryDocumentsService.assignMatterFile(matterFileDraft.case_id, matterFileDraft),
+    onSuccess: () => { setMatterFileDraft({ case_id: '', storage_zone: 'Active Matters', cabinet: '', shelf_or_drawer: '', location_detail: '', notes: '' }); refresh(); },
+  });
   const propose = useMutation({ mutationFn: () => secretaryDocumentsService.proposeReference(selectedId), onSuccess: ({ document_reference }) => setForm((v) => ({ ...v, document_reference })) });
   const register = useMutation({
     mutationFn: () => secretaryDocumentsService.registerPhysicalDocument({ ...form, document_owner_contact: effectiveDocumentOwnerContact, received_from_contact: form.received_from_contact || receivedFromOptions[0]?.value, client_id: selectedId, physical_storage_location: form.physical_storage_location || client?.kyc_cabinet_location }),
     onSuccess: () => { setForm(blankForm); setShowForm(false); refresh(); },
+  });
+  const transferEvidence = useMutation({
+    mutationFn: (documentId) => secretaryDocumentsService.transferMatterEvidence(caseId, { document_id: documentId, physical_section: 'EVIDENCE', reason: 'Matter-specific evidence transferred from the client register to its authoritative physical matter file.' }),
+    onSuccess: ({ document_reference }) => { Swal.fire({ icon: 'success', title: 'Evidence transferred', text: `${document_reference} was allocated in the physical matter file.` }); refresh(); },
   });
   const createReceipt = useMutation({
     mutationFn: () => secretaryDocumentsService.createReceipt({
@@ -124,6 +135,11 @@ export default function SecretaryDocuments({ caseId = '', compact = false }) {
 
   return <div className={compact ? 'space-y-4' : 'space-y-6 p-4 md:p-6'}>
     {!compact && <SectionHeading title='Physical client records' subtitle='Index exactly what is filed in each client’s physical KYC file.' />}
+    {!compact && <FormSection title='Physical matter files awaiting preparation' description='Prepare, label and place the actual folder before confirming its storage assignment.'>
+      <div className='space-y-3'>{physicalFileQueue.map((item) => <div key={item.case_id} className='rounded-xl border border-border-light p-4 dark:border-border-dark'><div className='flex flex-wrap items-start justify-between gap-3'><div><strong>{item.case_number} — {item.title}</strong><p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>{item.client_name} · Advocate: {item.responsible_advocate} · Priority: {item.priority}</p></div><Button3D size='sm' onClick={() => setMatterFileDraft((current) => ({ ...current, case_id: item.case_id }))}>Prepare and assign file</Button3D></div></div>)}</div>
+      {!physicalFileQueue.length && <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>No physical matter files are awaiting preparation.</p>}
+      {matterFileDraft.case_id && <div className='mt-4 rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-4'><h3 className='font-semibold'>Assign physical matter file</h3><div className='mt-3 grid gap-4 md:grid-cols-2'><FloatingInput label='Storage zone' value={matterFileDraft.storage_zone} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, storage_zone: e.target.value })} required /><FloatingInput label='Cabinet' value={matterFileDraft.cabinet} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, cabinet: e.target.value })} placeholder='Cabinet B' required /><FloatingInput label='Shelf or drawer' value={matterFileDraft.shelf_or_drawer} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, shelf_or_drawer: e.target.value })} placeholder='Shelf 3' required /><FloatingInput label='Additional location detail' value={matterFileDraft.location_detail} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, location_detail: e.target.value })} /></div><p className='mt-2 rounded-lg bg-surface-light p-3 text-sm dark:bg-surface-dark'><strong>Location preview:</strong> {[matterFileDraft.storage_zone, matterFileDraft.cabinet, matterFileDraft.shelf_or_drawer, matterFileDraft.location_detail].filter(Boolean).join(' / ')}</p>{assignMatterFile.error && <p className='mt-2 text-error'>{message(assignMatterFile.error)}</p>}<div className='mt-3 flex justify-end gap-2'><Button3D variant='secondary' onClick={() => setMatterFileDraft((current) => ({ ...current, case_id: '' }))}>Cancel</Button3D><Button3D disabled={!matterFileDraft.storage_zone || !matterFileDraft.cabinet || !matterFileDraft.shelf_or_drawer || assignMatterFile.isPending} onClick={() => assignMatterFile.mutate()}>Confirm physical assignment</Button3D></div></div>}
+    </FormSection>}
     {!compact && <FormSection title='1. Select client' description='Choose the client whose physical file you are handling.'>
       <Select3D label='Client' value={clientId} onChange={(e) => { setClientId(e.target.value); setShowForm(false); }} options={clients.map((item) => ({ value: item.id, label: item.name }))} placeholder='Select a client' wrapperClassName='mb-0' />
     </FormSection>}
@@ -164,8 +180,9 @@ export default function SecretaryDocuments({ caseId = '', compact = false }) {
           {!receivedFromOptions.length && <p className='text-sm text-error'>Record an authorised representative with instruction authority for this organisation before receiving documents.</p>}
           <div className='pt-2'><Button3D disabled={!form.document_reference || !form.title || !receivedFromOptions.length || (isEntityClient && isPersonalIdentityDocument && !effectiveDocumentOwnerContact) || register.isPending} onClick={() => register.mutate()}>Record physical document</Button3D></div>
         </div>}
-        <div className='mt-5 overflow-x-auto'><table className='w-full text-left text-sm'><thead><tr className='border-b'><th className='p-2'>Reference</th><th className='p-2'>Document</th><th className='p-2'>Identifier</th><th className='p-2'>Copy type</th><th className='p-2'>Pages</th><th className='p-2'>Physical location</th><th className='p-2'>Action</th></tr></thead><tbody>{documents.map((item) => <tr key={item.id} className='border-b'><td className='p-2 font-semibold'>{item.reference}</td><td className='p-2'>{item.subtype_label}</td><td className='p-2'>{item.document_identifier || '—'}</td><td className='p-2'>{item.source_copy_type_label || item.source_copy_type}</td><td className='p-2'>{item.page_count}</td><td className='p-2'>{item.physical_storage_location}</td><td className='p-2'><button type='button' className='font-semibold text-error disabled:opacity-50' disabled={removeDocument.isPending} onClick={() => requestRemoval(item)}>Remove</button></td></tr>)}</tbody></table>{isLoading && <p className='p-3'>Loading file contents…</p>}{!isLoading && !documents.length && <p className='p-3'>No physical documents recorded.</p>}</div>
+        <div className='mt-5 overflow-x-auto'><table className='w-full text-left text-sm'><thead><tr className='border-b'><th className='p-2'>Reference</th><th className='p-2'>KYC document</th><th className='p-2'>Identifier</th><th className='p-2'>Copy type</th><th className='p-2'>Pages</th><th className='p-2'>Physical location</th><th className='p-2'>Action</th></tr></thead><tbody>{kycDocuments.map((item) => <tr key={item.id} className='border-b'><td className='p-2 font-semibold'>{item.reference}</td><td className='p-2'>{item.subtype_label}</td><td className='p-2'>{item.document_identifier || '—'}</td><td className='p-2'>{item.source_copy_type_label || item.source_copy_type}</td><td className='p-2'>{item.page_count}</td><td className='p-2'>{item.physical_storage_location}</td><td className='p-2'><button type='button' className='font-semibold text-error disabled:opacity-50' disabled={removeDocument.isPending} onClick={() => requestRemoval(item)}>Remove</button></td></tr>)}</tbody></table>{isLoading && <p className='p-3'>Loading file contents…</p>}{!isLoading && !kycDocuments.length && <p className='p-3'>No KYC identity or authority documents recorded.</p>}</div>
       </FormSection>
+      {matterEvidence.length > 0 && <FormSection title='Matter evidence awaiting correct filing' description='These records are not KYC. Transfer them through the audited custody workflow after the physical matter file is assigned.'><div className='space-y-2'>{matterEvidence.map((item) => <div key={item.id} className='flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/30'><span><strong>{item.reference} — {item.subtype_label}</strong><br />Current custody: {item.physical_storage_location}</span>{caseId && <Button3D size='sm' disabled={!selectedMatterFile || selectedMatterFile.assignment_pending || transferEvidence.isPending} onClick={() => transferEvidence.mutate(item.id)}>Transfer to {selectedMatterFile?.reference || 'matter file'}</Button3D>}</div>)}</div>{transferEvidence.error && <p className='mt-3 text-error'>{message(transferEvidence.error)}</p>}</FormSection>}
       <FormSection title='4. Issue receipt for a delivery' description='Issue one receipt covering all documents delivered together by the same person at the recorded date and time.'>
         <p className='mb-3 text-sm text-[color:var(--text-secondary)]'>All unreceipted documents are included initially. Untick a document only when it should not appear on this receipt.</p>
         <div className='space-y-2'>{unreceiptedDocuments.map((item) => <label key={item.id} className='flex items-center gap-3 rounded-lg border p-3'><input type='checkbox' checked={receipt.document_ids.includes(item.id)} onChange={() => toggleReceiptDocument(item.id)} /><span><strong>{item.reference} — {item.subtype_label}</strong>{item.document_identifier ? ` — ${item.document_identifier}` : ''}</span></label>)}</div>

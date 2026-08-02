@@ -6,6 +6,24 @@ from apps.common.models.timestamped_model import TimestampedModel
 
 
 class CaseAttachment(TimestampedModel):
+    class PhysicalSection(models.TextChoices):
+        INSTRUCTIONS = "INSTRUCTIONS", "Instructions"
+        ATTENDANCE_NOTES = "ATTENDANCE_NOTES", "Attendance Notes"
+        CORRESPONDENCE = "CORRESPONDENCE", "Correspondence"
+        DEMAND_PRE_ACTION = "DEMAND_PRE_ACTION", "Demand and Pre-action"
+        EVIDENCE = "EVIDENCE", "Evidence"
+        PLEADINGS_COURT = "PLEADINGS_COURT", "Pleadings and Court Documents"
+        COURT_STAMPED = "COURT_STAMPED", "Court-stamped Documents"
+        RESEARCH = "RESEARCH", "Research"
+        SETTLEMENT = "SETTLEMENT", "Settlement"
+        ACCOUNTS = "ACCOUNTS", "Accounts and Disbursements"
+        CLOSING = "CLOSING", "Closing"
+        OTHER = "OTHER", "Other"
+
+    class Origin(models.TextChoices):
+        CLIENT_SUPPLIED = "CLIENT_SUPPLIED", "Client-supplied Matter Evidence"
+        FIRM_GENERATED = "FIRM_GENERATED", "Firm-generated Work Product"
+        THIRD_PARTY_RECEIVED = "THIRD_PARTY_RECEIVED", "Third-party Received"
     class PhysicalCopyType(models.TextChoices):
         ORIGINAL = "ORIGINAL", "Original"
         OFFICE_COPY = "OFFICE_COPY", "Office Copy"
@@ -28,6 +46,7 @@ class CaseAttachment(TimestampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     case = models.ForeignKey("cases.Case", on_delete=models.CASCADE, related_name="attachments")
+    physical_file = models.ForeignKey("cases.MatterPhysicalFile", on_delete=models.PROTECT, null=True, blank=True, related_name="documents")
     document_reference = models.CharField(max_length=80, blank=True, db_index=True)
     filing = models.ForeignKey(
         "cases.CaseFiling",
@@ -49,6 +68,9 @@ class CaseAttachment(TimestampedModel):
     )
     physical_storage_location = models.CharField(max_length=255, blank=True, default="")
     document_date = models.DateField(null=True, blank=True)
+    physical_section = models.CharField(max_length=40, choices=PhysicalSection.choices, default=PhysicalSection.OTHER)
+    item_location_detail = models.CharField(max_length=120, blank=True, default="")
+    origin = models.CharField(max_length=30, choices=Origin.choices, default=Origin.FIRM_GENERATED)
     uploaded_by = models.ForeignKey(
         "users.User",
         on_delete=models.SET_NULL,

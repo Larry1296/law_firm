@@ -32,7 +32,7 @@ export default function LawyerDocumentsPage({ caseId = '', compact = false }) {
   const [actionNotice, setActionNotice] = useState(null);
   const [request, setRequest] = useState({ action: 'request', case_id: caseId, title: '', document_type: 'EVIDENCE', instructions: '', due_date: '' });
   const [reference, setReference] = useState({ action: 'reference', case_id: caseId, document_id: '', purpose: 'EVIDENCE' });
-  const [workProduct, setWorkProduct] = useState({ case_id: caseId, title: '', attachment_type: 'CORRESPONDENCE', description: '', physical_copy_type: 'OFFICE_COPY', physical_storage_location: '', document_date: '', is_client_visible: false });
+  const [workProduct, setWorkProduct] = useState({ case_id: caseId, title: '', attachment_type: 'CORRESPONDENCE', description: '', physical_copy_type: 'OFFICE_COPY', physical_section: 'DEMAND_PRE_ACTION', item_location_detail: '', document_date: '', is_client_visible: false });
   const { data, isLoading, error } = useQuery({ queryKey: ['lawyer-documents', caseId, q], queryFn: () => lawyerDocumentsService.getDocuments({ case_id: caseId || undefined, q: q || undefined }) });
   const action = useMutation({
     mutationFn: lawyerDocumentsService.createAction,
@@ -59,8 +59,11 @@ export default function LawyerDocumentsPage({ caseId = '', compact = false }) {
   const cases = data?.cases || [];
   const generatedMatterDocuments = data?.matter_documents || [];
   const selectedCase = cases.find((item) => String(item.id) === String(reference.case_id));
-  const selectableDocuments = documents;
-  const matterDocuments = data?.referenced_documents || documents.filter((item) => item.matters?.some((matter) => String(matter.id) === String(caseId)));
+  const physicalFile = data?.physical_file;
+  const selectableDocuments = documents.filter((item) => item.classification === 'CLIENT_KYC');
+  const referencedClientRecords = data?.referenced_documents || documents.filter((item) => item.matters?.some((matter) => String(matter.id) === String(caseId)));
+  const matterDocuments = referencedClientRecords.filter((item) => item.classification === 'CLIENT_KYC');
+  const pendingMatterEvidence = [...documents, ...referencedClientRecords].filter((item, index, all) => item.classification === 'MATTER_SPECIFIC' && all.findIndex((candidate) => candidate.id === item.id) === index);
 
   return <div className={compact ? 'space-y-4' : 'space-y-6 p-4 md:p-6'}>
     {!compact && <SectionHeading title='Client documents' subtitle='Search the real client file, reference documents to matters, and request missing records.' />}
@@ -69,8 +72,8 @@ export default function LawyerDocumentsPage({ caseId = '', compact = false }) {
       <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>Request a physical client record through the secretary. Its KYC document reference is issued only when the secretary receives and registers the actual record.</p>
     </Card>}
     <Card className='p-5'>
-      <h3 className='font-semibold'>A. Client-supplied physical documents</h3>
-      <p className='mt-1 text-sm'>Search all master-register records belonging to this matter&apos;s client. Selecting one creates a matter reference; it does not copy the document.</p>
+      <h3 className='font-semibold'>A. Client identity and authority records</h3>
+      <p className='mt-1 text-sm'>Reference only relevant KYC identity or authority records. The physical record remains in the client KYC file and is not copied or moved.</p>
       {error && <p role='alert' className='mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-error dark:border-red-900 dark:bg-red-950/30'>The physical register could not be loaded. Refresh the page or confirm that you are signed in as the assigned advocate.</p>}
       {actionNotice && <p role={actionNotice.type === 'error' ? 'alert' : 'status'} className={`mt-3 rounded-lg border p-3 text-sm ${actionNotice.type === 'error' ? 'border-red-200 bg-red-50 text-error dark:border-red-900 dark:bg-red-950/30' : 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200'}`}>{actionNotice.message}</p>}
       {selectedCase && <div className='mt-4 grid gap-4 md:grid-cols-3'><ReadOnlyField label='Matter' value={selectedCase.case_number} /><ReadOnlyField label='Client' value={selectedCase.client_name} /><ReadOnlyField label='KYC file' value={selectedCase.kyc_drawer_reference || 'Not assigned'} /></div>}
@@ -83,19 +86,27 @@ export default function LawyerDocumentsPage({ caseId = '', compact = false }) {
       <FormButton className='mt-4' disabled={!reference.case_id || !reference.document_id || action.isPending} onClick={() => action.mutate(reference)}>Reference selected document</FormButton>
     </Card>
     <Card className='p-5'>
+      <h3 className='font-semibold'>Matter evidence supplied by the client</h3>
+      <p className='mt-1 text-sm'>Contracts, invoices, delivery records and dispute correspondence belong in the assigned physical matter file. Authorised records staff must transfer them with custody history and allocate a MAT reference.</p>
+      <div className='mt-3 space-y-2'>{pendingMatterEvidence.map((item) => <div key={item.id} className='rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100'><strong>{item.reference} — {item.subtype_label}</strong><p>Pending audited transfer from {item.physical_storage_location || 'the client register'}.</p></div>)}</div>
+      {!pendingMatterEvidence.length && <p className='mt-3 text-sm text-text-muted-light dark:text-text-muted-dark'>No client-supplied matter evidence is awaiting transfer.</p>}
+    </Card>
+    <Card className='p-5'>
       <h3 className='font-semibold'>B. Matter-generated or matter-received work product</h3>
-      <p className='mt-1 text-sm'>Register the physical office copy, original or court-stamped copy held in the matter file. No digital file is uploaded. It receives a stable {selectedCase?.case_number || 'MAT reference'}/D001 reference and remains separate from the client KYC register.</p>
+      <p className='mt-1 text-sm'>Register correspondence, demand letters, pleadings and court copies inside the assigned parent physical matter file. No digital file is uploaded.</p>
+      {physicalFile ? <div className={`mt-3 rounded-lg p-3 text-sm ${physicalFile.assignment_pending ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100' : 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100'}`}><strong>Parent file: {physicalFile.reference}</strong><p>{physicalFile.assignment_pending ? 'Awaiting secretary preparation and assignment.' : physicalFile.location}</p></div> : <p className='mt-3 text-sm text-error'>Physical matter-file record unavailable.</p>}
       <div className='mt-3 grid gap-3 md:grid-cols-2'>
         {!caseId && <select className='border-b p-3 dark:bg-background-dark' value={workProduct.case_id} onChange={(e) => setWorkProduct({ ...workProduct, case_id: e.target.value })}><option value=''>Select matter</option>{cases.map((item) => <option key={item.id} value={item.id}>{item.case_number} — {item.client_name}</option>)}</select>}
         <TextInput label='Document title' name='matter_document_title' placeholder='Example: Demand Letter to Baraka Distributors Limited' value={workProduct.title} onChange={(e) => setWorkProduct({ ...workProduct, title: e.target.value })}/>
         <SelectInput label='Document type' name='matter_document_type' value={workProduct.attachment_type} onChange={(e) => setWorkProduct({ ...workProduct, attachment_type: e.target.value })} placeholder={null} options={[{ value: 'CORRESPONDENCE', label: 'Correspondence / demand letter' }, { value: 'PLEADING', label: 'Pleading' }, { value: 'AFFIDAVIT', label: 'Affidavit / witness statement' }, { value: 'COURT_ORDER', label: 'Court order' }, { value: 'RULING', label: 'Ruling' }, { value: 'JUDGMENT', label: 'Judgment' }, { value: 'DECREE', label: 'Decree' }, { value: 'RECEIPT', label: 'Filing / payment receipt' }, { value: 'OTHER', label: 'Other' }]} />
         <SelectInput label='Physical copy type' name='matter_document_copy_type' value={workProduct.physical_copy_type} onChange={(e) => setWorkProduct({ ...workProduct, physical_copy_type: e.target.value })} placeholder={null} options={[{ value: 'OFFICE_COPY', label: 'Office copy' }, { value: 'ORIGINAL', label: 'Original' }, { value: 'CERTIFIED_COPY', label: 'Certified copy' }, { value: 'COURT_STAMPED_COPY', label: 'Court-stamped copy' }, { value: 'PHOTOCOPY', label: 'Photocopy' }]} />
         <TextInput label='Document date' name='matter_document_date' type='date' value={workProduct.document_date} onChange={(e) => setWorkProduct({ ...workProduct, document_date: e.target.value })} optional />
-        <TextInput label='Physical matter-file location' name='matter_document_location' placeholder={`Example: Active Matters / ${selectedCase?.case_number || 'MAT-…'} / Correspondence / Item 1`} help='Record the cabinet, physical matter file and internal section.' value={workProduct.physical_storage_location} onChange={(e) => setWorkProduct({ ...workProduct, physical_storage_location: e.target.value })} required className='md:col-span-2' />
+        <SelectInput label='Matter-file section' name='matter_document_section' value={workProduct.physical_section} onChange={(e) => setWorkProduct({ ...workProduct, physical_section: e.target.value })} placeholder={null} options={[['INSTRUCTIONS','Instructions'],['ATTENDANCE_NOTES','Attendance notes'],['CORRESPONDENCE','Correspondence'],['DEMAND_PRE_ACTION','Demand and pre-action'],['EVIDENCE','Evidence'],['PLEADINGS_COURT','Pleadings and court documents'],['COURT_STAMPED','Court-stamped documents'],['RESEARCH','Research'],['SETTLEMENT','Settlement'],['ACCOUNTS','Accounts/disbursements'],['CLOSING','Closing'],['OTHER','Other']].map(([value,label]) => ({ value, label }))} />
+        <TextInput label='Item position within section' name='matter_document_item_location' placeholder='Example: Item 1' help='The cabinet and parent-file location are derived automatically.' value={workProduct.item_location_detail} onChange={(e) => setWorkProduct({ ...workProduct, item_location_detail: e.target.value })} optional />
         <TextArea label='Description or version note' name='matter_document_description' className='md:col-span-2' placeholder='Summarise the document and its purpose.' value={workProduct.description} onChange={(e) => setWorkProduct({ ...workProduct, description: e.target.value })}/>
         <label className='flex items-center gap-2'><input type='checkbox' checked={workProduct.is_client_visible} onChange={(e) => setWorkProduct({ ...workProduct, is_client_visible: e.target.checked })}/> Explicitly visible to client</label>
       </div>
-      <FormButton className='mt-4' disabled={!workProduct.case_id || !workProduct.title || !workProduct.physical_storage_location || createWorkProduct.isPending} onClick={() => createWorkProduct.mutate(workProduct)}>Register physical matter document</FormButton>
+      <FormButton className='mt-4' disabled={!workProduct.case_id || !workProduct.title || !physicalFile || physicalFile.assignment_pending || createWorkProduct.isPending} onClick={() => createWorkProduct.mutate(workProduct)}>Register physical matter document</FormButton>
     </Card>
     <Card className='p-5'>
       <h3 className='font-semibold'>Request an additional document through the secretary</h3>

@@ -47,6 +47,7 @@ class SecretaryCaseService:
                 "assigned_secretary",
                 "assigned_secretary__user",
                 "created_by",
+                "physical_file",
             )
             .prefetch_related("timeline", "activities", "parties", "document_requests")
             .order_by("-created_at")
@@ -66,6 +67,7 @@ class SecretaryCaseService:
                 .select_related(
                     "client", "assigned_lawyer", "assigned_lawyer__user",
                     "assigned_secretary", "assigned_secretary__user",
+                    "physical_file",
                 )
                 .prefetch_related("parties", "document_requests")
                 .get(id=case_id)

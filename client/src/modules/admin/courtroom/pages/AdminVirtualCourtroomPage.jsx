@@ -13,6 +13,7 @@ import {
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
 import Select3D from '@/components/ui/Select3D';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 import {
   useCreateCourtroomAttendance,
   useCreateCourtroomCauseListSync,
@@ -232,7 +233,16 @@ export default function AdminVirtualCourtroomPage() {
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <div className='grid gap-4 lg:grid-cols-5'>
+      <PageSectionNav
+        ariaLabel='Courtroom workspace sections'
+        sections={[
+          { id: 'courtroom-overview', label: 'Overview' },
+          { id: 'courtroom-setup', label: 'Setup and providers' },
+          { id: 'courtroom-live', label: 'Live sessions' },
+          { id: 'courtroom-cause-list', label: 'Cause list' },
+        ]}
+      />
+      <div id='courtroom-overview' className='scroll-mt-28 grid gap-4 lg:grid-cols-5'>
         {stats.map(([label, value]) => (
           <Card key={label} className='p-4'>
             <p className='text-xs font-semibold uppercase text-slate-400'>{label}</p>
@@ -253,7 +263,7 @@ export default function AdminVirtualCourtroomPage() {
         </div>
       )}
 
-      <div className='grid gap-6 xl:grid-cols-[1.2fr_.8fr]'>
+      <div id='courtroom-setup' className='scroll-mt-28 grid gap-6 xl:grid-cols-[1.2fr_.8fr]'>
         <Card className='p-5'>
           <div className='mb-4 flex items-center gap-3'>
             <Video size={22} className='text-blue-600' />
@@ -336,7 +346,7 @@ export default function AdminVirtualCourtroomPage() {
         </Card>
       </div>
 
-      <Card className='p-5'>
+      <Card id='courtroom-live' className='scroll-mt-28 p-5'>
         <div className='mb-4 flex items-center justify-between gap-3'>
           <div className='flex items-center gap-3'>
             <BarChart3 size={20} className='text-indigo-600' />
@@ -391,7 +401,7 @@ export default function AdminVirtualCourtroomPage() {
         </div>
       </Card>
 
-      <Card className='p-5'>
+      <Card id='courtroom-cause-list' className='scroll-mt-28 p-5'>
         <div className='mb-4 flex items-center gap-3'>
           <ListChecks size={20} className='text-amber-600' />
           <h2 className='text-lg font-bold text-slate-900 dark:text-white'>Cause List Sync</h2>

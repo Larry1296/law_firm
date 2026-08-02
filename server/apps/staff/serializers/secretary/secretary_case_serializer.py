@@ -8,17 +8,30 @@ class SecretaryCaseSerializer(serializers.ModelSerializer):
 
     client = serializers.SerializerMethodField()
     client_name = serializers.CharField(source="client.full_name", read_only=True)
+    plaintiff_name = serializers.SerializerMethodField()
     case_owner = serializers.SerializerMethodField()
     assigned_lawyer = serializers.SerializerMethodField()
     court_stage_label = serializers.CharField(source="get_court_stage_display", read_only=True)
     matter_status_label = serializers.CharField(source="get_matter_status_display", read_only=True)
     document_requests = serializers.SerializerMethodField()
+    physical_matter_file = serializers.SerializerMethodField()
+
+    def get_physical_matter_file(self, obj):
+        from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
+        try:
+            return MatterPhysicalFileService.serialize(obj.physical_file)
+        except Exception:
+            return None
 
     def get_client(self, obj):
         return {"id": str(obj.client_id), "full_name": obj.client.full_name,
                 "email": obj.client.email, "phone_number": obj.client.phone_number,
                 "access_type": obj.client.access_type,
                 "portal_access_exists": bool(obj.client.user_id and obj.client.user.is_active)}
+
+    def get_plaintiff_name(self, obj):
+        party = obj.parties.filter(client=obj.client, is_our_client=True).first()
+        return party.name if party else obj.plaintiff or obj.client.full_name
 
     def get_case_owner(self, obj):
         party = obj.parties.filter(client=obj.client, is_our_client=True).first()
@@ -44,8 +57,9 @@ class SecretaryCaseSerializer(serializers.ModelSerializer):
             "id", "case_number", "official_court_case_number", "title",
             "matter_status", "matter_status_label", "court_stage",
             "court_stage_label", "next_court_date",
-            "client", "client_name", "case_owner",
+            "client", "client_name", "plaintiff_name", "case_owner",
             "assigned_lawyer", "assigned_secretary", "document_requests",
+            "physical_matter_file",
             "created_at", "updated_at",
         ]
         read_only_fields = fields
