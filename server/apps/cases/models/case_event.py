@@ -108,6 +108,13 @@ class CaseEvent(TimestampedModel):
         related_name="verified_case_proceedings",
     )
     verified_at = models.DateTimeField(null=True, blank=True)
+    verification_status = models.CharField(max_length=20, choices=(("UNVERIFIED", "Unverified"), ("VERIFIED", "Verified"), ("REJECTED", "Rejected")), default="UNVERIFIED", db_index=True)
+    party_favoured = models.CharField(max_length=120, blank=True, default="")
+    costs_outcome = models.TextField(blank=True, default="")
+    compliance_obligations = models.JSONField(default=list, blank=True)
+    responsible_advocate = models.ForeignKey("staff.Lawyer", null=True, blank=True, on_delete=models.SET_NULL, related_name="responsible_event_outcomes")
+    source_record = models.ForeignKey("cases.CaseAttachment", null=True, blank=True, on_delete=models.SET_NULL, related_name="source_event_outcomes")
+    is_material_to_outlook = models.BooleanField(default=False, db_index=True)
     supporting_documents = models.ManyToManyField(
         "cases.CaseAttachment", blank=True, related_name="supported_proceedings"
     )

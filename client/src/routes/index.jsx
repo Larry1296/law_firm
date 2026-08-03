@@ -76,8 +76,6 @@ const Unauthorized = lazy(() => import('@/modules/public/Unauthorized'));
 
 const Login = lazy(() => import('@/modules/auth/pages/Login'));
 
-const Register = lazy(() => import('@/modules/auth/pages/Register'));
-
 const ForgotPassword = lazy(
   () => import('@/modules/auth/pages/ForgotPassword'),
 );
@@ -112,9 +110,8 @@ const AdminCaseDetailsPage = lazy(
   () => import('@/modules/admin/cases/pages/AdminCaseDetailsPage'),
 );
 
-const AdminCaseAIAnalysisPage = lazy(
-  () => import('@/modules/admin/cases/pages/AdminCaseAIAnalysisPage'),
-);
+// INTERNAL AI TEMPORARILY PAUSED
+// const AdminCaseAIAnalysisPage = lazy(() => import('@/modules/admin/cases/pages/AdminCaseAIAnalysisPage'));
 
 const AdminCaseAssignmentsPage = lazy(
   () => import('@/modules/admin/cases/pages/AdminCaseAssignmentsPage'),
@@ -277,25 +274,16 @@ const AdminSettingsPage = lazy(
 const AdminFirmPage = lazy(
   () => import('@/modules/admin/firm/pages/AdminFirmPage'),
 );
+const AdminPublicKnowledgePage = lazy(() => import('@/modules/admin/publicKnowledge/AdminPublicKnowledgePage'));
 
 
-/* AI */
-
-const AdminAIOverviewPage = lazy(
-  () => import('@/modules/admin/ai/pages/AdminAIOverviewPage'),
-);
-
-const AdminAIRecommendationsPage = lazy(
-  () => import('@/modules/admin/ai/pages/AdminAIRecommendationsPage'),
-);
-
-const AdminCasePredictionsPage = lazy(
-  () => import('@/modules/admin/ai/pages/AdminCasePredictionsPage'),
-);
-
-const AdminLegalResearchAIPage = lazy(
-  () => import('@/modules/admin/ai/pages/AdminLegalResearchAIPage'),
-);
+// INTERNAL AI TEMPORARILY PAUSED
+// Uncomment this block when internal AI development resumes after the
+// essential Sheria Master law-firm workflows have been completed and verified.
+// const AdminAIOverviewPage = lazy(() => import('@/modules/admin/ai/pages/AdminAIOverviewPage'));
+// const AdminAIRecommendationsPage = lazy(() => import('@/modules/admin/ai/pages/AdminAIRecommendationsPage'));
+// const AdminCasePredictionsPage = lazy(() => import('@/modules/admin/ai/pages/AdminCasePredictionsPage'));
+// const AdminLegalResearchAIPage = lazy(() => import('@/modules/admin/ai/pages/AdminLegalResearchAIPage'));
 
 
 /* CALENDAR */
@@ -314,17 +302,12 @@ const LawyerDashboard = lazy(
 );
 
 
-const LawyerAI = lazy(
-  () => import('@/modules/staff/lawyer/ai/pages/LawyerAIPage'),
-);
-
-const LawyerCaseAIAnalysisPage = lazy(
-  () => import('@/modules/staff/lawyer/ai/pages/LawyerCaseAIAnalysisPage'),
-);
-
-const LawyerResearchAI = lazy(
-  () => import('@/modules/staff/lawyer/ai/pages/LawyerResearchAIPage'),
-);
+// INTERNAL AI TEMPORARILY PAUSED
+// Uncomment this block when internal AI development resumes after the
+// essential Sheria Master law-firm workflows have been completed and verified.
+// const LawyerAI = lazy(() => import('@/modules/staff/lawyer/ai/pages/LawyerAIPage'));
+// const LawyerCaseAIAnalysisPage = lazy(() => import('@/modules/staff/lawyer/ai/pages/LawyerCaseAIAnalysisPage'));
+// const LawyerResearchAI = lazy(() => import('@/modules/staff/lawyer/ai/pages/LawyerResearchAIPage'));
 
 
 const LawyerCases = lazy(
@@ -369,13 +352,11 @@ const LawyerCourtroomDetails = lazy(
 );
 
 
-const LawyerResearch = lazy(
-  () => import('@/modules/staff/lawyer/research/pages/LawyerResearchPage'),
-);
-
-const LawyerAuthorities = lazy(
-  () => import('@/modules/staff/lawyer/research/pages/LawyerAuthoritiesPage'),
-);
+// INTERNAL AI TEMPORARILY PAUSED
+// Uncomment this block when internal AI development resumes after the
+// essential Sheria Master law-firm workflows have been completed and verified.
+// const LawyerResearch = lazy(() => import('@/modules/staff/lawyer/research/pages/LawyerResearchPage'));
+// const LawyerAuthorities = lazy(() => import('@/modules/staff/lawyer/research/pages/LawyerAuthoritiesPage'));
 
 
 const LawyerTasks = lazy(
@@ -681,7 +662,6 @@ const AppRoutes = () => {
               </SignedInDashboardRedirect>
             )}
           />
-          <Route path='/register' element={<Register />} />
           <Route path='/forgot-password' element={<ForgotPassword />} />
           <Route path='/recover-account' element={<RecoverAccount />} />
           <Route path='/reset-password/:token' element={<ResetPassword />} />
@@ -709,7 +689,9 @@ const AppRoutes = () => {
           <Route path='cases' element={<AdminCasesPage />} />
           <Route path='cases/create' element={<Navigate to='../clients' replace />} />
           <Route path='cases/:id' element={<AdminCaseDetailsPage />} />
+          {/* INTERNAL AI TEMPORARILY PAUSED
           <Route path='cases/:id/ai' element={<AdminCaseAIAnalysisPage />} />
+          */}
           <Route
             path='cases/:id/assignments'
             element={<AdminCaseAssignmentsPage />}
@@ -798,18 +780,21 @@ const AppRoutes = () => {
 
           {/* FIRM */}
           <Route path='firm' element={<AdminFirmPage />} />
+          <Route path='public-knowledge' element={<AdminPublicKnowledgePage />} />
 
-          {/* AI */}
+          {/* INTERNAL AI TEMPORARILY PAUSED
+          Uncomment this block when internal AI development resumes after the
+          essential Sheria Master law-firm workflows have been completed and verified.
           <Route path='ai' element={<AdminAIOverviewPage />} />
-          <Route
-            path='ai/recommendations'
-            element={<AdminAIRecommendationsPage />}
-          />
-          <Route path='ai/predictions' element={<AdminCasePredictionsPage />} />
+          <Route path='ai/recommendations' element={<AdminAIRecommendationsPage />} />
+          <Route path='ai/matters' element={<AdminCasePredictionsPage />} />
+          <Route path='ai/predictions' element={<Navigate to='../ai/matters' replace />} />
           <Route path='ai/research' element={<AdminLegalResearchAIPage />} />
+          */}
 
           {/* CALENDAR */}
           <Route path='calendar' element={<AdminCalendarPage />} />
+          <Route path='*' element={<Navigate to='dashboard' replace />} />
         </Route>
 
         {/* LAWYER */}
@@ -826,12 +811,18 @@ const AppRoutes = () => {
           <Route path='' element={<Navigate to='dashboard' replace />} />
           <Route path='dashboard' element={<LawyerDashboard />} />
           <Route path='calendar' element={<LawyerCalendar />} />
+          {/* INTERNAL AI TEMPORARILY PAUSED
+          Uncomment this block when internal AI development resumes after the
+          essential Sheria Master law-firm workflows have been completed and verified.
           <Route path='ai' element={<LawyerAI />} />
           <Route path='research-ai' element={<LawyerResearchAI />} />
+          */}
           <Route path='cases' element={<LawyerCases />} />
           <Route path='cases/create' element={<Navigate to='../clients' replace />} />
           <Route path='cases/:id' element={<LawyerCaseDetailsPage />} />
+          {/* INTERNAL AI TEMPORARILY PAUSED
           <Route path='cases/:id/ai-analysis' element={<LawyerCaseAIAnalysisPage />} />
+          */}
           <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/conflict-checks/:checkId' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/conflict-checks/:checkId/open-matter' element={<LawyerCreateCase />} />
@@ -842,12 +833,15 @@ const AppRoutes = () => {
           <Route path='courtroom' element={<LawyerCourtroom />} />
           <Route path='courtroom/:id' element={<LawyerCourtroomDetails />} />
           <Route path='hearings' element={<Navigate to='../courtroom' replace />} />
+          {/* INTERNAL AI TEMPORARILY PAUSED
           <Route path='research' element={<LawyerResearch />} />
           <Route path='authorities' element={<LawyerAuthorities />} />
+          */}
           <Route path='tasks' element={<LawyerTasks />} />
           <Route path='approvals' element={<LawyerApprovals />} />
           <Route path='profile' element={<LawyerProfile />} />
           <Route path='security' element={<LawyerSecurity />} />
+          <Route path='*' element={<Navigate to='dashboard' replace />} />
         </Route>
 
         {/* SECRETARY */}

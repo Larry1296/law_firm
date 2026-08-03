@@ -32,7 +32,7 @@ describe('lawyer AI case pages', () => {
   it('opens the selected matter analysis route', async () => {
     const user = userEvent.setup();
     render(<MemoryRouter initialEntries={['/lawyer/ai']}><Routes><Route path='/lawyer/ai' element={<LawyerAIPage />} /><Route path='/lawyer/cases/:id/ai-analysis' element={<p>Correct analysis page</p>} /></Routes></MemoryRouter>);
-    await user.click(screen.getByRole('button', { name: /open full case analysis/i }));
+    await user.click(screen.getByRole('button', { name: /open matter workspace/i }));
     expect(screen.getByText('Correct analysis page')).toBeInTheDocument();
   });
 

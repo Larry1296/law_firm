@@ -21,7 +21,6 @@ export default function PublicNavbar() {
 
   const isAuthPage = [
     '/login',
-    '/register',
     '/forgot-password',
     '/reset-password',
   ].includes(location.pathname);

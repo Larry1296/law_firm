@@ -8,7 +8,7 @@ from apps.firm.models import LawFirm
 from apps.users.models import User
 
 
-class ClientRegistrationTests(TestCase):
+class PublicRegistrationDisabledTests(TestCase):
     def setUp(self):
         self.api = APIClient()
         self.owner = User.objects.create_user(
@@ -27,9 +27,9 @@ class ClientRegistrationTests(TestCase):
             is_active=True,
         )
 
-    def test_self_registration_creates_unverified_prospect_with_portal_access(self):
+    def test_public_client_and_firm_registration_routes_do_not_exist(self):
         response = self.api.post(
-            reverse("register-client"),
+            "/api/auth/register/",
             {
                 "full_name": "Self Registered Client",
                 "email": "self-client@example.com",
@@ -41,18 +41,10 @@ class ClientRegistrationTests(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertIn("access", response.data)
-        self.assertEqual(response.data["user"]["role"], UserRole.PROSPECT)
-        self.assertEqual(response.data["firm"]["id"], self.firm.id)
-
-        user = User.objects.get(email="self-client@example.com")
-        client = user.client_profile
-        self.assertEqual(client.firm, self.firm)
-        self.assertEqual(client.access_type, Client.AccessType.PROSPECT)
-        self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECT)
-        self.assertFalse(client.is_verified)
-        self.assertFalse(user.must_change_password)
+        firm_response = self.api.post("/api/auth/register-firm/", {}, format="json")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(firm_response.status_code, 404)
+        self.assertFalse(User.objects.filter(email="self-client@example.com").exists())
 
 
 class AdminLoginPasswordResetTests(TestCase):

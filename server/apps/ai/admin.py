@@ -16,6 +16,7 @@ from .models import (
     MatterOutcome,
     PublicAdvocateProfile,
     PublicFirmKnowledgePolicy,
+    PublicKnowledgeAudit,
 )
 from .services.continuous_learning_service import ConfigurationVersionService, KnowledgeIndexService
 
@@ -30,9 +31,8 @@ class KnowledgeBaseCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(KnowledgeBaseArticle)
 class KnowledgeBaseArticleAdmin(admin.ModelAdmin):
-    list_display = ("title", "category", "jurisdiction", "is_published", "last_verified_at", "updated_at")
-    list_filter = ("is_published", "category", "jurisdiction", "last_verified_at")
-    list_editable = ("is_published",)
+    list_display = ("title", "firm", "public_category", "approval_status", "version", "published_at", "updated_at")
+    list_filter = ("approval_status", "visibility", "public_category", "firm")
     search_fields = ("title", "summary", "body", "keywords", "source_reference")
     prepopulated_fields = {"slug": ("title",)}
     raw_id_fields = ("created_by", "updated_by")
@@ -43,6 +43,13 @@ class KnowledgeBaseArticleAdmin(admin.ModelAdmin):
             obj.created_by = request.user
         obj.updated_by = request.user
         super().save_model(request, obj, form, change)
+
+
+@admin.register(PublicKnowledgeAudit)
+class PublicKnowledgeAuditAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "firm", "article", "action", "version", "actor")
+    list_filter = ("action", "firm")
+    readonly_fields = tuple(field.name for field in PublicKnowledgeAudit._meta.fields)
 
 
 @admin.register(KnowledgeBaseQuestionLog)

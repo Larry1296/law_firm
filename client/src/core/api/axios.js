@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 import {
   clearAuthSession,
@@ -19,13 +20,50 @@ const axiosInstance = axios.create({
   baseURL: cleanBaseURL,
 });
 
+const TOKEN_EXPIRY_SKEW_MS = 30 * 1000;
+let proactiveRefreshPromise = null;
+
+const tokenNeedsRefresh = (token) => {
+  if (!token) return false;
+  try {
+    const { exp } = jwtDecode(token);
+    return !exp || exp * 1000 <= Date.now() + TOKEN_EXPIRY_SKEW_MS;
+  } catch {
+    return true;
+  }
+};
+
+const refreshAccessToken = async () => {
+  if (proactiveRefreshPromise) return proactiveRefreshPromise;
+
+  proactiveRefreshPromise = (async () => {
+    const { refreshToken, user } = getStoredAuth();
+    if (!refreshToken) throw new Error('No refresh token');
+
+    const { data } = await axios.post(`${cleanBaseURL}/auth/token/refresh/`, {
+      refresh: refreshToken,
+    });
+    if (!data?.access) throw new Error('Token refresh returned no access token');
+
+    const storage = getAuthStorage();
+    storage.setItem('accessToken', data.access);
+    storage.setItem('refreshToken', data.refresh || refreshToken);
+    if (user) storage.setItem('user', JSON.stringify(user));
+    return data.access;
+  })().finally(() => {
+    proactiveRefreshPromise = null;
+  });
+
+  return proactiveRefreshPromise;
+};
+
 /* =========================================================
    REQUEST INTERCEPTOR
 ========================================================= */
 axiosInstance.interceptors.request.use(
-  (config) => {
+  async (config) => {
     const storage = getAuthStorage();
-    const token = storage.getItem('accessToken');
+    let token = storage.getItem('accessToken');
 
     config.headers = config.headers ?? {};
 
@@ -42,8 +80,17 @@ axiosInstance.interceptors.request.use(
 
     const isAuthEndpoint =
       config.url?.includes('/login') ||
-      config.url?.includes('/register') ||
       config.url?.includes('/token/refresh');
+
+    if (token && !isAuthEndpoint && tokenNeedsRefresh(token)) {
+      try {
+        token = await refreshAccessToken();
+      } catch (error) {
+        clearAuthSession();
+        if (window.location.pathname !== '/login') window.location.replace('/login');
+        return Promise.reject(error);
+      }
+    }
 
     if (token && !isAuthEndpoint) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -91,7 +138,6 @@ axiosInstance.interceptors.response.use(
 
     const isAuthEndpoint =
       originalRequest?.url?.includes('/login') ||
-      originalRequest?.url?.includes('/register') ||
       originalRequest?.url?.includes('/token/refresh');
 
     const isAdminStaffEndpoint = originalRequest?.url?.includes('/admin/staff/');

@@ -951,7 +951,7 @@ export default function AdminFirmPage() {
           <SectionHeading
             hero={false}
             title='Firm Settings'
-            subtitle='Operating rules, portal behavior, security, and AI options.'
+            subtitle='Operating rules, portal behavior, and security options.'
             size='compact'
           />
         </div>
@@ -1043,9 +1043,11 @@ export default function AdminFirmPage() {
           ['allow_client_case_tracking', 'Allow Client Case Tracking'],
           ['require_password_change', 'Require Password Change'],
           ['enable_two_factor_authentication', 'Two Factor Authentication'],
-          ['enable_ai_assistant', 'AI Assistant'],
-          ['enable_ai_case_suggestions', 'AI Case Suggestions'],
-          ['enable_ai_deadline_reminders', 'AI Deadline Reminders'],
+          // INTERNAL AI TEMPORARILY PAUSED
+          // Uncomment these settings when internal AI development resumes.
+          // ['enable_ai_assistant', 'AI Assistant'],
+          // ['enable_ai_case_suggestions', 'AI Case Suggestions'],
+          // ['enable_ai_deadline_reminders', 'AI Deadline Reminders'],
           ['is_active', 'Firm Settings Active'],
         ].map(([field, label]) => (
           <FieldRow

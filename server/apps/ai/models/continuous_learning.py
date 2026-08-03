@@ -112,6 +112,17 @@ class MatterOutcome(TimestampedModel):
     appeal_filed = models.BooleanField(default=False)
     quality_status = models.CharField(max_length=20, choices=Quality.choices, default=Quality.UNVERIFIED)
     verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    final_disposition = models.CharField(max_length=40, choices=(("WON", "Won"), ("LOST", "Lost"), ("PARTLY_SUCCESSFUL", "Partly successful"), ("SETTLED", "Settled"), ("WITHDRAWN", "Withdrawn"), ("DISMISSED", "Struck out or dismissed"), ("ABANDONED", "Abandoned"), ("TRANSFERRED", "Transferred"), ("OTHER", "Other")), default="OTHER")
+    claim_or_exposure = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
+    settlement_amount = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
+    costs_outcome = models.TextField(blank=True)
+    appeal_review_status = models.CharField(max_length=80, blank=True)
+    evidence_accepted = models.JSONField(default=list, blank=True)
+    evidence_rejected = models.JSONField(default=list, blank=True)
+    source_document = models.ForeignKey("cases.CaseAttachment", null=True, blank=True, on_delete=models.SET_NULL, related_name="verified_matter_outcomes")
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="recorded_matter_outcomes")
+    exclusion_reason = models.TextField(blank=True)
 
     class Meta:
         db_table = "ai_matter_outcomes"
@@ -137,6 +148,7 @@ class PublicFirmKnowledgePolicy(TimestampedModel):
     firm = models.OneToOneField("firm.LawFirm", on_delete=models.CASCADE, related_name="public_knowledge_policy")
     is_published = models.BooleanField(default=False)
     include_description = models.BooleanField(default=True)
+    include_owner = models.BooleanField(default=False)
     include_practice_areas = models.BooleanField(default=True)
     include_contact = models.BooleanField(default=False)
     include_location = models.BooleanField(default=False)

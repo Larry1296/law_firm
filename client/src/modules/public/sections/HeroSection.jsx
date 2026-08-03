@@ -139,17 +139,6 @@ export default function HeroSection() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Link to='/register'>
-                    <Button3D size='lg' variant='primary'>
-                      Start Free
-                    </Button3D>
-                  </Link>
-                </motion.div>
-
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.98 }}
-                >
                   <Link to='/login'>
                     <Button3D size='lg' variant='darkAccent'>
                       Member Login

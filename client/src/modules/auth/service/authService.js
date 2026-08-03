@@ -14,11 +14,6 @@ const authService = {
     return data;
   },
 
-  async register(payload) {
-    const { data } = await axiosInstance.post('/auth/register/', payload);
-    return data;
-  },
-
   // =====================
   // PASSWORD FLOW
   // =====================

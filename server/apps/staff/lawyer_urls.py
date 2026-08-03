@@ -29,6 +29,9 @@ from apps.ai.views import LawyerCaseAssessmentView, LawyerCasePriorityListView, 
 from apps.staff.views.lawyer.lawyer_tasks_view import LawyerTasksView
 
 urlpatterns = [
+    path("ai/matters/", LawyerCasePriorityListView.as_view(), name="lawyer-ai-matters"),
+    path("ai/matters/<uuid:case_id>/", LawyerCaseAssessmentView.as_view(), name="lawyer-ai-matter-detail"),
+    path("ai/matters/<uuid:case_id>/assessments/", LawyerCaseAssessmentView.as_view(), name="lawyer-ai-matter-assessment-create"),
     path("ai/cases/", LawyerCasePriorityListView.as_view(), name="lawyer-ai-case-priorities"),
     path("ai/cases/<uuid:case_id>/", LawyerCaseAssessmentView.as_view(), name="lawyer-ai-case-assessment"),
     path("ai/cases/<uuid:case_id>/assessments/<uuid:assessment_id>/feedback/", LawyerFindingFeedbackView.as_view(), name="lawyer-ai-finding-feedback"),

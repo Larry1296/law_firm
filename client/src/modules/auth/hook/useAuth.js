@@ -88,9 +88,6 @@ export default function useAuth() {
   const login = (payload) =>
     execute(() => authService.login(payload), 'Login successful');
 
-  const register = (payload) =>
-    execute(() => authService.register(payload), 'Registration successful');
-
   // =====================
   // PASSWORD FLOW
   // =====================
@@ -159,7 +156,6 @@ export default function useAuth() {
     isAuthenticated,
     firmRole,
     login,
-    register,
     forgotPassword,
     resetPassword,
     recoverAccount,

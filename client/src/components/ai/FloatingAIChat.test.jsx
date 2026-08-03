@@ -20,6 +20,7 @@ const groundedResponse = {
     source_reference: 'Article 48',
   }],
   needs_lawyer: false,
+  disclaimer: 'General legal information only—not legal advice.',
 };
 
 describe('FloatingAIChat', () => {
@@ -37,9 +38,22 @@ describe('FloatingAIChat', () => {
 
   it('opens and closes an accessible assistant dialog', async () => {
     const user = await openChat();
-    expect(screen.getByRole('dialog', { name: 'Kenyan Legal Information Assistant' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Chat with this Firm legal assistant' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toHaveClass('h-[min(680px,calc(100dvh-12rem))]');
+    expect(screen.getByRole('button', { name: 'Close assistant' }).parentElement).toHaveClass('shrink-0');
     expect(screen.getByText(/do not submit confidential/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Close assistant' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('maximizes, minimizes, and closes when clicking outside', async () => {
+    const user = await openChat();
+    const dialog = screen.getByRole('dialog');
+    await user.click(screen.getByRole('button', { name: 'Maximize assistant' }));
+    expect(dialog).toHaveClass('w-[75vw]');
+    await user.click(screen.getByRole('button', { name: 'Minimize assistant' }));
+    expect(dialog).toHaveClass('sm:w-[430px]');
+    fireEvent.pointerDown(document.body);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -82,7 +96,7 @@ describe('FloatingAIChat', () => {
     expect(await screen.findByText(/Article 48 addresses/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Start a new conversation' }));
     expect(screen.queryByText(/Article 48 addresses/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Ask about Kenyan law or the firm/)).toBeInTheDocument();
+    expect(screen.getByText(/Ask about the firm or a general legal topic/)).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -117,7 +131,33 @@ describe('FloatingAIChat', () => {
 
   it('falls back safely for an unknown section and includes reduced-motion styling', () => {
     render(<FloatingAIChat activeSection='not-a-section' />);
-    const launcher = screen.getByRole('button', { name: /ask a kenyan legal question/i });
+    const launcher = screen.getByRole('button', { name: /chat with firm legal assistant/i });
     expect(launcher.querySelector('.motion-reduce\\:transition-none')).toBeInTheDocument();
+  });
+
+  it('renders supported Markdown safely with sources below the answer', async () => {
+    askKnowledgeBase.mockResolvedValueOnce({
+      answer: 'You can contact the firm through:\n\n- **Telephone:** +254 700 000 000\n- **Website:** [primelaw.com](https://primelaw.com)\n\n<script>alert(1)</script> [unsafe](javascript:alert(1))',
+      sources: [{ title: 'Kulecho & Co Advocates contact information', source_name: 'Kulecho & Co Advocates', source_url: '' }],
+      needs_lawyer: false,
+      disclaimer: '',
+    });
+    const user = await openChat();
+    await user.type(screen.getByLabelText('Ask a question'), 'How can I contact the firm?{enter}');
+    expect(await screen.findByRole('list')).toBeInTheDocument();
+    expect(screen.getByText('Telephone:').tagName).toBe('STRONG');
+    expect(screen.getByRole('link', { name: 'primelaw.com' })).toHaveAttribute('href', 'https://primelaw.com');
+    expect(screen.queryByRole('link', { name: 'unsafe' })).not.toBeInTheDocument();
+    expect(document.querySelector('script')).not.toBeInTheDocument();
+    expect(screen.getByText('Kulecho & Co Advocates contact information')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /speak to an advocate/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a legal disclaimer and escalation only when returned by the backend', async () => {
+    askKnowledgeBase.mockResolvedValueOnce({ ...groundedResponse, needs_lawyer: true });
+    const user = await openChat();
+    await user.type(screen.getByLabelText('Ask a question'), 'What applies to my dispute?{enter}');
+    expect(await screen.findByText(/General legal information only/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /speak to an advocate/i })).toBeInTheDocument();
   });
 });

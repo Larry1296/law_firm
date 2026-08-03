@@ -1,13 +1,10 @@
-from django.db.models.signals import m2m_changed, post_delete, post_migrate, post_save
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-from django.utils import timezone
 
 from apps.cases.models import Case, CaseAttachment, CaseEvent, CaseFiling, CaseTask
-from apps.ai.models import KnowledgeBaseArticle, LegalProvision, PublicAdvocateProfile, PublicFirmKnowledgePolicy
+from apps.ai.models import KnowledgeBaseArticle, LegalProvision, PublicFirmKnowledgePolicy
 from apps.ai.services.continuous_learning_service import KnowledgeIndexService
-from apps.ai.services.firm_knowledge_service import FirmKnowledgeService
-from apps.firm.models import Branch, FirmSetting, LawFirm, PracticeArea
-from apps.staff.models import Lawyer
+from apps.firm.models import LawFirm
 
 
 def _mark_case_stale(case_id):
@@ -52,60 +49,5 @@ def withdraw_deleted_knowledge(sender, instance, **kwargs):
 def sync_changed_firm(sender, instance, created, **kwargs):
     if created and not hasattr(instance, "public_knowledge_policy"):
         PublicFirmKnowledgePolicy.objects.create(
-            firm=instance, is_published=instance.is_active,
-            include_contact=True, include_location=True, include_hours=True,
-            approved_by=instance.owner, approved_at=timezone.now(),
+            firm=instance, is_published=False,
         )
-    FirmKnowledgeService.sync(instance)
-
-
-@receiver(post_migrate)
-def ensure_existing_firm_public_knowledge(sender, **kwargs):
-    if sender.name != "apps.ai":
-        return
-    for firm in LawFirm.objects.select_related("owner"):
-        PublicFirmKnowledgePolicy.objects.get_or_create(
-            firm=firm,
-            defaults={
-                "is_published": firm.is_active, "include_contact": True,
-                "include_location": True, "include_hours": True,
-                "approved_by": firm.owner, "approved_at": timezone.now(),
-            },
-        )
-        FirmKnowledgeService.sync(firm)
-
-
-@receiver(post_save, sender=FirmSetting)
-@receiver(post_save, sender=PracticeArea)
-@receiver(post_save, sender=Branch)
-def sync_changed_firm_record(sender, instance, **kwargs):
-    FirmKnowledgeService.sync(instance.firm)
-
-
-@receiver(post_delete, sender=PracticeArea)
-@receiver(post_delete, sender=Branch)
-def sync_deleted_firm_record(sender, instance, **kwargs):
-    FirmKnowledgeService.sync(instance.firm)
-
-
-@receiver(post_save, sender=PublicFirmKnowledgePolicy)
-def sync_publication_policy(sender, instance, **kwargs):
-    FirmKnowledgeService.sync(instance.firm)
-
-
-@receiver(post_save, sender=PublicAdvocateProfile)
-@receiver(post_delete, sender=PublicAdvocateProfile)
-def sync_public_advocate(sender, instance, **kwargs):
-    FirmKnowledgeService.sync(instance.lawyer.law_firm)
-
-
-@receiver(post_save, sender=Lawyer)
-def sync_changed_public_lawyer(sender, instance, **kwargs):
-    if hasattr(instance, "public_ai_profile"):
-        FirmKnowledgeService.sync(instance.law_firm)
-
-
-@receiver(m2m_changed, sender=Lawyer.practice_areas.through)
-def sync_public_lawyer_practice_areas(sender, instance, **kwargs):
-    if hasattr(instance, "public_ai_profile"):
-        FirmKnowledgeService.sync(instance.law_firm)

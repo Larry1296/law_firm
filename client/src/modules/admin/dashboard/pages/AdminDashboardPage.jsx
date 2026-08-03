@@ -3,7 +3,7 @@ import {
   BarChart3,
   Bell,
   Briefcase,
-  Brain,
+  // INTERNAL AI TEMPORARILY PAUSED: Brain,
   CalendarDays,
   CheckSquare,
   FileText,
@@ -71,15 +71,10 @@ const adminTiles = [
     size: 'wide',
     path: '/admin/cases',
   },
-  {
-    key: 'ai',
-    title: 'AI Insights',
-    subtitle: 'Legal intelligence and recommendations',
-    icon: Brain,
-    variant: 'ai',
-    size: 'wide',
-    path: '/admin/ai',
-  },
+  // INTERNAL AI TEMPORARILY PAUSED
+  // Uncomment this block when internal AI development resumes after the
+  // essential Sheria Master law-firm workflows have been completed and verified.
+  // { key: 'ai', title: 'AI Insights', subtitle: 'Legal intelligence and recommendations', icon: Brain, variant: 'ai', size: 'wide', path: '/admin/ai' },
   {
     key: 'courtroom',
     title: 'Courtroom',
@@ -177,10 +172,8 @@ const buildTileMetrics = (dashboard = {}) => {
       value: cases.total_cases,
       detail: `${formatNumber(cases.active_cases)} active · ${formatNumber(cases.closed_cases)} closed`,
     },
-    ai: {
-      value: 'Ready',
-      detail: 'Insights workspace',
-    },
+    // INTERNAL AI TEMPORARILY PAUSED
+    // ai: { value: 'Ready', detail: 'Insights workspace' },
     courtroom: {
       value: cases.courtroom_cases,
       detail: 'Cases with court details',

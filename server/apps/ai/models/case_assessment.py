@@ -70,3 +70,65 @@ class AIAssessmentAudit(TimestampedModel):
     class Meta:
         db_table = "ai_assessment_audits"
         ordering = ("-created_at",)
+
+
+class AIAssessmentRecommendation(TimestampedModel):
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Open"
+        IN_PROGRESS = "IN_PROGRESS", "In progress"
+        COMPLETED = "COMPLETED", "Completed"
+        DISMISSED = "DISMISSED", "Dismissed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    case = models.ForeignKey("cases.Case", on_delete=models.CASCADE, related_name="ai_recommendations")
+    created_assessment = models.ForeignKey(AICaseAssessment, on_delete=models.PROTECT, related_name="structured_recommendations")
+    category = models.CharField(max_length=60)
+    action = models.TextField()
+    reason = models.TextField(blank=True)
+    support = models.JSONField(default=list, blank=True)
+    priority = models.CharField(max_length=20, choices=AICaseAssessment.Priority.choices, default=AICaseAssessment.Priority.MEDIUM)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
+    responsible_person = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="ai_recommendations")
+    due_date = models.DateField(null=True, blank=True)
+    advocate_response = models.TextField(blank=True)
+    completion_note = models.TextField(blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="completed_ai_recommendations")
+
+    class Meta:
+        db_table = "ai_assessment_recommendations"
+        indexes = [models.Index(fields=("case", "status", "priority"), name="ai_rec_case_status_idx")]
+
+
+class AIEventImpact(TimestampedModel):
+    class Direction(models.TextChoices):
+        IMPROVING = "IMPROVING", "Improving"
+        STABLE = "STABLE", "Stable"
+        DETERIORATING = "DETERIORATING", "Deteriorating"
+        INSUFFICIENT = "INSUFFICIENT_DATA", "Insufficient data"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    case = models.ForeignKey("cases.Case", on_delete=models.CASCADE, related_name="ai_event_impacts")
+    triggering_event = models.ForeignKey("cases.CaseEvent", on_delete=models.PROTECT, related_name="ai_impacts")
+    previous_assessment = models.ForeignKey(AICaseAssessment, on_delete=models.PROTECT, related_name="impacts_as_previous")
+    new_assessment = models.OneToOneField(AICaseAssessment, on_delete=models.PROTECT, related_name="event_impact")
+    preparedness_delta = models.SmallIntegerField(default=0)
+    procedural_risk_delta = models.SmallIntegerField(default=0)
+    evidence_readiness_delta = models.SmallIntegerField(default=0)
+    legal_preparedness_delta = models.SmallIntegerField(default=0)
+    outlook_delta = models.SmallIntegerField(null=True, blank=True)
+    confidence_delta = models.SmallIntegerField(default=0)
+    direction = models.CharField(max_length=24, choices=Direction.choices)
+    positive_factors = models.JSONField(default=list, blank=True)
+    negative_factors = models.JSONField(default=list, blank=True)
+    unchanged_factors = models.JSONField(default=list, blank=True)
+    explanation = models.TextField()
+    source_records = models.JSONField(default=list)
+    limitations = models.JSONField(default=list)
+    model_version = models.CharField(max_length=50)
+    scoring_version = models.CharField(max_length=50)
+    generated_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "ai_event_impacts"
+        constraints = [models.UniqueConstraint(fields=("triggering_event", "previous_assessment"), name="unique_verified_event_impact")]

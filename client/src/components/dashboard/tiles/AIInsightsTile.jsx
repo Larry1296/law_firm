@@ -52,7 +52,7 @@ export default function AIInsightsTile() {
             <div>
               <h3 className='text-lg font-semibold'>AI Insights</h3>
               <p className='text-sm opacity-80'>
-                Strategic recommendations and predictions
+                Explainable preparedness and risk recommendations
               </p>
             </div>
           </div>

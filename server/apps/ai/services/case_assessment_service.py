@@ -2,13 +2,13 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from apps.ai.models import AIAssessmentAudit, AICaseAssessment, LegalProvision
+from apps.ai.models import AIAssessmentAudit, AICaseAssessment, AIAssessmentRecommendation, AIEventImpact, LegalProvision
 from apps.ai.services.document_analysis_service import DocumentAnalysisService
 from apps.cases.models import Case
 from apps.cases.services import CaseService
 
 
-DISCLAIMER = "This is an AI-assisted preparedness and risk assessment. It is not a prediction or guarantee of the court’s decision. The responsible advocate must independently verify all facts, documents, deadlines and legal authorities."
+DISCLAIMER = "This is an AI-assisted preparedness, risk and matter-outlook assessment. It is not legal advice, a judicial decision, or a guarantee of the court’s outcome. The responsible advocate must independently verify the facts, documents, deadlines, authorities and recommendations."
 SCORING_VERSION = "priority-v1"
 
 
@@ -22,8 +22,17 @@ def _client_name(case):
 
 class CaseAssessmentService:
     @staticmethod
-    def authorized_cases(user):
-        return CaseService.base_queryset(user).filter(is_active=True)
+    def authorized_cases(user, scope="personal"):
+        firm = CaseService.get_user_firm(user)
+        queryset = Case.objects.filter(firm=firm, is_active=True).select_related("firm", "client", "assigned_lawyer", "assigned_lawyer__user").prefetch_related("events", "tasks", "attachments", "filings", "ai_assessments", "ai_recommendations")
+        if scope == "firm":
+            if user.role != "ADMIN" or firm.owner_id != user.id:
+                raise PermissionError("Firm-wide AI Matter Intelligence is restricted to the firm owner or an explicitly authorized oversight role.")
+            return queryset
+        lawyer = getattr(user, "lawyer_profile", None)
+        if lawyer is None:
+            return queryset.none()
+        return queryset.filter(assigned_lawyer=lawyer)
 
     @staticmethod
     def _state_at(case):
@@ -145,21 +154,29 @@ class CaseAssessmentService:
         stale = not current or current.source_state_at < state_at or current.is_stale
         return {
             "id": str(case.id), "title": case.title, "case_number": case.case_number,
+            "official_case_number": getattr(case, "official_court_case_number", ""),
             "client": _client_name(case), "court_stage": case.get_court_stage_display(),
             "practice_area": case.get_practice_area_display(),
+            "matter_nature": case.get_matter_nature_display(), "forum": case.get_forum_display(),
             "assigned_advocate": case.assigned_lawyer.user.full_name if case.assigned_lawyer_id else None,
             "next_event": {"type": scored["next_event"].get_event_type_display(), "at": _iso(scored["next_event"].starts_at)} if scored["next_event"] else None,
             "next_deadline": {"title": scored["next_deadline"].title, "at": _iso(scored["next_deadline"].due_at)} if scored["next_deadline"] else None,
             "days_remaining": scored["days_remaining"], "priority": scored["priority"],
             "scores": scored["scores"], "priority_reasons": scored["reasons"]["overall_priority"] + scored["reasons"]["time_urgency"],
             "confidence": current.confidence if current else "LOW", "last_analyzed_at": _iso(current.analyzed_at) if current else None,
-            "unresolved_recommendations": len(current.recommendations) if current else len(scored["gaps"]),
+            "unresolved_recommendations": case.ai_recommendations.exclude(status__in=("COMPLETED", "DISMISSED")).count(),
+            "critical_alerts": len([item for item in scored["alerts"] if item.get("level") == "CRITICAL"]),
+            "data_completeness": current.preparedness.get("factual_completeness", 0) if current else 0,
+            "outlook": {"supported": False, "label": "Insufficient verified data for an outcome range.", "direction": "INSUFFICIENT_DATA"},
             "requires_reassessment": stale, "procedural_stage": case.court_stage,
         }
 
     @classmethod
-    def list_priorities(cls, user, params):
-        summaries = [cls.summary(case) for case in cls.authorized_cases(user)]
+    def list_priorities(cls, user, params, scope="personal"):
+        summaries = [cls.summary(case) for case in cls.authorized_cases(user, scope=scope)]
+        search = params.get("search", "").strip().lower()
+        if search:
+            summaries = [item for item in summaries if search in " ".join(str(item.get(key, "")) for key in ("case_number", "official_case_number", "title", "client", "assigned_advocate")).lower()]
         for key in ("priority", "practice_area", "procedural_stage"):
             if params.get(key):
                 summaries = [item for item in summaries if str(item.get(key, "")).upper() == params[key].upper()]
@@ -181,8 +198,12 @@ class CaseAssessmentService:
 
     @classmethod
     @transaction.atomic
-    def generate(cls, user, case_id, document_ids=None):
-        case = cls.authorized_cases(user).select_for_update().get(id=case_id)
+    def generate(cls, user, case_id, document_ids=None, scope="personal", triggering_event=None):
+        # Lock only the matter row. The authorization queryset intentionally
+        # select_related()s nullable assignment relations for list/detail
+        # efficiency; PostgreSQL cannot apply an unrestricted FOR UPDATE lock
+        # to the nullable side of those outer joins.
+        case = cls.authorized_cases(user, scope=scope).select_for_update(of=("self",)).get(id=case_id)
         attachments = case.attachments.filter(id__in=document_ids) if document_ids is not None else case.attachments.none()
         scored = cls.score(case)
         previous = case.ai_assessments.order_by("-version").first()
@@ -208,7 +229,7 @@ class CaseAssessmentService:
             recommendations=[{"category": "IMMEDIATE", "action": gap["message"], "status": "OPEN", "support": gap["type"]} for gap in scored["gaps"]],
             preparedness={"overall": scored["scores"]["overall_preparedness"], "factual_completeness": 60 if case.description else 20, "documentary_support": scored["scores"]["evidence_readiness"], "legal_authority_support": scored["scores"]["legal_preparedness"], "procedural_compliance": 100 - scored["scores"]["procedural_risk"]},
             legal_analysis={"issues": [], "authorities": [{"title": item.document.title, "article": item.article_number, "heading": item.heading, "url": item.document.official_url, "last_verified_at": _iso(item.document.last_verified_at)} for item in provisions], "limitations": ["Legal issues and authorities require advocate verification."]},
-            outcome_scenarios=[{"label": "Favourable scenario", "description": "A favourable result may be possible if the supported claims or defences are accepted.", "assumptions": ["Facts and authorities are independently verified."]}, {"label": "Adverse scenario", "description": "An adverse or procedural result remains possible if evidence or compliance gaps are material.", "assumptions": ["Identified gaps remain unresolved."]}],
+            outcome_scenarios=[{"label": "Favourable scenario", "description": "A favourable result may be possible if the supported claims or defences are accepted.", "assumptions": ["Facts and authorities are independently verified."]}, {"label": "Mixed scenario", "description": "The matter may produce partial relief, compromise, or different results on separate issues.", "assumptions": ["Some positions are supported while material gaps or contested facts remain."]}, {"label": "Adverse scenario", "description": "An adverse or procedural result remains possible if evidence or compliance gaps are material.", "assumptions": ["Identified gaps remain unresolved."]}],
             comparable_matters=comparable_data,
             case_snapshot={"title": case.title, "case_number": case.case_number, "client": _client_name(case), "court_stage": case.court_stage, "practice_area": case.practice_area, "forum": case.forum, "status": case.matter_status},
             proceeding_snapshot=[{"id": str(item.id), "type": item.get_event_type_display(), "scheduled_at": _iso(item.starts_at), "actual_at": _iso(item.actual_start), "court": item.court or item.court_station, "judicial_officer": item.judicial_officer, "outcome": item.outcome, "next_step": item.next_action, "next_date": _iso(item.next_date), "status": item.status, "verified": bool(item.verified_at)} for item in case.events.order_by("starts_at")],
@@ -224,10 +245,20 @@ class CaseAssessmentService:
         )
         assessment.included_documents.set(attachments)
         assessment.retrieved_provisions.set(provisions)
+        for gap in scored["gaps"]:
+            AIAssessmentRecommendation.objects.create(case=case, created_assessment=assessment, category=gap["type"], action=gap["message"], reason="Structured matter data identified this gap.", support=[gap["type"]], priority=scored["priority"])
         for document in attachments:
             DocumentAnalysisService.analyze(assessment, document)
         if previous:
             previous.is_stale = True
             previous.save(update_fields=("is_stale", "updated_at"))
         AIAssessmentAudit.objects.create(actor=user, case=case, assessment=assessment, action="GENERATE", document_ids=[str(item.id) for item in attachments], source_ids=[str(item.id) for item in provisions], provider="local", model=assessment.model, result_status="COMPLETED")
+        if triggering_event and previous:
+            if triggering_event.case_id != case.id or not triggering_event.verified_at or not triggering_event.is_material_to_outlook:
+                raise ValueError("Only a verified material event may trigger formal event-impact analysis.")
+            old, new = previous.component_scores, assessment.component_scores
+            deltas = {key: int(new.get(key, 0)) - int(old.get(key, 0)) for key in ("overall_preparedness", "procedural_risk", "evidence_readiness", "legal_preparedness")}
+            net = deltas["overall_preparedness"] - deltas["procedural_risk"]
+            direction = AIEventImpact.Direction.STABLE if abs(net) < 5 else AIEventImpact.Direction.IMPROVING if net > 0 else AIEventImpact.Direction.DETERIORATING
+            AIEventImpact.objects.get_or_create(triggering_event=triggering_event, previous_assessment=previous, defaults={"case": case, "new_assessment": assessment, "preparedness_delta": deltas["overall_preparedness"], "procedural_risk_delta": deltas["procedural_risk"], "evidence_readiness_delta": deltas["evidence_readiness"], "legal_preparedness_delta": deltas["legal_preparedness"], "confidence_delta": 0, "direction": direction, "explanation": "Comparison of deterministic structured scores before and after the verified material event.", "source_records": [str(triggering_event.id)], "limitations": ["No outcome-range change is inferred without sufficient verified comparable data."], "model_version": assessment.model_version, "scoring_version": assessment.scoring_version, "generated_at": timezone.now()})
         return assessment

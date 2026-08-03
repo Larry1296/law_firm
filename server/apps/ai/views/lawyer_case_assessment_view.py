@@ -29,7 +29,7 @@ def _assessment_payload(assessment, *, history=False):
         "component_scores": assessment.component_scores,
         "component_reasons": assessment.component_reasons,
         "alerts": assessment.alerts, "gaps": assessment.gaps,
-        "recommendations": assessment.recommendations,
+        "recommendations": [{"id": str(item.id), "category": item.category, "action": item.action, "reason": item.reason, "support": item.support, "priority": item.priority, "status": item.status, "responsible_person": item.responsible_person.full_name if item.responsible_person else None, "due_date": item.due_date, "advocate_response": item.advocate_response, "completion_note": item.completion_note, "created_assessment_version": item.created_assessment.version} for item in assessment.case.ai_recommendations.select_related("responsible_person", "created_assessment").all()],
         "preparedness": assessment.preparedness,
         "progression": assessment.proceeding_snapshot,
         "documents": assessment.document_snapshot,
@@ -60,7 +60,7 @@ class LawyerCasePriorityListView(APIView):
         except PermissionError as exc:
             return Response({"detail": str(exc)}, status=403)
         return Response({
-            "matters": CaseAssessmentService.list_priorities(request.user, request.query_params),
+            "matters": CaseAssessmentService.list_priorities(request.user, request.query_params, scope="personal"),
             "methodology": {
                 "version": "priority-v1",
                 "components": ["Time urgency", "Consequence severity", "Procedural risk", "Evidence readiness", "Legal preparedness"],
@@ -76,7 +76,7 @@ class LawyerCaseAssessmentView(APIView):
 
     def _case(self, request, case_id):
         _require_lawyer(request.user)
-        return CaseAssessmentService.authorized_cases(request.user).get(id=case_id)
+        return CaseAssessmentService.authorized_cases(request.user, scope="personal").get(id=case_id)
 
     def get(self, request, case_id):
         try:
@@ -104,7 +104,7 @@ class LawyerCaseAssessmentView(APIView):
             allowed = {str(item) for item in case.attachments.filter(id__in=requested).values_list("id", flat=True)}
             if requested != allowed:
                 return Response({"detail": "One or more selected documents are not authorized for this matter."}, status=403)
-            assessment = CaseAssessmentService.generate(request.user, case_id, list(requested))
+            assessment = CaseAssessmentService.generate(request.user, case_id, list(requested), scope="personal")
         except (ObjectDoesNotExist, ValueError):
             return Response({"detail": "Matter not found."}, status=404)
         except PermissionError as exc:
@@ -120,7 +120,7 @@ class LawyerFindingFeedbackView(APIView):
         serializer.is_valid(raise_exception=True)
         try:
             _require_lawyer(request.user)
-            case = CaseAssessmentService.authorized_cases(request.user).get(id=case_id)
+            case = CaseAssessmentService.authorized_cases(request.user, scope="personal").get(id=case_id)
             assessment = case.ai_assessments.get(id=assessment_id)
         except ObjectDoesNotExist:
             return Response({"detail": "Assessment not found."}, status=404)

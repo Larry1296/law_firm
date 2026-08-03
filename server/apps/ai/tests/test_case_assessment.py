@@ -74,6 +74,43 @@ class LawyerCaseAssessmentTests(TestCase):
         self.assertNotIn("OTHER-SECRET", rendered)
         self.assertNotIn("Other Confidential Client", rendered)
 
+    def test_firm_owner_scope_and_personal_scope_are_separate(self):
+        unassigned = Case.objects.create(firm=self.firm, client=self.client, case_number="MAT-FIRM-ONLY", title="Firm oversight matter", case_type=Case.CaseType.CIVIL)
+        owner_api = APIClient()
+        owner_api.force_authenticate(self.owner)
+        firm_response = owner_api.get("/api/admin/ai/matters/")
+        self.assertEqual(firm_response.status_code, 200)
+        self.assertIn(str(unassigned.id), {item["id"] for item in firm_response.data["results"]})
+        self.assertEqual(owner_api.get(f"/api/admin/ai/matters/{unassigned.id}/").status_code, 200)
+        generated = owner_api.post(
+            f"/api/admin/ai/matters/{unassigned.id}/assessments/",
+            {"document_ids": []},
+            format="json",
+        )
+        self.assertEqual(generated.status_code, 201, generated.data)
+        self.assertEqual(generated.data["assessment"]["version"], 1)
+
+        self.owner.role = UserRole.ADMIN
+        self.owner.save(update_fields=("role", "updated_at"))
+        owner_lawyer = Lawyer.objects.create(user=self.owner, law_firm=self.firm, staff_number="AI-OWNER-LAW", admission_number="AI-OWNER-ADV", date_hired=date(2025, 1, 1))
+        LawyerPermissionGrant.objects.create(lawyer=owner_lawyer, code=LawyerPermission.USE_AI_TOOLS, granted_by=self.owner)
+        personal_response = owner_api.get("/api/staff/lawyer/ai/matters/")
+        self.assertEqual(personal_response.status_code, 200)
+        self.assertEqual(personal_response.data["matters"], [])
+
+    def test_lawyer_cannot_change_url_to_read_unassigned_matter(self):
+        other = Case.objects.create(firm=self.firm, client=self.client, case_number="MAT-OTHER-LAWYER", title="Not assigned", case_type=Case.CaseType.CIVIL)
+        response = self.api.get(f"/api/staff/lawyer/ai/matters/{other.id}/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_missing_ai_permission_and_inactive_lawyer_are_denied(self):
+        self.lawyer.permissions.update(is_active=False)
+        self.assertEqual(self.api.get("/api/staff/lawyer/ai/matters/").status_code, 403)
+        self.lawyer.permissions.update(is_active=True)
+        self.lawyer.is_active = False
+        self.lawyer.save(update_fields=("is_active", "updated_at"))
+        self.assertEqual(self.api.get("/api/staff/lawyer/ai/matters/").status_code, 403)
+
     def test_priority_deadline_judgment_and_explanation(self):
         CaseEvent.objects.create(case=self.case, event_type=CaseEvent.EventType.JUDGMENT, title="Judgment", starts_at=timezone.now() + timedelta(days=2), status=CaseEvent.EventStatus.CONFIRMED)
         response = self.api.get("/api/staff/lawyer/ai/cases/")

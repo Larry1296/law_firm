@@ -27,6 +27,10 @@ CSRF_TRUSTED_ORIGINS = config(
 
 DEFAULT_COURT_HEARING_MODE = config("DEFAULT_COURT_HEARING_MODE", default="VIRTUAL")
 
+# Public website tenant. Required when the request hostname (for example
+# localhost in development) cannot be matched uniquely to a firm's website.
+PUBLIC_FIRM_ID = config("PUBLIC_FIRM_ID", default="").strip()
+
 
 # ==========================================================
 # APPLICATIONS

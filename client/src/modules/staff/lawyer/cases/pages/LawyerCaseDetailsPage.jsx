@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+// INTERNAL AI TEMPORARILY PAUSED: import useNavigate when restoring the AI analysis action.
 import Swal from '@/core/utils/themedSwal';
 
 import StatsCard from '@/components/ui/StatsCard';
@@ -107,7 +108,7 @@ const toIsoDateTime = (value) => {
 
 export default function LawyerCaseDetailsPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  // INTERNAL AI TEMPORARILY PAUSED: const navigate = useNavigate();
 
   const { data, isLoading, error } = useMyCase(id);
   const resolvedCaseData = data?.data || data;
@@ -406,7 +407,9 @@ export default function LawyerCaseDetailsPage() {
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
       <div className='flex flex-wrap items-center justify-between gap-3'>
         <BackLink label='Back to Cases' fallbackPath='/lawyer/cases' />
+        {/* INTERNAL AI TEMPORARILY PAUSED
         <button type='button' onClick={() => navigate(`/lawyer/cases/${id}/ai-analysis`)} className='rounded-lg bg-success px-4 py-2 font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success'>Open AI Case Analysis</button>
+        */}
       </div>
 
       <SectionHeading

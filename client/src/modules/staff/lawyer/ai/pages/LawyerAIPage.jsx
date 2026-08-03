@@ -16,9 +16,9 @@ export default function LawyerAIPage() {
 
   return (
     <main className='space-y-6 p-4 md:p-6'>
-      <SectionHeading title='AI Case Analysis' subtitle='Explainable priority, preparedness and risk assessment for your assigned matters' size='compact' />
+      <SectionHeading title='My AI Matters' subtitle='AI Matter Intelligence for matters assigned to you' size='compact' />
       <div className='rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950' role='note'>
-        This is an AI-assisted preparedness and risk assessment. It is not a prediction or guarantee of the court’s decision. The responsible advocate must independently verify all facts, documents, deadlines and legal authorities.
+        This is an AI-assisted preparedness, risk and matter-outlook assessment. It is not legal advice, a judicial decision, or a guarantee of the court’s outcome. The responsible advocate must independently verify the facts, documents, deadlines, authorities and recommendations.
       </div>
       <section aria-label='Priority controls' className='grid gap-3 rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark sm:grid-cols-2 lg:grid-cols-4'>
         <label className='text-sm'>Priority<select aria-label='Overall priority' value={filters.priority} onChange={update('priority')} className='mt-1 w-full rounded-lg border p-2 dark:bg-background-dark'><option value=''>All priorities</option>{['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((value) => <option key={value}>{value}</option>)}</select></label>
@@ -28,7 +28,7 @@ export default function LawyerAIPage() {
       </section>
       <p className='text-sm text-text-muted-light dark:text-text-muted-dark'><strong>Ordering:</strong> {data?.methodology?.default_order || 'Critical and time-sensitive matters first'}. Component scores are shown separately and do not estimate the court’s decision.</p>
       {isLoading && <div role='status' className='p-8 text-center'>Assessing verified matter records…</div>}
-      {error && <div role='alert' className='rounded-xl bg-red-50 p-4 text-red-800'>Case prioritization could not be loaded.</div>}
+      {error && <div role='alert' className='rounded-xl bg-red-50 p-4 text-red-800'>{error.response?.status === 403 ? 'You do not have permission to use AI Matter Intelligence.' : 'Matter intelligence could not be loaded.'}</div>}
       {!isLoading && !error && matters.length === 0 && <div className='rounded-xl border p-8 text-center'>No authorized matters match these filters.</div>}
       <div className='grid gap-4 xl:grid-cols-2'>
         {matters.map((matter) => (
@@ -44,7 +44,7 @@ export default function LawyerAIPage() {
               <div><dt className='text-xs text-text-muted-light'>Preparedness</dt><dd>{matter.scores.overall_preparedness}/100</dd></div>
             </dl>
             <ul className='mt-4 list-disc space-y-1 pl-5 text-sm'>{matter.priority_reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
-            <button type='button' onClick={() => navigate(`/lawyer/cases/${matter.id}/ai-analysis`)} className='mt-4 inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success'>Open full case analysis <ArrowRight size={16} /></button>
+            <button type='button' onClick={() => navigate(`/lawyer/cases/${matter.id}/ai-analysis`)} className='mt-4 inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success'>Open matter workspace <ArrowRight size={16} /></button>
           </article>
         ))}
       </div>

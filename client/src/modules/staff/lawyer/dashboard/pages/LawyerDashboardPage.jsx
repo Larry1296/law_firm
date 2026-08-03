@@ -2,7 +2,7 @@ import {
   Activity,
   Bell,
   Briefcase,
-  Brain,
+  // INTERNAL AI TEMPORARILY PAUSED: Brain,
   CalendarDays,
   CheckSquare,
   FileText,
@@ -18,7 +18,8 @@ import { getFirstName } from '@/core/utils/personName';
 import { displayEnum } from '@/core/utils/textFormatter';
 import CourtroomTodayPanel from '@/modules/courtroom/components/CourtroomTodayPanel';
 import useLawyerDashboard from '@/modules/staff/lawyer/dashboard/hooks/useLawyerDashboard';
-import { useLawyerAIPriorities } from '@/modules/staff/lawyer/ai/hooks/useLawyerAI';
+// INTERNAL AI TEMPORARILY PAUSED
+// import { useLawyerAIPriorities } from '@/modules/staff/lawyer/ai/hooks/useLawyerAI';
 
 const lawyerTiles = [
   {
@@ -68,14 +69,10 @@ const lawyerTiles = [
     size: 'wide',
     path: '/lawyer/tasks',
   },
-  {
-    title: 'AI Insights',
-    subtitle: 'Legal recommendations and analysis',
-    icon: Brain,
-    variant: 'ai',
-    size: 'wide',
-    path: '/lawyer/ai',
-  },
+  // INTERNAL AI TEMPORARILY PAUSED
+  // Uncomment this block when internal AI development resumes after the
+  // essential Sheria Master law-firm workflows have been completed and verified.
+  // { title: 'AI Insights', subtitle: 'Legal recommendations and analysis', icon: Brain, variant: 'ai', size: 'wide', path: '/lawyer/ai' },
   {
     title: 'Recent Activity',
     subtitle: 'Latest case and client activity',
@@ -97,7 +94,8 @@ const lawyerTiles = [
 export default function LawyerDashboardPage() {
   const navigate = useNavigate();
   const { data } = useLawyerDashboard();
-  const aiPriorities = useLawyerAIPriorities({ sort: 'priority' });
+  // INTERNAL AI TEMPORARILY PAUSED
+  // const aiPriorities = useLawyerAIPriorities({ sort: 'priority' });
   const summary = data?.summary || {};
   const profile = data?.lawyer || {};
   const firstName = getFirstName(profile.first_name, profile.full_name, profile.email);
@@ -180,6 +178,7 @@ export default function LawyerDashboardPage() {
         </DashboardGrid>
       </section>
 
+      {/* INTERNAL AI TEMPORARILY PAUSED
       <section aria-labelledby='ai-priorities-title' className='border-y border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark sm:p-6'>
         <div className='flex flex-wrap items-center justify-between gap-3'>
           <div><h2 id='ai-priorities-title' className='text-xl font-bold'>AI case priorities</h2><p className='text-sm text-text-muted-light dark:text-text-muted-dark'>Your authorized matters, ordered by explainable urgency and risk—not predicted outcome.</p></div>
@@ -191,6 +190,7 @@ export default function LawyerDashboardPage() {
           {(aiPriorities.data?.matters || []).slice(0, 3).map((matter) => <button key={matter.id} type='button' onClick={() => navigate(`/lawyer/cases/${matter.id}/ai-analysis`)} className='rounded-xl border border-border-light p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:border-border-dark'><span className='text-xs font-bold'>{matter.priority} · {matter.case_number}</span><strong className='mt-1 block'>{matter.title}</strong><span className='mt-2 block text-sm'>Urgency {matter.scores.time_urgency}/100 · Preparedness {matter.scores.overall_preparedness}/100</span><span className='mt-1 block text-xs'>{matter.priority_reasons[0]}</span></button>)}
         </div>
       </section>
+      */}
 
       <CourtroomTodayPanel className='mt-0' />
 

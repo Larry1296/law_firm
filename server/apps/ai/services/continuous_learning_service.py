@@ -10,10 +10,11 @@ class KnowledgeIndexService:
     @classmethod
     def sync(cls, instance):
         if instance.__class__.__name__ == "KnowledgeBaseArticle":
+            from apps.ai.services.public_knowledge_service import PublicKnowledgeEligibility
             kind = "knowledge_article"
-            approved = instance.is_published and instance.category.is_active
+            approved = instance.category.is_active and PublicKnowledgeEligibility.queryset(firm=instance.firm).filter(pk=instance.pk).exists()
             content = f"{instance.title}\n{instance.summary}\n{instance.body}\n{instance.keywords}"
-            metadata = {"source_type": "firm_or_legal_article", "jurisdiction": instance.jurisdiction, "effective_date": None, "verified_at": str(instance.last_verified_at or "")}
+            metadata = {"namespace": f"public-firm-{instance.firm_id}" if instance.firm_id else "public-official-legal", "firm_id": str(instance.firm_id or ""), "knowledge_item_id": str(instance.id), "category": instance.public_category, "visibility": instance.visibility, "approval_status": instance.approval_status, "published_at": str(instance.published_at or ""), "version": instance.version, "source_type": instance.source_type, "jurisdiction": instance.jurisdiction, "verified_at": str(instance.last_verified_at or "")}
         else:
             kind = "legal_provision"
             approved = instance.is_published and instance.document.is_published

@@ -14,15 +14,14 @@ import {
   FileText,
   MessageSquare,
   Bell,
-  Brain,
-  Search,
+  // INTERNAL AI TEMPORARILY PAUSED: Brain, Search,
   Gavel,
-  BookOpen,
+  // INTERNAL AI TEMPORARILY PAUSED: BookOpen,
   ListTodo,
   CheckCircle,
   User,
   Shield,
-  FolderOpen,
+  // INTERNAL AI TEMPORARILY PAUSED: FolderOpen,
 } from 'lucide-react';
 
 //* ================= LAWYER NAVIGATION ================= */
@@ -88,30 +87,13 @@ const links = [
     section: 'Communication',
   },
 
-  {
-    name: 'AI Assistant',
-    path: '/lawyer/ai',
-    icon: Brain,
-    section: 'Research & AI',
-  },
-  {
-    name: 'Research AI',
-    path: '/lawyer/research-ai',
-    icon: Search,
-    section: 'Research & AI',
-  },
-  {
-    name: 'Legal Research',
-    path: '/lawyer/research',
-    icon: BookOpen,
-    section: 'Research & AI',
-  },
-  {
-    name: 'Authorities',
-    path: '/lawyer/authorities',
-    icon: FolderOpen,
-    section: 'Research & AI',
-  },
+  // INTERNAL AI TEMPORARILY PAUSED
+  // Uncomment this block when internal AI development resumes after the
+  // essential Sheria Master law-firm workflows have been completed and verified.
+  // { name: 'My AI Matters', path: '/lawyer/ai', icon: Brain, section: 'Research & AI', permission: 'USE_AI_TOOLS' },
+  // { name: 'Research AI', path: '/lawyer/research-ai', icon: Search, section: 'Research & AI' },
+  // { name: 'Legal Research', path: '/lawyer/research', icon: BookOpen, section: 'Research & AI' },
+  // { name: 'Authorities', path: '/lawyer/authorities', icon: FolderOpen, section: 'Research & AI' },
 
   {
     name: 'Profile',

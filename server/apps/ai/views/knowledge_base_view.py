@@ -12,6 +12,9 @@ from apps.ai.services.knowledge_llm_service import (
     OpenAIKnowledgeProvider,
 )
 from apps.ai.services.knowledge_retrieval_service import KnowledgeRetrievalService
+from apps.ai.services.public_firm_resolver import PublicFirmResolver
+from apps.ai.services.public_firm_answer_service import PublicFirmAnswerService
+from apps.ai.services.public_knowledge_service import PublicKnowledgeEligibility
 from apps.ai.throttles import KnowledgeBaseAnonThrottle
 
 logger = logging.getLogger(__name__)
@@ -23,12 +26,6 @@ NO_SOURCE_ANSWER = (
     "I do not have enough verified information to answer that reliably. Please speak "
     "to an advocate."
 )
-UNAVAILABLE_ANSWER = (
-    "The answer service is temporarily unavailable. The verified sources below may be "
-    "helpful, or you can contact the firm to speak with an advocate."
-)
-
-
 def _verified_extract_answer(retrieved):
     """Useful no-provider fallback without synthesizing claims beyond approved text."""
     excerpts = []
@@ -37,11 +34,9 @@ def _verified_extract_answer(retrieved):
         if passage:
             excerpts.append(f"{passage} [Source {index}]")
     if not excerpts:
-        return UNAVAILABLE_ANSWER
+        return "I do not have approved information relevant to that question. Please speak to an advocate or contact the firm."
     return (
-        "The configured answer service is unavailable, but I found this approved "
-        "information:\n\n" + "\n\n".join(excerpts) +
-        "\n\nPlease speak to an advocate for advice about your circumstances."
+        "Based on the approved information available:\n\n" + "\n\n".join(excerpts)
     )
 
 
@@ -51,7 +46,7 @@ def _fingerprint(request):
     return hashlib.sha256(f"{settings.SECRET_KEY}:{address}".encode()).hexdigest()
 
 
-def _source(item):
+def _source(item, intent="legal"):
     if hasattr(item, "provision"):
         provision = item.provision
         return {
@@ -62,11 +57,20 @@ def _source(item):
             "last_verified_at": provision.document.last_verified_at.isoformat() if provision.document.last_verified_at else None,
         }
     article = item.article
+    titles = {
+        "services": f"{article.firm.name} practice areas",
+        "contact": f"{article.firm.name} contact information",
+        "location": f"{article.firm.name} office location",
+        "hours": f"{article.firm.name} working hours",
+        "owner": f"{article.firm.name} public firm profile",
+        "overview": f"{article.firm.name} public firm profile",
+    }
+    source_url = article.source_url if article.source_url.startswith("https://") else ""
     return {
-        "title": article.title,
-        "source_name": article.source_name,
-        "source_url": article.source_url,
-        "source_reference": article.source_reference,
+        "title": titles.get(intent, article.title),
+        "source_name": article.firm.name,
+        "source_url": source_url,
+        "source_reference": "",
         "last_verified_at": article.last_verified_at.isoformat() if article.last_verified_at else None,
     }
 
@@ -76,14 +80,15 @@ class KnowledgeBaseCategoryListView(APIView):
     authentication_classes = ()
 
     def get(self, request):
+        firm = PublicFirmResolver.resolve(request)
+        if firm is None:
+            return Response({"detail": "Public website firm could not be resolved safely."}, status=404)
         section = request.query_params.get("section", "home")
         allowed = {"home", "about", "practice_areas", "consultation", "contact"}
         if section not in allowed:
             section = "home"
-        categories = KnowledgeBaseCategory.objects.filter(
-            is_active=True,
-            articles__is_published=True,
-        ).distinct()
+        eligible_ids = PublicKnowledgeEligibility.queryset(firm=firm).values("category_id")
+        categories = KnowledgeBaseCategory.objects.filter(is_active=True, id__in=eligible_ids).distinct()
         category_data = [
             {
                 "name": category.name,
@@ -112,9 +117,23 @@ class KnowledgeBaseAskView(APIView):
         question = serializer.validated_data["question"]
         history = serializer.validated_data["history"]
         section = serializer.validated_data["page_context"]["section"]
-        retrieved = KnowledgeRetrievalService.retrieve(question, section=section)
+        firm = PublicFirmResolver.resolve(request)
+        if firm is None:
+            return Response({"detail": "Public website firm could not be resolved safely."}, status=404)
+        intent = PublicFirmAnswerService.classify(question)
+        if intent == "sensitive":
+            retrieved = []
+        elif intent in PublicFirmAnswerService.FIRM_INTENTS:
+            retrieved = KnowledgeRetrievalService.firm_profile(firm)
+            categories = PublicFirmAnswerService.categories_for(intent)
+            relevant = [item for item in retrieved if item.article.public_category in categories]
+            legacy = [item for item in retrieved if item.article.source_type == item.article.SourceType.FIRM_PROFILE]
+            retrieved = relevant or legacy
+        else:
+            retrieved = KnowledgeRetrievalService.retrieve(question, section=section, firm=firm)
         score = max((item.score for item in retrieved), default=0)
         log = KnowledgeBaseQuestionLog.objects.create(
+            firm=firm,
             question=question,
             retrieval_score=score,
             status=KnowledgeBaseQuestionLog.Status.NO_SOURCE,
@@ -125,7 +144,14 @@ class KnowledgeBaseAskView(APIView):
             log.retrieved_articles.set(item.article for item in retrieved if hasattr(item, "article"))
 
         needs_lawyer = False
-        if not retrieved:
+        if intent == "sensitive":
+            answer = PublicFirmAnswerService.compose(firm.name, intent, [])
+            needs_lawyer = False
+            log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
+        elif intent in PublicFirmAnswerService.FIRM_INTENTS:
+            answer = PublicFirmAnswerService.compose(firm.name, intent, [item.article for item in retrieved])
+            log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
+        elif not retrieved:
             answer = NO_SOURCE_ANSWER
             needs_lawyer = True
         else:
@@ -141,7 +167,7 @@ class KnowledgeBaseAskView(APIView):
                 log.status = KnowledgeBaseQuestionLog.Status.PROVIDER_UNAVAILABLE
                 logger.warning("Knowledge-base answer provider unavailable", extra={"request_id": str(log.id)})
             except Exception:
-                answer = UNAVAILABLE_ANSWER
+                answer = _verified_extract_answer(retrieved)
                 needs_lawyer = True
                 log.status = KnowledgeBaseQuestionLog.Status.ERROR
                 logger.exception("Knowledge-base provider request failed", extra={"request_id": str(log.id)})
@@ -149,8 +175,11 @@ class KnowledgeBaseAskView(APIView):
         log.save(update_fields=("answer", "status", "model", "updated_at"))
         return Response({
             "answer": answer,
-            "sources": [_source(item) for item in retrieved],
+            "sources": [_source(item, intent) for item in retrieved],
             "needs_lawyer": needs_lawyer,
-            "disclaimer": DISCLAIMER,
+            "disclaimer": DISCLAIMER if intent == "legal" else "",
+            "intent": intent,
+            "can_escalate": True,
+            "firm_public_name": firm.name,
             "request_id": str(log.id),
         })

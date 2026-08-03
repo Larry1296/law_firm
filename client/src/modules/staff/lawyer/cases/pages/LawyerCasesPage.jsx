@@ -166,6 +166,7 @@ export default function LawyerCasesPage() {
               >
                 View
               </Button3D>
+              {/* INTERNAL AI TEMPORARILY PAUSED
               <Button3D
                 size='sm'
                 variant='success'
@@ -173,6 +174,7 @@ export default function LawyerCasesPage() {
               >
                 AI Analysis
               </Button3D>
+              */}
             </div>
           )}
         />

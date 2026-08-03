@@ -29,8 +29,9 @@ const ROLE_PERMISSION_OPTIONS = {
     ['MANAGE_CASE_DOCUMENTS', 'Manage Case Documents'],
     ['SCHEDULE_HEARINGS', 'Schedule Hearings'],
     ['MANAGE_CLIENT_COMMUNICATIONS', 'Manage Client Communications'],
-    ['USE_LEGAL_RESEARCH', 'Use Legal Research'],
-    ['USE_AI_TOOLS', 'Use AI Tools'],
+    // INTERNAL AI TEMPORARILY PAUSED
+    // ['USE_LEGAL_RESEARCH', 'Use Legal Research'],
+    // ['USE_AI_TOOLS', 'Use AI Tools'],
     ['APPROVE_DOCUMENTS', 'Approve Documents'],
     ['VIEW_BILLING', 'View Billing'],
   ],

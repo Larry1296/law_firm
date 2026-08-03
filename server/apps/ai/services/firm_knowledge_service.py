@@ -1,7 +1,7 @@
 from django.utils import timezone
 from django.utils.text import slugify
 
-from apps.ai.models import KnowledgeBaseArticle, KnowledgeBaseCategory, PublicAdvocateProfile
+from apps.ai.models import KnowledgeBaseArticle, KnowledgeBaseCategory, PublicAdvocateProfile, PublicFirmKnowledgePolicy
 
 
 class FirmKnowledgeService:
@@ -9,7 +9,7 @@ class FirmKnowledgeService:
 
     @staticmethod
     def sync(firm):
-        policy = getattr(firm, "public_knowledge_policy", None)
+        policy = PublicFirmKnowledgePolicy.objects.filter(firm=firm).first()
         category, _ = KnowledgeBaseCategory.objects.update_or_create(
             slug="firm-services",
             defaults={
@@ -29,6 +29,9 @@ class FirmKnowledgeService:
 
         sections = [f"Firm name: {firm.name}."]
         keywords = [firm.name, "firm", "services", "practice areas", "contact", "location", "opening hours"]
+        if policy.include_owner and firm.owner_id:
+            sections.append(f"Published firm owner: {firm.owner.full_name}.")
+            keywords.extend(["owner", "firm owner", firm.owner.full_name])
         if policy.include_description and firm.description:
             sections.append(f"About the firm: {firm.description.strip()}")
         if policy.include_practice_areas:
@@ -88,6 +91,7 @@ class FirmKnowledgeService:
         article, _ = KnowledgeBaseArticle.objects.update_or_create(
             slug=slug,
             defaults={
+                "firm": firm,
                 "title": f"Verified public information about {firm.name}",
                 "category": category,
                 "summary": f"Administrator-approved public identity, services and contact details for {firm.name}.",
@@ -99,6 +103,15 @@ class FirmKnowledgeService:
                 "last_verified_at": timezone.localdate(),
                 "keywords": ", ".join(keywords),
                 "is_published": True,
+                "visibility": KnowledgeBaseArticle.Visibility.PUBLIC,
+                "approval_status": KnowledgeBaseArticle.ApprovalStatus.PUBLISHED,
+                "published_at": policy.approved_at or timezone.now(),
+                "approved_by": policy.approved_by,
+                "approved_at": policy.approved_at or timezone.now(),
+                "source_type": KnowledgeBaseArticle.SourceType.FIRM_PROFILE,
+                "public_category": KnowledgeBaseArticle.PublicCategory.OVERVIEW,
+                "withdrawn_at": None,
+                "withdrawn_by": None,
                 "updated_by": policy.approved_by,
                 "created_by": policy.approved_by,
             },

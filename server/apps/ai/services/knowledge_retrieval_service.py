@@ -6,6 +6,7 @@ from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db import connection
 
 from apps.ai.models import KnowledgeBaseArticle, LegalProvision
+from apps.ai.services.public_knowledge_service import PublicKnowledgeEligibility
 
 
 TOKEN_RE = re.compile(r"[a-zA-ZÀ-ž0-9']{2,}")
@@ -31,6 +32,13 @@ class RetrievedProvision:
 
 
 class KnowledgeRetrievalService:
+    @classmethod
+    def firm_profile(cls, firm):
+        """Return only the resolved tenant's approved public profile source."""
+        if firm is None:
+            return []
+        return [RetrievedArticle(article, 1.0, article.body) for article in PublicKnowledgeEligibility.queryset(firm=firm).filter(category__is_active=True).select_related("category", "firm")]
+
     @staticmethod
     def _tokens(value):
         return {token for token in TOKEN_RE.findall(value.lower()) if token not in STOP_WORDS}
@@ -65,13 +73,12 @@ class KnowledgeRetrievalService:
         return "\n".join(ranked[:3])[:limit]
 
     @classmethod
-    def retrieve(cls, question, section="home"):
+    def retrieve(cls, question, section="home", *, firm):
+        if firm is None:
+            return []
         maximum = settings.KNOWLEDGE_BASE_MAX_CONTEXT_ITEMS
         threshold = settings.KNOWLEDGE_BASE_MIN_RELEVANCE
-        queryset = KnowledgeBaseArticle.objects.filter(
-            is_published=True,
-            category__is_active=True,
-        ).select_related("category")
+        queryset = PublicKnowledgeEligibility.queryset(firm=firm).filter(category__is_active=True).select_related("category", "firm")
 
         if connection.vendor == "postgresql":
             vector = (

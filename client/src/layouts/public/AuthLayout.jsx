@@ -1,16 +1,9 @@
 import PublicNavbar from "@/layouts/public/PublicNavbar";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 
 export default function AuthLayout() {
-  const location = useLocation();
-  const isRegisterPage = location.pathname === "/register";
-
   return (
-    <div
-      className={`auth-layout ${
-        isRegisterPage ? "auth-register" : "auth-compact"
-      } min-h-screen flex flex-col bg-[color:var(--bg)] text-[color:var(--text-primary)] dark:bg-[#050816] dark:text-white`}
-    >
+    <div className='auth-layout auth-compact min-h-screen flex flex-col bg-[color:var(--bg)] text-[color:var(--text-primary)] dark:bg-[#050816] dark:text-white'>
       {/* Navbar */}
       <PublicNavbar variant="auth" />
 

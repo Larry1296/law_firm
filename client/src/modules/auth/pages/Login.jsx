@@ -338,10 +338,7 @@ export default function Login() {
             )}
 
             <p className='text-sm text-center mt-6 text-gray-600 dark:text-gray-300'>
-              Don’t have an account?{' '}
-              <Link to='/register' className='text-blue-600 font-bold'>
-                Create account
-              </Link>
+              Accounts are created and managed by the firm. Contact the firm if you need access.
             </p>
           </form>
         </Card>
