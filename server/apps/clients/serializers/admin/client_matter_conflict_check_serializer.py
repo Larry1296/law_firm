@@ -121,6 +121,7 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
     can_open_matter = serializers.BooleanField(read_only=True)
     permitted_next_statuses = serializers.SerializerMethodField()
     date_instructions_received = serializers.SerializerMethodField()
+    opening_readiness = serializers.SerializerMethodField()
 
     def get_date_instructions_received(self, obj):
         return timezone.localtime(obj.created_at).date().isoformat()
@@ -139,6 +140,43 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
             {"value": value, "label": dict(ConflictCheckStatus.choices).get(value, value)}
             for value in sorted(ClientMatterConflictService.ALLOWED_TRANSITIONS.get(obj.status, set()))
         ]
+
+    def get_opening_readiness(self, obj):
+        checks = [
+            {
+                "code": "CONFLICT_CLEARED",
+                "label": "Conflict check cleared and confirmed",
+                "complete": bool(
+                    obj.status == ConflictCheckStatus.CLEARED
+                    and obj.decision_confirmation
+                    and obj.decided_by_id
+                    and obj.decided_at
+                ),
+            },
+            {
+                "code": "FIRM_ACCEPTED",
+                "label": "Firm acceptance recorded by an advocate",
+                "complete": bool(
+                    obj.acceptance_decision == ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED
+                    and obj.accepted_by_id
+                    and obj.accepted_at
+                ),
+            },
+            {
+                "code": "ENGAGEMENT_READY",
+                "label": "Signed engagement or authorised waiver recorded",
+                "complete": obj.engagement_status in {
+                    ClientMatterConflictCheck.EngagementStatus.SIGNED,
+                    ClientMatterConflictCheck.EngagementStatus.WAIVED_OR_NOT_REQUIRED,
+                },
+            },
+            {
+                "code": "NOT_CONSUMED",
+                "label": "Proposed matter has not already been opened",
+                "complete": not obj.is_consumed,
+            },
+        ]
+        return {"ready": all(item["complete"] for item in checks), "checks": checks}
 
     class Meta:
         model = ClientMatterConflictCheck
@@ -172,6 +210,7 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
             "adverse_parties",
             "permitted_next_statuses",
             "date_instructions_received",
+            "opening_readiness",
             "created_at",
             "updated_at",
         ]

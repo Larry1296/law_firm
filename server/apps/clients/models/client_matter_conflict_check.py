@@ -193,6 +193,10 @@ class ClientMatterConflictCheck(TimestampedModel):
             and self.acceptance_decision == self.AcceptanceDecision.ACCEPTED
             and self.accepted_by_id
             and self.accepted_at
+            and self.engagement_status in {
+                self.EngagementStatus.SIGNED,
+                self.EngagementStatus.WAIVED_OR_NOT_REQUIRED,
+            }
             and not self.is_consumed
         )
 

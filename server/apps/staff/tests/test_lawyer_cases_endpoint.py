@@ -103,6 +103,7 @@ class LawyerCasesEndpointTests(TestCase):
             decided_at=now,
             completed_at=now,
             acceptance_decision=ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED,
+            engagement_status=ClientMatterConflictCheck.EngagementStatus.SIGNED,
             accepted_by=lawyer,
             accepted_at=now,
             acceptance_decided_by=lawyer,

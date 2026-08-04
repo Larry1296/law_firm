@@ -768,6 +768,13 @@ class ClientMatterConflictService:
             errors["accepted_by"] = "Firm acceptance must identify the accepting advocate and time."
         elif not check.accepted_by.is_active or check.accepted_by.law_firm_id != firm.id:
             errors["accepted_by"] = "Firm acceptance must be made by an active advocate in this firm."
+        if check.engagement_status not in {
+            ClientMatterConflictCheck.EngagementStatus.SIGNED,
+            ClientMatterConflictCheck.EngagementStatus.WAIVED_OR_NOT_REQUIRED,
+        }:
+            errors["engagement_status"] = (
+                "A signed engagement or an authorised engagement waiver is required before matter opening."
+            )
         if check.created_case_id or check.consumed_at:
             errors["conflict_check_id"] = "This proposed matter has already opened an internal matter."
         if errors:

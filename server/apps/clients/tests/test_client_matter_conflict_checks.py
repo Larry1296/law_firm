@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from apps.cases.models import Case
@@ -254,6 +255,24 @@ class ClientMatterConflictCheckTests(APITestCase):
         response = self.client.post(reverse("case-create"), self.case_payload(check), format="json")
         self.assertEqual(response.status_code, 400, response.data)
         self.assertIn("acceptance_decision", response.data)
+
+    def test_direct_api_cannot_open_matter_before_engagement(self):
+        check = self.clear_check(self.create_check())
+        check.acceptance_decision = ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED
+        check.accepted_by = self.lawyer
+        check.accepted_at = timezone.now()
+        check.acceptance_decided_by = self.lawyer
+        check.acceptance_decided_at = timezone.now()
+        check.engagement_status = ClientMatterConflictCheck.EngagementStatus.DRAFTING
+        check.save()
+
+        response = self.client.post(
+            reverse("case-create"), self.case_payload(check), format="json"
+        )
+
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("engagement_status", response.data)
+        self.assertFalse(Case.objects.filter(originating_conflict_check=check).exists())
 
     def test_rejected_matter_list_includes_conflict_confirmed_without_rejecting_client(self):
         check = self.create_check()
