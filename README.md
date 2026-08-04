@@ -1,6 +1,8 @@
 # law_firm
 Django&amp;Rect-lawfirm System
 
+[![CI](https://github.com/Larry1296/law_firm/actions/workflows/test.yml/badge.svg)](https://github.com/Larry1296/law_firm/actions/workflows/test.yml)
+
 ## Runtime requirements
 
 - Python 3.12 or newer (Python 3.13 is the documented development version)

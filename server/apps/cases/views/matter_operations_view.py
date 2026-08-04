@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.cases.models import Case, MatterDeadline, MatterWorkstream
+from apps.cases.models import Case, LegalAssessment, MatterDeadline, MatterWorkstream
 from apps.cases.serializers.matter_operations_serializer import (
     DeadlineChangeSerializer, DeadlineResolveSerializer, LegalAssessmentSerializer, MatterDeadlineSerializer,
     MatterWorkstreamSerializer, WorkstreamStageCompletionSerializer,
@@ -24,6 +24,17 @@ class LegalAssessmentView(APIView):
         serializer.is_valid(raise_exception=True)
         record = MatterOperationsService.assess(user=request.user, matter_id=case_id, data=serializer.validated_data)
         return Response({"assessment": LegalAssessmentSerializer(record).data}, status=status.HTTP_201_CREATED)
+
+
+class LegalAssessmentActionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, assessment_id, action):
+        command = {"submit": MatterOperationsService.submit_assessment, "approve": MatterOperationsService.approve_assessment}.get(action)
+        if not command:
+            return Response({"detail": "Unknown assessment action."}, status=status.HTTP_404_NOT_FOUND)
+        record = command(user=request.user, assessment_id=assessment_id)
+        return Response({"assessment": LegalAssessmentSerializer(record).data})
 
 
 class MatterWorkstreamView(APIView):

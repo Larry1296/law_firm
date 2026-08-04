@@ -246,13 +246,13 @@ export default function ClientConflictCheckPage() {
   const { data: financeAccountsData } = useQuery({
     queryKey: ['finance-accounts-for-retainer'],
     queryFn: () => adminBillingService.getAccounts(),
-    enabled: !isLawyer && !isNew,
+    enabled: !isLawyer && !isNew && engagements.some((item) => Number(item.required_retainer || 0) > 0 && !item.retainer_received),
     retry: false,
   });
   const { data: unallocatedFundsData } = useQuery({
     queryKey: ['client-unallocated-funds', clientId],
     queryFn: () => adminBillingService.getClientUnallocatedFunds(clientId),
-    enabled: !isLawyer && !isNew && !!clientId,
+    enabled: !isLawyer && !isNew && !!clientId && engagements.some((item) => Number(item.required_retainer || 0) > 0 && !item.retainer_received),
     retry: false,
   });
 

@@ -16,6 +16,22 @@ from apps.common.choices import UserRole
 from apps.staff.models import AccountantPermission, LawyerPermission
 
 
+def _pdf_bytes(title, body):
+    """Create a dependency-free, readable one-page PDF for generated office records."""
+    text = (title + "\n\n" + body).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+    lines = text.splitlines()[:55]
+    stream = "BT /F1 10 Tf 50 780 Td " + " ".join(f"({line[:110]}) Tj 0 -14 Td" for line in lines) + " ET"
+    objects = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>", "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", f"<< /Length {len(stream.encode())} >>\nstream\n{stream}\nendstream"]
+    pdf = b"%PDF-1.4\n"
+    offsets = [0]
+    for index, obj in enumerate(objects, 1):
+        offsets.append(len(pdf)); pdf += f"{index} 0 obj\n{obj}\nendobj\n".encode()
+    xref = len(pdf); pdf += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode()
+    pdf += b"".join(f"{offset:010d} 00000 n \n".encode() for offset in offsets[1:])
+    pdf += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF".encode()
+    return pdf
+
+
 class GovernanceAccess:
     @staticmethod
     def firm(user):
@@ -123,7 +139,7 @@ class MatterClosureService:
         ledger = MatterClientLedger.objects.filter(matter=matter).first()
         entries = LedgerTransaction.objects.filter(matter=matter)
         money = lambda queryset: queryset.aggregate(total=Sum("amount"))["total"] or 0
-        if document_type == GeneratedClosingDocument.Type.FINAL_CLIENT_STATEMENT:
+        if document_type in {GeneratedClosingDocument.Type.FINAL_CLIENT_STATEMENT, GeneratedClosingDocument.Type.CLIENT_MONEY_STATEMENT}:
             snapshot = {
                 "matter_title": matter.title,
                 "internal_matter_number": matter.case_number,
@@ -138,7 +154,7 @@ class MatterClosureService:
                 "remaining_authorised_balance": ledger.cleared_balance if ledger else 0,
                 "final_ledger_balance": ledger.cleared_balance if ledger else 0,
             }
-            title = "Final Client Statement"
+            title = "Client Money Statement" if document_type == GeneratedClosingDocument.Type.CLIENT_MONEY_STATEMENT else "Final Client Statement"
             body = "\n".join(f"{key.replace('_', ' ').title()}: {value}" for key, value in snapshot.items())
         else:
             references = matter.document_references.filter(is_active=True).select_related("document")
@@ -157,7 +173,10 @@ class MatterClosureService:
                 "enforcement_position": closure.enforcement_position,
                 "archive_retention_notice": "The file will be archived and reviewed under the firm's applicable retention policy.",
             }
-            title = "Closing Letter"
+            title = dict(GeneratedClosingDocument.Type.choices).get(document_type, "Matter Office Document")
+            if document_type != GeneratedClosingDocument.Type.CLOSING_LETTER:
+                snapshot = {"matter_title": matter.title, "internal_matter_number": matter.case_number, "generated_date": timezone.localdate().isoformat(), "document_type": title, "documents": [item.document.title for item in matter.document_references.filter(is_active=True).select_related("document")], "client": matter.client.full_name}
+                body = "\n".join(f"{key.replace('_', ' ').title()}: {value}" for key, value in snapshot.items())
             body = "\n".join(f"{key.replace('_', ' ').title()}: {value}" for key, value in snapshot.items())
         reference = f"{matter.case_number}/{document_type}/V{version}"
         document = ClientDocument(
@@ -168,7 +187,7 @@ class MatterClosureService:
             subtype=ClientDocument.Subtype.OTHER, source_copy_type=ClientDocument.SourceCopyType.OFFICIAL_ELECTRONIC,
             digital_copy_available=True, review_status=ClientDocument.ReviewStatus.ACCEPTED,
         )
-        document.file.save(f"{reference.replace('/', '_')}.txt", ContentFile(body.encode("utf-8")), save=False)
+        document.file.save(f"{reference.replace('/', '_')}.pdf", ContentFile(_pdf_bytes(title, body)), save=False)
         document.full_clean()
         document.save()
         link = MatterDocumentReference(case=matter, document=document, purpose=MatterDocumentReference.Purpose.CORRESPONDENCE, referenced_by=user)

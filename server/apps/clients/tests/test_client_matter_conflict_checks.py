@@ -105,6 +105,20 @@ class ClientMatterConflictCheckTests(APITestCase):
         self.assertEqual(response.status_code, 201, response.data)
         return ClientMatterConflictCheck.objects.get(id=response.data["conflict_check"]["id"])
 
+    def test_detailed_pre_clearance_intake_requires_urgent_exception(self):
+        payload = self.proposed_payload()
+        payload["factual_summary"] = "Chronology: " + ("A privileged witness and transaction narrative. " * 40)
+        response = self.client.post(
+            reverse("admin-client-conflict-checks", kwargs={"client_id": self.client_record.id}), payload, format="json"
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+        payload["urgent_exception_reason"] = "Police-station attendance required before the conflict search could be completed."
+        response = self.client.post(
+            reverse("admin-client-conflict-checks", kwargs={"client_id": self.client_record.id}), payload, format="json"
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(response.data["conflict_check"]["pre_clearance_restricted"])
+
     def clear_check(self, check):
         response = self.client.post(
             reverse("admin-client-conflict-check-start", kwargs={"client_id": self.client_record.id, "check_id": check.id}),

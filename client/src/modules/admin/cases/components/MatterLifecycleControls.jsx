@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import useAuth from '@/core/hooks/useAuth';
 import Swal from '@/core/utils/themedSwal';
 import adminCasesService from '../services/adminCasesService';
+import ActionModal from '@/components/ui/ActionModal';
 
 const WORKSTREAM_STAGES = {
   LITIGATION: ['PRE_ACTION','NOTICE','DRAFTING','FILING','REGISTRY_ACCEPTANCE','SERVICE','PLEADINGS','INTERIM_APPLICATIONS','CASE_MANAGEMENT','PRE_TRIAL','HEARING','SUBMISSIONS','JUDGMENT','DECREE','APPEAL_REVIEW','ENFORCEMENT','SETTLEMENT','CONCLUSION'],
@@ -65,6 +66,7 @@ export default function MatterLifecycleControls({ matter }) {
   const [retention, setRetention] = useState({ assessment: Object.fromEntries(Object.keys(RETENTION_FIELDS).map((key) => [key, 'Reviewed — no preservation issue identified.'])), outcome: 'DEFER', reason: '', next_review_date: '' });
   const [hold, setHold] = useState({ action: 'PLACE', reason: '', authority: '' });
   const [destruction, setDestruction] = useState({ records_approved: [], approval_date: today(), destruction_date: today(), method: '', performed_by: '', verifier: '', certificate_reference: '', electronic_deletion_confirmed: false, backup_handling_decision: '' });
+  const [modal, setModal] = useState(null);
 
   const fail = (error) => Swal.fire('Control rejected', error.response?.data ? JSON.stringify(error.response.data) : error.message, 'error');
   const execute = async (command, success) => {
@@ -91,6 +93,7 @@ export default function MatterLifecycleControls({ matter }) {
     if (!payload.client_advice_date) payload.client_advice_date = null;
     await adminCasesService.createLegalAssessment(matter.id, payload); await load();
   }, 'A new advocate-controlled assessment version was saved.'); };
+  const assessmentAction = (assessmentId, action) => execute(async () => { await adminCasesService.legalAssessmentAction(assessmentId, action); await load(); }, `Assessment ${action} recorded.`);
 
   const applyWorkstream = () => execute(async () => {
     const stages = WORKSTREAM_STAGES[workstreamRecord?.workstream_type || workstreamType];
@@ -107,17 +110,8 @@ export default function MatterLifecycleControls({ matter }) {
   const saveDeadline = (event) => { event.preventDefault(); return execute(async () => {
     await adminCasesService.createDeadline(matter.id, { ...deadline, responsible_staff: deadline.responsible_staff || user?.id }); await load();
   }, 'The critical deadline and reminders were recorded.'); };
-  const resolveDeadline = (item, action) => execute(async () => {
-    const reason = window.prompt(`Reason to ${action.toLowerCase()} this deadline:`);
-    if (!reason) return;
-    await adminCasesService.resolveDeadline(item.id, { action, reason }); await load();
-  }, `Deadline ${action === 'COMPLETE' ? 'completed' : 'cancelled'} with history.`);
-  const changeDeadline = (item) => execute(async () => {
-    const newDueAt = window.prompt('New ISO date/time:', item.due_at);
-    const reason = newDueAt && window.prompt('Reason for changing this critical date:');
-    if (!newDueAt || !reason) return;
-    await adminCasesService.changeDeadline(item.id, { new_due_at: newDueAt, reason }); await load();
-  }, 'The critical date changed and the previous date remains in history.');
+  const resolveDeadline = (item, action) => setModal({ title: `${action === 'COMPLETE' ? 'Complete' : 'Cancel'} critical deadline`, summary: `${label(item.deadline_type)} — ${new Date(item.due_at).toLocaleString()}`, fields: [{ name: 'reason', label: 'Reason', type: 'textarea' }], submit: ({ reason }) => execute(async () => { await adminCasesService.resolveDeadline(item.id, { action, reason }); await load(); }, `Deadline ${action === 'COMPLETE' ? 'completed' : 'cancelled'} with history.`) });
+  const changeDeadline = (item) => setModal({ title: 'Change critical deadline', summary: `${label(item.deadline_type)} — current ${new Date(item.due_at).toLocaleString()}`, fields: [{ name: 'new_due_at', label: 'New date and time', type: 'datetime-local', defaultValue: item.due_at?.slice(0, 16) }, { name: 'reason', label: 'Reason for change', type: 'textarea' }], submit: ({ new_due_at: newDueAt, reason }) => execute(async () => { await adminCasesService.changeDeadline(item.id, { new_due_at: newDueAt, reason }); await load(); }, 'The critical date changed and the previous date remains in history.') });
 
   const requestClosure = (event) => { event.preventDefault(); return execute(async () => {
     await adminCasesService.requestClosure(matter.id, closureForm); await load();
@@ -160,6 +154,7 @@ export default function MatterLifecycleControls({ matter }) {
   const isArchived = matter.matter_status === 'ARCHIVED';
 
   return <section id='lifecycle-controls' className='space-y-7 rounded-xl border border-border-light p-5 dark:border-border-dark'>
+    <ActionModal open={Boolean(modal)} {...modal} busy={busy} onCancel={() => setModal(null)} onSubmit={(values) => Promise.resolve(modal.submit(values)).finally(() => setModal(null))} />
     <div><p className='text-xs font-semibold uppercase tracking-widest text-brand-primary'>Controlled lifecycle</p><h2 className='text-lg font-semibold'>Assessment, Workstream, Deadlines, Closing and Retention</h2><p className='text-sm text-text-muted-light'>Every action below is revalidated by firm-scoped backend services and written to immutable history.</p></div>
 
     {!isArchived && <details className='rounded-lg border p-4 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Advocate legal assessment ({assessments.length} version{assessments.length === 1 ? '' : 's'})</summary>
@@ -168,7 +163,7 @@ export default function MatterLifecycleControls({ matter }) {
         <label className='text-sm'>Client advice date<input className={input} type='date' value={assessment.client_advice_date} onChange={(e) => setAssessment({ ...assessment, client_advice_date: e.target.value })}/></label>
         <button disabled={busy} className={button}>Save new assessment version</button>
       </form>
-      {assessments[0] && <p className='mt-3 text-sm'>Current version {assessments[0].version}: {assessments[0].recommended_next_action}</p>}
+      {assessments[0] && <p className='mt-3 text-sm'>Current version {assessments[0].version}: {assessments[0].recommended_next_action} · {assessments[0].status}<span className='ml-3 inline-flex gap-2'>{assessments[0].status === 'DRAFT' && <button type='button' className={button} onClick={() => assessmentAction(assessments[0].id, 'submit')}>Submit for review</button>}{assessments[0].status === 'SUBMITTED' && <button type='button' className={button} onClick={() => assessmentAction(assessments[0].id, 'approve')}>Approve assessment</button>}</span></p>}
     </details>}
 
     {!isArchived && <div className='grid gap-4 xl:grid-cols-2'>
@@ -186,7 +181,7 @@ export default function MatterLifecycleControls({ matter }) {
     <div><h3 className='font-semibold'>Upcoming and overdue deadlines</h3><div className='mt-2 grid gap-2 md:grid-cols-2'>{deadlines.map((item) => <div className={`rounded-lg border p-3 text-sm dark:border-border-dark ${new Date(item.due_at) < new Date() && item.status === 'OPEN' ? 'border-red-500 text-red-700' : ''}`} key={item.id}><b>{label(item.deadline_type)}</b><br/>{new Date(item.due_at).toLocaleString()} · {item.priority} · {item.status}<br/><span className='text-xs'>{item.source}</span>{item.status === 'OPEN' && !isArchived && <div className='mt-2 flex gap-2'><button type='button' onClick={() => changeDeadline(item)}>Change</button><button type='button' onClick={() => resolveDeadline(item, 'COMPLETE')}>Complete</button><button type='button' onClick={() => resolveDeadline(item, 'CANCEL')}>Cancel</button></div>}</div>)}</div></div>
 
     {!closure && !isClosed && !isArchived && <details className='rounded-lg border p-4 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Request formal Closing Review</summary><form className='mt-4 grid gap-3 md:grid-cols-2' onSubmit={requestClosure}>{Object.entries({ closure_reason:'Closure reason', outcome:'Outcome or result', closing_summary:'Closing summary', outstanding_actions:'Outstanding actions', post_closure_responsibilities:'Post-closure responsibilities', appeal_position:'Appeal or review position', enforcement_position:'Enforcement position', authorised_original_retention_reason:'Original retention reason, if applicable' }).map(([key, text]) => <textarea className={input} key={key} required={['closure_reason','outcome','closing_summary','appeal_position','enforcement_position'].includes(key)} placeholder={text} value={closureForm[key]} onChange={(e) => setClosureForm({ ...closureForm, [key]: e.target.value })}/>)}<div className='grid gap-2 text-sm'>{['legal_work_complete','result_document_recorded','client_instructions_complete','undertakings_resolved','final_invoice_issued','client_informed'].map((key) => <label key={key}><input type='checkbox' checked={closureForm[key]} onChange={(e) => setClosureForm({ ...closureForm, [key]: e.target.checked })}/> {label(key)}</label>)}</div><button disabled={busy} className={button}>Request Closing Review</button></form></details>}
-    {closure && <div className='space-y-3 rounded-lg border p-4 dark:border-border-dark'><h3 className='font-semibold'>Closing Review — {closure.status}</h3>{closure.blocking_reasons?.length ? <ul className='list-disc pl-5 text-sm text-amber-700'>{closure.blocking_reasons.map((item) => <li key={item}>{item}</li>)}</ul> : <p className='text-sm text-green-700'>All currently evaluated closing controls are clear.</p>}<div className='flex flex-wrap gap-2'>{closure.status !== 'CLOSED' && <><button className={button} onClick={() => generateClosing('CLOSING_LETTER')}>Generate closing letter</button><button className={button} onClick={() => generateClosing('FINAL_CLIENT_STATEMENT')}>Generate final statement</button><button className={button} onClick={() => closureAction('approve-advocate')}>Advocate approval</button><button className={button} onClick={() => closureAction('approve-finance')}>Finance approval</button><button className={button} onClick={() => closureAction('finalise')}>Administrative final review</button></>}{closure.status === 'CLOSED' && !archive && <button className={button} onClick={() => closureAction('reopen', { reason: window.prompt('Authorised reopening reason:') || '' })}>Controlled reopen</button>}</div></div>}
+    {closure && <div className='space-y-3 rounded-lg border p-4 dark:border-border-dark'><h3 className='font-semibold'>Closing Review — {closure.status}</h3>{closure.blocking_reasons?.length ? <ul className='list-disc pl-5 text-sm text-amber-700'>{closure.blocking_reasons.map((item) => <li key={item}>{item}</li>)}</ul> : <p className='text-sm text-green-700'>All currently evaluated closing controls are clear.</p>}<div className='flex flex-wrap gap-2'>{closure.status !== 'CLOSED' && <>{[['CLOSING_LETTER','Closing letter'],['FINAL_CLIENT_STATEMENT','Final client statement'],['DOCUMENT_RETURN_ACKNOWLEDGEMENT','Document-return acknowledgement'],['CLIENT_MONEY_STATEMENT','Client-money statement'],['COMPLETION_STATEMENT','Completion statement'],['DOCUMENT_RECEIPT','Document receipt'],['ARCHIVE_NOTICE','Archive notice']].map(([type, text]) => <button key={type} className={button} onClick={() => generateClosing(type)}>{text}</button>)}<button className={button} onClick={() => closureAction('approve-advocate')}>Advocate approval</button><button className={button} onClick={() => closureAction('approve-finance')}>Finance approval</button><button className={button} onClick={() => closureAction('finalise')}>Administrative final review</button></>}{closure.status === 'CLOSED' && !archive && <button className={button} onClick={() => setModal({ title: 'Reopen closed matter', summary: 'A reopening reason is mandatory and audited.', fields: [{ name: 'reason', label: 'Authorised reopening reason', type: 'textarea' }], submit: ({ reason }) => closureAction('reopen', { reason }) })}>Controlled reopen</button>}</div></div>}
 
     {(isClosed || isArchived || closure?.status === 'CLOSED') && <details className='rounded-lg border p-4 dark:border-border-dark' open={isArchived}><summary className='cursor-pointer font-semibold'>Archive, Retention Review and Secure Destruction</summary>
       {!archive && isArchived && <div className='mt-3 flex gap-2'><input className={input} value={archivePurpose} onChange={(e) => setArchivePurpose(e.target.value)}/><button className={button} onClick={accessArchive}>Access archived file</button></div>}

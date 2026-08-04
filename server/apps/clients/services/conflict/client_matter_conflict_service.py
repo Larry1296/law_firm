@@ -411,6 +411,10 @@ class ClientMatterConflictService:
             raise ValidationError({"client_id": "Client was not found for this firm."}) from exc
 
         parties = list(data.get("parties") or [])
+        sensitive = any(len(str(data.get(field, "")).strip()) > limit for field, limit in (("factual_summary", 500), ("desired_outcome", 300), ("urgency_details", 300)))
+        urgent_reason = str(data.get("urgent_exception_reason", "")).strip()
+        if sensitive and not urgent_reason:
+            raise ValidationError({"factual_summary": "Detailed confidential information is unavailable before conflict clearance. Record only limited intake facts or provide an authorised urgent-exception reason."})
         cls._validate_parties(
             parties,
             data.get("no_adverse_party_currently_known", False),
@@ -436,7 +440,14 @@ class ClientMatterConflictService:
             created_by=user,
             no_adverse_party_currently_known=data.get("no_adverse_party_currently_known", False),
             no_adverse_party_explanation=data.get("no_adverse_party_explanation", ""),
+            pre_clearance_restricted=bool(sensitive),
+            urgent_exception_reason=urgent_reason,
+            urgent_exception_received_by=user if urgent_reason else None,
+            urgent_exception_received_at=timezone.now() if urgent_reason else None,
+            restricted_note="Urgent confidential intake exception; restricted to authorised conflict-review staff." if urgent_reason else "",
         )
+        check.full_clean()
+        check.save()
         cls.instantiate_proposed_requirements(check=check, actor=user)
         ConflictCheckParty.objects.create(
             conflict_check=check,
@@ -491,11 +502,21 @@ class ClientMatterConflictService:
             "no_adverse_party_currently_known",
             "no_adverse_party_explanation",
         ]
+        sensitive_update = any(field in data and len(str(data.get(field) or "").strip()) > limit for field, limit in (("factual_summary", 500), ("desired_outcome", 300), ("urgency_details", 300)))
+        urgent_reason = str(data.get("urgent_exception_reason", check.urgent_exception_reason or "")).strip()
+        if sensitive_update and check.status != ConflictCheckStatus.CLEARED and not urgent_reason:
+            raise ValidationError({"factual_summary": "Detailed confidential information requires an urgent-exception reason until conflict clearance."})
         for field in fields:
             if field in data:
                 setattr(check, field, data[field])
         if "responsible_lawyer_id" in data:
             check.responsible_lawyer = cls._default_responsible_lawyer(user, firm, data.get("responsible_lawyer_id"))
+        if sensitive_update or urgent_reason:
+            check.pre_clearance_restricted = check.status != ConflictCheckStatus.CLEARED
+            check.urgent_exception_reason = urgent_reason
+            check.urgent_exception_received_by = user if urgent_reason else check.urgent_exception_received_by
+            check.urgent_exception_received_at = timezone.now() if urgent_reason and not check.urgent_exception_received_at else check.urgent_exception_received_at
+            check.restricted_note = "Urgent confidential intake exception; restricted to authorised conflict-review staff." if check.pre_clearance_restricted else check.restricted_note
         check.save()
         cls._record_history(
             check,

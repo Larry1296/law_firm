@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import useAuth from '@/core/hooks/useAuth';
 import Swal from '@/core/utils/themedSwal';
 import adminBillingService from '../services/adminBillingService';
+import ActionModal from '@/components/ui/ActionModal';
 
 const field = 'rounded-lg border border-border-light bg-surface-light px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-dark';
 const button = 'rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50';
@@ -29,6 +30,7 @@ export default function AdminBillingPage() {
   const [reconciliation, setReconciliation] = useState({ account: '', period_end: today, statement_balance: '', reconciliation_data: {} });
   const [credit, setCredit] = useState({ invoice: '', credit_note_number: '', credit_date: today, amount: '', reason: '' });
   const [ledgerMatter, setLedgerMatter] = useState('');
+  const [modal, setModal] = useState(null);
 
   const load = async () => {
     const results = await Promise.allSettled([
@@ -71,19 +73,15 @@ export default function AdminBillingPage() {
   const action = async (id, command) => { setBusy(true); try { await adminBillingService.invoiceAction(id, command); await load(); } catch (error) { Swal.fire('Action rejected', JSON.stringify(error.response?.data || {}), 'error'); } finally { setBusy(false); } };
   const run = async (command, message) => { setBusy(true); try { await command(); await load(); Swal.fire('Recorded', message, 'success'); } catch (error) { Swal.fire('Financial control rejected', JSON.stringify(error.response?.data || {}), 'error'); } finally { setBusy(false); } };
   const submit = (command, message) => (event) => { event.preventDefault(); return run(command, message); };
-  const cancelInvoice = (id) => { const reason = window.prompt('Reason for cancelling this unissued invoice:'); if (reason) run(() => adminBillingService.invoiceAction(id, 'cancel', { reason }), 'Invoice cancelled with reason and audit history.'); };
+  const openModal = (config) => setModal(config);
+  const cancelInvoice = (id) => openModal({ title: 'Cancel invoice', summary: 'This is available only before issue and creates an audit record.', fields: [{ name: 'reason', label: 'Cancellation reason', type: 'textarea' }], submit: ({ reason }) => run(() => adminBillingService.invoiceAction(id, 'cancel', { reason }), 'Invoice cancelled with reason and audit history.') });
   const linkBillables = (id) => {
-    const timeIds = window.prompt('Approved time-entry UUIDs, comma separated:', '') || '';
-    const disbursementIds = window.prompt('Approved disbursement UUIDs, comma separated:', '') || '';
-    const parse = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
-    if (parse(timeIds).length || parse(disbursementIds).length) run(
-      () => adminBillingService.addInvoiceBillables(id, { time_entry_ids: parse(timeIds), disbursement_ids: parse(disbursementIds) }),
-      'Approved billable records linked to the draft invoice.',
-    );
+    openModal({ title: 'Link approved billables', summary: 'Select approved records from the firm-scoped registers.', fields: [{ name: 'time_entry_ids', label: 'Approved time entries', type: 'select', multiple: true, required: false, options: timeEntries.filter((item) => item.approval_status === 'APPROVED').map((item) => ({ value: item.id, label: `${item.entry_date} · ${item.activity} · ${item.duration_minutes} min` })) }, { name: 'disbursement_ids', label: 'Approved disbursements', type: 'select', multiple: true, required: false, options: disbursements.filter((item) => item.approval_status === 'APPROVED').map((item) => ({ value: item.id, label: `${item.date_incurred} · ${item.description} · ${item.amount}` })) }], submit: (values) => { if (values.time_entry_ids?.length || values.disbursement_ids?.length) return run(() => adminBillingService.addInvoiceBillables(id, values), 'Approved billable records linked to the draft invoice.'); return Promise.resolve(); } });
   };
   const inspectLedger = () => run(async () => { const data = await adminBillingService.getMatterLedger(ledgerMatter); setLedger(data.ledger); }, 'Matter client ledger loaded.');
 
   return <div className='space-y-6 p-6 text-text-primary-light dark:text-text-primary-dark'>
+    <ActionModal open={Boolean(modal)} {...modal} busy={busy} onCancel={() => setModal(null)} onSubmit={(values) => Promise.resolve(modal.submit(values)).finally(() => setModal(null))} />
     <div><p className='text-xs font-semibold uppercase tracking-widest text-brand-primary'>Controlled finance</p><h1 className='text-2xl font-bold'>Billing, Office Money and Client Money</h1><p className='text-sm text-text-muted-light'>Posted entries cannot be edited or deleted. Corrections use linked reversals.</p></div>
     <div className='grid gap-4 md:grid-cols-3'>
       <div className='rounded-xl border p-4 dark:border-border-dark'><p className='text-sm text-text-muted-light'>Invoices</p><p className='text-2xl font-bold'>{invoices.length}</p></div>
@@ -121,6 +119,6 @@ export default function AdminBillingPage() {
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Bank reconciliation</summary><form className='mt-3 space-y-2' onSubmit={submit(() => adminBillingService.createReconciliation(reconciliation), 'Reconciliation prepared from the immutable ledger.') }><select className={`${field} w-full`} name='account' value={reconciliation.account} onChange={update(setReconciliation)} required><option value=''>Account</option>{accounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><input className={`${field} w-full`} name='period_end' type='date' value={reconciliation.period_end} onChange={update(setReconciliation)}/><input className={`${field} w-full`} name='statement_balance' type='number' required placeholder='statement balance' value={reconciliation.statement_balance} onChange={update(setReconciliation)}/><button disabled={busy} className={button}>Prepare reconciliation</button></form><div className='mt-2 text-xs'>{reconciliations.map((item) => <p key={item.id}>{item.period_end} · difference {item.difference} · {item.status} {item.status === 'DRAFT' && <button onClick={() => run(() => adminBillingService.approveReconciliation(item.id), 'Zero-difference reconciliation independently approved.')}>Approve</button>}</p>)}</div></details>
     </div>
 
-    <section className='rounded-xl border p-5 dark:border-border-dark'><h2 className='font-semibold'>Matter client ledger and reversals</h2><div className='mt-2 flex gap-2'><input className={`${field} flex-1`} value={ledgerMatter} onChange={(event) => setLedgerMatter(event.target.value)} placeholder='Matter UUID'/><button disabled={!ledgerMatter || busy} className={button} onClick={inspectLedger}>Load ledger</button></div>{ledger && <div className='mt-3'><p className='font-semibold'>Cleared balance: {ledger.currency} {ledger.cleared_balance}</p><div className='overflow-x-auto'><table className='w-full text-left text-xs'><tbody>{ledger.transactions?.map((item) => <tr key={item.id}><td className='p-2'>{item.posted_at}</td><td>{item.transaction_type}</td><td>{item.direction}</td><td>{item.amount}</td><td>{item.narrative}</td><td>{!item.original_transaction && <button onClick={() => { const reason = window.prompt('Reversal reason:'); if (reason) run(() => adminBillingService.reverseTransaction(item.id, reason), 'Linked reversal posted; original retained.'); }}>Reverse</button>}</td></tr>)}</tbody></table></div></div>}</section>
+    <section className='rounded-xl border p-5 dark:border-border-dark'><h2 className='font-semibold'>Matter client ledger and reversals</h2><div className='mt-2 flex gap-2'><input className={`${field} flex-1`} value={ledgerMatter} onChange={(event) => setLedgerMatter(event.target.value)} placeholder='Select a matter from the matter register'/><button disabled={!ledgerMatter || busy} className={button} onClick={inspectLedger}>Load ledger</button></div>{ledger && <div className='mt-3'><p className='font-semibold'>Cleared balance: {ledger.currency} {ledger.cleared_balance}</p><div className='overflow-x-auto'><table className='w-full text-left text-xs'><tbody>{ledger.transactions?.map((item) => <tr key={item.id}><td className='p-2'>{item.posted_at}</td><td>{item.transaction_type}</td><td>{item.direction}</td><td>{item.amount}</td><td>{item.narrative}</td><td>{!item.original_transaction && <button onClick={() => openModal({ title: 'Reverse posted transaction', summary: `${item.transaction_type} ${item.amount} — original remains preserved.`, fields: [{ name: 'reason', label: 'Reversal reason', type: 'textarea' }], submit: ({ reason }) => run(() => adminBillingService.reverseTransaction(item.id, reason), 'Linked reversal posted; original retained.') })}>Reverse</button>}</td></tr>)}</tbody></table></div></div>}</section>
   </div>;
 }

@@ -282,6 +282,10 @@ class ClientMatterConflictCheckDetailSerializer(ClientMatterConflictCheckListSer
             "result_summary",
             "internal_reason",
             "restricted_note",
+            "pre_clearance_restricted",
+            "urgent_exception_reason",
+            "urgent_exception_received_by",
+            "urgent_exception_received_at",
             "decision_confirmation",
             "decided_by",
             "decided_at",
@@ -312,6 +316,7 @@ class ProposedMatterSerializer(serializers.Serializer):
     no_adverse_party_explanation = serializers.CharField(required=False, allow_blank=True)
     parties = ConflictCheckPartySerializer(many=True, required=False)
     jurisdiction_facts = serializers.JSONField(required=False)
+    urgent_exception_reason = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
 
 class JurisdictionSuggestionInputSerializer(serializers.Serializer):

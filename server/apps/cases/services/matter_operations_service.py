@@ -43,9 +43,38 @@ class MatterOperationsService:
         version = matter.legal_assessments.count() + 1
         if current:
             current.is_current = False
-            current.save(update_fields=["is_current", "updated_at"])
+            current.status = LegalAssessment.Status.SUPERSEDED
+            current.save(update_fields=["is_current", "status", "updated_at"])
         assessment = LegalAssessment.objects.create(firm=firm, matter=matter, version=version, **data)
         AuditService.record(firm=firm, user=user, action="LEGAL_ASSESSMENT_VERSION_CREATED", obj=assessment, previous={"superseded_version": getattr(current, "version", None)}, new={"version": version, "advocate": advocate.id})
+        return assessment
+
+    @classmethod
+    @transaction.atomic
+    def submit_assessment(cls, *, user, assessment_id):
+        firm = GovernanceAccess.require_lawyer(user, LawyerPermission.COMPLETE_LEGAL_ASSESSMENT)
+        assessment = LegalAssessment.objects.select_for_update().get(id=assessment_id, firm=firm)
+        if assessment.status != LegalAssessment.Status.DRAFT:
+            raise ValidationError({"status": "Only a draft assessment may be submitted."})
+        assessment.status = LegalAssessment.Status.SUBMITTED
+        assessment.submitted_by, assessment.submitted_at = user, timezone.now()
+        assessment.save(update_fields=["status", "submitted_by", "submitted_at", "updated_at"])
+        AuditService.record(firm=firm, user=user, action="LEGAL_ASSESSMENT_SUBMITTED", obj=assessment, new={"status": assessment.status})
+        return assessment
+
+    @classmethod
+    @transaction.atomic
+    def approve_assessment(cls, *, user, assessment_id):
+        firm = GovernanceAccess.require_lawyer(user, LawyerPermission.COMPLETE_LEGAL_ASSESSMENT)
+        assessment = LegalAssessment.objects.select_for_update().get(id=assessment_id, firm=firm)
+        if assessment.status != LegalAssessment.Status.SUBMITTED:
+            raise ValidationError({"status": "Only a submitted assessment may be approved."})
+        if assessment.advocate.user_id == user.id:
+            raise ValidationError({"approver": "The completing advocate cannot approve their own assessment."})
+        assessment.status = LegalAssessment.Status.APPROVED
+        assessment.approved_by, assessment.approved_at = user, timezone.now()
+        assessment.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+        AuditService.record(firm=firm, user=user, action="LEGAL_ASSESSMENT_APPROVED", obj=assessment, new={"status": assessment.status, "approved_by": user.id})
         return assessment
 
     @classmethod

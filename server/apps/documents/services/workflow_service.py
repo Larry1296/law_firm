@@ -5,6 +5,8 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.cases.models import Case
 from apps.clients.models import ClientDocument
+from apps.clients.models import ClientMatterConflictCheck
+from apps.common.choices import ConflictCheckStatus
 from apps.documents.models import DocumentRequest, MatterDocumentReference
 from apps.notifications.services import NotificationService
 from apps.staff.models import Secretary
@@ -106,6 +108,18 @@ class DocumentWorkflowService:
         if physical_retained and not physical_location:
             raise ValidationError({"physical_storage_location": "Record where the physical KYC document is held."})
         case = DocumentWorkflowService._case_for_client(client, data.get("case_id"))
+        if case is None and document_type in {"CONTRACT", "EVIDENCE", "LEGAL", "FINANCIAL"}:
+            unresolved = ClientMatterConflictCheck.objects.filter(client=client, firm=client.firm).exclude(status=ConflictCheckStatus.CLEARED).first()
+            if unresolved:
+                exception_reason = str(data.get("urgent_exception_reason") or "").strip()
+                if not exception_reason:
+                    raise ValidationError({"file": "Sensitive documents cannot be uploaded before conflict clearance without an authorised urgent-exception reason."})
+                unresolved.pre_clearance_restricted = True
+                unresolved.urgent_exception_reason = exception_reason
+                unresolved.urgent_exception_received_by = user
+                unresolved.urgent_exception_received_at = timezone.now()
+                unresolved.restricted_note = "Urgent confidential document intake; restricted to authorised conflict-review staff."
+                unresolved.save(update_fields=["pre_clearance_restricted", "urgent_exception_reason", "urgent_exception_received_by", "urgent_exception_received_at", "restricted_note", "updated_at"])
         received_via = data.get("received_via") or (
             ClientDocument.ReceivedVia.CLIENT_PORTAL
             if getattr(user, "client_profile", None)

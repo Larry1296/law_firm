@@ -92,6 +92,13 @@ class ClientMatterConflictCheck(TimestampedModel):
     result_summary = models.TextField(blank=True, default="")
     internal_reason = models.TextField(blank=True, default="")
     restricted_note = models.TextField(blank=True, default="")
+    pre_clearance_restricted = models.BooleanField(default=False)
+    urgent_exception_reason = models.TextField(blank=True, default="")
+    urgent_exception_received_by = models.ForeignKey(
+        "users.User", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="received_confidential_intake_exceptions",
+    )
+    urgent_exception_received_at = models.DateTimeField(null=True, blank=True)
     decision_confirmation = models.BooleanField(default=False)
     decided_by = models.ForeignKey(
         "staff.Lawyer",

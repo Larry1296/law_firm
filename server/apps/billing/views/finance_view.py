@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.billing.models import AccountReconciliation, ClientFundsLedger, CreditNote, Disbursement, FinancialAccount, Invoice, MatterClientLedger, PaymentInstruction, TimeEntry
+from apps.billing.models import AccountReconciliation, ClientFundsLedger, CreditNote, Disbursement, FinancialAccount, Invoice, MatterClientLedger, PaymentInstruction, TaxConfiguration, TimeEntry
 from apps.clients.models import Client, ClientMatterConflictCheck, EngagementRecord
 from apps.billing.serializers.finance_serializer import (
     AccountReconciliationSerializer, ClientMoneyReceiptSerializer, DisbursementSerializer,
@@ -11,7 +11,7 @@ from apps.billing.serializers.finance_serializer import (
     InvoiceCancellationSerializer, InvoiceSerializer,
     LedgerTransactionSerializer, MatterClientLedgerSerializer, OfficeTransferSerializer,
     OfficeMoneyReceiptSerializer, PaymentInstructionSerializer, PaymentRequestSerializer,
-    PreMatterRetainerReceiptSerializer, ReversalSerializer, TimeEntrySerializer,
+    PreMatterRetainerReceiptSerializer, ReversalSerializer, TaxConfigurationSerializer, TimeEntrySerializer,
 )
 from apps.billing.services.finance_service import ClientMoneyService, CreditNoteService, FinanceAccess, InvoiceService, OperationalFinanceService
 from apps.staff.models import AccountantPermission
@@ -30,6 +30,21 @@ class FinancialAccountListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         account = serializer.save(firm=firm)
         return Response({"account": FinancialAccountSerializer(account).data}, status=status.HTTP_201_CREATED)
+
+
+class TaxConfigurationListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        firm = FinanceAccess.require(request.user, AccountantPermission.MANAGE_TAX_RECORDS)
+        return Response({"tax_configurations": TaxConfigurationSerializer(TaxConfiguration.objects.filter(firm=firm), many=True).data})
+
+    def post(self, request):
+        firm = FinanceAccess.require(request.user, AccountantPermission.MANAGE_TAX_RECORDS)
+        serializer = TaxConfigurationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        record = serializer.save(firm=firm)
+        return Response({"tax_configuration": TaxConfigurationSerializer(record).data}, status=status.HTTP_201_CREATED)
 
 
 class InvoiceListCreateView(APIView):

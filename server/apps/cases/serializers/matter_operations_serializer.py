@@ -7,7 +7,7 @@ class LegalAssessmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = LegalAssessment
         fields = "__all__"
-        read_only_fields = ("firm", "matter", "version", "is_current")
+        read_only_fields = ("firm", "matter", "version", "is_current", "status", "submitted_by", "submitted_at", "approved_by", "approved_at")
 
 
 class MatterWorkstreamSerializer(serializers.ModelSerializer):

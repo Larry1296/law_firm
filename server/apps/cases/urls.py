@@ -23,7 +23,7 @@ from apps.cases.views.matter_governance_view import (
     MatterClosureActionView, MatterClosureView, RetentionReviewView,
 )
 from apps.cases.views.matter_operations_view import (
-    DeadlineChangeView, DeadlineResolveView, LegalAssessmentView, MatterDeadlineView, MatterWorkstreamView,
+    DeadlineChangeView, DeadlineResolveView, LegalAssessmentActionView, LegalAssessmentView, MatterDeadlineView, MatterWorkstreamView,
     WorkstreamStageCompleteView,
 )
 
@@ -53,6 +53,7 @@ urlpatterns = [
     path("archives/<uuid:archive_id>/destruction/", DestructionView.as_view(), name="archive-destruction"),
     path("archives/<uuid:archive_id>/legal-hold/", LegalHoldView.as_view(), name="archive-legal-hold"),
     path("<uuid:case_id>/legal-assessments/", LegalAssessmentView.as_view(), name="matter-legal-assessments"),
+    path("legal-assessments/<uuid:assessment_id>/<str:action>/", LegalAssessmentActionView.as_view(), name="matter-legal-assessment-action"),
     path("<uuid:case_id>/workstream/", MatterWorkstreamView.as_view(), name="matter-workstream"),
     path("<uuid:case_id>/workstream/current-stage/complete/", WorkstreamStageCompleteView.as_view(), name="matter-workstream-stage-complete"),
     path("<uuid:case_id>/deadlines/", MatterDeadlineView.as_view(), name="matter-deadlines"),

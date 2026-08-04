@@ -113,6 +113,8 @@ class MatterGovernanceTests(TestCase):
         self.assertEqual(revised.version, 2)
         self.assertTrue(self.matter.document_references.filter(document=revised.client_document).exists())
         self.assertEqual(revised.content_snapshot["internal_matter_number"], self.matter.case_number)
+        self.assertTrue(revised.client_document.file.name.endswith(".pdf"))
+        self.assertEqual(revised.client_document.file.read(5), b"%PDF-")
 
     def archive(self):
         MatterClosureService.finalise(user=self.owner, closure_id=self.prepared_closure().id)

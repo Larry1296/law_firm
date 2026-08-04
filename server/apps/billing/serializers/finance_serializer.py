@@ -3,7 +3,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from apps.billing.models import (
-    AccountReconciliation, CreditNote, Disbursement, FinancialAccount, Invoice, InvoiceLine,
+    AccountReconciliation, CreditNote, Disbursement, FinancialAccount, Invoice, InvoiceLine, TaxConfiguration,
     LedgerTransaction, MatterClientLedger, PaymentInstruction, Receipt,
     ReceiptAllocation, TimeEntry,
 )
@@ -12,6 +12,13 @@ from apps.billing.models import (
 class FinancialAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = FinancialAccount
+        fields = "__all__"
+        read_only_fields = ("firm",)
+
+
+class TaxConfigurationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TaxConfiguration
         fields = "__all__"
         read_only_fields = ("firm",)
 
@@ -34,6 +41,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "firm", "created_by", "professional_fees", "tax_amount", "disbursements_total",
             "discount_adjustment", "total_amount", "amount_paid", "balance", "status",
             "approved_by", "approved_at", "issued_at", "cancellation_reason",
+            "tax_configuration_snapshot",
         )
 
     def get_rendered_line_items(self, obj):

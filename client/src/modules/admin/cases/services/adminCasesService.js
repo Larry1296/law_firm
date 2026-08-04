@@ -53,6 +53,7 @@ const adminCasesService = {
   async changeDeadline(deadlineId, payload) { return (await axiosInstance.post(`/cases/deadlines/${deadlineId}/change/`, payload)).data; },
   async getLegalAssessments(caseId) { return (await axiosInstance.get(`/cases/${caseId}/legal-assessments/`)).data; },
   async createLegalAssessment(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/legal-assessments/`, payload)).data; },
+  async legalAssessmentAction(assessmentId, action) { return (await axiosInstance.post(`/cases/legal-assessments/${assessmentId}/${action}/`)).data; },
   async getWorkstream(caseId) { return (await axiosInstance.get(`/cases/${caseId}/workstream/`)).data; },
   async setWorkstream(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/workstream/`, payload)).data; },
   async completeWorkstreamStage(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/workstream/current-stage/complete/`, payload)).data; },

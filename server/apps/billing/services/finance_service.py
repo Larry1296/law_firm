@@ -8,7 +8,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.billing.models import (
     AccountReconciliation, ClientFundsLedger, CreditNote, Disbursement, FinancialAccount, Invoice, InvoiceLine,
-    LedgerTransaction, MatterClientLedger, PaymentInstruction, Receipt,
+    LedgerTransaction, MatterClientLedger, PaymentInstruction, Receipt, TaxConfiguration,
     ReceiptAllocation, ReceiptReversal, TimeEntry,
 )
 from apps.audit_logs.services import AuditService
@@ -26,7 +26,12 @@ class FinanceAccess:
     @classmethod
     def require(cls, user, code):
         firm = cls.firm(user)
-        if user.role == UserRole.ADMIN and firm.owner_id == user.id:
+        sensitive_checker_codes = {
+            AccountantPermission.APPROVE_INVOICES,
+            AccountantPermission.APPROVE_CLIENT_MONEY_PAYMENTS,
+            AccountantPermission.RECONCILE_ACCOUNTS,
+        }
+        if user.role == UserRole.ADMIN and firm.owner_id == user.id and code not in sensitive_checker_codes:
             return firm
         profile = getattr(user, "accountant_profile", None)
         if not profile or profile.law_firm_id != firm.id or not profile.is_active or not profile.has_permission(code):
@@ -83,6 +88,16 @@ class InvoiceService:
             disbursements_total=disbursements, discount_adjustment=adjustment,
             total_amount=total, balance=total, **data,
         )
+        tax_configuration = TaxConfiguration.objects.filter(firm=firm, is_active=True, effective_from__lte=timezone.localdate()).order_by("-effective_from").first()
+        if tax_configuration:
+            invoice.tax_configuration_snapshot = {
+                "id": str(tax_configuration.id), "effective_from": tax_configuration.effective_from.isoformat(),
+                "vat_registered": tax_configuration.vat_registered, "vat_registration_number": tax_configuration.vat_registration_number,
+                "vat_rate": str(tax_configuration.vat_rate), "tax_inclusive": tax_configuration.tax_inclusive,
+                "withholding_tax_enabled": tax_configuration.withholding_tax_enabled,
+                "withholding_tax_rate": str(tax_configuration.withholding_tax_rate), "default_currency": tax_configuration.default_currency,
+                "rounding_policy": tax_configuration.rounding_policy,
+            }
         invoice.full_clean()
         invoice.save()
         for item in lines:

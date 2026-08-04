@@ -36,6 +36,34 @@ class FinancialAccount(TimestampedModel):
         constraints = [models.UniqueConstraint(fields=["firm", "account_reference"], name="unique_financial_account_per_firm")]
 
 
+class TaxConfiguration(TimestampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    firm = models.ForeignKey("firm.LawFirm", on_delete=models.PROTECT, related_name="tax_configurations")
+    effective_from = models.DateField()
+    vat_registered = models.BooleanField(default=False)
+    vat_registration_number = models.CharField(max_length=80, blank=True, default="")
+    vat_rate = models.DecimalField(max_digits=6, decimal_places=3, default=0)
+    tax_inclusive = models.BooleanField(default=False)
+    withholding_tax_enabled = models.BooleanField(default=False)
+    withholding_tax_rate = models.DecimalField(max_digits=6, decimal_places=3, default=0)
+    withholding_tax_label = models.CharField(max_length=120, blank=True, default="")
+    exempt_or_zero_rated_label = models.CharField(max_length=255, blank=True, default="")
+    default_currency = models.CharField(max_length=3, default="KES")
+    rounding_policy = models.CharField(max_length=80, default="HALF_UP")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "billing_tax_configurations"
+        ordering = ["-effective_from", "-created_at"]
+        constraints = [models.UniqueConstraint(fields=["firm", "effective_from"], name="unique_tax_configuration_effective_date")]
+
+    def clean(self):
+        if self.vat_rate < 0 or self.withholding_tax_rate < 0:
+            raise ValidationError("Tax rates cannot be negative.")
+        if self.vat_registered and not self.vat_registration_number.strip():
+            raise ValidationError({"vat_registration_number": "A VAT registration number is required when VAT registration is enabled."})
+
+
 class Invoice(TimestampedModel):
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
@@ -65,6 +93,7 @@ class Invoice(TimestampedModel):
     total_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     amount_paid = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     credited_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    tax_configuration_snapshot = models.JSONField(default=dict, blank=True)
     balance = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     status = models.CharField(max_length=32, choices=Status.choices, default=Status.DRAFT, db_index=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_invoices")

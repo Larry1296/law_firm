@@ -8,6 +8,11 @@ from apps.common.models.timestamped_model import TimestampedModel
 
 
 class LegalAssessment(TimestampedModel):
+    class Status(models.TextChoices):
+        DRAFT = "DRAFT", "Draft"
+        SUBMITTED = "SUBMITTED", "Submitted for review"
+        APPROVED = "APPROVED", "Approved"
+        SUPERSEDED = "SUPERSEDED", "Superseded"
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     firm = models.ForeignKey("firm.LawFirm", on_delete=models.PROTECT, related_name="legal_assessments")
     matter = models.ForeignKey("cases.Case", on_delete=models.PROTECT, related_name="legal_assessments")
@@ -36,6 +41,11 @@ class LegalAssessment(TimestampedModel):
     supervisor = models.ForeignKey("staff.Lawyer", on_delete=models.PROTECT, null=True, blank=True, related_name="supervised_legal_assessments")
     client_decision = models.TextField(blank=True, default="")
     is_current = models.BooleanField(default=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.DRAFT)
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="submitted_legal_assessments")
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="approved_legal_assessments")
+    approved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "matter_legal_assessments"
@@ -216,6 +226,11 @@ class GeneratedClosingDocument(models.Model):
     class Type(models.TextChoices):
         CLOSING_LETTER = "CLOSING_LETTER", "Closing letter"
         FINAL_CLIENT_STATEMENT = "FINAL_CLIENT_STATEMENT", "Final client statement"
+        DOCUMENT_RETURN_ACKNOWLEDGEMENT = "DOCUMENT_RETURN_ACKNOWLEDGEMENT", "Document-return acknowledgement"
+        CLIENT_MONEY_STATEMENT = "CLIENT_MONEY_STATEMENT", "Client-money statement"
+        COMPLETION_STATEMENT = "COMPLETION_STATEMENT", "Completion statement"
+        DOCUMENT_RECEIPT = "DOCUMENT_RECEIPT", "Document receipt"
+        ARCHIVE_NOTICE = "ARCHIVE_NOTICE", "Archive notice"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     firm = models.ForeignKey("firm.LawFirm", on_delete=models.PROTECT, related_name="generated_closing_documents")
