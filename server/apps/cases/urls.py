@@ -19,11 +19,12 @@ from apps.cases.views import (
     RecordProceedingOutcomeView,
 )
 from apps.cases.views.matter_governance_view import (
-    DestructionView, MatterArchiveView, MatterClosureActionView, MatterClosureView,
-    RetentionReviewView,
+    ClosingDocumentGenerateView, DestructionView, LegalHoldView, MatterArchiveView,
+    MatterClosureActionView, MatterClosureView, RetentionReviewView,
 )
 from apps.cases.views.matter_operations_view import (
-    DeadlineChangeView, LegalAssessmentView, MatterDeadlineView, MatterWorkstreamView,
+    DeadlineChangeView, DeadlineResolveView, LegalAssessmentView, MatterDeadlineView, MatterWorkstreamView,
+    WorkstreamStageCompleteView,
 )
 
 urlpatterns = [
@@ -45,12 +46,16 @@ urlpatterns = [
     path("<uuid:case_id>/reassign-lawyer/", CaseReassignLawyerView.as_view(), name="case-reassign-lawyer"),
     path("<uuid:case_id>/reassign-secretary/", CaseReassignSecretaryView.as_view(), name="case-reassign-secretary"),
     path("<uuid:case_id>/closure/", MatterClosureView.as_view(), name="matter-closure"),
+    path("<uuid:case_id>/closure/<uuid:closure_id>/documents/", ClosingDocumentGenerateView.as_view(), name="closing-document-generate"),
     path("<uuid:case_id>/closure/<uuid:closure_id>/<str:action>/", MatterClosureActionView.as_view(), name="matter-closure-action"),
     path("<uuid:case_id>/archive/", MatterArchiveView.as_view(), name="matter-archive"),
     path("archives/<uuid:archive_id>/retention-reviews/", RetentionReviewView.as_view(), name="retention-review"),
     path("archives/<uuid:archive_id>/destruction/", DestructionView.as_view(), name="archive-destruction"),
+    path("archives/<uuid:archive_id>/legal-hold/", LegalHoldView.as_view(), name="archive-legal-hold"),
     path("<uuid:case_id>/legal-assessments/", LegalAssessmentView.as_view(), name="matter-legal-assessments"),
     path("<uuid:case_id>/workstream/", MatterWorkstreamView.as_view(), name="matter-workstream"),
+    path("<uuid:case_id>/workstream/current-stage/complete/", WorkstreamStageCompleteView.as_view(), name="matter-workstream-stage-complete"),
     path("<uuid:case_id>/deadlines/", MatterDeadlineView.as_view(), name="matter-deadlines"),
     path("deadlines/<uuid:deadline_id>/change/", DeadlineChangeView.as_view(), name="matter-deadline-change"),
+    path("deadlines/<uuid:deadline_id>/resolve/", DeadlineResolveView.as_view(), name="matter-deadline-resolve"),
 ]

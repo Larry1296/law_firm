@@ -26,8 +26,9 @@ from .matter_details import (
     TribunalProceeding,
 )
 from .matter_governance import (
-    ArchiveAccessLog, DeadlineChangeHistory, DestructionLog, LegalAssessment, MatterArchive,
-    MatterClosure, MatterDeadline, MatterWorkstream, RetentionReview,
+    ArchiveAccessLog, DeadlineChangeHistory, DeadlineStatusHistory, DestructionLog, GeneratedClosingDocument,
+    LegalAssessment, MatterArchive, MatterClosure, MatterDeadline, MatterWorkstream,
+    MatterWorkstreamStage, RetentionReview,
 )
 
 __all__ = [
@@ -63,6 +64,7 @@ __all__ = [
     "TribunalProceeding",
     "LegalAssessment",
     "MatterWorkstream",
+    "MatterWorkstreamStage",
     "MatterClosure",
     "MatterArchive",
     "ArchiveAccessLog",
@@ -70,4 +72,6 @@ __all__ = [
     "DestructionLog",
     "MatterDeadline",
     "DeadlineChangeHistory",
+    "DeadlineStatusHistory",
+    "GeneratedClosingDocument",
 ]

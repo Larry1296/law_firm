@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.clients.models import ClientMatterConflictCheck, EngagementHistory, EngagementRecord
+from apps.audit_logs.services import AuditService
 from apps.common.choices import UserRole
 from apps.staff.models import LawyerPermission
 
@@ -64,6 +65,7 @@ class EngagementService:
         record.full_clean()
         record.save()
         cls._history(record, user, "CREATED", {})
+        AuditService.record(firm=firm, user=user, action="ENGAGEMENT_CREATED", obj=record, new={"status": record.status, "version": record.version, "fee_arrangement_type": record.fee_arrangement_type})
         return record
 
     @classmethod
@@ -91,6 +93,7 @@ class EngagementService:
         record.full_clean()
         record.save(update_fields=["status", "approved_by", "internally_approved_at", "updated_at"])
         cls._history(record, user, "APPROVED", previous)
+        AuditService.record(firm=record.firm, user=user, action="ENGAGEMENT_APPROVED", obj=record, previous=previous, new={"status": record.status, "approved_by": user.id})
         return record
 
     @classmethod
@@ -124,6 +127,7 @@ class EngagementService:
             "exception_approved_by", "exception_approved_at", "updated_at",
         ])
         cls._history(record, user, "EXCEPTION_APPROVED", previous, reason)
+        AuditService.record(firm=record.firm, user=user, action="ENGAGEMENT_EXCEPTION_APPROVED", obj=record, previous=previous, new={"status": record.status, "policy_basis": policy_basis}, reason=reason)
         return record
 
     @classmethod
@@ -142,4 +146,5 @@ class EngagementService:
         record.status = record.Status.SUPERSEDED
         record.save(update_fields=["status", "updated_at"])
         cls._history(record, user, "SUPERSEDED", previous, reason)
+        AuditService.record(firm=record.firm, user=user, action="ENGAGEMENT_SUPERSEDED", obj=record, previous=previous, new={"status": record.status}, reason=reason)
         return record

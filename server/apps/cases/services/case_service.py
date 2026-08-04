@@ -2,6 +2,8 @@ from django.db import transaction
 from django.utils import timezone
 from django.db.models import Count, Q
 
+from apps.audit_logs.services import AuditService
+
 from apps.cases.models import (
     ArbitrationProceeding,
     Case,
@@ -459,12 +461,16 @@ class CaseService:
             }
         )
         if use_confirmed_jurisdiction:
+            recorded_notes = (case_payload.get("jurisdiction_notes") or "").strip()
+            confirmed_findings = (confirmed_jurisdiction.advocate_findings or "").strip()
             case_payload.update({
                 "forum": confirmed_jurisdiction.final_forum or forum,
                 "court_type": confirmed_jurisdiction.final_court_type,
                 "court_level": confirmed_jurisdiction.final_court_level,
                 "court_station": confirmed_jurisdiction.final_station,
-                "jurisdiction_notes": confirmed_jurisdiction.advocate_findings,
+                "jurisdiction_notes": "\n\n".join(
+                    value for value in (recorded_notes, confirmed_findings) if value
+                ),
                 "jurisdiction_verified": True,
                 "jurisdiction_verified_by": confirmed_jurisdiction.confirmed_by.user,
                 "jurisdiction_verified_at": confirmed_jurisdiction.confirmed_at,
@@ -476,6 +482,15 @@ class CaseService:
             created_by=user,
             case_number=case_number,
             **case_payload,
+        )
+        # The engagement is part of the opening transaction. Link it only
+        # after the matter row exists and atomically move any pre-matter
+        # retainer from the client's unallocated funds ledger.
+        from apps.billing.services.finance_service import ClientMoneyService
+        from apps.clients.services.engagement_service import EngagementService
+        opening_engagement = EngagementService.current_for(conflict_check)
+        ClientMoneyService.allocate_retainer_to_matter(
+            engagement=opening_engagement, matter=case, actor=user,
         )
         from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
         MatterPhysicalFileService.ensure_pending(case, user)
@@ -578,6 +593,12 @@ class CaseService:
             created_by=user,
         )
         CaseService.notify_case_assignments(case, actor=user)
+
+        AuditService.record(
+            firm=firm, user=user, action="MATTER_OPENED", obj=case,
+            new={"case_number": case.case_number, "client": client.id,
+                 "proposed_matter": conflict_check.id, "entry_route": case.entry_route, "forum": case.forum},
+        )
 
         return case
 
@@ -922,6 +943,8 @@ class CaseService:
     @staticmethod
     @transaction.atomic
     def update_case(*, case, validated_data, actor):
+        if case.matter_status == Case.MatterStatus.ARCHIVED:
+            raise PermissionError("Archived matters are read-only. Use an authorised archive-access workflow.")
         next_event_data = validated_data.pop("next_event", None)
         if "priority" in validated_data:
             is_owner_admin = (
@@ -957,6 +980,12 @@ class CaseService:
             raise PermissionError(
                 "This case was archived with its client. Restore the client "
                 "to restore the case."
+            )
+        if case.matter_status == Case.MatterStatus.ARCHIVED:
+            raise PermissionError("Archived matters are read-only. Use an authorised archive-access workflow.")
+        if status in {Case.Status.CLOSED, Case.Status.ARCHIVED}:
+            raise PermissionError(
+                "Closed and archived states are controlled by the closing-review and archive workflows."
             )
         is_owner_admin = actor.role == UserRole.ADMIN and case.firm.owner_id == actor.id
         is_assigned_lawyer = (

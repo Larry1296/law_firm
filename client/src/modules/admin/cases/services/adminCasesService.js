@@ -52,12 +52,22 @@ const adminCasesService = {
   async createDeadline(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/deadlines/`, payload)).data; },
   async changeDeadline(deadlineId, payload) { return (await axiosInstance.post(`/cases/deadlines/${deadlineId}/change/`, payload)).data; },
   async getLegalAssessments(caseId) { return (await axiosInstance.get(`/cases/${caseId}/legal-assessments/`)).data; },
+  async createLegalAssessment(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/legal-assessments/`, payload)).data; },
+  async getWorkstream(caseId) { return (await axiosInstance.get(`/cases/${caseId}/workstream/`)).data; },
   async setWorkstream(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/workstream/`, payload)).data; },
+  async completeWorkstreamStage(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/workstream/current-stage/complete/`, payload)).data; },
+  async resolveDeadline(deadlineId, payload) { return (await axiosInstance.post(`/cases/deadlines/${deadlineId}/resolve/`, payload)).data; },
   async getClosures(caseId) { return (await axiosInstance.get(`/cases/${caseId}/closure/`)).data; },
   async requestClosure(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/closure/`, payload)).data; },
   async closureAction(caseId, closureId, action, payload = {}) { return (await axiosInstance.post(`/cases/${caseId}/closure/${closureId}/${action}/`, payload)).data; },
-  async getArchive(caseId) { return (await axiosInstance.get(`/cases/${caseId}/archive/`)).data; },
+  async generateClosingDocument(caseId, closureId, documentType) { return (await axiosInstance.post(`/cases/${caseId}/closure/${closureId}/documents/`, { document_type: documentType })).data; },
+  async getArchive(caseId, purpose) { return (await axiosInstance.get(`/cases/${caseId}/archive/`, { params: { purpose } })).data; },
   async createArchive(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/archive/`, payload)).data; },
+  async getRetentionReviews(archiveId) { return (await axiosInstance.get(`/cases/archives/${archiveId}/retention-reviews/`)).data; },
+  async createRetentionReview(archiveId, payload) { return (await axiosInstance.post(`/cases/archives/${archiveId}/retention-reviews/`, payload)).data; },
+  async changeLegalHold(archiveId, payload) { return (await axiosInstance.post(`/cases/archives/${archiveId}/legal-hold/`, payload)).data; },
+  async getDestruction(archiveId) { return (await axiosInstance.get(`/cases/archives/${archiveId}/destruction/`)).data; },
+  async recordDestruction(archiveId, payload) { return (await axiosInstance.post(`/cases/archives/${archiveId}/destruction/`, payload)).data; },
 
   async reassignLawyer(caseId, membershipId) {
     const { data } = await axiosInstance.patch(

@@ -8,6 +8,13 @@ from apps.common.models.timestamped_model import TimestampedModel
 
 
 class LawyerPermission(models.TextChoices):
+    CREATE_PROPOSED_MATTER = "CREATE_PROPOSED_MATTER", "Create proposed matter"
+    PERFORM_CONFLICT_CHECK = "PERFORM_CONFLICT_CHECK", "Perform conflict check"
+    APPROVE_CONFLICT_RESULT = "APPROVE_CONFLICT_RESULT", "Approve conflict result"
+    ACCEPT_DECLINE_INSTRUCTIONS = "ACCEPT_DECLINE_INSTRUCTIONS", "Accept or decline instructions"
+    OPEN_MATTER = "OPEN_MATTER", "Open matter"
+    CONFIRM_JURISDICTION = "CONFIRM_JURISDICTION", "Confirm jurisdiction"
+    RECORD_COURT_FILING = "RECORD_COURT_FILING", "Record court filing"
     MANAGE_ASSIGNED_CASES = "MANAGE_ASSIGNED_CASES", "Manage Assigned Cases"
     CREATE_CASES = "CREATE_CASES", "Create legal matters"
     ASSIGN_OTHER_LAWYER = "ASSIGN_OTHER_LAWYER", "Assign another responsible advocate"

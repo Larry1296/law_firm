@@ -164,6 +164,11 @@ class ClientDocument(TimestampedModel):
     created_by = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="created_client_document_records")
     updated_by = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="updated_client_document_records")
     archived_at = models.DateTimeField(null=True, blank=True)
+    content_destroyed_at = models.DateTimeField(null=True, blank=True)
+    destruction_log = models.ForeignKey(
+        "cases.DestructionLog", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="destroyed_document_metadata",
+    )
 
     review_status = models.CharField(
         max_length=30,
@@ -312,3 +317,36 @@ class ClientDocumentCustodyMovement(TimestampedModel):
     class Meta:
         db_table = "client_document_custody_movements"
         ordering = ["-moved_at", "-created_at"]
+
+
+class DocumentReleaseRequest(TimestampedModel):
+    class Status(models.TextChoices):
+        REQUESTED = "REQUESTED", "Requested"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+        RELEASED = "RELEASED", "Released"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    firm = models.ForeignKey("firm.LawFirm", on_delete=models.PROTECT, related_name="document_release_requests")
+    document = models.ForeignKey(ClientDocument, on_delete=models.PROTECT, related_name="release_requests")
+    matter = models.ForeignKey("cases.Case", on_delete=models.PROTECT, related_name="document_release_requests")
+    requested_by = models.ForeignKey("users.User", on_delete=models.PROTECT, related_name="requested_document_releases")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    purpose = models.TextField()
+    proposed_recipient = models.CharField(max_length=255)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.REQUESTED)
+    approved_by = models.ForeignKey("users.User", on_delete=models.PROTECT, null=True, blank=True, related_name="approved_document_releases")
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approval_reason = models.TextField(blank=True, default="")
+    rejection_reason = models.TextField(blank=True, default="")
+    released_by = models.ForeignKey("users.User", on_delete=models.PROTECT, null=True, blank=True, related_name="completed_document_releases")
+    released_to = models.CharField(max_length=255, blank=True, default="")
+    recipient_identification = models.CharField(max_length=255, blank=True, default="")
+    released_at = models.DateTimeField(null=True, blank=True)
+    recipient_acknowledgement = models.TextField(blank=True, default="")
+    acknowledgement_document = models.ForeignKey(ClientDocument, on_delete=models.PROTECT, null=True, blank=True, related_name="release_acknowledgements")
+
+    class Meta:
+        db_table = "document_release_requests"
+        constraints = [models.UniqueConstraint(fields=["document"], condition=models.Q(status__in=["REQUESTED", "APPROVED"]), name="one_active_release_request_per_document")]

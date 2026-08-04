@@ -3,8 +3,9 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from apps.billing.models import (
-    FinancialAccount, Invoice, InvoiceLine, LedgerTransaction, MatterClientLedger,
-    PaymentInstruction, Receipt,
+    AccountReconciliation, CreditNote, Disbursement, FinancialAccount, Invoice, InvoiceLine,
+    LedgerTransaction, MatterClientLedger, PaymentInstruction, Receipt,
+    ReceiptAllocation, TimeEntry,
 )
 
 
@@ -42,6 +43,30 @@ class InvoiceSerializer(serializers.ModelSerializer):
         } for item in obj.line_items.all()]
 
 
+class InvoiceBillableItemsSerializer(serializers.Serializer):
+    time_entry_ids = serializers.ListField(child=serializers.UUIDField(), required=False, default=list)
+    disbursement_ids = serializers.ListField(child=serializers.UUIDField(), required=False, default=list)
+
+    def validate(self, attrs):
+        if not attrs["time_entry_ids"] and not attrs["disbursement_ids"]:
+            raise serializers.ValidationError("Select at least one approved billable item.")
+        return attrs
+
+
+class InvoiceCancellationSerializer(serializers.Serializer):
+    reason = serializers.CharField()
+
+
+class CreditNoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CreditNote
+        exclude = ("supporting_documents",)
+        read_only_fields = (
+            "firm", "client", "matter", "status", "created_by", "approved_by",
+            "approved_at", "issued_at",
+        )
+
+
 class ClientMoneyReceiptSerializer(serializers.Serializer):
     matter = serializers.UUIDField()
     account = serializers.UUIDField()
@@ -55,6 +80,13 @@ class ClientMoneyReceiptSerializer(serializers.Serializer):
         queryset=Receipt._meta.get_field("supporting_proof").remote_field.model.objects.all(),
         allow_null=True, required=False,
     )
+
+
+class PreMatterRetainerReceiptSerializer(ClientMoneyReceiptSerializer):
+    matter = serializers.UUIDField(required=False, allow_null=True)
+    client = serializers.UUIDField()
+    proposed_matter = serializers.UUIDField()
+    engagement = serializers.UUIDField()
 
 
 class PaymentInstructionSerializer(serializers.ModelSerializer):
@@ -102,3 +134,36 @@ class MatterClientLedgerSerializer(serializers.ModelSerializer):
     class Meta:
         model = MatterClientLedger
         fields = "__all__"
+
+
+class TimeEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TimeEntry
+        fields = "__all__"
+        read_only_fields = ("firm", "approval_status", "approved_by", "invoice")
+
+
+class DisbursementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Disbursement
+        fields = "__all__"
+        read_only_fields = ("firm", "created_by", "approval_status", "approved_by", "invoice")
+
+
+class ReceiptAllocationInputSerializer(serializers.Serializer):
+    allocation_type = serializers.ChoiceField(choices=ReceiptAllocation.AllocationType.choices)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
+    invoice = serializers.PrimaryKeyRelatedField(queryset=Invoice.objects.all(), required=False, allow_null=True)
+
+
+class OfficeMoneyReceiptSerializer(ClientMoneyReceiptSerializer):
+    allocations = ReceiptAllocationInputSerializer(many=True, allow_empty=False)
+
+
+class AccountReconciliationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AccountReconciliation
+        fields = "__all__"
+        read_only_fields = (
+            "firm", "ledger_balance", "difference", "status", "prepared_by", "approved_by", "approved_at",
+        )

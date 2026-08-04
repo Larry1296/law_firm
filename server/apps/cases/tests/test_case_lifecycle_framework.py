@@ -17,7 +17,12 @@ from apps.cases.models import (
     CaseTimeline,
 )
 from apps.clients.models import Client
-from apps.clients.models import ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty
+from apps.clients.models import (
+    ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty,
+    EngagementRecord, ProposedMatterJurisdiction,
+)
+from apps.clients.services.compliance_review_service import ClientComplianceReviewService
+from apps.clients.services.engagement_service import EngagementService
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.firm.models import LawFirm
 from apps.staff.models import Lawyer, Secretary
@@ -84,6 +89,12 @@ class CaseLifecycleFrameworkTests(TestCase):
             lifecycle_status=Client.LifecycleStatus.PROSPECT,
         )
         self.api.force_authenticate(user=self.admin)
+        ClientComplianceReviewService.record(
+            user=self.admin, client_id=self.client.id,
+            data={"identity_status": "VERIFIED", "authority_status": "VERIFIED",
+                  "beneficial_ownership_status": "VERIFIED", "due_diligence_status": "CLEARED",
+                  "source_of_funds_status": "NOT_APPLICABLE", "reason": "Lifecycle fixture review."},
+        )
 
     def cleared_conflict_check(self, title="Lakeview proposed matter"):
         index = ClientMatterConflictCheck.objects.count() + 1
@@ -135,6 +146,25 @@ class CaseLifecycleFrameworkTests(TestCase):
             action="FINAL_DECISION_RECORDED",
             summary=check.result_summary,
             actor=self.admin,
+        )
+        engagement = EngagementService.create(
+            user=self.admin, proposed_matter=check,
+            data={"responsible_advocate": self.lawyer, "scope_of_work": "Lifecycle test scope.",
+                  "fee_arrangement_type": EngagementRecord.FeeArrangement.FIXED,
+                  "fee_arrangement_description": "Agreed test fee."},
+        )
+        EngagementService.approve_exception(
+            user=self.admin, engagement_id=engagement.id, proposed_matter_id=check.id,
+            status=EngagementRecord.Status.WAIVED, reason="Lifecycle fixture exception.",
+            policy_basis="Test opening policy.",
+        )
+        ProposedMatterJurisdiction.objects.create(
+            proposed_matter=check, status=ProposedMatterJurisdiction.Status.FINAL_CONFIRMED,
+            final_forum=Case.Forum.COURT, final_court_type=Case.CourtType.MAGISTRATE,
+            final_court_level="CHIEF_MAGISTRATE", subject_matter_basis="Civil debt claim.",
+            territorial_basis="Nairobi.", legal_basis="Magistrates' Courts Act.",
+            advocate_findings="Jurisdiction confirmed for lifecycle fixture.",
+            confirmed_by=self.lawyer, confirmed_at=timezone.now(),
         )
         return check
 
@@ -780,7 +810,7 @@ class CaseLifecycleFrameworkTests(TestCase):
         response = self.api.get(reverse("case-detail", kwargs={"case_id": case.id}))
         warnings = response.data["data"]["jurisdiction_warnings"]
         self.assertNotIn("Claim amount has not been captured.", warnings)
-        self.assertIn("Jurisdiction has not been verified.", warnings)
+        self.assertNotIn("Jurisdiction has not been verified.", warnings)
 
     def test_judgment_does_not_automatically_complete_execution(self):
         case = self.case_at_stage(Case.CourtStage.JUDGMENT_DELIVERED)

@@ -111,3 +111,6 @@ __all__ = [
 ]
 from .engagement_view import EngagementApproveView, EngagementExceptionView, EngagementListCreateView, EngagementSupersedeView
 from .compliance_review_view import ClientComplianceReviewView
+from .document_release_view import (
+    DocumentReleaseCompleteView, DocumentReleaseDecisionView, DocumentReleaseListCreateView,
+)

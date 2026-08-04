@@ -12,7 +12,13 @@ class KnowledgeIndexService:
         if instance.__class__.__name__ == "KnowledgeBaseArticle":
             from apps.ai.services.public_knowledge_service import PublicKnowledgeEligibility
             kind = "knowledge_article"
-            approved = instance.category.is_active and PublicKnowledgeEligibility.queryset(firm=instance.firm).filter(pk=instance.pk).exists()
+            # Tenant content must pass the full publication workflow. Firm-less
+            # records are the separately curated general legal corpus retained
+            # for backwards-compatible official-source imports.
+            approved = instance.category.is_active and (
+                instance.is_published if instance.firm_id is None else
+                PublicKnowledgeEligibility.queryset(firm=instance.firm).filter(pk=instance.pk).exists()
+            )
             content = f"{instance.title}\n{instance.summary}\n{instance.body}\n{instance.keywords}"
             metadata = {"namespace": f"public-firm-{instance.firm_id}" if instance.firm_id else "public-official-legal", "firm_id": str(instance.firm_id or ""), "knowledge_item_id": str(instance.id), "category": instance.public_category, "visibility": instance.visibility, "approval_status": instance.approval_status, "published_at": str(instance.published_at or ""), "version": instance.version, "source_type": instance.source_type, "jurisdiction": instance.jurisdiction, "verified_at": str(instance.last_verified_at or "")}
         else:

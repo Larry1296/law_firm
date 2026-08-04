@@ -32,7 +32,7 @@ class EngagementRecordSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id", "firm", "client", "proposed_matter", "matter", "version", "internally_approved_at",
             "approved_by", "exception_reason", "exception_policy_basis", "exception_approved_at",
-            "exception_approved_by", "created_by", "permits_opening", "history", "created_at", "updated_at",
+            "exception_approved_by", "created_by", "retainer_received", "permits_opening", "history", "created_at", "updated_at",
         ]
 
 
@@ -43,7 +43,7 @@ class EngagementCreateSerializer(serializers.ModelSerializer):
             "responsible_advocate", "scope_of_work", "excluded_work", "client_objectives",
             "communication_method", "reporting_expectations", "fee_arrangement_type",
             "fee_arrangement_description", "estimated_professional_fees", "estimated_disbursements",
-            "required_retainer", "retainer_due_date", "retainer_received", "engagement_letter_document",
+            "required_retainer", "retainer_due_date", "engagement_letter_document",
             "sent_at", "signed_at", "signed_by", "status",
         ]
 

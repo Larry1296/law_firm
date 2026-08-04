@@ -5,14 +5,17 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
+from rest_framework.test import APIClient
 
 from apps.billing.models import MatterClientLedger
-from apps.cases.models import Case, CaseTask, DestructionLog, MatterClosure, RetentionReview
+from apps.cases.models import Case, CaseTask, DestructionLog, GeneratedClosingDocument, MatterClosure, RetentionReview
 from apps.cases.services.matter_governance_service import ArchiveService, MatterClosureService
+from apps.cases.services.case_service import CaseService
 from apps.clients.models import Client
 from apps.common.choices import UserRole
 from apps.firm.models import LawFirm
 from apps.users.models import User
+from apps.cases.serializers.matter_governance_serializer import RetentionReviewSerializer
 
 
 class MatterGovernanceTests(TestCase):
@@ -31,6 +34,8 @@ class MatterGovernanceTests(TestCase):
             title="Completed advice", case_type=Case.CaseType.COMMERCIAL,
             matter_status=Case.MatterStatus.ACTIVE,
         )
+        self.api = APIClient()
+        self.api.force_authenticate(self.owner)
 
     def closure_data(self, **overrides):
         data = {
@@ -50,6 +55,14 @@ class MatterGovernanceTests(TestCase):
         closure = MatterClosureService.request(user=self.owner, matter_id=self.matter.id, data=self.closure_data())
         MatterClosureService.approve_advocate(user=self.owner, closure_id=closure.id)
         MatterClosureService.approve_finance(user=self.owner, closure_id=closure.id)
+        MatterClosureService.generate_document(
+            user=self.owner, closure_id=closure.id,
+            document_type=GeneratedClosingDocument.Type.CLOSING_LETTER,
+        )
+        MatterClosureService.generate_document(
+            user=self.owner, closure_id=closure.id,
+            document_type=GeneratedClosingDocument.Type.FINAL_CLIENT_STATEMENT,
+        )
         return closure
 
     def test_active_task_blocks_closure_and_complete_checklist_allows_it(self):
@@ -73,6 +86,15 @@ class MatterGovernanceTests(TestCase):
         with self.assertRaises(ValidationError):
             MatterClosureService.approve_finance(user=self.owner, closure_id=closure.id)
 
+    def test_legacy_status_command_cannot_bypass_formal_closure(self):
+        with self.assertRaises(PermissionError):
+            CaseService.change_status(
+                case=self.matter, status=Case.Status.CLOSED, actor=self.owner,
+                note="Attempted direct closure",
+            )
+        self.matter.refresh_from_db()
+        self.assertEqual(self.matter.matter_status, Case.MatterStatus.ACTIVE)
+
     def test_reopening_requires_reason_and_preserves_closure_history(self):
         closure = MatterClosureService.finalise(user=self.owner, closure_id=self.prepared_closure().id)
         with self.assertRaises(ValidationError):
@@ -81,6 +103,16 @@ class MatterGovernanceTests(TestCase):
         closure.refresh_from_db()
         self.assertEqual(closure.status, MatterClosure.Status.REOPENED)
         self.assertEqual(closure.reopening_reason, "Client requested enforcement advice.")
+
+    def test_closing_documents_are_versioned_and_registered_to_matter(self):
+        closure = self.prepared_closure()
+        revised = MatterClosureService.generate_document(
+            user=self.owner, closure_id=closure.id,
+            document_type=GeneratedClosingDocument.Type.CLOSING_LETTER,
+        )
+        self.assertEqual(revised.version, 2)
+        self.assertTrue(self.matter.document_references.filter(document=revised.client_document).exists())
+        self.assertEqual(revised.content_snapshot["internal_matter_number"], self.matter.case_number)
 
     def archive(self):
         MatterClosureService.finalise(user=self.owner, closure_id=self.prepared_closure().id)
@@ -122,6 +154,9 @@ class MatterGovernanceTests(TestCase):
 
     def test_approved_destruction_retains_immutable_metadata(self):
         archive = self.archive()
+        document = self.matter.generated_closing_documents.filter(
+            document_type=GeneratedClosingDocument.Type.FINAL_CLIENT_STATEMENT
+        ).latest("generated_at").client_document
         ArchiveService.retention_review(
             user=self.owner, archive_id=archive.id,
             data={"assessment": {"limitation": "expired", "aml": "satisfied"},
@@ -130,12 +165,50 @@ class MatterGovernanceTests(TestCase):
         )
         record = ArchiveService.destroy(
             user=self.owner, archive_id=archive.id,
-            data={"records_approved": ["working file"], "records_excluded": ["audit metadata"],
+            data={"records_approved": [str(document.id)], "records_excluded": [],
                   "approval_date": date.today(), "destruction_date": date.today(), "method": "Certified shred and secure erase",
                   "performed_by": "Records officer", "verifier": "Managing partner",
                   "electronic_deletion_confirmed": True, "backup_handling_decision": "Encrypted backups age out"},
         )
         self.assertEqual(record.matter_reference, "MAT-GOV-001")
         self.assertTrue(Case.objects.filter(id=self.matter.id).exists())
+        document.refresh_from_db()
+        self.assertFalse(bool(document.file))
+        self.assertEqual(document.destruction_log, record)
+        self.assertIsNotNone(document.content_destroyed_at)
         with self.assertRaises(DjangoValidationError):
             record.delete()
+
+    def test_archive_api_logs_access_and_exposes_retention_and_document_inventory(self):
+        archive = self.archive()
+        response = self.api.get(
+            f"/api/cases/{self.matter.id}/archive/", {"purpose": "Retention administration"},
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["archive"]["archive_reference"], archive.archive_reference)
+        self.assertEqual(len(response.data["archive"]["access_history"]), 1)
+        self.assertGreaterEqual(len(response.data["archive"]["document_inventory"]), 2)
+
+    def test_legal_hold_can_only_be_released_through_recorded_authorised_action(self):
+        archive = self.archive()
+        ArchiveService.legal_hold(
+            user=self.owner, archive_id=archive.id, action="PLACE",
+            reason="Pending complaint", authority="Managing partner direction",
+        )
+        archive.refresh_from_db()
+        self.assertTrue(archive.legal_hold)
+        ArchiveService.legal_hold(
+            user=self.owner, archive_id=archive.id, action="RELEASE",
+            reason="Complaint finally resolved", authority="Managing partner direction",
+        )
+        archive.refresh_from_db()
+        self.assertFalse(archive.legal_hold)
+        self.assertTrue(archive.firm.audit_events.filter(action="LEGAL_HOLD_RELEASED").exists())
+
+    def test_retention_api_requires_every_named_preservation_assessment(self):
+        serializer = RetentionReviewSerializer(data={
+            "assessment": {"legal_hold": "None"}, "outcome": "DEFER",
+            "reason": "Incomplete review", "next_review_date": date.today() + timedelta(days=30),
+        })
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("missing", str(serializer.errors["assessment"]).lower())

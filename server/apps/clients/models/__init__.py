@@ -27,7 +27,7 @@ from .client_contact import (
     CommunicationChannel,
 )
 from .client_document import (
-    ClientDocument, ClientDocumentCustodyMovement,
+    ClientDocument, ClientDocumentCustodyMovement, DocumentReleaseRequest,
     ClientDocumentReferenceCorrection, ClientDocumentReferenceSequence,
     ClientDocumentRegisterRemoval,
 )
@@ -78,6 +78,7 @@ __all__ = [
     "CommunicationChannel",
     "ClientDocument",
     "ClientDocumentCustodyMovement",
+    "DocumentReleaseRequest",
     "ClientDocumentReferenceCorrection",
     "ClientDocumentReferenceSequence",
     "ClientDocumentRegisterRemoval",

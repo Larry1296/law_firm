@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import useAuth from '@/core/hooks/useAuth';
 import ChatWorkspace from '@/modules/communications/components/ChatWorkspace';
@@ -19,8 +19,9 @@ export default function SecretaryChat() {
   const [caseChannel, setCaseChannel] = useState('client');
   const threadsQuery = useSecretaryCaseThreads();
   const threads = useMemo(() => threadsQuery.data?.threads || [], [threadsQuery.data]);
-  const messagesQuery = useThreadMessages(selectedThreadId);
-  const selectedThread = threads.find((item) => String(item.id) === String(selectedThreadId));
+  const effectiveThreadId = selectedThreadId || threads[0]?.id || null;
+  const messagesQuery = useThreadMessages(effectiveThreadId);
+  const selectedThread = threads.find((item) => String(item.id) === String(effectiveThreadId));
   const selectedCaseId = selectedThread?.case?.id;
   const lawyerThreadQuery = useCaseLawyerThread(selectedCaseId);
   const lawyerThread = lawyerThreadQuery.data?.thread;
@@ -28,10 +29,6 @@ export default function SecretaryChat() {
   const sendMessage = useSendThreadMessage();
   const forwardToLawyer = useForwardMessageToLawyer();
   const forwardToClient = useForwardMessageToClient();
-
-  useEffect(() => {
-    if (!selectedThreadId && threads.length) setSelectedThreadId(threads[0].id);
-  }, [selectedThreadId, threads]);
 
   if (view === 'staff') {
     return (
@@ -63,10 +60,10 @@ export default function SecretaryChat() {
         title='Client–Firm Communication Desk'
         subtitle='You are the communication moderator. Reply to clients as the firm and forward client instructions to the assigned advocate where legal input is required.'
         threads={threads}
-        selectedThreadId={selectedThreadId}
+        selectedThreadId={effectiveThreadId}
         onSelectThread={(thread) => setSelectedThreadId(thread.id)}
         messages={messagesQuery.data?.messages || []}
-        onSendMessage={(body) => sendMessage.mutateAsync({ threadId: selectedThreadId, body })}
+        onSendMessage={(body) => sendMessage.mutateAsync({ threadId: effectiveThreadId, body })}
         isLoadingThreads={threadsQuery.isLoading}
         isLoadingMessages={messagesQuery.isLoading}
         isSending={sendMessage.isPending}
@@ -79,7 +76,7 @@ export default function SecretaryChat() {
             key: 'forward-lawyer',
             label: message.has_been_forwarded ? 'Forwarded to advocate' : 'Forward to advocate',
             disabled: forwardToLawyer.isPending || message.has_been_forwarded,
-            onClick: () => forwardToLawyer.mutate({ messageId: message.id, caseId: selectedThread?.case?.id, threadId: selectedThreadId }),
+            onClick: () => forwardToLawyer.mutate({ messageId: message.id, caseId: selectedThread?.case?.id, threadId: effectiveThreadId }),
           }];
         }}
       /> : <ChatWorkspace

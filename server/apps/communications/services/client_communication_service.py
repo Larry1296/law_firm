@@ -4,6 +4,7 @@ from rest_framework.exceptions import ValidationError
 from apps.cases.models import Case
 from apps.cases.services.case_service import CaseService
 from apps.communications.models import ClientCommunication, CommunicationAmendment
+from apps.audit_logs.services import AuditService
 
 
 class ClientCommunicationService:
@@ -12,11 +13,26 @@ class ClientCommunicationService:
     def create(cls, *, user, matter_id, data):
         firm = CaseService.get_user_firm(user)
         matter = Case.objects.get(id=matter_id, firm=firm)
+        if matter.matter_status == matter.MatterStatus.ARCHIVED:
+            raise ValidationError({"matter": "Archived matters are read-only."})
         if data.get("follow_up_required") and not data.get("follow_up_deadline"):
             raise ValidationError({"follow_up_deadline": "Follow-up deadline is required."})
-        return ClientCommunication.objects.create(
+        responsible = data["responsible_staff"]
+        try:
+            responsible_firm = CaseService.get_user_firm(responsible)
+        except PermissionError:
+            responsible_firm = None
+        if not responsible_firm or responsible_firm.id != firm.id:
+            raise ValidationError({"responsible_staff": "Responsible staff must belong to this firm."})
+        documents = list(data.pop("linked_documents", []))
+        if any(document.firm_id != firm.id or document.client_id != matter.client_id for document in documents):
+            raise ValidationError({"linked_documents": "Linked documents must belong to this firm and client."})
+        record = ClientCommunication.objects.create(
             firm=firm, matter=matter, client=matter.client, created_by=user, **data
         )
+        record.linked_documents.set(documents)
+        AuditService.record(firm=firm, user=user, action="CLIENT_COMMUNICATION_RECORDED", obj=record, new={"channel": record.channel, "direction": record.direction, "occurred_at": record.occurred_at})
+        return record
 
     @classmethod
     @transaction.atomic
@@ -34,4 +50,5 @@ class ClientCommunicationService:
         CommunicationAmendment.objects.create(
             communication=record, previous_values=previous, new_values=changes, reason=reason, actor=user
         )
+        AuditService.record(firm=firm, user=user, action="CLIENT_COMMUNICATION_AMENDED", obj=record, previous=previous, new=changes, reason=reason)
         return record

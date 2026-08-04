@@ -11,6 +11,7 @@ import Select3D from '@/components/ui/Select3D';
 import ElasticTextInput from '@/components/ui/ElasticTextInput';
 import { Input3D } from '@/components/ui/Input3D';
 import adminClientsService from '@/modules/admin/clients/services/adminClientsService';
+import adminBillingService from '@/modules/admin/billing/services/adminBillingService';
 import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
 import lawyerCasesService from '@/modules/staff/lawyer/cases/services/lawyerCasesService';
 import { enumLabel } from '@/core/utils/textFormatter';
@@ -104,8 +105,13 @@ const emptyEngagementDraft = {
   responsible_advocate: '', scope_of_work: '', excluded_work: '', client_objectives: '',
   communication_method: 'EMAIL', reporting_expectations: '', fee_arrangement_type: 'FIXED',
   fee_arrangement_description: '', estimated_professional_fees: '', estimated_disbursements: '',
-  required_retainer: '', retainer_due_date: '', retainer_received: false,
+  required_retainer: '', retainer_due_date: '',
   engagement_letter_document: '', sent_at: '', signed_at: '', signed_by: '', status: 'DRAFT',
+};
+
+const emptyRetainerDraft = {
+  account: '', receipt_number: '', amount_received: '', currency: 'KES', payment_date: '',
+  payment_method: 'BANK_TRANSFER', bank_transaction_reference: '',
 };
 
 const optionalValue = (value) => {
@@ -214,6 +220,7 @@ export default function ClientConflictCheckPage() {
   const [complianceDraft, setComplianceDraft] = useState({ reason: '', restriction_reason: '' });
   const [engagementDraft, setEngagementDraft] = useState(emptyEngagementDraft);
   const [engagementAction, setEngagementAction] = useState({ status: 'WAIVED', reason: '', policy_basis: '', supersede_reason: '' });
+  const [retainerDraft, setRetainerDraft] = useState(emptyRetainerDraft);
   const { lawyers = [] } = useFirmLawyers();
 
   const { data: clientData } = useQuery({
@@ -236,9 +243,23 @@ export default function ClientConflictCheckPage() {
     queryFn: () => adminClientsService.getEngagements(clientId, checkId),
     enabled: !isLawyer && !isNew && !!clientId && !!checkId,
   });
+  const { data: financeAccountsData } = useQuery({
+    queryKey: ['finance-accounts-for-retainer'],
+    queryFn: () => adminBillingService.getAccounts(),
+    enabled: !isLawyer && !isNew,
+    retry: false,
+  });
+  const { data: unallocatedFundsData } = useQuery({
+    queryKey: ['client-unallocated-funds', clientId],
+    queryFn: () => adminBillingService.getClientUnallocatedFunds(clientId),
+    enabled: !isLawyer && !isNew && !!clientId,
+    retry: false,
+  });
 
   useEffect(() => {
     if (check?.jurisdiction_facts) {
+      // Synchronize an asynchronously loaded assessment into the editable form.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setJurisdictionFacts((current) => ({ ...current, ...check.jurisdiction_facts }));
     }
   }, [check?.jurisdiction_facts]);
@@ -313,6 +334,23 @@ export default function ClientConflictCheckPage() {
     mutationFn: (engagementId) => adminClientsService.supersedeEngagement(clientId, checkId, engagementId, engagementAction.supersede_reason),
     onSuccess: () => { setEngagementAction((value) => ({ ...value, supersede_reason: '' })); refreshEngagement(); },
   });
+  const receiveRetainerMutation = useMutation({
+    mutationFn: (engagementId) => adminBillingService.receivePreMatterRetainer({
+      ...retainerDraft,
+      client: clientId,
+      proposed_matter: checkId,
+      engagement: engagementId,
+    }),
+    onSuccess: () => {
+      setRetainerDraft(emptyRetainerDraft);
+      refreshEngagement();
+      queryClient.invalidateQueries({ queryKey: ['client-unallocated-funds', clientId] });
+    },
+  });
+
+  const clientAccountOptions = (financeAccountsData?.accounts || [])
+    .filter((account) => account.account_type === 'CLIENT' && account.is_active !== false)
+    .map((account) => ({ value: account.id, label: `${account.name} (${account.currency})` }));
 
   const actionMutation = useMutation({
     mutationFn: async () => {
@@ -640,6 +678,23 @@ export default function ClientConflictCheckPage() {
                   </div>
                   <p className='mt-2 text-sm'><strong>Scope:</strong> {engagement.scope_of_work}</p>
                   <p className='text-sm'><strong>Fee terms:</strong> {enumLabel(engagement.fee_arrangement_type)} — {engagement.fee_arrangement_description}</p>
+                  {Number(engagement.required_retainer || 0) > 0 && (
+                    <div className='mt-3 rounded-lg border border-border-light p-3 dark:border-border-dark'>
+                      <p className='text-sm'><strong>Required retainer:</strong> {engagement.required_retainer} · {engagement.retainer_received ? 'Received and verified' : 'Awaiting verified receipt'}</p>
+                      {!engagement.retainer_received && !['SUPERSEDED', 'CANCELLED'].includes(engagement.status) && (
+                        <form className='mt-3 grid gap-3 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); receiveRetainerMutation.mutate(engagement.id); }}>
+                          <Select3D label='Client account' value={retainerDraft.account} onChange={(event) => setRetainerDraft((value) => ({ ...value, account: event.target.value }))} options={clientAccountOptions} required />
+                          <Input3D label='Receipt number' value={retainerDraft.receipt_number} onChange={(event) => setRetainerDraft((value) => ({ ...value, receipt_number: event.target.value }))} required />
+                          <Input3D label='Amount received' type='number' value={retainerDraft.amount_received} onChange={(event) => setRetainerDraft((value) => ({ ...value, amount_received: event.target.value }))} required />
+                          <Input3D label='Currency' value={retainerDraft.currency} onChange={(event) => setRetainerDraft((value) => ({ ...value, currency: event.target.value.toUpperCase() }))} required />
+                          <Input3D label='Payment date' type='date' value={retainerDraft.payment_date} onChange={(event) => setRetainerDraft((value) => ({ ...value, payment_date: event.target.value }))} required />
+                          <Select3D label='Payment method' value={retainerDraft.payment_method} onChange={(event) => setRetainerDraft((value) => ({ ...value, payment_method: event.target.value }))} options={[{ value: 'BANK_TRANSFER', label: 'Bank transfer' }, { value: 'CARD', label: 'Card' }, { value: 'CHEQUE', label: 'Cheque' }, { value: 'CASH', label: 'Cash' }, { value: 'MOBILE_MONEY', label: 'Mobile money' }, { value: 'OTHER', label: 'Other' }]} required />
+                          <Input3D label='Bank or transaction reference' value={retainerDraft.bank_transaction_reference} onChange={(event) => setRetainerDraft((value) => ({ ...value, bank_transaction_reference: event.target.value }))} required />
+                          <Button3D type='submit' variant='primary' disabled={receiveRetainerMutation.isPending}>{receiveRetainerMutation.isPending ? 'Posting receipt...' : 'Post Retainer Receipt'}</Button3D>
+                        </form>
+                      )}
+                    </div>
+                  )}
                   {engagement.exception_reason && <p className='text-sm'><strong>Exception:</strong> {engagement.exception_reason} ({engagement.exception_policy_basis})</p>}
                   {!['SUPERSEDED', 'CANCELLED', 'READY', 'WAIVED', 'NOT_REQUIRED'].includes(engagement.status) && (
                     <div className='mt-4 grid gap-3 md:grid-cols-2'>
@@ -671,13 +726,18 @@ export default function ClientConflictCheckPage() {
               <Input3D label='Estimated disbursements' type='number' value={engagementDraft.estimated_disbursements} onChange={(e) => setEngagementDraft((value) => ({ ...value, estimated_disbursements: e.target.value }))} />
               <Input3D label='Required retainer' type='number' value={engagementDraft.required_retainer} onChange={(e) => setEngagementDraft((value) => ({ ...value, required_retainer: e.target.value }))} />
               <Input3D label='Retainer due date' type='date' value={engagementDraft.retainer_due_date} onChange={(e) => setEngagementDraft((value) => ({ ...value, retainer_due_date: e.target.value }))} />
-              <label className='flex items-center gap-2 text-sm'><input type='checkbox' checked={engagementDraft.retainer_received} onChange={(e) => setEngagementDraft((value) => ({ ...value, retainer_received: e.target.checked }))} />Retainer received</label>
+              <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>Retainer receipt status is set only by posting an immutable client-account receipt after this engagement version is created.</p>
               <Input3D label='Engagement letter document ID' value={engagementDraft.engagement_letter_document} onChange={(e) => setEngagementDraft((value) => ({ ...value, engagement_letter_document: e.target.value }))} />
               <Input3D label='Date sent' type='datetime-local' value={engagementDraft.sent_at} onChange={(e) => setEngagementDraft((value) => ({ ...value, sent_at: e.target.value }))} />
               <Input3D label='Date signed' type='datetime-local' value={engagementDraft.signed_at} onChange={(e) => setEngagementDraft((value) => ({ ...value, signed_at: e.target.value }))} />
               <Input3D label='Signed by' value={engagementDraft.signed_by} onChange={(e) => setEngagementDraft((value) => ({ ...value, signed_by: e.target.value }))} />
               <Button3D type='submit' variant='primary' disabled={createEngagementMutation.isPending}>{createEngagementMutation.isPending ? 'Saving...' : 'Create Engagement Version'}</Button3D>
             </form>
+          )}
+          {unallocatedFundsData?.ledger && (
+            <p className='mt-4 rounded-lg bg-surface-muted-light p-3 text-sm dark:bg-surface-muted-dark'>
+              Client funds awaiting matter allocation: <strong>{unallocatedFundsData.ledger.currency} {unallocatedFundsData.ledger.cleared_balance}</strong>. These funds move to the matter ledger atomically when the matter opens.
+            </p>
           )}
         </Card>
       )}

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import adminClientsService from '@/modules/admin/clients/services/adminClientsService';
+import adminBillingService from '@/modules/admin/billing/services/adminBillingService';
 
 import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
@@ -28,6 +29,17 @@ export default function AdminClientDetailsPage() {
     queryKey: ['admin-client-conflict-checks', id],
     queryFn: () => adminClientsService.getConflictChecks(id),
     enabled: !!id,
+  });
+  const { data: compliance } = useQuery({
+    queryKey: ['admin-client-compliance', id],
+    queryFn: () => adminClientsService.getComplianceReview(id),
+    enabled: !!id,
+  });
+  const { data: financeData } = useQuery({
+    queryKey: ['admin-client-finance', id],
+    queryFn: () => adminBillingService.getInvoices({ client: id }),
+    enabled: !!id,
+    retry: false,
   });
 
   if (isLoading) {
@@ -190,6 +202,14 @@ export default function AdminClientDetailsPage() {
     if (check.status === 'ESCALATED_FOR_REVIEW') return { label: 'Review Decision', path: `/admin/clients/${id}/conflict-checks/${check.id}` };
     return { label: check.status === 'CONFLICT_CONFIRMED' ? 'View Decision' : 'View Record', path: `/admin/clients/${id}/conflict-checks/${check.id}` };
   };
+  const matters = client.cases || [];
+  const activeMatters = matters.filter((matter) => !['CLOSED', 'ARCHIVED'].includes(matter.matter_status));
+  const closedMatters = matters.filter((matter) => matter.matter_status === 'CLOSED');
+  const archivedMatters = matters.filter((matter) => matter.matter_status === 'ARCHIVED');
+  const declinedProposals = conflictChecks.filter((check) => ['DECLINED', 'CLIENT_WITHDREW'].includes(check.acceptance_decision));
+  const acceptedProposals = conflictChecks.filter((check) => check.acceptance_decision === 'ACCEPTED');
+  const invoices = financeData?.invoices || [];
+  const outstandingBalance = invoices.reduce((total, item) => total + Number(item.balance || 0), 0);
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
@@ -204,8 +224,15 @@ export default function AdminClientDetailsPage() {
         sections={[
           { id: 'client-overview', label: 'Overview' },
           { id: 'client-identity', label: 'Identity' },
+          { id: 'client-kyc', label: 'KYC & due diligence' },
           { id: 'client-matters', label: 'Proposed matters' },
+          { id: 'accepted-proposals', label: 'Accepted proposals' },
+          { id: 'declined-proposals', label: 'Declined / withdrawn' },
+          { id: 'active-matters', label: 'Active matters' },
+          { id: 'closed-archived', label: 'Closed / archived' },
           { id: 'client-authority', label: 'Representatives' },
+          { id: 'client-finance', label: 'Financial summary' },
+          { id: 'client-record-links', label: 'Documents & communications' },
           { id: 'client-addresses', label: 'Addresses' },
           { id: 'client-contacts', label: 'Contacts' },
         ]}
@@ -240,6 +267,13 @@ export default function AdminClientDetailsPage() {
               <p>{field.value}</p>
             </div>
           ))}
+        </div>
+      </Card>
+
+      <Card id='client-kyc' className='scroll-mt-28 p-6'>
+        <h3 className='mb-4 text-lg font-semibold'>KYC and Due Diligence</h3>
+        <div className='grid gap-4 md:grid-cols-3'>
+          {[['Identity', compliance?.identity_status], ['Authority to instruct', compliance?.authority_status], ['Beneficial ownership', compliance?.beneficial_ownership_status], ['Due diligence', compliance?.due_diligence_status], ['Source of funds', compliance?.source_of_funds_status], ['Restriction', compliance?.restriction_reason || 'None recorded']].map(([label, value]) => <div key={label}><strong>{label}</strong><p>{value ? enumLabel(value) : 'Legacy review required / not recorded'}</p></div>)}
         </div>
       </Card>
 
@@ -333,6 +367,12 @@ export default function AdminClientDetailsPage() {
         )}
       </Card>
 
+      {[['accepted-proposals', 'Accepted Proposed Matters', acceptedProposals], ['declined-proposals', 'Declined or Withdrawn Proposed Matters', declinedProposals]].map(([sectionId, title, records]) => <Card id={sectionId} className='scroll-mt-28 p-6' key={sectionId}><h3 className='mb-3 text-lg font-semibold'>{title}</h3>{records.length ? <div className='space-y-2'>{records.map((item) => <button className='block w-full rounded-lg border p-3 text-left dark:border-border-dark' key={item.id} onClick={() => navigate(`/admin/clients/${id}/conflict-checks/${item.id}`)}><b>{item.proposed_matter_title}</b><br/><span className='text-sm'>{item.reference_number} · {enumLabel(item.acceptance_decision)}</span></button>)}</div> : <p>No records in this register.</p>}</Card>)}
+
+      <Card id='active-matters' className='scroll-mt-28 p-6'><h3 className='mb-3 text-lg font-semibold'>Active Matters</h3>{activeMatters.length ? activeMatters.map((matter) => <button className='mb-2 block w-full rounded-lg border p-3 text-left dark:border-border-dark' key={matter.id} onClick={() => navigate(`/admin/cases/${matter.id}`)}><b>{matter.title}</b> · {matter.reference}<br/><span className='text-sm'>{enumLabel(matter.matter_status)}</span></button>) : <p>No active matters.</p>}</Card>
+
+      <Card id='closed-archived' className='scroll-mt-28 p-6'><h3 className='mb-3 text-lg font-semibold'>Closed and Archived Matters</h3><div className='grid gap-4 md:grid-cols-2'><div><strong>Closed</strong>{closedMatters.map((matter) => <p key={matter.id}>{matter.reference} · {matter.title}</p>)}</div><div><strong>Archived</strong>{archivedMatters.map((matter) => <p key={matter.id}>{matter.reference} · {matter.title}</p>)}</div></div></Card>
+
       <Card id='client-authority' className='scroll-mt-28 p-6'>
         <h3 className='text-lg font-semibold mb-4'>
           Authorized Representatives and Officeholders
@@ -358,6 +398,10 @@ export default function AdminClientDetailsPage() {
           ))
         )}
       </Card>
+
+      <Card id='client-finance' className='scroll-mt-28 p-6'><h3 className='mb-3 text-lg font-semibold'>Financial Summary</h3><div className='grid gap-4 md:grid-cols-3'><div><strong>Invoices</strong><p>{invoices.length}</p></div><div><strong>Outstanding balance</strong><p>KES {outstandingBalance.toLocaleString()}</p></div><div><strong>Access</strong><p>Detailed client-money ledgers remain restricted to authorised finance staff.</p></div></div><Button3D className='mt-4' variant='outlineLight' onClick={() => navigate(`/admin/clients/${id}/billing`)}>Open Client Billing</Button3D></Card>
+
+      <Card id='client-record-links' className='scroll-mt-28 p-6'><h3 className='mb-3 text-lg font-semibold'>Documents and Communications</h3><div className='flex flex-wrap gap-3'><Button3D variant='outlineLight' onClick={() => navigate(`/admin/clients/${id}/documents`)}>Document Register ({client.documents?.length || 0})</Button3D><Button3D variant='outlineLight' onClick={() => navigate(`/admin/clients/${id}/communication`)}>Communication Records</Button3D></div></Card>
 
       <Card id='client-addresses' className='scroll-mt-28 p-6'>
         <h3 className='text-lg font-semibold mb-4'>Addresses</h3>

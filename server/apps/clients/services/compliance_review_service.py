@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.clients.models import Client, ClientComplianceHistory, ClientComplianceReview
+from apps.audit_logs.services import AuditService
 from apps.common.choices import UserRole
 from apps.staff.models import LawyerPermission
 
@@ -72,6 +73,7 @@ class ClientComplianceReviewService:
             review=review, actor=user, previous_values=previous, new_values=current,
             reason=data.get("reason", ""),
         )
+        AuditService.record(firm=firm, user=user, action="CLIENT_COMPLIANCE_REVIEWED", obj=review, previous=previous, new=current, reason=data.get("reason", ""))
         return review
 
     @classmethod

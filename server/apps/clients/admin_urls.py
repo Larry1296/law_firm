@@ -55,6 +55,9 @@ from apps.clients.views.admin import (
     PublicEntityAdminCreateClientView,
     SocietyAssociationAdminCreateClientView,
     SoleProprietorshipAdminCreateClientView,
+    DocumentReleaseListCreateView,
+    DocumentReleaseDecisionView,
+    DocumentReleaseCompleteView,
 )
 
 urlpatterns = [
@@ -90,6 +93,9 @@ urlpatterns = [
     path("rejected-matters/<uuid:check_id>/", ClientMatterConflictCheckRejectedDetailView.as_view(), name="admin-rejected-matter-detail"),
     path("<uuid:client_id>/", ClientAdminDetailView.as_view(), name="admin-client-detail"),
     path("<uuid:client_id>/compliance-review/", ClientComplianceReviewView.as_view(), name="admin-client-compliance-review"),
+    path("<uuid:client_id>/documents/<uuid:document_id>/release-requests/", DocumentReleaseListCreateView.as_view(), name="admin-document-release-list"),
+    path("<uuid:client_id>/documents/<uuid:document_id>/release-requests/<uuid:release_id>/decision/", DocumentReleaseDecisionView.as_view(), name="admin-document-release-decision"),
+    path("<uuid:client_id>/documents/<uuid:document_id>/release-requests/<uuid:release_id>/release/", DocumentReleaseCompleteView.as_view(), name="admin-document-release-complete"),
     path("<uuid:client_id>/activate/", ClientAdminStatusView.as_view(), name="admin-client-activate"),
     path("<uuid:client_id>/deactivate/", ClientAdminStatusView.as_view(), name="admin-client-deactivate"),
     path("<uuid:client_id>/change-status/", ClientAdminStatusView.as_view(), name="admin-client-change-status"),

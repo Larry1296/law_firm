@@ -5,12 +5,15 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
+from apps.audit_logs.services import AuditService
+
 from apps.clients.models import (
     ClientMatterConflictCheck,
     ProposedMatterJurisdiction,
     ProposedMatterJurisdictionHistory,
 )
 from apps.common.choices import ConflictCheckStatus
+from apps.staff.models import LawyerPermission
 
 
 class JurisdictionSuggestionService:
@@ -87,6 +90,8 @@ class JurisdictionSuggestionService:
             raise PermissionDenied("Only an active advocate in this firm may make a jurisdiction decision.")
         if lawyer.id != check.responsible_lawyer_id and check.firm.owner_id != user.id:
             raise PermissionDenied("Only the responsible advocate or advocate firm owner may decide jurisdiction.")
+        if check.firm.owner_id != user.id and not lawyer.has_permission(LawyerPermission.CONFIRM_JURISDICTION):
+            raise PermissionDenied("Jurisdiction-confirmation permission is required.")
         return lawyer
 
     @staticmethod
@@ -270,6 +275,7 @@ class JurisdictionSuggestionService:
         check.jurisdiction_facts = merged
         check.save(update_fields=["jurisdiction_facts", "updated_at"])
         cls._history(record, action="SUGGESTION_GENERATED", from_status=previous_status, actor=user)
+        AuditService.record(firm=check.firm, user=user, action="PRELIMINARY_JURISDICTION_SUGGESTION_GENERATED", obj=record, previous={"status": previous_status}, new={"status": record.status, "rule_version": record.rule_version})
         return record
 
     @classmethod
@@ -313,6 +319,7 @@ class JurisdictionSuggestionService:
         record.confirmed_by = advocate
         record.save()
         cls._history(record, action=f"ADVOCATE_{action}", from_status=previous_status, actor=user, reason=record.override_reason)
+        AuditService.record(firm=check.firm, user=user, action=f"JURISDICTION_ADVOCATE_{action}", obj=record, previous={"status": previous_status}, new={"status": record.status, "final_forum": record.final_forum}, reason=record.override_reason)
         return record
 
     @classmethod
@@ -344,6 +351,7 @@ class JurisdictionSuggestionService:
         record.confirmed_at = timezone.now()
         record.save(update_fields=["status", "confirmed_by", "confirmed_at", "updated_at"])
         cls._history(record, action="FINAL_JURISDICTION_CONFIRMED", from_status=previous_status, actor=user)
+        AuditService.record(firm=check.firm, user=user, action="JURISDICTION_FINAL_CONFIRMED", obj=record, previous={"status": previous_status}, new={"status": record.status, "confirmed_by": advocate.id})
         return record
 
     @classmethod
@@ -361,4 +369,5 @@ class JurisdictionSuggestionService:
         record.confirmed_at = None
         record.save(update_fields=["status", "confirmed_at", "updated_at"])
         cls._history(record, action="JURISDICTION_REOPENED", from_status=previous_status, actor=user, reason=reason)
+        AuditService.record(firm=check.firm, user=user, action="JURISDICTION_REOPENED", obj=record, previous={"status": previous_status}, new={"status": record.status}, reason=reason)
         return record

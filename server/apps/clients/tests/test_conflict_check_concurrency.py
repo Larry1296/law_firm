@@ -8,7 +8,9 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.cases.models import Case
-from apps.clients.models import Client, ClientMatterConflictCheck
+from apps.clients.models import (
+    Client, ClientComplianceReview, ClientMatterConflictCheck, EngagementRecord,
+)
 from apps.clients.services.conflict.client_matter_conflict_service import ClientMatterConflictService
 from apps.common.choices import ConflictCheckStatus, UserRole
 from apps.firm.models import LawFirm
@@ -70,6 +72,22 @@ class ConflictCheckConsumptionConcurrencyTests(TransactionTestCase):
             acceptance_decided_at=now,
             created_by=self.user,
         )
+        ClientComplianceReview.objects.create(
+            firm=self.firm, client=self.client_record,
+            identity_status=ClientComplianceReview.VerificationStatus.VERIFIED,
+            authority_status=ClientComplianceReview.VerificationStatus.VERIFIED,
+            beneficial_ownership_status=ClientComplianceReview.VerificationStatus.NOT_APPLICABLE,
+            due_diligence_status=ClientComplianceReview.DueDiligenceStatus.CLEARED,
+            reviewed_by=self.user, reviewed_at=now,
+        )
+        EngagementRecord.objects.create(
+            firm=self.firm, client=self.client_record, proposed_matter=self.check,
+            status=EngagementRecord.Status.READY, responsible_advocate=self.lawyer,
+            scope_of_work="Open the approved internal matter.",
+            fee_arrangement_type=EngagementRecord.FeeArrangement.FIXED,
+            fee_arrangement_description="Agreed fee", created_by=self.user,
+            approved_by=self.user, internally_approved_at=now,
+        )
 
     def test_clearance_can_be_consumed_only_once_under_concurrent_requests(self):
         barrier = Barrier(2)
@@ -89,6 +107,7 @@ class ConflictCheckConsumptionConcurrencyTests(TransactionTestCase):
                         firm=firm,
                         client=client,
                         conflict_check_id=self.check.pk,
+                        opening_context={"forum": Case.Forum.NO_FORMAL_FORUM},
                     )
                     case = Case.objects.create(
                         firm=firm,

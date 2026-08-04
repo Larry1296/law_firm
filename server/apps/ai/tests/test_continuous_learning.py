@@ -1,11 +1,13 @@
 from datetime import date
 
 from django.test import TestCase
+from django.utils import timezone
 
 from apps.ai.models import (
     KnowledgeBaseArticle, KnowledgeBaseCategory, KnowledgeIndexEntry,
     PublicFirmKnowledgePolicy,
 )
+from apps.ai.services.firm_knowledge_service import FirmKnowledgeService
 from apps.common.choices import UserRole
 from apps.firm.models import FirmSetting, LawFirm, PracticeArea
 from apps.users.models import User
@@ -54,10 +56,20 @@ class PublicFirmKnowledgeTests(TestCase):
             description="Approved firm description", owner=self.admin,
         )
         FirmSetting.objects.create(firm=self.firm, opening_time="08:00", closing_time="17:00")
+        policy = self.firm.public_knowledge_policy
+        policy.is_published = True
+        policy.include_contact = True
+        policy.include_location = True
+        policy.include_hours = True
+        policy.approved_by = self.admin
+        policy.approved_at = timezone.now()
+        policy.save()
+        FirmKnowledgeService.sync(self.firm)
 
     def test_admin_approved_public_fields_sync_without_private_identifiers(self):
         policy = self.firm.public_knowledge_policy
         PracticeArea.objects.create(firm=self.firm, name="Employment Law")
+        FirmKnowledgeService.sync(self.firm)
         article = KnowledgeBaseArticle.objects.get(slug=f"verified-public-firm-profile-{self.firm.id}")
         self.assertTrue(article.is_published)
         self.assertIn("Employment Law", article.body)
@@ -68,10 +80,12 @@ class PublicFirmKnowledgeTests(TestCase):
         self.assertNotIn(self.admin.email, article.body)
         self.firm.description = "Updated approved description"
         self.firm.save()
+        FirmKnowledgeService.sync(self.firm)
         article.refresh_from_db()
         self.assertIn("Updated approved description", article.body)
         policy.is_published = False
         policy.save()
+        FirmKnowledgeService.sync(self.firm)
         article.refresh_from_db()
         self.assertFalse(article.is_published)
 
@@ -79,6 +93,7 @@ class PublicFirmKnowledgeTests(TestCase):
         policy = self.firm.public_knowledge_policy
         policy.approved_by = None
         policy.save()
+        FirmKnowledgeService.sync(self.firm)
         self.assertFalse(KnowledgeBaseArticle.objects.filter(
             slug=f"verified-public-firm-profile-{self.firm.id}", is_published=True,
         ).exists())

@@ -2,6 +2,8 @@ from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
+from apps.audit_logs.services import AuditService
+
 from apps.clients.models import (
     Client,
     ClientMatterConflictCheck,
@@ -190,6 +192,19 @@ class ClientMatterConflictService:
             raise PermissionDenied("Only firm admins and active lawyers can manage conflict checks.")
         if not lawyer.has_permission(LawyerPermission.CREATE_CASES):
             raise PermissionDenied("Lawyer permission is required to manage proposed matters.")
+
+    @classmethod
+    def _assert_permission(cls, user, firm, code):
+        if user.role == UserRole.ADMIN and getattr(firm, "owner_id", None) == user.id:
+            return
+        lawyer = cls._active_lawyer_for_user(user, firm)
+        permitted = bool(lawyer and lawyer.has_permission(code))
+        # CREATE_CASES is the historical grant for this exact command. Preserve it as
+        # an opening alias while firms migrate staff to the more explicit OPEN_MATTER grant.
+        if code == LawyerPermission.OPEN_MATTER and lawyer:
+            permitted = permitted or lawyer.has_permission(LawyerPermission.CREATE_CASES)
+        if not permitted:
+            raise PermissionDenied(f"Lawyer permission {code} is required.")
 
     @classmethod
     def _assert_deciding_advocate(cls, user, firm):
@@ -389,7 +404,7 @@ class ClientMatterConflictService:
     @transaction.atomic
     def create_proposed_matter(cls, *, user, client_id, data):
         firm = cls.get_user_firm(user)
-        cls._assert_admin_or_lawyer(user, firm)
+        cls._assert_permission(user, firm, LawyerPermission.CREATE_PROPOSED_MATTER)
         try:
             client = Client.objects.select_for_update().get(id=client_id, firm=firm, is_active=True)
         except Client.DoesNotExist as exc:
@@ -460,7 +475,7 @@ class ClientMatterConflictService:
     @transaction.atomic
     def update_proposed_matter(cls, *, user, client_id, check_id, data):
         firm = cls.get_user_firm(user)
-        cls._assert_admin_or_lawyer(user, firm)
+        cls._assert_permission(user, firm, LawyerPermission.CREATE_PROPOSED_MATTER)
         check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
         if check.status not in {ConflictCheckStatus.NOT_STARTED, ConflictCheckStatus.AWAITING_INFORMATION}:
             raise ValidationError({"status": "Only not-started or awaiting-information checks can be edited."})
@@ -496,6 +511,8 @@ class ClientMatterConflictService:
     @transaction.atomic
     def start_check(cls, *, user, client_id, check_id, data=None):
         data = data or {}
+        firm = cls.get_user_firm(user)
+        cls._assert_permission(user, firm, LawyerPermission.PERFORM_CONFLICT_CHECK)
         check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
         if check.status != ConflictCheckStatus.NOT_STARTED:
             raise ValidationError({"status": "Only a not-started conflict check can be started."})
@@ -517,6 +534,8 @@ class ClientMatterConflictService:
     @classmethod
     @transaction.atomic
     def request_information(cls, *, user, client_id, check_id, data):
+        firm = cls.get_user_firm(user)
+        cls._assert_permission(user, firm, LawyerPermission.PERFORM_CONFLICT_CHECK)
         check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
         missing = str(data.get("information_missing", "")).strip()
         if not missing:
@@ -536,6 +555,8 @@ class ClientMatterConflictService:
     @transaction.atomic
     def resume_check(cls, *, user, client_id, check_id, data=None):
         data = data or {}
+        firm = cls.get_user_firm(user)
+        cls._assert_permission(user, firm, LawyerPermission.PERFORM_CONFLICT_CHECK)
         check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
         if check.status != ConflictCheckStatus.AWAITING_INFORMATION:
             raise ValidationError({"status": "Only a check awaiting information can be resumed."})
@@ -554,6 +575,8 @@ class ClientMatterConflictService:
     @classmethod
     @transaction.atomic
     def record_potential_conflict(cls, *, user, client_id, check_id, data):
+        firm = cls.get_user_firm(user)
+        cls._assert_permission(user, firm, LawyerPermission.PERFORM_CONFLICT_CHECK)
         check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
         findings = str(data.get("first_reviewer_findings", "")).strip()
         if not findings:
@@ -573,6 +596,7 @@ class ClientMatterConflictService:
     @transaction.atomic
     def escalate_for_review(cls, *, user, client_id, check_id, data):
         firm = cls.get_user_firm(user)
+        cls._assert_permission(user, firm, LawyerPermission.PERFORM_CONFLICT_CHECK)
         check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
         reviewer = cls._resolve_lawyer(firm, data.get("review_assigned_to_id"), "review_assigned_to_id")
         summary = str(data.get("summary", "")).strip()
@@ -596,6 +620,7 @@ class ClientMatterConflictService:
     @transaction.atomic
     def record_final_decision(cls, *, user, client_id, check_id, data):
         firm = cls.get_user_firm(user)
+        cls._assert_permission(user, firm, LawyerPermission.APPROVE_CONFLICT_RESULT)
         deciding_lawyer = cls._assert_deciding_advocate(user, firm)
         check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
         decision = data.get("decision")
@@ -664,6 +689,8 @@ class ClientMatterConflictService:
     @classmethod
     @transaction.atomic
     def close_without_decision(cls, *, user, client_id, check_id, data):
+        firm = cls.get_user_firm(user)
+        cls._assert_permission(user, firm, LawyerPermission.APPROVE_CONFLICT_RESULT)
         check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
         reason = str(data.get("closure_reason", "")).strip()
         if not reason:
@@ -684,6 +711,7 @@ class ClientMatterConflictService:
     @transaction.atomic
     def record_acceptance_decision(cls, *, user, client_id, check_id, data):
         firm = cls.get_user_firm(user)
+        cls._assert_permission(user, firm, LawyerPermission.ACCEPT_DECLINE_INSTRUCTIONS)
         deciding_lawyer = cls._assert_deciding_advocate(user, firm)
         check = cls.get_check(user=user, client_id=client_id, check_id=check_id, lock=True)
         decision = data.get("decision")
@@ -741,13 +769,19 @@ class ClientMatterConflictService:
             actor=user,
             metadata={"acceptance_decision": decision},
         )
+        AuditService.record(
+            firm=firm, user=user, action="FIRM_ACCEPTANCE_DECISION_RECORDED", obj=check,
+            previous={"acceptance_decision": ClientMatterConflictCheck.AcceptanceDecision.PENDING},
+            new={"acceptance_decision": decision, "accepted_by": deciding_lawyer.id if decision == ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED else None},
+            reason=internal_reason,
+        )
         return check
 
     @classmethod
     def validate_for_case_creation(cls, *, user, firm, client, conflict_check_id, opening_context=None):
         if not conflict_check_id:
             raise ValidationError({"conflict_check_id": "Complete conflict clearance and firm acceptance before opening a matter."})
-        cls._assert_admin_or_lawyer(user, firm)
+        cls._assert_permission(user, firm, LawyerPermission.OPEN_MATTER)
         try:
             check = ClientMatterConflictCheck.objects.select_for_update().get(id=conflict_check_id)
         except ClientMatterConflictCheck.DoesNotExist as exc:
@@ -809,4 +843,9 @@ class ClientMatterConflictService:
             summary=f"Conflict clearance consumed for case {case.case_number}.",
             actor=actor,
             metadata={"case_id": str(case.id), "case_number": case.case_number},
+        )
+        AuditService.record(
+            firm=check.firm, user=actor, action="PROPOSED_MATTER_CONSUMED", obj=check,
+            previous={"created_case": None, "consumed_at": None},
+            new={"created_case": case.id, "consumed_at": check.consumed_at},
         )

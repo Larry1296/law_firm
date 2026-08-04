@@ -395,7 +395,7 @@ class SecretaryDocumentService:
             raise ValidationError({"classification": "Use the matter-evidence or controlled originals workflow for non-KYC documents."})
         if subtype in matter_subtypes:
             raise ValidationError({"subtype": "Contracts, invoices, delivery records and dispute correspondence cannot normally be registered in the KYC drawer."})
-        if subtype not in kyc_subtypes and not (data.get("exception_reason") or "").strip():
+        if subtype not in kyc_subtypes | {ClientDocument.Subtype.OTHER} and not (data.get("exception_reason") or "").strip():
             raise ValidationError({"exception_reason": "This is not a standard KYC document. Authorised records staff must record the exception reason."})
         document_owner_subject = SecretaryDocumentService.resolve_document_subject(
             client, subtype, data.get("document_owner_contact")

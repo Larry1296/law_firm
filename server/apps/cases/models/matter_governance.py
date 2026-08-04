@@ -71,6 +71,31 @@ class MatterWorkstream(TimestampedModel):
         db_table = "matter_workstreams"
 
 
+class MatterWorkstreamStage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workstream = models.ForeignKey(MatterWorkstream, on_delete=models.PROTECT, related_name="stage_records")
+    sequence = models.PositiveIntegerField()
+    stage = models.CharField(max_length=80)
+    stage_data = models.JSONField(default=dict)
+    checklist = models.JSONField(default=dict)
+    supporting_documents = models.ManyToManyField("clients.ClientDocument", blank=True, related_name="workstream_stage_records")
+    entered_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="entered_workstream_stages")
+    entered_at = models.DateTimeField(auto_now_add=True)
+    completed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="completed_workstream_stages")
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completion_reason = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "matter_workstream_stages"
+        ordering = ["sequence"]
+        constraints = [models.UniqueConstraint(fields=["workstream", "sequence"], name="unique_workstream_stage_sequence")]
+
+    def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk, completed_at__isnull=False).exists():
+            raise ValidationError("Completed workstream stages are immutable.")
+        return super().save(*args, **kwargs)
+
+
 class MatterDeadline(TimestampedModel):
     class Type(models.TextChoices):
         LIMITATION = "LIMITATION", "Limitation"
@@ -128,6 +153,19 @@ class DeadlineChangeHistory(models.Model):
         db_table = "matter_deadline_change_history"
 
 
+class DeadlineStatusHistory(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    deadline = models.ForeignKey(MatterDeadline, on_delete=models.PROTECT, related_name="status_history")
+    previous_status = models.CharField(max_length=16)
+    new_status = models.CharField(max_length=16)
+    reason = models.TextField()
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="deadline_status_changes")
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "matter_deadline_status_history"
+
+
 class MatterClosure(TimestampedModel):
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
@@ -172,6 +210,27 @@ class MatterClosure(TimestampedModel):
     class Meta:
         db_table = "matter_closures"
         constraints = [models.UniqueConstraint(fields=["matter"], condition=models.Q(status__in=["DRAFT", "PENDING_APPROVAL", "CLOSED"]), name="one_live_closure_per_matter")]
+
+
+class GeneratedClosingDocument(models.Model):
+    class Type(models.TextChoices):
+        CLOSING_LETTER = "CLOSING_LETTER", "Closing letter"
+        FINAL_CLIENT_STATEMENT = "FINAL_CLIENT_STATEMENT", "Final client statement"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    firm = models.ForeignKey("firm.LawFirm", on_delete=models.PROTECT, related_name="generated_closing_documents")
+    matter = models.ForeignKey("cases.Case", on_delete=models.PROTECT, related_name="generated_closing_documents")
+    closure = models.ForeignKey(MatterClosure, on_delete=models.PROTECT, related_name="generated_documents")
+    document_type = models.CharField(max_length=32, choices=Type.choices)
+    version = models.PositiveIntegerField()
+    client_document = models.ForeignKey("clients.ClientDocument", on_delete=models.PROTECT, related_name="generated_closing_records")
+    content_snapshot = models.JSONField(default=dict)
+    generated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="generated_closing_documents")
+    generated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "generated_closing_documents"
+        constraints = [models.UniqueConstraint(fields=["closure", "document_type", "version"], name="unique_closing_document_version")]
 
 
 class MatterArchive(TimestampedModel):
@@ -239,7 +298,16 @@ class RetentionReview(TimestampedModel):
         db_table = "archive_retention_reviews"
 
 
+class ImmutableDestructionQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise ValidationError("Destruction logs are immutable.")
+
+    def delete(self):
+        raise ValidationError("Destruction logs cannot be deleted.")
+
+
 class DestructionLog(models.Model):
+    objects = ImmutableDestructionQuerySet.as_manager()
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     firm = models.ForeignKey("firm.LawFirm", on_delete=models.PROTECT, related_name="destruction_logs")
     archive = models.OneToOneField(MatterArchive, on_delete=models.PROTECT, related_name="destruction_log")
