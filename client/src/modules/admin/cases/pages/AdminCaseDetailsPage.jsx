@@ -18,6 +18,7 @@ import CaseProceedingsWorkflow from '@/modules/cases/shared/CaseProceedingsWorkf
 import CreateNextCaseEventPanel from '@/modules/admin/cases/components/CreateNextCaseEventPanel';
 import AssignedAdvocateMatterDesk from '@/modules/admin/cases/components/AssignedAdvocateMatterDesk';
 import MatterTasksCard from '@/modules/admin/cases/components/MatterTasksCard';
+import MatterLifecycleControls from '@/modules/admin/cases/components/MatterLifecycleControls';
 import PhysicalMatterFileCard from '@/modules/cases/shared/PhysicalMatterFileCard';
 import PageSectionNav from '@/components/ui/PageSectionNav';
 
@@ -945,6 +946,8 @@ const AdminCaseDetailsPage = () => {
       <div id='physical-matter-file' className='scroll-mt-28'>
         <PhysicalMatterFileCard physicalFile={caseData.physical_matter_file} caseId={id} canManage canRequest />
       </div>
+
+      <MatterLifecycleControls matter={caseData} />
 
       <Card className='p-6'>
         <div className='mb-5 flex flex-col gap-3 border-b border-border-light pb-5 dark:border-border-dark md:flex-row md:items-start md:justify-between'>

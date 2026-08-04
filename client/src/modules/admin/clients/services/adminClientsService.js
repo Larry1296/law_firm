@@ -109,6 +109,16 @@ const adminClientsService = {
     return data.conflict_checks || [];
   },
 
+  async getComplianceReview(clientId) {
+    const { data } = await axiosInstance.get(`/admin/clients/${clientId}/compliance-review/`);
+    return data.compliance_review;
+  },
+
+  async recordComplianceReview(clientId, payload) {
+    const { data } = await axiosInstance.put(`/admin/clients/${clientId}/compliance-review/`, payload);
+    return data.compliance_review;
+  },
+
   async getConflictCheck(clientId, checkId) {
     const { data } = await axiosInstance.get(
       `/admin/clients/${clientId}/conflict-checks/${checkId}/`,
@@ -146,6 +156,41 @@ const adminClientsService = {
       payload,
     );
     return data.conflict_check;
+  },
+
+  async getEngagements(clientId, checkId) {
+    const { data } = await axiosInstance.get(
+      `/admin/clients/${clientId}/conflict-checks/${checkId}/engagements/`,
+    );
+    return data.engagements || [];
+  },
+
+  async createEngagement(clientId, checkId, payload) {
+    const { data } = await axiosInstance.post(
+      `/admin/clients/${clientId}/conflict-checks/${checkId}/engagements/`, payload,
+    );
+    return data.engagement;
+  },
+
+  async approveEngagement(clientId, checkId, engagementId) {
+    const { data } = await axiosInstance.post(
+      `/admin/clients/${clientId}/conflict-checks/${checkId}/engagements/${engagementId}/approve/`, {},
+    );
+    return data.engagement;
+  },
+
+  async approveEngagementException(clientId, checkId, engagementId, payload) {
+    const { data } = await axiosInstance.post(
+      `/admin/clients/${clientId}/conflict-checks/${checkId}/engagements/${engagementId}/exception/`, payload,
+    );
+    return data.engagement;
+  },
+
+  async supersedeEngagement(clientId, checkId, engagementId, reason) {
+    const { data } = await axiosInstance.post(
+      `/admin/clients/${clientId}/conflict-checks/${checkId}/engagements/${engagementId}/supersede/`, { reason },
+    );
+    return data.engagement;
   },
 
   async generateJurisdictionSuggestion(clientId, checkId, payload = {}) {

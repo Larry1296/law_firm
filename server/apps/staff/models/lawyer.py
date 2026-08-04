@@ -21,6 +21,17 @@ class LawyerPermission(models.TextChoices):
     USE_AI_TOOLS = "USE_AI_TOOLS", "Use AI Tools"
     APPROVE_DOCUMENTS = "APPROVE_DOCUMENTS", "Approve Documents"
     VIEW_BILLING = "VIEW_BILLING", "View Billing"
+    APPROVE_ENGAGEMENT = "APPROVE_ENGAGEMENT", "Approve engagement"
+    WAIVE_ENGAGEMENT = "WAIVE_ENGAGEMENT", "Waive engagement requirement"
+    REVIEW_CLIENT_COMPLIANCE = "REVIEW_CLIENT_COMPLIANCE", "Review client identity and due diligence"
+    COMPLETE_LEGAL_ASSESSMENT = "COMPLETE_LEGAL_ASSESSMENT", "Complete legal assessment"
+    REQUEST_MATTER_CLOSURE = "REQUEST_MATTER_CLOSURE", "Request matter closure"
+    APPROVE_MATTER_CLOSURE = "APPROVE_MATTER_CLOSURE", "Approve matter closure"
+    REOPEN_MATTER = "REOPEN_MATTER", "Reopen closed matter"
+    ARCHIVE_MATTER = "ARCHIVE_MATTER", "Archive closed matter"
+    ACCESS_RESTRICTED_ARCHIVE = "ACCESS_RESTRICTED_ARCHIVE", "Access restricted archive"
+    PLACE_LEGAL_HOLD = "PLACE_LEGAL_HOLD", "Place legal hold"
+    APPROVE_DESTRUCTION = "APPROVE_DESTRUCTION", "Approve destruction"
 
 
 class Lawyer(TimestampedModel):

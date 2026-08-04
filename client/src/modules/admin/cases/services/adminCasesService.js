@@ -48,6 +48,17 @@ const adminCasesService = {
     return data;
   },
 
+  async getDeadlines(caseId) { return (await axiosInstance.get(`/cases/${caseId}/deadlines/`)).data; },
+  async createDeadline(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/deadlines/`, payload)).data; },
+  async changeDeadline(deadlineId, payload) { return (await axiosInstance.post(`/cases/deadlines/${deadlineId}/change/`, payload)).data; },
+  async getLegalAssessments(caseId) { return (await axiosInstance.get(`/cases/${caseId}/legal-assessments/`)).data; },
+  async setWorkstream(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/workstream/`, payload)).data; },
+  async getClosures(caseId) { return (await axiosInstance.get(`/cases/${caseId}/closure/`)).data; },
+  async requestClosure(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/closure/`, payload)).data; },
+  async closureAction(caseId, closureId, action, payload = {}) { return (await axiosInstance.post(`/cases/${caseId}/closure/${closureId}/${action}/`, payload)).data; },
+  async getArchive(caseId) { return (await axiosInstance.get(`/cases/${caseId}/archive/`)).data; },
+  async createArchive(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/archive/`, payload)).data; },
+
   async reassignLawyer(caseId, membershipId) {
     const { data } = await axiosInstance.patch(
       `/cases/${caseId}/reassign-lawyer/`,

@@ -98,6 +98,11 @@ class FirmSetting(TimestampedModel):
         default=True,
     )
 
+    require_signed_engagement_for_matter_opening = models.BooleanField(default=True)
+    require_retainer_before_matter_opening = models.BooleanField(default=False)
+    allow_engagement_waiver = models.BooleanField(default=True)
+    require_independent_engagement_waiver_approval = models.BooleanField(default=True)
+
     # ======================================================
     # Security
     # ======================================================

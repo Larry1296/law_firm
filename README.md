@@ -181,3 +181,6 @@ Centralized RBAC system using:
 ---
 
 ## 🔄 System Flow
+# Matter lifecycle and compliance
+
+The controlled Kenyan law-firm lifecycle, opening rules, financial controls, permission matrix, legacy procedure, API summary and administrator configuration are documented in [docs/MATTER_LIFECYCLE.md](docs/MATTER_LIFECYCLE.md).

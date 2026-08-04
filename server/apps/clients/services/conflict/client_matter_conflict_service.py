@@ -9,6 +9,7 @@ from apps.clients.models import (
     ConflictCheckHistory,
     ConflictCheckParty,
     FirmAcceptanceHistory,
+    ProposedMatterJurisdiction,
 )
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.cases.models import Case
@@ -743,7 +744,7 @@ class ClientMatterConflictService:
         return check
 
     @classmethod
-    def validate_for_case_creation(cls, *, user, firm, client, conflict_check_id):
+    def validate_for_case_creation(cls, *, user, firm, client, conflict_check_id, opening_context=None):
         if not conflict_check_id:
             raise ValidationError({"conflict_check_id": "Complete conflict clearance and firm acceptance before opening a matter."})
         cls._assert_admin_or_lawyer(user, firm)
@@ -768,13 +769,22 @@ class ClientMatterConflictService:
             errors["accepted_by"] = "Firm acceptance must identify the accepting advocate and time."
         elif not check.accepted_by.is_active or check.accepted_by.law_firm_id != firm.id:
             errors["accepted_by"] = "Firm acceptance must be made by an active advocate in this firm."
-        if check.engagement_status not in {
-            ClientMatterConflictCheck.EngagementStatus.SIGNED,
-            ClientMatterConflictCheck.EngagementStatus.WAIVED_OR_NOT_REQUIRED,
-        }:
+        from apps.clients.services.engagement_service import EngagementService
+        engagement = EngagementService.current_for(check)
+        if not engagement or not engagement.permits_opening:
             errors["engagement_status"] = (
-                "A signed engagement or an authorised engagement waiver is required before matter opening."
+                "A formally approved engagement or authorised policy exception is required before matter opening."
             )
+        from apps.clients.services.compliance_review_service import ClientComplianceReviewService
+        errors.update(ClientComplianceReviewService.opening_errors(client))
+        opening_context = opening_context or {}
+        if opening_context.get("forum") != Case.Forum.NO_FORMAL_FORUM:
+            try:
+                jurisdiction = check.jurisdiction
+            except ProposedMatterJurisdiction.DoesNotExist:
+                jurisdiction = None
+            if not jurisdiction or not jurisdiction.is_final:
+                errors["jurisdiction"] = "Final advocate-confirmed jurisdiction review is required for this forum."
         if check.created_case_id or check.consumed_at:
             errors["conflict_check_id"] = "This proposed matter has already opened an internal matter."
         if errors:

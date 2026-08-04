@@ -100,6 +100,14 @@ const emptyJurisdictionDecision = {
   override_reason: '',
 };
 
+const emptyEngagementDraft = {
+  responsible_advocate: '', scope_of_work: '', excluded_work: '', client_objectives: '',
+  communication_method: 'EMAIL', reporting_expectations: '', fee_arrangement_type: 'FIXED',
+  fee_arrangement_description: '', estimated_professional_fees: '', estimated_disbursements: '',
+  required_retainer: '', retainer_due_date: '', retainer_received: false,
+  engagement_letter_document: '', sent_at: '', signed_at: '', signed_by: '', status: 'DRAFT',
+};
+
 const optionalValue = (value) => {
   const normalized = typeof value === 'string' ? value.trim() : value;
   return normalized === '' || normalized === null || normalized === undefined ? undefined : normalized;
@@ -203,6 +211,9 @@ export default function ClientConflictCheckPage() {
   const [acceptanceDraft, setAcceptanceDraft] = useState(emptyAcceptanceDraft);
   const [jurisdictionFacts, setJurisdictionFacts] = useState(emptyJurisdictionFacts);
   const [jurisdictionDecision, setJurisdictionDecision] = useState(emptyJurisdictionDecision);
+  const [complianceDraft, setComplianceDraft] = useState({ reason: '', restriction_reason: '' });
+  const [engagementDraft, setEngagementDraft] = useState(emptyEngagementDraft);
+  const [engagementAction, setEngagementAction] = useState({ status: 'WAIVED', reason: '', policy_basis: '', supersede_reason: '' });
   const { lawyers = [] } = useFirmLawyers();
 
   const { data: clientData } = useQuery({
@@ -214,6 +225,16 @@ export default function ClientConflictCheckPage() {
     queryKey: ['client-conflict-check', isLawyer, clientId, checkId],
     queryFn: () => service.getConflictCheck(clientId, checkId),
     enabled: !isNew && !!clientId && !!checkId,
+  });
+  const { data: complianceReview } = useQuery({
+    queryKey: ['client-compliance-review', clientId],
+    queryFn: () => adminClientsService.getComplianceReview(clientId),
+    enabled: !isLawyer && !isNew && !!clientId,
+  });
+  const { data: engagements = [] } = useQuery({
+    queryKey: ['client-engagements', clientId, checkId],
+    queryFn: () => adminClientsService.getEngagements(clientId, checkId),
+    enabled: !isLawyer && !isNew && !!clientId && !!checkId,
   });
 
   useEffect(() => {
@@ -243,6 +264,54 @@ export default function ClientConflictCheckPage() {
       setAcceptanceDraft(emptyAcceptanceDraft);
       queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] });
     },
+  });
+
+  const complianceMutation = useMutation({
+    mutationFn: () => adminClientsService.recordComplianceReview(clientId, {
+      identity_status: complianceDraft.identity_status || complianceReview?.identity_status || 'UNKNOWN',
+      authority_status: complianceDraft.authority_status || complianceReview?.authority_status || 'UNKNOWN',
+      beneficial_ownership_status: complianceDraft.beneficial_ownership_status || complianceReview?.beneficial_ownership_status || 'UNKNOWN',
+      due_diligence_status: complianceDraft.due_diligence_status || complianceReview?.due_diligence_status || 'UNKNOWN',
+      source_of_funds_required: complianceDraft.source_of_funds_required ?? complianceReview?.source_of_funds_required ?? false,
+      source_of_funds_status: complianceDraft.source_of_funds_status || complianceReview?.source_of_funds_status || 'NOT_APPLICABLE',
+      restriction_reason: complianceDraft.restriction_reason || '',
+      review_notes: complianceDraft.review_notes || '',
+      reason: complianceDraft.reason,
+    }),
+    onSuccess: () => {
+      setComplianceDraft({ reason: '', restriction_reason: '' });
+      queryClient.invalidateQueries({ queryKey: ['client-compliance-review', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] });
+    },
+  });
+
+  const refreshEngagement = () => {
+    queryClient.invalidateQueries({ queryKey: ['client-engagements', clientId, checkId] });
+    queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] });
+  };
+
+  const createEngagementMutation = useMutation({
+    mutationFn: () => {
+      const payload = Object.fromEntries(
+        Object.entries(engagementDraft).filter(([, value]) => value !== '' && value !== null),
+      );
+      return adminClientsService.createEngagement(clientId, checkId, payload);
+    },
+    onSuccess: () => { setEngagementDraft(emptyEngagementDraft); refreshEngagement(); },
+  });
+  const approveEngagementMutation = useMutation({
+    mutationFn: (engagementId) => adminClientsService.approveEngagement(clientId, checkId, engagementId),
+    onSuccess: refreshEngagement,
+  });
+  const exceptionEngagementMutation = useMutation({
+    mutationFn: (engagementId) => adminClientsService.approveEngagementException(clientId, checkId, engagementId, {
+      status: engagementAction.status, reason: engagementAction.reason, policy_basis: engagementAction.policy_basis,
+    }),
+    onSuccess: () => { setEngagementAction({ status: 'WAIVED', reason: '', policy_basis: '', supersede_reason: '' }); refreshEngagement(); },
+  });
+  const supersedeEngagementMutation = useMutation({
+    mutationFn: (engagementId) => adminClientsService.supersedeEngagement(clientId, checkId, engagementId, engagementAction.supersede_reason),
+    onSuccess: () => { setEngagementAction((value) => ({ ...value, supersede_reason: '' })); refreshEngagement(); },
   });
 
   const actionMutation = useMutation({
@@ -544,7 +613,7 @@ export default function ClientConflictCheckPage() {
           <h3 className='mb-4 text-lg font-semibold'>Firm Acceptance Decision</h3>
           <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); acceptanceMutation.mutate(); }}>
             <Select3D label='Decision' value={acceptanceDraft.decision} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, decision: e.target.value }))} options={[{ value: 'ACCEPTED', label: 'Accept instructions' }, { value: 'DECLINED', label: 'Decline instructions' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }]} required />
-            <Select3D label='Engagement status' value={acceptanceDraft.engagement_status} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, engagement_status: e.target.value }))} options={[{ value: 'DRAFTING', label: 'Drafting' }, { value: 'SENT_TO_CLIENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed' }, { value: 'FEE_ARRANGEMENT_CONFIRMED', label: 'Fee arrangement confirmed' }, { value: 'WAIVED_OR_NOT_REQUIRED', label: 'Waived or not required' }]} />
+            <Select3D label='Engagement preparation stage' value={acceptanceDraft.engagement_status} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, engagement_status: e.target.value }))} options={[{ value: 'DRAFTING', label: 'Drafting' }, { value: 'SENT_TO_CLIENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed document received (formal approval still required)' }, { value: 'FEE_ARRANGEMENT_CONFIRMED', label: 'Fee terms confirmed (formal approval still required)' }]} />
             {acceptanceDraft.decision !== 'ACCEPTED' && <Select3D label='Reason category' value={acceptanceDraft.reason_category} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, reason_category: e.target.value }))} options={[{ value: 'OUTSIDE_EXPERTISE', label: 'Outside expertise' }, { value: 'CAPACITY_CONSTRAINT', label: 'Capacity constraint' }, { value: 'COMMERCIAL_TERMS', label: 'Commercial terms' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }, { value: 'CDD_RESTRICTED', label: 'CDD restricted' }, { value: 'OTHER', label: 'Other' }]} required />}
             <TextArea label='Scope confirmation' value={acceptanceDraft.scope_confirmation} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, scope_confirmation: value }))} required={acceptanceDraft.decision === 'ACCEPTED'} />
             {acceptanceDraft.decision !== 'ACCEPTED' && <TextArea label='Restricted internal reason' value={acceptanceDraft.internal_reason} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, internal_reason: value }))} required />}
@@ -554,6 +623,107 @@ export default function ClientConflictCheckPage() {
           </form>
         </Card>
       )}
+
+      {!isLawyer && (
+        <Card id='engagement-management' className='scroll-mt-28 p-6'>
+          <h3 className='mb-2 text-lg font-semibold'>Formal Engagement</h3>
+          <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+            Scope, fees, signature, approval and exceptions are versioned. Marking the intake stage “signed” does not authorise opening.
+          </p>
+          {engagements.length > 0 && (
+            <div className='mb-6 space-y-3'>
+              {engagements.map((engagement) => (
+                <div key={engagement.id} className='rounded-xl border border-border-light p-4 dark:border-border-dark'>
+                  <div className='flex flex-wrap items-center justify-between gap-2'>
+                    <p className='font-semibold'>Version {engagement.version} · {enumLabel(engagement.status)}</p>
+                    <span className={engagement.permits_opening ? 'text-green-700' : 'text-amber-700'}>{engagement.permits_opening ? 'Opening control satisfied' : 'Not approved for opening'}</span>
+                  </div>
+                  <p className='mt-2 text-sm'><strong>Scope:</strong> {engagement.scope_of_work}</p>
+                  <p className='text-sm'><strong>Fee terms:</strong> {enumLabel(engagement.fee_arrangement_type)} — {engagement.fee_arrangement_description}</p>
+                  {engagement.exception_reason && <p className='text-sm'><strong>Exception:</strong> {engagement.exception_reason} ({engagement.exception_policy_basis})</p>}
+                  {!['SUPERSEDED', 'CANCELLED', 'READY', 'WAIVED', 'NOT_REQUIRED'].includes(engagement.status) && (
+                    <div className='mt-4 grid gap-3 md:grid-cols-2'>
+                      <Button3D type='button' variant='primary' onClick={() => approveEngagementMutation.mutate(engagement.id)} disabled={approveEngagementMutation.isPending}>Approve Signed Engagement</Button3D>
+                      <Select3D label='Exception type' value={engagementAction.status} onChange={(e) => setEngagementAction((value) => ({ ...value, status: e.target.value }))} options={[{ value: 'WAIVED', label: 'Waived with approval' }, { value: 'NOT_REQUIRED', label: 'Not required under firm policy' }]} />
+                      <TextArea label='Exception reason' value={engagementAction.reason} onChange={(value) => setEngagementAction((current) => ({ ...current, reason: value }))} />
+                      <TextArea label='Firm policy basis' value={engagementAction.policy_basis} onChange={(value) => setEngagementAction((current) => ({ ...current, policy_basis: value }))} />
+                      <Button3D type='button' variant='secondary' onClick={() => exceptionEngagementMutation.mutate(engagement.id)} disabled={exceptionEngagementMutation.isPending || !engagementAction.reason.trim() || !engagementAction.policy_basis.trim()}>Approve Exception</Button3D>
+                      <TextArea label='Supersession reason' value={engagementAction.supersede_reason} onChange={(value) => setEngagementAction((current) => ({ ...current, supersede_reason: value }))} />
+                      <Button3D type='button' variant='secondary' onClick={() => supersedeEngagementMutation.mutate(engagement.id)} disabled={supersedeEngagementMutation.isPending || !engagementAction.supersede_reason.trim()}>Supersede Version</Button3D>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {!engagements.some((item) => !['SUPERSEDED', 'CANCELLED'].includes(item.status)) && (
+            <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); createEngagementMutation.mutate(); }}>
+              <Select3D label='Responsible advocate' value={engagementDraft.responsible_advocate} onChange={(e) => setEngagementDraft((value) => ({ ...value, responsible_advocate: e.target.value }))} options={lawyerOptions} required />
+              <Select3D label='Record stage' value={engagementDraft.status} onChange={(e) => setEngagementDraft((value) => ({ ...value, status: e.target.value }))} options={[{ value: 'DRAFT', label: 'Drafting' }, { value: 'SENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed' }, { value: 'FEE_TERMS_CONFIRMED', label: 'Fee terms confirmed' }, { value: 'RETAINER_PENDING', label: 'Retainer pending' }]} required />
+              <TextArea label='Scope of work' value={engagementDraft.scope_of_work} onChange={(value) => setEngagementDraft((current) => ({ ...current, scope_of_work: value }))} required />
+              <TextArea label='Work expressly excluded' value={engagementDraft.excluded_work} onChange={(value) => setEngagementDraft((current) => ({ ...current, excluded_work: value }))} />
+              <TextArea label='Client objectives' value={engagementDraft.client_objectives} onChange={(value) => setEngagementDraft((current) => ({ ...current, client_objectives: value }))} />
+              <TextArea label='Reporting expectations' value={engagementDraft.reporting_expectations} onChange={(value) => setEngagementDraft((current) => ({ ...current, reporting_expectations: value }))} />
+              <Input3D label='Communication method' value={engagementDraft.communication_method} onChange={(e) => setEngagementDraft((value) => ({ ...value, communication_method: e.target.value }))} />
+              <Select3D label='Fee arrangement' value={engagementDraft.fee_arrangement_type} onChange={(e) => setEngagementDraft((value) => ({ ...value, fee_arrangement_type: e.target.value }))} options={[{ value: 'CONSULTATION', label: 'Consultation fee' }, { value: 'FIXED', label: 'Fixed or agreed fee' }, { value: 'HOURLY', label: 'Hourly fee' }, { value: 'STAGE_BASED', label: 'Stage-based fee' }, { value: 'MONTHLY_RETAINER', label: 'Monthly retainer' }, { value: 'REMUNERATION_ORDER', label: 'Advocates Remuneration Order' }, { value: 'OTHER', label: 'Other approved arrangement' }]} required />
+              <TextArea label='Fee arrangement description' value={engagementDraft.fee_arrangement_description} onChange={(value) => setEngagementDraft((current) => ({ ...current, fee_arrangement_description: value }))} required />
+              <Input3D label='Estimated professional fees' type='number' value={engagementDraft.estimated_professional_fees} onChange={(e) => setEngagementDraft((value) => ({ ...value, estimated_professional_fees: e.target.value }))} />
+              <Input3D label='Estimated disbursements' type='number' value={engagementDraft.estimated_disbursements} onChange={(e) => setEngagementDraft((value) => ({ ...value, estimated_disbursements: e.target.value }))} />
+              <Input3D label='Required retainer' type='number' value={engagementDraft.required_retainer} onChange={(e) => setEngagementDraft((value) => ({ ...value, required_retainer: e.target.value }))} />
+              <Input3D label='Retainer due date' type='date' value={engagementDraft.retainer_due_date} onChange={(e) => setEngagementDraft((value) => ({ ...value, retainer_due_date: e.target.value }))} />
+              <label className='flex items-center gap-2 text-sm'><input type='checkbox' checked={engagementDraft.retainer_received} onChange={(e) => setEngagementDraft((value) => ({ ...value, retainer_received: e.target.checked }))} />Retainer received</label>
+              <Input3D label='Engagement letter document ID' value={engagementDraft.engagement_letter_document} onChange={(e) => setEngagementDraft((value) => ({ ...value, engagement_letter_document: e.target.value }))} />
+              <Input3D label='Date sent' type='datetime-local' value={engagementDraft.sent_at} onChange={(e) => setEngagementDraft((value) => ({ ...value, sent_at: e.target.value }))} />
+              <Input3D label='Date signed' type='datetime-local' value={engagementDraft.signed_at} onChange={(e) => setEngagementDraft((value) => ({ ...value, signed_at: e.target.value }))} />
+              <Input3D label='Signed by' value={engagementDraft.signed_by} onChange={(e) => setEngagementDraft((value) => ({ ...value, signed_by: e.target.value }))} />
+              <Button3D type='submit' variant='primary' disabled={createEngagementMutation.isPending}>{createEngagementMutation.isPending ? 'Saving...' : 'Create Engagement Version'}</Button3D>
+            </form>
+          )}
+        </Card>
+      )}
+
+      {!isLawyer && complianceReview && (
+        <Card id='client-compliance-review' className='scroll-mt-28 p-6'>
+          <h3 className='mb-2 text-lg font-semibold'>KYC, Authority and Due-Diligence Review</h3>
+          <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+            Final decisions are recorded in immutable history. A blocked or incomplete review prevents matter opening.
+          </p>
+          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); complianceMutation.mutate(); }}>
+            <Select3D label='Identity verification' value={complianceDraft.identity_status || complianceReview.identity_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, identity_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
+            <Select3D label='Authority to instruct' value={complianceDraft.authority_status || complianceReview.authority_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, authority_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
+            <Select3D label='Beneficial ownership' value={complianceDraft.beneficial_ownership_status || complianceReview.beneficial_ownership_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, beneficial_ownership_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'NOT_APPLICABLE', label: 'Not applicable' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
+            <Select3D label='Due-diligence decision' value={complianceDraft.due_diligence_status || complianceReview.due_diligence_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, due_diligence_status: e.target.value }))} options={[{ value: 'CLEARED', label: 'Cleared' }, { value: 'ENHANCED_DUE_DILIGENCE', label: 'Enhanced due diligence required' }, { value: 'RESTRICTED', label: 'Opening restricted' }]} required />
+            <label className='flex items-center gap-2 text-sm md:col-span-2'>
+              <input type='checkbox' checked={complianceDraft.source_of_funds_required ?? complianceReview.source_of_funds_required} onChange={(e) => setComplianceDraft((value) => ({ ...value, source_of_funds_required: e.target.checked, source_of_funds_status: e.target.checked ? 'UNKNOWN' : 'NOT_APPLICABLE' }))} />
+              Source-of-funds verification is required
+            </label>
+            {(complianceDraft.source_of_funds_required ?? complianceReview.source_of_funds_required) && (
+              <Select3D label='Source-of-funds verification' value={complianceDraft.source_of_funds_status || complianceReview.source_of_funds_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, source_of_funds_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
+            )}
+            <TextArea label='Restriction or escalation reason' value={complianceDraft.restriction_reason || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, restriction_reason: value }))} />
+            <TextArea label='Review notes and evidence references' value={complianceDraft.review_notes || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, review_notes: value }))} />
+            <TextArea label='Reason for this decision' value={complianceDraft.reason || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, reason: value }))} required />
+            <Button3D type='submit' variant='primary' disabled={complianceMutation.isPending || !complianceDraft.reason?.trim()}>
+              {complianceMutation.isPending ? 'Recording...' : 'Record Compliance Decision'}
+            </Button3D>
+          </form>
+          {complianceReview.reviewed_at && <p className='mt-4 text-sm'>Last reviewed by {complianceReview.reviewed_by_name || 'Authorised reviewer'} on {formatDateTime(complianceReview.reviewed_at)}</p>}
+        </Card>
+      )}
+
+      <Card id='matter-opening-readiness' className='scroll-mt-28 p-6'>
+        <h3 className='mb-2 text-lg font-semibold'>Matter-Opening Readiness</h3>
+        <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+          The backend enforces every listed control. A preparation-stage label does not replace a formally approved engagement record.
+        </p>
+        <div className='space-y-2'>
+          {(check.opening_readiness?.checks || []).map((item) => (
+            <div key={item.code} className={`rounded-lg border p-3 text-sm ${item.complete ? 'border-green-300 bg-green-50 text-green-900' : 'border-amber-300 bg-amber-50 text-amber-900'}`}>
+              <strong>{item.complete ? 'Complete' : 'Blocked'}:</strong> {item.label}
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <Card id='conflict-history' className='scroll-mt-28 p-6'>
         <h3 className='mb-4 text-lg font-semibold'>Immutable History</h3>

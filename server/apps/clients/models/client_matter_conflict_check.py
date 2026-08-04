@@ -188,15 +188,13 @@ class ClientMatterConflictCheck(TimestampedModel):
 
     @property
     def can_open_matter(self):
+        engagement = next((item for item in self.engagements.all() if item.permits_opening), None)
         return bool(
             self.status == ConflictCheckStatus.CLEARED
             and self.acceptance_decision == self.AcceptanceDecision.ACCEPTED
             and self.accepted_by_id
             and self.accepted_at
-            and self.engagement_status in {
-                self.EngagementStatus.SIGNED,
-                self.EngagementStatus.WAIVED_OR_NOT_REQUIRED,
-            }
+            and engagement
             and not self.is_consumed
         )
 

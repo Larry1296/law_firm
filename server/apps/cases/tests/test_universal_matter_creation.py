@@ -18,8 +18,12 @@ from apps.cases.models import (
     NonContentiousMatterDetails,
     TribunalProceeding,
 )
-from apps.clients.models import Client
-from apps.clients.models import ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty
+from apps.clients.models import (
+    Client, ClientComplianceReview, ClientMatterConflictCheck, ConflictCheckHistory,
+    ConflictCheckParty, EngagementRecord, ProposedMatterJurisdiction,
+)
+from apps.clients.services.compliance_review_service import ClientComplianceReviewService
+from apps.clients.services.engagement_service import EngagementService
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.firm.models import LawFirm
 from apps.staff.models import Lawyer, Secretary
@@ -124,6 +128,25 @@ class UniversalMatterCreationTests(TestCase):
             action="FINAL_DECISION_RECORDED",
             summary=check.result_summary,
             actor=self.admin,
+        )
+        ClientComplianceReviewService.record(
+            user=self.admin, client_id=self.client.id,
+            data={"identity_status": "VERIFIED", "authority_status": "VERIFIED", "beneficial_ownership_status": "VERIFIED", "due_diligence_status": "CLEARED", "source_of_funds_status": "NOT_APPLICABLE", "reason": "Universal matter fixture review."},
+        )
+        engagement = EngagementService.create(
+            user=self.admin, proposed_matter=check,
+            data={"responsible_advocate": self.lawyer, "scope_of_work": "Universal matter test scope.", "fee_arrangement_type": EngagementRecord.FeeArrangement.FIXED, "fee_arrangement_description": "Test fixed fee."},
+        )
+        EngagementService.approve_exception(
+            user=self.admin, engagement_id=engagement.id, proposed_matter_id=check.id,
+            status=EngagementRecord.Status.WAIVED, reason="Test fixture exception.", policy_basis="Test policy.",
+        )
+        ProposedMatterJurisdiction.objects.create(
+            proposed_matter=check, status=ProposedMatterJurisdiction.Status.FINAL_CONFIRMED,
+            final_forum=Case.Forum.COURT, final_court_type=Case.CourtType.MAGISTRATE,
+            final_court_level="CHIEF_MAGISTRATE", subject_matter_basis="Civil jurisdiction.",
+            territorial_basis="Nairobi.", legal_basis="Magistrates' Courts Act.",
+            advocate_findings="Confirmed for universal fixture.", confirmed_by=self.lawyer, confirmed_at=timezone.now(),
         )
         return check
 

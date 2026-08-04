@@ -13,7 +13,8 @@ from apps.cases.models import (
 from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
 from apps.clients.models import (
     Client, ClientDocument, ClientDocumentCustodyMovement,
-    ClientDocumentRegisterRemoval, ClientRepresentative,
+    ClientDocumentRegisterRemoval, ClientRepresentative, ClientComplianceReview,
+    EngagementRecord, ProposedMatterJurisdiction,
 )
 from apps.clients.models import ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
@@ -24,6 +25,8 @@ from apps.documents.models import MatterDocumentReference
 from apps.staff.services.secretary.secretary_document_service import SecretaryDocumentService
 from apps.staff.services.lawyer.lawyer_document_service import LawyerDocumentService
 from apps.clients.services.conflict import ClientMatterConflictService
+from apps.clients.services.compliance_review_service import ClientComplianceReviewService
+from apps.clients.services.engagement_service import EngagementService
 from apps.staff.models import Lawyer, Secretary, SecretaryPermissionGrant, SecretaryPermission
 from apps.users.models import User
 
@@ -153,6 +156,39 @@ class CaseApiTests(TestCase):
             action="FINAL_DECISION_RECORDED",
             summary=check.result_summary,
             actor=self.admin,
+        )
+        ClientComplianceReviewService.record(
+            user=self.admin, client_id=client.id,
+            data={
+                "identity_status": "VERIFIED", "authority_status": "VERIFIED",
+                "beneficial_ownership_status": (
+                    "VERIFIED" if client.client_type in ClientComplianceReviewService.BENEFICIAL_OWNERSHIP_REQUIRED
+                    else "NOT_APPLICABLE"
+                ),
+                "due_diligence_status": "CLEARED", "source_of_funds_status": "NOT_APPLICABLE",
+                "reason": "Case API test fixture compliance review.",
+            },
+        )
+        engagement = EngagementService.create(
+            user=self.admin, proposed_matter=check,
+            data={
+                "responsible_advocate": lawyer, "scope_of_work": "Test matter scope.",
+                "fee_arrangement_type": EngagementRecord.FeeArrangement.FIXED,
+                "fee_arrangement_description": "Test fixed fee.",
+            },
+        )
+        EngagementService.approve_exception(
+            user=self.admin, engagement_id=engagement.id, proposed_matter_id=check.id,
+            status=EngagementRecord.Status.WAIVED, reason="Test fixture exception.",
+            policy_basis="Test firm policy.",
+        )
+        ProposedMatterJurisdiction.objects.create(
+            proposed_matter=check, status=ProposedMatterJurisdiction.Status.FINAL_CONFIRMED,
+            final_forum=Case.Forum.COURT, final_court_type=Case.CourtType.ENVIRONMENT_LAND,
+            final_court_level="SUPERIOR_COURT", subject_matter_basis="Land dispute.",
+            territorial_basis="Property in Nairobi.", legal_basis="Environment and Land Court Act.",
+            advocate_findings="Jurisdiction confirmed for case API fixture.", confirmed_by=lawyer,
+            confirmed_at=timezone.now(),
         )
         return check
 

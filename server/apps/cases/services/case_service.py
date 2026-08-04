@@ -346,6 +346,10 @@ class CaseService:
     @transaction.atomic
     def create_case(*, user, validated_data):
         firm = CaseService.get_user_firm(user)
+        opening_context = {
+            "forum": validated_data.get("forum", Case.Forum.COURT),
+            "entry_route": validated_data.get("entry_route", Case.EntryRoute.NEW_INSTRUCTION),
+        }
         client = Client.objects.get(
             id=validated_data.pop("client_id"),
             firm=firm,
@@ -357,6 +361,7 @@ class CaseService:
             firm=firm,
             client=client,
             conflict_check_id=conflict_check_id,
+            opening_context=opening_context,
         )
         lawyer_id = validated_data.pop("assigned_lawyer_membership_id", None)
         secretary_id = validated_data.pop("assigned_secretary_membership_id", None)

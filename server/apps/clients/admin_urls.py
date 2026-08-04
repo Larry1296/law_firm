@@ -1,6 +1,11 @@
 from django.urls import path
 
 from apps.clients.views.admin import (
+    EngagementApproveView,
+    EngagementExceptionView,
+    EngagementListCreateView,
+    EngagementSupersedeView,
+    ClientComplianceReviewView,
     ClientAdminAssignView,
     ClientAdminDashboardView,
     ClientAdminDeleteView,
@@ -84,6 +89,7 @@ urlpatterns = [
     path("rejected-matters/", ClientMatterConflictCheckRejectedListView.as_view(), name="admin-rejected-matters"),
     path("rejected-matters/<uuid:check_id>/", ClientMatterConflictCheckRejectedDetailView.as_view(), name="admin-rejected-matter-detail"),
     path("<uuid:client_id>/", ClientAdminDetailView.as_view(), name="admin-client-detail"),
+    path("<uuid:client_id>/compliance-review/", ClientComplianceReviewView.as_view(), name="admin-client-compliance-review"),
     path("<uuid:client_id>/activate/", ClientAdminStatusView.as_view(), name="admin-client-activate"),
     path("<uuid:client_id>/deactivate/", ClientAdminStatusView.as_view(), name="admin-client-deactivate"),
     path("<uuid:client_id>/change-status/", ClientAdminStatusView.as_view(), name="admin-client-change-status"),
@@ -98,6 +104,10 @@ urlpatterns = [
     path("<uuid:client_id>/conflict-checks/<uuid:check_id>/escalate/", ClientMatterConflictCheckEscalateView.as_view(), name="admin-client-conflict-check-escalate"),
     path("<uuid:client_id>/conflict-checks/<uuid:check_id>/decide/", ClientMatterConflictCheckDecideView.as_view(), name="admin-client-conflict-check-decide"),
     path("<uuid:client_id>/conflict-checks/<uuid:check_id>/acceptance/", ClientMatterConflictCheckAcceptanceView.as_view(), name="admin-client-conflict-check-acceptance"),
+    path("<uuid:client_id>/conflict-checks/<uuid:check_id>/engagements/", EngagementListCreateView.as_view(), name="admin-client-engagements"),
+    path("<uuid:client_id>/conflict-checks/<uuid:check_id>/engagements/<uuid:engagement_id>/approve/", EngagementApproveView.as_view(), name="admin-client-engagement-approve"),
+    path("<uuid:client_id>/conflict-checks/<uuid:check_id>/engagements/<uuid:engagement_id>/exception/", EngagementExceptionView.as_view(), name="admin-client-engagement-exception"),
+    path("<uuid:client_id>/conflict-checks/<uuid:check_id>/engagements/<uuid:engagement_id>/supersede/", EngagementSupersedeView.as_view(), name="admin-client-engagement-supersede"),
     path("<uuid:client_id>/conflict-checks/<uuid:check_id>/close/", ClientMatterConflictCheckCloseView.as_view(), name="admin-client-conflict-check-close"),
     path("<uuid:client_id>/conflict-checks/<uuid:check_id>/jurisdiction/", ProposedMatterJurisdictionView.as_view(), name="admin-client-jurisdiction"),
     path("<uuid:client_id>/conflict-checks/<uuid:check_id>/jurisdiction/decision/", ProposedMatterJurisdictionDecisionView.as_view(), name="admin-client-jurisdiction-decision"),

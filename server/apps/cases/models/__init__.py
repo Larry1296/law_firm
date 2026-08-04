@@ -25,6 +25,10 @@ from .matter_details import (
     SuccessionMatterDetails,
     TribunalProceeding,
 )
+from .matter_governance import (
+    ArchiveAccessLog, DeadlineChangeHistory, DestructionLog, LegalAssessment, MatterArchive,
+    MatterClosure, MatterDeadline, MatterWorkstream, RetentionReview,
+)
 
 __all__ = [
     "ArbitrationProceeding",
@@ -57,4 +61,13 @@ __all__ = [
     "NonContentiousMatterDetails",
     "SuccessionMatterDetails",
     "TribunalProceeding",
+    "LegalAssessment",
+    "MatterWorkstream",
+    "MatterClosure",
+    "MatterArchive",
+    "ArchiveAccessLog",
+    "RetentionReview",
+    "DestructionLog",
+    "MatterDeadline",
+    "DeadlineChangeHistory",
 ]

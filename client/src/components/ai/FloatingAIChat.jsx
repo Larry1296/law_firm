@@ -8,7 +8,7 @@ import SafeMarkdown from './SafeMarkdown';
 const SECTION_COPY = {
   home: {
     launcher: 'Chat with this Firm legal assistant',
-    welcome: 'Ask about the Firm or a general legal topic. I use approved public information and show the sources I rely on.',
+    welcome: 'Ask about the firm or a general legal topic. I use approved public information and show the sources I rely on.',
   },
   about: {
     launcher: 'Ask about the Firm',
@@ -177,7 +177,7 @@ export default function FloatingAIChat({ activeSection = 'home' }) {
         >
           <header className='flex items-start justify-between gap-2 border-b border-border-light px-3 py-3 dark:border-border-dark sm:gap-3 sm:px-4'>
             <div className='min-w-0 flex-1'>
-              <h2 id={titleId} className='truncate text-sm font-bold text-text-primary-light dark:text-text-primary-dark sm:whitespace-normal'></h2>
+              <h2 id={titleId} className='truncate text-sm font-bold text-text-primary-light dark:text-text-primary-dark sm:whitespace-normal'>{SECTION_COPY[safeSection].launcher}</h2>
               <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>Answers from approved public information</p>
             </div>
             <div className='flex shrink-0 gap-1'>
@@ -222,7 +222,7 @@ export default function FloatingAIChat({ activeSection = 'home' }) {
         </section>
       )}
 
-      <Button3D type='button' variant='aiGlow' size='md' onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} aria-haspopup='dialog' aria-label={open ? 'Close firm legal assistant' : `Open assistant: ${SECTION_COPY[safeSection].launcher}`} className='floating-ai-trigger max-w-[calc(100vw-2rem)] font-extrabold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2'>
+      <Button3D type='button' variant='aiGlow' size='md' onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} aria-haspopup='dialog' aria-label={open ? 'Close firm legal assistant' : `Open assistant: ${SECTION_COPY[safeSection].launcher.replace('this Firm', 'Firm')}`} className='floating-ai-trigger max-w-[calc(100vw-2rem)] font-extrabold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2'>
         <span className='flex items-center gap-2 transition-opacity duration-150 motion-reduce:transition-none'>{open ? <X size={18} /> : <MessageCircle size={18} />}{open ? 'Close' : SECTION_COPY[safeSection].launcher}</span>
       </Button3D>
     </div>

@@ -118,13 +118,16 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
     acceptance_decided_by_name = serializers.CharField(source="acceptance_decided_by.user.full_name", read_only=True)
     adverse_parties = serializers.SerializerMethodField()
     is_consumed = serializers.BooleanField(read_only=True)
-    can_open_matter = serializers.BooleanField(read_only=True)
+    can_open_matter = serializers.SerializerMethodField()
     permitted_next_statuses = serializers.SerializerMethodField()
     date_instructions_received = serializers.SerializerMethodField()
     opening_readiness = serializers.SerializerMethodField()
 
     def get_date_instructions_received(self, obj):
         return timezone.localtime(obj.created_at).date().isoformat()
+
+    def get_can_open_matter(self, obj):
+        return self.get_opening_readiness(obj)["ready"]
 
     def get_adverse_parties(self, obj):
         return [
@@ -142,6 +145,13 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
         ]
 
     def get_opening_readiness(self, obj):
+        from apps.clients.services.engagement_service import EngagementService
+        from apps.clients.services.compliance_review_service import ClientComplianceReviewService
+
+        engagement = EngagementService.current_for(obj)
+        compliance_errors = ClientComplianceReviewService.opening_errors(obj.client)
+        proposed_forum = (obj.jurisdiction_facts or {}).get("forum", "")
+        jurisdiction_required = proposed_forum not in {"", "NO_FORMAL_FORUM"}
         checks = [
             {
                 "code": "CONFLICT_CLEARED",
@@ -164,11 +174,28 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
             },
             {
                 "code": "ENGAGEMENT_READY",
-                "label": "Signed engagement or authorised waiver recorded",
-                "complete": obj.engagement_status in {
-                    ClientMatterConflictCheck.EngagementStatus.SIGNED,
-                    ClientMatterConflictCheck.EngagementStatus.WAIVED_OR_NOT_REQUIRED,
-                },
+                "label": "Formal engagement approved or policy exception authorised",
+                "complete": bool(engagement and engagement.permits_opening),
+            },
+            {
+                "code": "CLIENT_IDENTITY_VERIFIED",
+                "label": "Client identity verification complete",
+                "complete": "identity_verification" not in compliance_errors and "client_compliance" not in compliance_errors,
+            },
+            {
+                "code": "AUTHORITY_VERIFIED",
+                "label": "Authority to instruct verified",
+                "complete": "authority_to_instruct" not in compliance_errors and "client_compliance" not in compliance_errors,
+            },
+            {
+                "code": "DUE_DILIGENCE_CLEARED",
+                "label": "Due diligence and beneficial ownership controls cleared",
+                "complete": not any(key in compliance_errors for key in ["client_compliance", "beneficial_ownership", "due_diligence", "due_diligence_restriction", "source_of_funds"]),
+            },
+            {
+                "code": "JURISDICTION_REVIEW",
+                "label": "Applicable jurisdiction review confirmed",
+                "complete": bool(not jurisdiction_required or (getattr(obj, "jurisdiction", None) and obj.jurisdiction.is_final)),
             },
             {
                 "code": "NOT_CONSUMED",

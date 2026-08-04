@@ -15,6 +15,11 @@ class AccountantPermission(models.TextChoices):
     MANAGE_CLIENT_BILLING = "MANAGE_CLIENT_BILLING", "Manage Client Billing"
     MANAGE_PAYROLL = "MANAGE_PAYROLL", "Manage Payroll"
     MANAGE_TAX_RECORDS = "MANAGE_TAX_RECORDS", "Manage Tax Records"
+    APPROVE_INVOICES = "APPROVE_INVOICES", "Approve invoices"
+    RECORD_RECEIPTS = "RECORD_RECEIPTS", "Record receipts"
+    MANAGE_CLIENT_MONEY = "MANAGE_CLIENT_MONEY", "Manage client money"
+    APPROVE_CLIENT_MONEY_PAYMENTS = "APPROVE_CLIENT_MONEY_PAYMENTS", "Approve client-money payments"
+    RECONCILE_ACCOUNTS = "RECONCILE_ACCOUNTS", "Reconcile financial accounts"
 
 
 class Accountant(TimestampedModel):

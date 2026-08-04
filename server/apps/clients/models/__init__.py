@@ -40,6 +40,8 @@ from .client_matter_conflict_check import (
     ProposedMatterJurisdiction,
     ProposedMatterJurisdictionHistory,
 )
+from .engagement import EngagementHistory, EngagementRecord
+from .compliance_review import ClientComplianceHistory, ClientComplianceReview
 
 
 __all__ = [
@@ -86,4 +88,8 @@ __all__ = [
     "FirmAcceptanceHistory",
     "ProposedMatterJurisdiction",
     "ProposedMatterJurisdictionHistory",
+    "EngagementRecord",
+    "EngagementHistory",
+    "ClientComplianceReview",
+    "ClientComplianceHistory",
 ]

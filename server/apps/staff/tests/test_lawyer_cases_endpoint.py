@@ -6,7 +6,11 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.cases.models import Case
-from apps.clients.models import Client, ClientMatterConflictCheck
+from apps.clients.models import (
+    Client, ClientMatterConflictCheck, EngagementRecord, ProposedMatterJurisdiction,
+)
+from apps.clients.services.compliance_review_service import ClientComplianceReviewService
+from apps.clients.services.engagement_service import EngagementService
 from apps.common.choices import ConflictCheckStatus, UserRole
 from apps.firm.models import LawFirm
 from apps.staff.models import Lawyer, LawyerPermission, LawyerPermissionGrant, Secretary
@@ -90,7 +94,7 @@ class LawyerCasesEndpointTests(TestCase):
 
     def create_openable_conflict_check(self, firm, client, lawyer, *, suffix):
         now = timezone.now()
-        return ClientMatterConflictCheck.objects.create(
+        check = ClientMatterConflictCheck.objects.create(
             firm=firm,
             client=client,
             reference_number=f"PMA/CONF/2026/{suffix}",
@@ -110,6 +114,26 @@ class LawyerCasesEndpointTests(TestCase):
             acceptance_decided_at=now,
             created_by=lawyer.user,
         )
+        ClientComplianceReviewService.record(
+            user=firm.owner, client_id=client.id,
+            data={"identity_status": "VERIFIED", "authority_status": "VERIFIED", "beneficial_ownership_status": "NOT_APPLICABLE", "due_diligence_status": "CLEARED", "source_of_funds_status": "NOT_APPLICABLE", "reason": "Lawyer endpoint fixture review."},
+        )
+        engagement = EngagementService.create(
+            user=firm.owner, proposed_matter=check,
+            data={"responsible_advocate": lawyer, "scope_of_work": "Endpoint test scope.", "fee_arrangement_type": EngagementRecord.FeeArrangement.FIXED, "fee_arrangement_description": "Test fixed fee."},
+        )
+        EngagementService.approve_exception(
+            user=firm.owner, engagement_id=engagement.id, proposed_matter_id=check.id,
+            status=EngagementRecord.Status.WAIVED, reason="Test fixture exception.", policy_basis="Test policy.",
+        )
+        ProposedMatterJurisdiction.objects.create(
+            proposed_matter=check, status=ProposedMatterJurisdiction.Status.FINAL_CONFIRMED,
+            final_forum=Case.Forum.COURT, final_court_type=Case.CourtType.MAGISTRATE,
+            final_court_level="CHIEF_MAGISTRATE", subject_matter_basis="Civil jurisdiction.",
+            territorial_basis="Kenya.", legal_basis="Magistrates' Courts Act.",
+            advocate_findings="Confirmed for endpoint fixture.", confirmed_by=lawyer, confirmed_at=now,
+        )
+        return check
 
     def matter_create_payload(
         self,

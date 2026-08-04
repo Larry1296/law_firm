@@ -1,5 +1,7 @@
 from django.urls import path
 
+from apps.communications.views.client_communication_view import ClientCommunicationAmendView, ClientCommunicationListCreateView
+
 from apps.communications.views import (
     AnnouncementInboxView,
     AnnouncementReadView,
@@ -14,6 +16,8 @@ from apps.communications.views import (
 )
 
 urlpatterns = [
+    path("matters/<uuid:matter_id>/records/", ClientCommunicationListCreateView.as_view(), name="client-communication-records"),
+    path("records/<uuid:communication_id>/amend/", ClientCommunicationAmendView.as_view(), name="client-communication-amend"),
     path("announcements/", AnnouncementInboxView.as_view(), name="communication-announcements"),
     path(
         "announcements/<uuid:announcement_id>/read/",

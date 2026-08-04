@@ -5,7 +5,12 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from apps.cases.models import Case
-from apps.clients.models import Client, ClientMatterConflictCheck, ConflictCheckHistory, ConflictCheckParty
+from apps.clients.models import (
+    Client, ClientComplianceReview, ClientMatterConflictCheck, ConflictCheckHistory,
+    ConflictCheckParty, EngagementRecord, ProposedMatterJurisdiction,
+)
+from apps.clients.services.compliance_review_service import ClientComplianceReviewService
+from apps.clients.services.engagement_service import EngagementService
 from apps.clients.services.conflict.client_matter_conflict_service import ClientMatterConflictService
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.firm.models import LawFirm
@@ -160,6 +165,42 @@ class ClientMatterConflictCheckTests(APITestCase):
             "defendant": "Proposed Adverse Ltd",
         }
 
+    def make_opening_ready(self, check, *, create_jurisdiction=True):
+        ClientComplianceReviewService.record(
+            user=self.admin, client_id=self.client_record.id,
+            data={
+                "identity_status": ClientComplianceReview.VerificationStatus.VERIFIED,
+                "authority_status": ClientComplianceReview.VerificationStatus.VERIFIED,
+                "beneficial_ownership_status": ClientComplianceReview.VerificationStatus.VERIFIED,
+                "due_diligence_status": ClientComplianceReview.DueDiligenceStatus.CLEARED,
+                "source_of_funds_status": ClientComplianceReview.VerificationStatus.NOT_APPLICABLE,
+                "reason": "Test fixture records completed compliance review.",
+            },
+        )
+        engagement = EngagementService.create(
+            user=self.admin, proposed_matter=check,
+            data={
+                "responsible_advocate": self.lawyer,
+                "scope_of_work": "Debt recovery instruction.",
+                "fee_arrangement_type": EngagementRecord.FeeArrangement.FIXED,
+                "fee_arrangement_description": "Agreed fixed fee.",
+            },
+        )
+        EngagementService.approve_exception(
+            user=self.admin, engagement_id=engagement.id, proposed_matter_id=check.id,
+            status=EngagementRecord.Status.WAIVED, reason="Test fixture exception.",
+            policy_basis="Test firm policy.",
+        )
+        if create_jurisdiction and not hasattr(check, "jurisdiction"):
+            ProposedMatterJurisdiction.objects.create(
+                proposed_matter=check, status=ProposedMatterJurisdiction.Status.FINAL_CONFIRMED,
+                final_forum=Case.Forum.COURT, final_court_type=Case.CourtType.MAGISTRATE,
+                final_court_level="CHIEF_MAGISTRATE", subject_matter_basis="Civil debt claim.",
+                territorial_basis="Cause arose in Nairobi.", legal_basis="Magistrates' Courts Act.",
+                advocate_findings="Jurisdiction confirmed for test fixture.", confirmed_by=self.lawyer,
+                confirmed_at=timezone.now(),
+            )
+
     def test_client_creation_state_is_prospect_and_has_no_case_or_check(self):
         self.assertIn(self.client_record.lifecycle_status, {Client.LifecycleStatus.PROSPECT, Client.LifecycleStatus.PROSPECTIVE})
         self.assertFalse(self.client_record.is_verified)
@@ -214,6 +255,7 @@ class ClientMatterConflictCheckTests(APITestCase):
         response = self.client.post(reverse("case-create"), self.case_payload(check), format="json")
         self.assertEqual(response.status_code, 400, response.data)
         check = self.accept_check(check)
+        self.make_opening_ready(check)
         response = self.client.post(reverse("case-create"), self.case_payload(check), format="json")
         self.assertEqual(response.status_code, 201, response.data)
         check.refresh_from_db()
@@ -591,6 +633,7 @@ class ClientMatterConflictCheckTests(APITestCase):
             format="json",
         )
         self.client.post(self.jurisdiction_url(check, "confirm"), {}, format="json")
+        self.make_opening_ready(check, create_jurisdiction=False)
         payload = self.case_payload(check)
         payload["entry_route"] = Case.EntryRoute.NEW_INSTRUCTION
         for field in [
