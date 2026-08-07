@@ -191,3 +191,6 @@ docker-compose.override.yml
 #################################################
 
 *.tsbuildinfo
+
+# Local environment secrets
+.env
