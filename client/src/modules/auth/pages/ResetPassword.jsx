@@ -48,9 +48,9 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className='flex-1 flex flex-col lg:flex-row'>
+    <div className='flex-1 flex flex-col lg:flex-row min-h-screen'>
       {/* LEFT PANEL */}
-      <div className='hidden lg:flex lg:w-1/2 bg-blue-700 relative items-center justify-center p-10 overflow-hidden'>
+      <div className='hidden lg:flex lg:w-1/2 bg-blue-700 relative flex-col items-center justify-center px-10 pt-32 pb-12 overflow-hidden'>
         <motion.div
           animate={{ scale: [1, 1.2, 1], x: [0, 40, 0], y: [0, -30, 0] }}
           transition={{ duration: 8, repeat: Infinity }}
@@ -75,8 +75,8 @@ export default function ResetPassword() {
       </div>
 
       {/* RIGHT PANEL */}
-      <div className='w-full lg:w-1/2 flex items-center justify-center px-6 py-24 bg-gray-50'>
-        <Card className='w-full max-w-md p-8'>
+      <div className='w-full lg:w-1/2 flex flex-col items-center justify-center px-6 pt-32 pb-12 min-h-screen bg-gray-50'>
+        <Card className='w-full max-w-md p-8 my-auto'>
           <Link
             to='/login'
             className='flex items-center gap-2 text-sm text-blue-600 mb-6'

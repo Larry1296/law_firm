@@ -237,16 +237,16 @@ export default function Login() {
   };
 
   return (
-    <div className='flex-1 flex flex-col lg:flex-row'>
+    <div className='flex-1 flex flex-col lg:flex-row min-h-screen'>
       {/* LEFT PANEL */}
-      <div className='hidden lg:flex lg:w-1/2 bg-[color:var(--brand-primary)] dark:bg-blue-950 relative items-center justify-center p-10 overflow-hidden'>
+      <div className='hidden lg:flex lg:w-1/2 bg-[color:var(--brand-primary)] dark:bg-blue-950 relative flex-col items-center justify-center px-10 py-10 overflow-hidden'>
         <motion.div
           animate={{ scale: [1, 1.2, 1], x: [0, 40, 0], y: [0, -30, 0] }}
           transition={{ duration: 8, repeat: Infinity }}
           className='absolute w-96 h-96 bg-blue-500/40 rounded-full blur-3xl'
         />
 
-        <div className='relative text-center text-white max-w-md'>
+        <div className='relative text-center text-white max-w-md my-auto'>
           <ShieldCheck size={90} className='mx-auto mb-6' />
           <h1 className='text-4xl font-bold mb-4'>Secure Legal Access</h1>
           <p className='text-blue-100'>
@@ -256,8 +256,8 @@ export default function Login() {
       </div>
 
       {/* RIGHT PANEL */}
-      <div className='w-full lg:w-1/2 flex items-center justify-center px-6 py-24 bg-gray-50 dark:bg-[#0b1220]'>
-        <Card className='w-full max-w-md p-8'>
+      <div className='w-full lg:w-1/2 flex flex-col items-center justify-center px-6 pt-40 pb-10 bg-gray-50 dark:bg-[#0b1220]'>
+        <Card className='w-full max-w-md p-8 my-auto'>
           <Link
             to='/'
             className='flex items-center gap-2 text-sm text-blue-600 mb-6'

@@ -664,6 +664,12 @@ input.floating-input-field:-webkit-autofill:active {
     min-height: inherit;
     height: auto !important;
     align-self: stretch;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding-top: 2.5rem !important;
+    padding-bottom: 2.5rem !important;
   }
 
   .auth-layout.auth-register .auth-main > div > div:last-child {
@@ -672,18 +678,20 @@ input.floating-input-field:-webkit-autofill:active {
     overflow-y: visible;
     align-items: flex-start !important;
     justify-content: center !important;
-    padding-top: 7.5rem !important;
-    padding-bottom: 4rem !important;
+    padding-top: 10rem !important;
+    padding-bottom: 2.5rem !important;
   }
 
   .auth-layout.auth-compact .auth-main > div > div:last-child {
     min-height: inherit;
     height: auto !important;
     overflow-y: visible;
+    display: flex !important;
+    flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
-    padding-top: 4rem !important;
-    padding-bottom: 4rem !important;
+    padding-top: 10rem !important;
+    padding-bottom: 2.5rem !important;
   }
 }
 
