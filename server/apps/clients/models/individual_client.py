@@ -194,6 +194,12 @@ class IndividualClient(models.Model):
 
 
 class ClientDueDiligence(models.Model):
+    class IdentityVerificationStatus(models.TextChoices):
+        NOT_STARTED = "NOT_STARTED", "Not started"
+        PENDING = "PENDING", "Pending"
+        VERIFIED = "VERIFIED", "Verified"
+        FAILED = "FAILED", "Failed"
+        REQUIRES_REVIEW = "REQUIRES_REVIEW", "Requires review"
     class PepStatus(models.TextChoices):
         NOT_CHECKED = "NOT_CHECKED", "Not checked"
         PENDING = "PENDING", "Pending"
@@ -215,6 +221,12 @@ class ClientDueDiligence(models.Model):
         HIGH = "HIGH", "High"
 
     client = models.OneToOneField("clients.Client", on_delete=models.CASCADE, related_name="due_diligence")
+    identity_verification_status = models.CharField(max_length=30, choices=IdentityVerificationStatus.choices, default=IdentityVerificationStatus.NOT_STARTED)
+    identity_verification_method = models.CharField(max_length=100, blank=True, default="")
+    identity_verification_source = models.CharField(max_length=255, blank=True, default="")
+    identity_verification_date = models.DateField(null=True, blank=True)
+    identity_verified_by = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="identity_verified_cdd_records")
+    identity_evidence_reference = models.CharField(max_length=255, blank=True, default="")
     acting_for_self = models.BooleanField(null=True, blank=True)
     represented_person = models.CharField(max_length=255, blank=True, default="")
     representation_capacity = models.CharField(max_length=100, blank=True, default="")
@@ -228,19 +240,31 @@ class ClientDueDiligence(models.Model):
         related_name="verified_client_representative_authorities",
     )
     authority_verified_at = models.DateTimeField(null=True, blank=True)
+    authority_verification_method = models.CharField(max_length=100, blank=True, default="")
     purpose_and_nature_of_relationship = models.TextField(blank=True, default="")
+    purpose_of_legal_services = models.TextField(blank=True, default="")
+    intended_nature_of_relationship = models.TextField(blank=True, default="")
+    expected_instructions_or_transactions = models.TextField(blank=True, default="")
+    beneficial_ownership_applicable = models.BooleanField(null=True, blank=True)
+    beneficial_ownership_outcome = models.TextField(blank=True, default="")
     pep_status = models.CharField(max_length=30, choices=PepStatus.choices, default=PepStatus.NOT_CHECKED)
     pep_details = models.TextField(blank=True, default="")
     sanctions_screening_status = models.CharField(max_length=30, choices=ScreeningStatus.choices, default=ScreeningStatus.NOT_CHECKED)
     screening_date = models.DateField(null=True, blank=True)
     screening_method = models.CharField(max_length=255, blank=True, default="")
     screening_result = models.TextField(blank=True, default="")
+    screening_reviewed_by = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_client_screenings")
     risk_rating = models.CharField(max_length=30, choices=RiskRating.choices, default=RiskRating.NOT_ASSESSED)
     risk_assessment_reason = models.TextField(blank=True, default="")
     source_of_funds = models.TextField(blank=True, default="")
     source_of_wealth = models.TextField(blank=True, default="")
     enhanced_due_diligence_required = models.BooleanField(default=False)
     enhanced_due_diligence_reason = models.TextField(blank=True, default="")
+    enhanced_due_diligence_additional_verification = models.TextField(blank=True, default="")
+    enhanced_due_diligence_approval_required = models.BooleanField(default=False)
+    enhanced_due_diligence_approved_by = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_client_edd_records")
+    enhanced_due_diligence_approval_date = models.DateField(null=True, blank=True)
+    ongoing_monitoring_notes = models.TextField(blank=True, default="")
     reviewed_by = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_client_due_diligence_records")
     reviewed_at = models.DateTimeField(null=True, blank=True)
     next_review_date = models.DateField(null=True, blank=True)

@@ -5,6 +5,12 @@ from apps.clients.models import (
     ClientAddress,
     ClientContact,
     ClientRepresentative,
+    ClientBeneficialOwner,
+    ClientPrivacyRecord,
+    ClientSectorProfile,
+    EducationCurriculum,
+    EducationInstitutionProfile,
+    ClientDueDiligence,
 )
 from apps.clients.serializers.client.client_type_profile_serializer import (
     serialize_client_type_profile,
@@ -37,6 +43,7 @@ class ClientRepresentativeSerializer(serializers.ModelSerializer):
             "full_legal_name",
             "representative_category",
             "role_title",
+            "nationality",
             "email",
             "telephone",
             "authority_type",
@@ -46,11 +53,54 @@ class ClientRepresentativeSerializer(serializers.ModelSerializer):
             "is_primary",
             "is_portal_contact",
             "is_litigation_representative",
+            "is_authorized_to_give_instructions",
             "is_verified",
             "notes",
             "created_at",
             "updated_at",
         )
+
+
+class ClientBeneficialOwnerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClientBeneficialOwner
+        exclude = ("client",)
+
+
+class ClientSectorProfileSerializer(serializers.ModelSerializer):
+    sector_label = serializers.CharField(source="get_sector_display", read_only=True)
+    class Meta:
+        model = ClientSectorProfile
+        exclude = ("client",)
+
+
+class ClientPrivacyRecordSerializer(serializers.ModelSerializer):
+    lawful_basis_label = serializers.CharField(source="get_lawful_basis_display", read_only=True)
+    class Meta:
+        model = ClientPrivacyRecord
+        exclude = ("client",)
+
+
+class ClientDueDiligenceDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClientDueDiligence
+        exclude = ("client",)
+
+
+class EducationCurriculumSerializer(serializers.ModelSerializer):
+    framework_label = serializers.CharField(source="get_framework_display", read_only=True)
+    class Meta:
+        model = EducationCurriculum
+        fields = "__all__"
+
+
+class EducationInstitutionProfileSerializer(serializers.ModelSerializer):
+    education_regime_label = serializers.CharField(source="get_education_regime_display", read_only=True)
+    ownership_label = serializers.CharField(source="get_ownership_display", read_only=True)
+    curricula = EducationCurriculumSerializer(many=True, read_only=True)
+    class Meta:
+        model = EducationInstitutionProfile
+        exclude = ("client",)
 
 
 class ClientDetailSerializer(
@@ -66,6 +116,12 @@ class ClientDetailSerializer(
     portal_login_email = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
     representatives = ClientRepresentativeSerializer(many=True, read_only=True)
+    beneficial_owners = ClientBeneficialOwnerSerializer(many=True, read_only=True)
+    sector_profiles = ClientSectorProfileSerializer(many=True, read_only=True)
+    privacy = ClientPrivacyRecordSerializer(read_only=True)
+    due_diligence = ClientDueDiligenceDetailSerializer(read_only=True)
+    education_profile = EducationInstitutionProfileSerializer(read_only=True)
+    client_type_label = serializers.CharField(source="get_client_type_display", read_only=True)
     has_cases = serializers.BooleanField(read_only=True)
     can_hard_delete = serializers.BooleanField(read_only=True)
     can_archive = serializers.BooleanField(read_only=True)
@@ -102,6 +158,11 @@ class ClientDetailSerializer(
             "date_of_birth",
 
             "client_type",
+            "client_type_label",
+            "legacy_client_type",
+            "classification_review_status",
+            "provisional_legal_description",
+            "classification_evidence_reference",
             "access_type",
             "lifecycle_status",
             "is_verified",
@@ -130,6 +191,11 @@ class ClientDetailSerializer(
             "addresses",
             "contacts",
             "representatives",
+            "beneficial_owners",
+            "sector_profiles",
+            "privacy",
+            "due_diligence",
+            "education_profile",
 
             # Future-ready
             "cases",

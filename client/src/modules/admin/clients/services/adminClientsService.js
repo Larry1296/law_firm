@@ -5,6 +5,14 @@ import axiosInstance from '@/core/api/axios';
 ========================================================= */
 
 const adminClientsService = {
+  async getOnboardingMetadata() {
+    const { data } = await axiosInstance.get('/admin/clients/onboarding-metadata/');
+    return data;
+  },
+  async createOnboardingClient(payload) {
+    const { data } = await axiosInstance.post('/admin/clients/onboarding/', payload);
+    return data;
+  },
   createEndpoints: {
     INDIVIDUAL: '/admin/clients/individuals/create/',
     COMPANY: '/admin/clients/companies/create/',
@@ -19,16 +27,6 @@ const adminClientsService = {
     PUBLIC_ENTITY: '/admin/clients/legal-entities/create/',
     INTERNATIONAL_ORGANIZATION: '/admin/clients/legal-entities/create/',
 
-    // Legacy UI aliases mapped to canonical legal-capacity endpoint.
-    SACCO: '/admin/clients/legal-entities/create/',
-    NGO: '/admin/clients/legal-entities/create/',
-    NGO_ASSOCIATION: '/admin/clients/legal-entities/create/',
-    ASSOCIATION: '/admin/clients/legal-entities/create/',
-    RELIGIOUS_ORGANIZATION: '/admin/clients/legal-entities/create/',
-    RELIGIOUS: '/admin/clients/legal-entities/create/',
-    GOVERNMENT: '/admin/clients/legal-entities/create/',
-    EDUCATIONAL_INSTITUTION: '/admin/clients/legal-entities/create/',
-    SCHOOL: '/admin/clients/legal-entities/create/',
   },
 
   /* ======================================================

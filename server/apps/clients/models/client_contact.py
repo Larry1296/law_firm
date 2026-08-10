@@ -74,6 +74,9 @@ class ClientContact(TimestampedModel):
     is_primary = models.BooleanField(
         default=False,
     )
+    is_billing_contact = models.BooleanField(default=False)
+    is_legal_contact = models.BooleanField(default=False)
+    is_portal_contact = models.BooleanField(default=False)
 
     is_verified = models.BooleanField(
         default=False,

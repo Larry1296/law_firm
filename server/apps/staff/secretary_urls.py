@@ -1,4 +1,5 @@
 from django.urls import include, path
+from apps.clients.views.onboarding_views import ClientOnboardingCreateView, ClientOnboardingMetadataView
 
 from apps.staff.views.secretary import (
     SecretaryCalendarView,
@@ -17,6 +18,8 @@ from apps.staff.views.secretary import (
 )
 
 urlpatterns = [
+    path("clients/onboarding-metadata/", ClientOnboardingMetadataView.as_view(), name="secretary-client-onboarding-metadata"),
+    path("clients/onboarding/", ClientOnboardingCreateView.as_view(), name="secretary-client-onboarding-create"),
     path("profile/", SecretaryProfileView.as_view(), name="secretary-profile"),
     path("dashboard/", SecretaryDashboardView.as_view(), name="secretary-dashboard"),
     path("clients/", SecretaryClientsView.as_view(), name="secretary-clients"),

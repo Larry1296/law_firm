@@ -740,6 +740,8 @@ class ClientMatterConflictService:
             raise ValidationError({"decision": "Select a valid firm acceptance decision."})
         if check.status != ConflictCheckStatus.CLEARED and decision == ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED:
             raise ValidationError({"status": "Only conflict-cleared proposed matters can be accepted."})
+        if decision == ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED and check.client.classification_review_status == "REQUIRES_REVIEW":
+            raise ValidationError({"classification_review_status": "Resolve the client's legal classification before firm acceptance."})
         if check.acceptance_decision != ClientMatterConflictCheck.AcceptanceDecision.PENDING:
             raise ValidationError({"acceptance_decision": "Terminal firm acceptance decisions cannot be silently edited."})
         reason_category = data.get("reason_category", "")
@@ -820,6 +822,8 @@ class ClientMatterConflictService:
             errors["decided_by"] = "Conflict decision must be made by an active advocate in this firm."
         if check.acceptance_decision != ClientMatterConflictCheck.AcceptanceDecision.ACCEPTED:
             errors["acceptance_decision"] = "Firm acceptance must be recorded before opening a matter."
+        if client.classification_review_status == client.ClassificationReviewStatus.REQUIRES_REVIEW:
+            errors["classification_review_status"] = "Resolve the client's legal classification before matter opening."
         if not check.accepted_by_id or not check.accepted_at:
             errors["accepted_by"] = "Firm acceptance must identify the accepting advocate and time."
         elif not check.accepted_by.is_active or check.accepted_by.law_firm_id != firm.id:

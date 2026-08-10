@@ -6,7 +6,7 @@ from apps.common.choices import ConflictCheckStatus
 
 class ClientAdminQueryService:
     @staticmethod
-    def get_firm_clients(firm, *, tab=None):
+    def get_firm_clients(firm, *, tab=None, search=None):
         queryset = (
             Client.objects.filter(firm=firm)
             .annotate(
@@ -34,6 +34,19 @@ class ClientAdminQueryService:
             )
             .order_by("-created_at")
         )
+        if search:
+            term = search.strip()
+            queryset = queryset.filter(
+                Q(full_name__icontains=term)
+                | Q(company_profile__company_name__icontains=term)
+                | Q(company_profile__trading_name__icontains=term)
+                | Q(company_profile__registration_number__icontains=term)
+                | Q(education_profile__institution_official_name__icontains=term)
+                | Q(education_profile__registration_number__icontains=term)
+                | Q(representatives__full_legal_name__icontains=term)
+                | Q(beneficial_owners__full_legal_name__icontains=term)
+                | Q(beneficial_owners__identifier__icontains=term)
+            ).distinct()
         if tab in {
             "active",
             "prospective",

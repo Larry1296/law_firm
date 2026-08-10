@@ -32,6 +32,8 @@ class ClientRepresentative(models.Model):
         COUNTY_ATTORNEY = "COUNTY_ATTORNEY", "County Attorney"
         AUTHORIZED_PUBLIC_OFFICER = "AUTHORIZED_PUBLIC_OFFICER", "Authorized Public Officer"
         AUTHORIZED_AGENT = "AUTHORIZED_AGENT", "Authorized Agent"
+        SCHOOL_INSTITUTION_AUTHORIZED_OFFICER = "SCHOOL_INSTITUTION_AUTHORIZED_OFFICER", "School / Institution Authorized Officer"
+        UNIVERSITY_AUTHORIZED_OFFICER = "UNIVERSITY_AUTHORIZED_OFFICER", "University Authorized Officer"
         OTHER = "OTHER", "Other"
 
     client = models.ForeignKey(
@@ -47,6 +49,7 @@ class ClientRepresentative(models.Model):
     )
     role_title = models.CharField(max_length=255, blank=True, default="")
     national_id_or_passport = models.CharField(max_length=100, blank=True, default="")
+    nationality = models.CharField(max_length=100, blank=True, default="")
     email = models.EmailField(blank=True, default="")
     telephone = models.CharField(max_length=30, blank=True, default="")
     postal_address = models.TextField(blank=True, default="")
@@ -58,6 +61,7 @@ class ClientRepresentative(models.Model):
     is_primary = models.BooleanField(default=False)
     is_portal_contact = models.BooleanField(default=False)
     is_litigation_representative = models.BooleanField(default=False)
+    is_authorized_to_give_instructions = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     verification_date = models.DateTimeField(null=True, blank=True)
     verified_by = models.ForeignKey(
@@ -318,6 +322,9 @@ class NonProfitOrganizationClient(models.Model):
     )
     registered_name = models.CharField(max_length=255)
     registration_number = models.CharField(max_length=100, blank=True, default="")
+    legacy_ngo_registration_number = models.CharField(max_length=100, blank=True, default="")
+    former_registration_authority = models.CharField(max_length=255, blank=True, default="")
+    historical_registration_date = models.DateField(null=True, blank=True)
     registration_authority = models.CharField(max_length=255, blank=True, default="")
     nonprofit_form = models.CharField(max_length=80, choices=NonProfitForm.choices)
     canonical_legal_form = models.CharField(max_length=80, blank=True, default="")
@@ -326,6 +333,10 @@ class NonProfitOrganizationClient(models.Model):
     objectives = models.TextField(blank=True, default="")
     sector = models.CharField(max_length=150, blank=True, default="")
     operational_scope = models.TextField(blank=True, default="")
+    constitution_reference = models.CharField(max_length=255, blank=True, default="")
+    headquarters_or_principal_office = models.TextField(blank=True, default="")
+    governance_structure = models.TextField(blank=True, default="")
+    governing_body_details = models.TextField(blank=True, default="")
     funding_compliance_notes = models.TextField(blank=True, default="")
     status = models.CharField(
         max_length=50,
@@ -370,6 +381,9 @@ class PublicEntityClient(models.Model):
     parent_ministry_or_county = models.CharField(max_length=255, blank=True, default="")
     legal_capacity_notes = models.TextField(blank=True, default="")
     official_address = models.TextField(blank=True, default="")
+    department_or_unit = models.CharField(max_length=255, blank=True, default="")
+    official_contact = models.CharField(max_length=255, blank=True, default="")
+    kra_pin = models.CharField(max_length=50, blank=True, default="")
     legal_department_contact = models.CharField(max_length=255, blank=True, default="")
     statutory_representative = models.CharField(max_length=255, blank=True, default="")
     jurisdiction_level = models.CharField(max_length=100, blank=True, default="")
@@ -379,6 +393,7 @@ class PublicEntityClient(models.Model):
         default=RegistrationStatus.UNKNOWN,
     )
     verification_notes = models.TextField(blank=True, default="")
+    verification_source_reference = models.CharField(max_length=255, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

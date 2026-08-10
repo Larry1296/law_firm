@@ -202,6 +202,7 @@ class ClientMatterConflictCheck(TimestampedModel):
             and self.accepted_by_id
             and self.accepted_at
             and engagement
+            and self.client.classification_review_status != "REQUIRES_REVIEW"
             and not self.is_consumed
         )
 

@@ -10,6 +10,8 @@ class ClientAddress(models.Model):
         POSTAL = "POSTAL", "Postal"
         REGISTERED = "REGISTERED", "Registered Office"
         BILLING = "BILLING", "Billing"
+        PRINCIPAL_BUSINESS = "PRINCIPAL_BUSINESS", "Principal Place of Business"
+        SERVICE = "SERVICE", "Service Address"
         OTHER = "OTHER", "Other"
 
     client = models.ForeignKey(
@@ -45,6 +47,8 @@ class ClientAddress(models.Model):
         null=True,
         blank=True
     )
+    building_or_plot = models.CharField(max_length=255, null=True, blank=True)
+    postal_address = models.CharField(max_length=255, null=True, blank=True)
 
     postal_code = models.CharField(
         max_length=50,
@@ -57,6 +61,9 @@ class ClientAddress(models.Model):
     is_primary = models.BooleanField(
         default=False
     )
+    is_registered_office = models.BooleanField(default=False)
+    is_principal_place_of_business = models.BooleanField(default=False)
+    is_service_address = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(
         auto_now_add=True

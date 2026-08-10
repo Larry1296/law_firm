@@ -17,6 +17,7 @@ class ClientAdminListView(ClientAdminBaseView):
         clients = ClientAdminQueryService.get_firm_clients(
             firm,
             tab=request.query_params.get("tab"),
+            search=request.query_params.get("search"),
         )
         serializer = ClientAdminListSerializer(clients, many=True)
         return Response(

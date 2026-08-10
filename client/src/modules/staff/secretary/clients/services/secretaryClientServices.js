@@ -1,6 +1,14 @@
 import axiosInstance from '@/core/api/axios';
 
 const secretaryClientsService = {
+  async getOnboardingMetadata() {
+    const { data } = await axiosInstance.get('/staff/secretary/clients/onboarding-metadata/');
+    return data;
+  },
+  async createOnboardingClient(payload) {
+    const { data } = await axiosInstance.post('/staff/secretary/clients/onboarding/', payload);
+    return data;
+  },
   createEndpoints: {
     INDIVIDUAL: '/staff/secretary/clients/individuals/create/',
     COMPANY: '/staff/secretary/clients/companies/create/',
@@ -15,15 +23,6 @@ const secretaryClientsService = {
     PUBLIC_ENTITY: '/staff/secretary/clients/legal-entities/create/',
     INTERNATIONAL_ORGANIZATION: '/staff/secretary/clients/legal-entities/create/',
 
-    SACCO: '/staff/secretary/clients/legal-entities/create/',
-    NGO: '/staff/secretary/clients/legal-entities/create/',
-    NGO_ASSOCIATION: '/staff/secretary/clients/legal-entities/create/',
-    ASSOCIATION: '/staff/secretary/clients/legal-entities/create/',
-    RELIGIOUS_ORGANIZATION: '/staff/secretary/clients/legal-entities/create/',
-    RELIGIOUS: '/staff/secretary/clients/legal-entities/create/',
-    GOVERNMENT: '/staff/secretary/clients/legal-entities/create/',
-    EDUCATIONAL_INSTITUTION: '/staff/secretary/clients/legal-entities/create/',
-    SCHOOL: '/staff/secretary/clients/legal-entities/create/',
   },
 
   async getClients(params = {}) {

@@ -25,6 +25,10 @@ class Client(models.Model):
             "INTERNATIONAL_ORGANIZATION",
             "International Organization",
         )
+        OTHER_REQUIRES_REVIEW = (
+            "OTHER_REQUIRES_REVIEW",
+            "Other legally recognized person or body — classification review required",
+        )
 
         # Legacy values retained temporarily for data migrations/API compatibility.
         NGO = "NGO", "NGO"
@@ -137,6 +141,14 @@ class Client(models.Model):
         max_length=30,
         choices=ClassificationReviewStatus.choices,
         default=ClassificationReviewStatus.NOT_REQUIRED,
+    )
+    provisional_legal_description = models.TextField(blank=True, default="")
+    classification_evidence_reference = models.CharField(max_length=255, blank=True, default="")
+    classification_review_reason = models.TextField(blank=True, default="")
+    classification_reviewed_at = models.DateTimeField(null=True, blank=True)
+    classification_reviewed_by = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="classification_reviewed_clients",
     )
 
     access_type = models.CharField(

@@ -19,6 +19,10 @@ from .legal_entity_profiles import (
     SocietyAssociationClient,
     SoleProprietorshipClient,
 )
+from .onboarding_domain import (
+    ClientBeneficialOwner, ClientPrivacyRecord, ClientSectorProfile,
+    EducationCurriculum, EducationInstitutionProfile,
+)
 
 from .client_address import ClientAddress
 from .client_contact import (
@@ -71,6 +75,11 @@ __all__ = [
     "RegistrationStatus",
     "SocietyAssociationClient",
     "SoleProprietorshipClient",
+    "ClientBeneficialOwner",
+    "ClientPrivacyRecord",
+    "ClientSectorProfile",
+    "EducationCurriculum",
+    "EducationInstitutionProfile",
 
     "ClientAddress",
     "ClientContact",

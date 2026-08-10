@@ -2,21 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { Building2, Check, UserRound, X } from 'lucide-react';
 
 const CLIENT_TYPES = [
-  ['Individual', 'individual', UserRound],
-  ['Company', 'company', Building2],
-  ['Sole Proprietorship', 'sole_proprietorship', Building2],
+  ['Individual / Natural Person', 'individual', UserRound],
+  ['Sole Proprietor / Registered Business', 'sole_proprietorship', Building2],
+  ['Company / Corporate Body', 'company', Building2],
   ['Partnership', 'partnership', Building2],
-  ['Limited Liability Partnership', 'limited_liability_partnership', Building2],
-  ['Trust', 'trust', Building2],
-  ['Estate', 'estate', Building2],
-  ['NGO', 'ngo', Building2],
-  ['SACCO', 'sacco', Building2],
-  ['Cooperative', 'cooperative', Building2],
-  ['Association', 'association', Building2],
-  ['Government Institution', 'government', Building2],
+  ['Limited Liability Partnership (LLP)', 'limited_liability_partnership', Building2],
+  ['Co-operative Society', 'cooperative', Building2],
+  ['Registered Society / Association', 'society_or_association', Building2],
+  ['Public Benefit Organization (PBO)', 'non_profit_organization', Building2],
+  ['Trust / Trustees', 'trust', Building2],
+  ['Estate of a Deceased Person', 'estate', Building2],
+  ['Public / Statutory Entity', 'public_entity', Building2],
   ['International Organization', 'international_organization', Building2],
-  ['School', 'school', Building2],
-  ['Religious Organization', 'religious', Building2],
+  ['Other — classification review', 'other_requires_review', Building2],
 ];
 
 export default function ClientCreationChooser({ open, onClose, onSelect }) {
