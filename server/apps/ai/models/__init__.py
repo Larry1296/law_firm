@@ -4,9 +4,6 @@ from .knowledge_base import (
     KnowledgeBaseQuestionLog,
     PublicKnowledgeAudit,
 )
-from .case_assessment import AIAssessmentAudit, AICaseAssessment, AIAssessmentRecommendation, AIEventImpact
-from .legal_source import LegalProvision, LegalSourceDocument
-from .ai_document_analysis import AIDocumentAnalysis
 from .continuous_learning import (
     AIConfigurationVersion,
     AIEvaluationRun,
@@ -16,6 +13,9 @@ from .continuous_learning import (
     PublicAdvocateProfile,
     PublicFirmKnowledgePolicy,
 )
+from .case_assessment import AIAssessmentAudit, AICaseAssessment, AIAssessmentRecommendation, AIEventImpact
+from .legal_source import LegalProvision, LegalSourceDocument
+from .ai_document_analysis import AIDocumentAnalysis
 
 __all__ = [
     "KnowledgeBaseArticle",

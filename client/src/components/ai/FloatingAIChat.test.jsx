@@ -39,7 +39,7 @@ describe('FloatingAIChat', () => {
   it('opens and closes an accessible assistant dialog', async () => {
     const user = await openChat();
     expect(screen.getByRole('dialog', { name: 'Chat with this Firm legal assistant' })).toBeInTheDocument();
-    expect(screen.getByRole('dialog')).toHaveClass('h-[min(680px,calc(100dvh-12rem))]');
+    expect(screen.getByRole('dialog')).toHaveClass('h-[min(600px,calc(100dvh-13rem))]');
     expect(screen.getByRole('button', { name: 'Close assistant' }).parentElement).toHaveClass('shrink-0');
     expect(screen.getByText(/do not submit confidential/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Close assistant' }));
@@ -50,7 +50,7 @@ describe('FloatingAIChat', () => {
     const user = await openChat();
     const dialog = screen.getByRole('dialog');
     await user.click(screen.getByRole('button', { name: 'Maximize assistant' }));
-    expect(dialog).toHaveClass('w-[75vw]');
+    expect(dialog).toHaveClass('lg:w-[min(50vw,800px)]');
     await user.click(screen.getByRole('button', { name: 'Minimize assistant' }));
     expect(dialog).toHaveClass('sm:w-[430px]');
     fireEvent.pointerDown(document.body);
@@ -131,8 +131,18 @@ describe('FloatingAIChat', () => {
 
   it('falls back safely for an unknown section and includes reduced-motion styling', () => {
     render(<FloatingAIChat activeSection='not-a-section' />);
-    const launcher = screen.getByRole('button', { name: /chat with firm legal assistant/i });
+    const launcher = screen.getByRole('button', { name: /hi! how can i help you/i });
     expect(launcher.querySelector('.motion-reduce\\:transition-none')).toBeInTheDocument();
+  });
+
+  it('accepts reusable title, subtitle, launcher, and suggestion copy', async () => {
+    const user = userEvent.setup();
+    render(<FloatingAIChat title='Matter assistant' subtitle='Answers for this matter' launcherLabel='Ask Sheria' suggestions={['Summarize this matter']} />);
+    await user.click(screen.getByRole('button', { name: /open assistant: ask sheria/i }));
+    expect(screen.getByRole('dialog', { name: 'Matter assistant' })).toBeInTheDocument();
+    expect(screen.getByText('Answers for this matter')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Summarize this matter' })).toBeInTheDocument();
+    expect(getKnowledgeBaseCategories).not.toHaveBeenCalled();
   });
 
   it('renders supported Markdown safely with sources below the answer', async () => {

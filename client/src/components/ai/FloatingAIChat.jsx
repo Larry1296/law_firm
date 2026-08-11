@@ -7,7 +7,8 @@ import SafeMarkdown from './SafeMarkdown';
 
 const SECTION_COPY = {
   home: {
-    launcher: 'Chat with this Firm legal assistant',
+    launcher: 'Hi! How can I help you?',
+    title: 'Chat with this Firm legal assistant',
     welcome: 'Ask about the firm or a general legal topic. I use approved public information and show the sources I rely on.',
   },
   about: {
@@ -45,8 +46,16 @@ function errorMessage(error) {
   return error?.response?.data?.message || 'I could not connect to the assistant. Check your connection and try again.';
 }
 
-export default function FloatingAIChat({ activeSection = 'home' }) {
+export default function FloatingAIChat({
+  activeSection = 'home',
+  title,
+  subtitle = 'Answers from approved public information',
+  suggestions: suggestedQuestions,
+  launcherLabel,
+}) {
   const safeSection = Object.hasOwn(SECTION_COPY, activeSection) ? activeSection : 'home';
+  const resolvedTitle = title ?? SECTION_COPY[safeSection].title ?? SECTION_COPY[safeSection].launcher;
+  const resolvedLauncherLabel = launcherLabel ?? SECTION_COPY[safeSection].launcher;
   const titleId = useId();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
@@ -61,13 +70,18 @@ export default function FloatingAIChat({ activeSection = 'home' }) {
 
   useEffect(() => {
     if (!open) return undefined;
+    if (suggestedQuestions) {
+      setSuggestions(suggestedQuestions.filter(Boolean).slice(0, 4));
+      textareaRef.current?.focus();
+      return undefined;
+    }
     const controller = new AbortController();
     getKnowledgeBaseCategories(safeSection, controller.signal)
       .then((items) => setSuggestions(items.filter(Boolean).slice(0, 4)))
       .catch(() => setSuggestions(GENERIC_SUGGESTIONS));
     textareaRef.current?.focus();
     return () => controller.abort();
-  }, [open, safeSection]);
+  }, [open, safeSection, suggestedQuestions]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -167,18 +181,18 @@ export default function FloatingAIChat({ activeSection = 'home' }) {
   };
 
   return (
-    <div ref={widgetRef} className={`fixed right-4 z-40 flex flex-col items-end sm:right-6 ${maximized ? 'bottom-4 top-28 sm:bottom-6 sm:top-32' : 'bottom-4 sm:bottom-6'}`}>
+    <div ref={widgetRef} className='fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] flex-col items-end sm:bottom-6 sm:right-6 sm:max-w-[calc(100vw-3rem)]'>
       {open && (
         <section
           role='dialog'
           aria-modal='false'
           aria-labelledby={titleId}
-          className={`mb-3 flex flex-col overflow-hidden rounded-2xl border border-border-light bg-surface-light shadow-strong transition-[width,height] duration-200 motion-reduce:transition-none dark:border-border-dark dark:bg-surface-dark ${maximized ? 'min-h-0 w-[75vw] flex-1 lg:w-[min(50vw,800px)]' : 'h-[min(680px,calc(100dvh-12rem))] w-[calc(100vw-2rem)] sm:w-[430px] lg:h-[min(680px,calc(100dvh-7rem))]'}`}
+          className={`mb-3 flex min-h-0 h-[min(600px,calc(100dvh-13rem))] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border-light bg-surface-light shadow-strong transition-[width,height] duration-200 motion-reduce:transition-none dark:border-border-dark dark:bg-surface-dark sm:h-[min(600px,calc(100dvh-14rem))] sm:w-[430px] ${maximized ? 'lg:h-[min(720px,calc(100dvh-14rem))] lg:w-[min(50vw,800px)]' : ''}`}
         >
-          <header className='flex items-start justify-between gap-2 border-b border-border-light px-3 py-3 dark:border-border-dark sm:gap-3 sm:px-4'>
+          <header className='flex shrink-0 items-start justify-between gap-2 border-b border-border-light px-3 py-3 dark:border-border-dark sm:gap-3 sm:px-4'>
             <div className='min-w-0 flex-1'>
-              <h2 id={titleId} className='truncate text-sm font-bold text-text-primary-light dark:text-text-primary-dark sm:whitespace-normal'>{SECTION_COPY[safeSection].launcher}</h2>
-              <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>Answers from approved public information</p>
+              <h2 id={titleId} className='truncate text-sm font-bold text-text-primary-light dark:text-text-primary-dark sm:whitespace-normal'>{resolvedTitle}</h2>
+              {subtitle && <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>{subtitle}</p>}
             </div>
             <div className='flex shrink-0 gap-1'>
               <button type='button' onClick={() => setMaximized((value) => !value)} aria-label={maximized ? 'Minimize assistant' : 'Maximize assistant'} className='hidden rounded-md p-2 text-text-muted-light hover:bg-background-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:text-text-muted-dark dark:hover:bg-background-dark lg:inline-flex'>{maximized ? <Minimize2 size={17} /> : <Maximize2 size={17} />}</button>
@@ -187,10 +201,10 @@ export default function FloatingAIChat({ activeSection = 'home' }) {
             </div>
           </header>
 
-          <div ref={messagesRef} aria-live='polite' aria-busy={loading} className='flex-1 space-y-4 overflow-y-auto p-4'>
+          <div ref={messagesRef} aria-live='polite' aria-busy={loading} className='min-h-0 flex-1 space-y-4 overflow-y-auto p-4'>
             {messages.map((item, index) => (
               <article key={`${item.role}-${index}`} className={item.role === 'user' ? 'ml-10 rounded-2xl rounded-br-sm bg-brand-primary p-3 text-sm text-white' : `mr-5 rounded-2xl rounded-bl-sm border p-3 text-sm ${item.error ? 'border-red-300 bg-red-50 text-red-800' : 'border-border-light bg-background-light text-text-primary-light dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark'}`}>
-                <SafeMarkdown content={index === 0 && messages.length === 1 ? SECTION_COPY[safeSection].welcome : item.content} />
+                <SafeMarkdown content={item.content} />
                 {item.disclaimer && <p className='mt-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100'>{item.disclaimer}</p>}
                 {item.sources?.length > 0 && (
                   <div className='mt-3 space-y-2 border-t border-border-light pt-2 dark:border-border-dark'>
@@ -211,7 +225,7 @@ export default function FloatingAIChat({ activeSection = 'home' }) {
             {loading && <div role='status' className='mr-20 rounded-2xl bg-background-light p-3 text-sm text-text-muted-light dark:bg-background-dark dark:text-text-muted-dark'>Checking verified sources…</div>}
           </div>
 
-          <div className='border-t border-border-light p-3 dark:border-border-dark'>
+          <div className='shrink-0 border-t border-border-light p-3 dark:border-border-dark'>
             <p className='mb-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300'>Do not submit confidential, privileged, or highly sensitive information.</p>
             <div className='flex items-end gap-2'>
               <label htmlFor={`${titleId}-input`} className='sr-only'>Ask a question</label>
@@ -222,8 +236,8 @@ export default function FloatingAIChat({ activeSection = 'home' }) {
         </section>
       )}
 
-      <Button3D type='button' variant='aiGlow' size='md' onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} aria-haspopup='dialog' aria-label={open ? 'Close firm legal assistant' : `Open assistant: ${SECTION_COPY[safeSection].launcher.replace('this Firm', 'Firm')}`} className='floating-ai-trigger max-w-[calc(100vw-2rem)] font-extrabold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2'>
-        <span className='flex items-center gap-2 transition-opacity duration-150 motion-reduce:transition-none'>{open ? <X size={18} /> : <MessageCircle size={18} />}{open ? 'Close' : SECTION_COPY[safeSection].launcher}</span>
+      <Button3D type='button' variant='aiGlow' size='md' onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} aria-haspopup='dialog' aria-label={open ? 'Close firm legal assistant' : `Open assistant: ${resolvedLauncherLabel.replace('this Firm', 'Firm')}`} className='floating-ai-trigger max-w-full font-extrabold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2'>
+        <span className='flex items-center gap-2 transition-opacity duration-150 motion-reduce:transition-none'>{open ? <X size={18} /> : <MessageCircle size={18} />}{open ? 'Close' : resolvedLauncherLabel}</span>
       </Button3D>
     </div>
   );
