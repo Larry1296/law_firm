@@ -3,6 +3,7 @@ import {
   shouldTitleCaseInput,
   toTitleCase,
 } from '@/core/forms/formTextFormatting';
+import ElasticTextInput from '@/components/ui/ElasticTextInput';
 
 export default function Input({
   label,
@@ -34,6 +35,35 @@ export default function Input({
     'radio',
   ].includes(type);
   const titleCaseOnBlur = shouldTitleCaseInput({ name, type, format });
+  const handleBlur = (event) => {
+    if (titleCaseOnBlur) {
+      const formattedValue = toTitleCase(event.currentTarget.value);
+      if (formattedValue !== event.currentTarget.value) {
+        onChange?.(formattedInputEvent(event, formattedValue));
+      }
+    }
+    onBlur?.(event);
+  };
+
+  if (type === 'text') {
+    return <ElasticTextInput
+      label={label}
+      name={name}
+      value={value}
+      onChange={onChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      error={error}
+      autoComplete={autoComplete}
+      autoCorrect={autoCorrect}
+      autoCapitalize={autoCapitalize}
+      spellCheck={spellCheck}
+      alwaysShowLabel
+      wrapperClassName='!mb-0'
+      textareaClassName={`min-h-11 rounded-lg border border-border-light bg-white px-3.5 py-2.5 dark:border-border-dark dark:bg-slate-950/35 ${className}`}
+      {...rest}
+    />;
+  }
 
   return (
     <div data-form-field className='space-y-1.5'>
@@ -52,15 +82,7 @@ export default function Input({
         type={type}
         value={value}
         onChange={onChange}
-        onBlur={(event) => {
-          if (titleCaseOnBlur) {
-            const formattedValue = toTitleCase(event.currentTarget.value);
-            if (formattedValue !== event.currentTarget.value) {
-              onChange?.(formattedInputEvent(event, formattedValue));
-            }
-          }
-          onBlur?.(event);
-        }}
+        onBlur={handleBlur}
         placeholder={placeholder}
         autoComplete={autoComplete ?? (type === 'password' ? 'current-password' : 'on')}
         autoCorrect={autoCorrect ?? (supportsWritingAssist ? 'on' : 'off')}

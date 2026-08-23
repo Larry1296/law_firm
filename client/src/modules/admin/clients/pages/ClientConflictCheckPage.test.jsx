@@ -106,7 +106,7 @@ async function selectClearedOutcome(user) {
 }
 
 function getNamesCheckedInput() {
-  return screen.getByText(/Names checked, comma separated/i).closest('div').querySelector('input');
+  return screen.getByLabelText(/Names checked, comma separated/i);
 }
 
 describe('ClientConflictCheckPage source checks', () => {

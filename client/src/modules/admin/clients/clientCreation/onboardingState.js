@@ -6,6 +6,19 @@ export const initialOnboardingState = {
   regulatory_profiles: {},
 };
 
+export function onboardingStateFromSearch(search = '') {
+  const params = new URLSearchParams(search);
+
+  return {
+    ...initialOnboardingState,
+    client: {
+      ...initialOnboardingState.client,
+      client_type: (params.get('type') || '').toUpperCase(),
+      access_type: params.get('mode') === 'portal' ? 'PORTAL_ENABLED' : 'ASSISTED',
+    },
+  };
+}
+
 export function onboardingReducer(state, action) {
   if (action.type === 'SET_SECTION') return { ...state, [action.section]: { ...state[action.section], ...action.value } };
   if (action.type === 'SET_LIST') return { ...state, [action.section]: action.value };

@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { buildOnboardingPayload, initialOnboardingState, onboardingReducer } from './onboardingState';
+import { buildOnboardingPayload, initialOnboardingState, onboardingReducer, onboardingStateFromSearch } from './onboardingState';
 
 describe('client onboarding payload', () => {
+  it('preserves the company and staff-assisted choices from the chooser', () => {
+    const state = onboardingStateFromSearch('?type=company&mode=assisted');
+    expect(state.client.client_type).toBe('COMPANY');
+    expect(state.client.access_type).toBe('ASSISTED');
+  });
+
+  it('preserves portal access selected in the chooser', () => {
+    const state = onboardingStateFromSearch('?type=company&mode=portal');
+    expect(state.client.client_type).toBe('COMPANY');
+    expect(state.client.access_type).toBe('PORTAL_ENABLED');
+  });
+
   it('keeps legal type and education overlay separate and excludes blank values', () => {
     let state = onboardingReducer(initialOnboardingState, { type: 'RESET_TYPE', value: 'COMPANY' });
     state = onboardingReducer(state, { type: 'SET_SECTION', section: 'client', value: { full_name: 'Greenfields Education Limited', sectors: ['EDUCATION'] } });

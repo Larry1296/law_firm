@@ -20,6 +20,8 @@ export default function ElasticTextInput({
   autoCapitalize,
   spellCheck,
   required = false,
+  onBlur,
+  onFocus,
   ...props
 }) {
   const [focused, setFocused] = useState(false);
@@ -71,8 +73,14 @@ export default function ElasticTextInput({
           required={required}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${inputId}-error` : undefined}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onFocus={(event) => {
+            setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(event);
+          }}
           autoComplete={autoComplete ?? 'on'}
           autoCorrect={autoCorrect ?? (supportsWritingAssist ? 'on' : 'off')}
           autoCapitalize={autoCapitalize ?? (supportsWritingAssist ? 'sentences' : 'none')}

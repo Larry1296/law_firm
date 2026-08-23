@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Check, UserRound, X } from 'lucide-react';
+import { Building2, Check, LayoutDashboard, UserCog, UserRound, X } from 'lucide-react';
 
 const CLIENT_TYPES = [
   ['Individual / Natural Person', 'individual', UserRound],
@@ -19,6 +19,20 @@ const CLIENT_TYPES = [
 
 export default function ClientCreationChooser({ open, onClose, onSelect }) {
   const [mode, setMode] = useState('portal');
+  const accessModes = [
+    {
+      value: 'portal',
+      label: 'Portal client',
+      icon: LayoutDashboard,
+      description: 'Creates a login for the client or an authorised representative. They can use the client dashboard to view current matter status, documents, notifications, and firm communication.',
+    },
+    {
+      value: 'assisted',
+      label: 'Staff-assisted client',
+      icon: UserCog,
+      description: 'Does not create a client login. The firm records and manages the client’s information and matters on their behalf.',
+    },
+  ];
 
   useEffect(() => {
     if (!open) return undefined;
@@ -71,27 +85,41 @@ export default function ClientCreationChooser({ open, onClose, onSelect }) {
         </header>
 
         <div className='flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-6'>
-          <div className='grid shrink-0 grid-cols-2 gap-2 rounded-2xl bg-background-light p-1.5 dark:bg-background-dark sm:max-w-lg'>
-            {[
-              ['portal', 'Portal enabled'],
-              ['assisted', 'Staff assisted'],
-            ].map(([value, label]) => (
+          <fieldset className='shrink-0'>
+            <legend className='text-sm font-bold text-text-primary-light dark:text-text-primary-dark'>
+              1. Choose client access <span className='text-red-600'>(required)</span>
+            </legend>
+            <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>
+              This determines whether a client user account and dashboard login are created.
+            </p>
+            <div className='mt-3 grid gap-3 md:grid-cols-2'>
+            {accessModes.map(({ value, label, icon: Icon, description }) => (
               <button
                 key={value}
                 type='button'
                 onClick={() => setMode(value)}
-                className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                role='radio'
+                aria-checked={mode === value}
+                className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition ${
                   mode === value
-                    ? 'bg-primary text-white shadow-lg'
-                    : 'text-text-muted-light hover:text-text-primary-light dark:text-text-muted-dark dark:hover:text-text-primary-dark'
+                    ? 'border-primary bg-primary/10 shadow-md ring-2 ring-primary/30'
+                    : 'border-border-light bg-background-light/50 hover:border-primary/60 dark:border-border-dark dark:bg-background-dark/40'
                 }`}
               >
-                {mode === value && <Check size={16} />}
-                {label}
+                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${mode === value ? 'bg-primary text-white' : 'bg-primary/10 text-primary'}`}>
+                  {mode === value ? <Check size={20} /> : React.createElement(Icon, { size: 20 })}
+                </span>
+                <span>
+                  <span className='block font-bold text-text-primary-light dark:text-text-primary-dark'>{label}</span>
+                  <span className='mt-1 block text-xs leading-relaxed text-text-muted-light dark:text-text-muted-dark'>{description}</span>
+                  {mode === value && <span className='mt-2 block text-xs font-bold text-primary'>Selected access type</span>}
+                </span>
               </button>
             ))}
-          </div>
+            </div>
+          </fieldset>
 
+          <div className='shrink-0 text-sm font-bold text-text-primary-light dark:text-text-primary-dark'>2. Choose legal client structure</div>
           <div className='grid min-h-0 flex-1 auto-rows-fr grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5'>
             {CLIENT_TYPES.map(([label, type, Icon]) => (
               <button

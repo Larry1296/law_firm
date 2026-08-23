@@ -42,7 +42,22 @@ function formatValue(value) {
   return value;
 }
 
-function FieldRow({ label, value, onUpdate, multiline = false }) {
+function hasFieldValue(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim() !== '';
+  return true;
+}
+
+function FieldRow({
+  label,
+  value,
+  onUpdate,
+  multiline = false,
+  actionLabel,
+}) {
+  const resolvedActionLabel =
+    actionLabel || `${hasFieldValue(value) ? 'Update' : 'Set'} ${label}`;
+
   return (
     <div className='grid gap-3 border-b border-border-light py-4 last:border-b-0 dark:border-border-dark md:grid-cols-[220px_1fr_auto] md:items-start'>
       <p className='text-sm font-semibold text-gray-500 dark:text-gray-400'>
@@ -59,9 +74,9 @@ function FieldRow({ label, value, onUpdate, multiline = false }) {
         <button
           type='button'
           onClick={onUpdate}
-          className='w-fit rounded-lg border border-brand-primary px-3 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary hover:text-white'
+          className='inline-flex min-h-10 w-fit items-center justify-center rounded-lg border border-brand-primary bg-brand-primary px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 dark:border-blue-400 dark:bg-blue-500 dark:text-white dark:shadow-blue-950/40 dark:hover:bg-blue-400 dark:focus-visible:ring-offset-slate-950'
         >
-          Update
+          {resolvedActionLabel}
         </button>
       )}
     </div>
@@ -292,13 +307,14 @@ export default function AdminFirmPage() {
     input = 'text',
     required = false,
   }) => {
+    const action = hasFieldValue(value) ? 'Update' : 'Set';
     const result = await Swal.fire({
-      title: `Update ${label}`,
+      title: `${action} ${label}`,
       input,
       inputValue: value || '',
       inputPlaceholder: label,
       showCancelButton: true,
-      confirmButtonText: 'Update',
+      confirmButtonText: action,
       inputValidator: (newValue) => {
         if (required && !String(newValue || '').trim()) {
           return `${label} is required`;
@@ -322,13 +338,14 @@ export default function AdminFirmPage() {
     inputOptions,
     parser = (newValue) => newValue,
   }) => {
+    const action = hasFieldValue(value) ? 'Update' : 'Set';
     const result = await Swal.fire({
-      title: `Update ${label}`,
+      title: `${action} ${label}`,
       input,
       inputValue: value ?? '',
       inputOptions,
       showCancelButton: true,
-      confirmButtonText: 'Update',
+      confirmButtonText: action,
     });
 
     if (!result.isConfirmed) return;
@@ -872,6 +889,7 @@ export default function AdminFirmPage() {
           label='Firm Active'
           value={firm.is_active}
           onUpdate={() => toggleFirmActive(firm)}
+          actionLabel={firm.is_active ? 'Deactivate Firm' : 'Activate Firm'}
         />
         <FieldRow label='Owner' value={firm.owner_name} />
         <FieldRow label='Owner Email' value={firm.owner_email} />
@@ -1054,6 +1072,7 @@ export default function AdminFirmPage() {
             key={field}
             label={label}
             value={settings[field]}
+            actionLabel={`${settings[field] ? 'Disable' : 'Enable'} ${label}`}
             onUpdate={() =>
               toggleSettingField({
                 field,
