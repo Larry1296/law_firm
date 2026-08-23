@@ -4,6 +4,9 @@ from apps.staff.models.lawyer import Lawyer
 
 
 class AdminLawyerListSerializer(serializers.ModelSerializer):
+    lsk_number = serializers.CharField(source="admission_number", read_only=True)
+    years_of_practice = serializers.IntegerField(read_only=True)
+    practicing_certificate_status = serializers.CharField(read_only=True)
     full_name = serializers.CharField(source="user.full_name", read_only=True)
     first_name = serializers.CharField(source="user.first_name", read_only=True)
     last_name = serializers.CharField(source="user.last_name", read_only=True)
@@ -55,7 +58,11 @@ class AdminLawyerListSerializer(serializers.ModelSerializer):
             "work_phone",
             "office_location",
             "admission_number",
+            "lsk_number",
             "practicing_certificate_number",
+            "practicing_certificate_expiry",
+            "practicing_certificate_status",
+            "years_of_practice",
             "employment_type",
             "employment_status",
             "date_hired",

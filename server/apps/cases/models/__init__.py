@@ -1,4 +1,5 @@
 from .case import Case
+from .court import Court
 from .case_activity import CaseActivity
 from .case_attachment import CaseAttachment, CaseAttachmentReferenceSequence, CaseAttachmentVersion
 from .case_conflict_check import CaseConflictCheck
@@ -34,6 +35,7 @@ from .matter_governance import (
 __all__ = [
     "ArbitrationProceeding",
     "Case",
+    "Court",
     "CaseActivity",
     "CaseAttachment",
     "CaseAttachmentReferenceSequence",

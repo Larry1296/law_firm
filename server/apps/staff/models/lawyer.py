@@ -148,10 +148,38 @@ class Lawyer(TimestampedModel):
         null=True,
     )
 
+    practicing_certificate_expiry = models.DateField(
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+
     bar_admission_date = models.DateField(
         blank=True,
         null=True,
     )
+
+    @property
+    def years_of_practice(self):
+        if not self.bar_admission_date:
+            return None
+        from django.utils import timezone
+
+        today = timezone.localdate()
+        return today.year - self.bar_admission_date.year - (
+            (today.month, today.day)
+            < (self.bar_admission_date.month, self.bar_admission_date.day)
+        )
+
+    @property
+    def practicing_certificate_status(self):
+        from django.utils import timezone
+
+        if not self.practicing_certificate_number or not self.practicing_certificate_expiry:
+            return "MISSING"
+        if self.practicing_certificate_expiry < timezone.localdate():
+            return "EXPIRED"
+        return "VALID"
 
     practice_areas = models.ManyToManyField(
         "firm.PracticeArea",

@@ -40,3 +40,4 @@ __all__ = [
     "CaseUpdateSerializer",
 ]
 from .proceedings_serializer import ProceedingOutcomeSerializer
+from .court_serializer import CourtSerializer

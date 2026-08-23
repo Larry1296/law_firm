@@ -6,6 +6,9 @@ from apps.staff.models.lawyer import Lawyer, LawyerPermission
 
 
 class AdminLawyerDetailSerializer(serializers.ModelSerializer):
+    lsk_number = serializers.CharField(source="admission_number", read_only=True)
+    years_of_practice = serializers.IntegerField(read_only=True)
+    practicing_certificate_status = serializers.CharField(read_only=True)
     full_name = serializers.CharField(source="user.full_name", read_only=True)
     first_name = serializers.CharField(source="user.first_name", read_only=True)
     last_name = serializers.CharField(source="user.last_name", read_only=True)
@@ -113,7 +116,11 @@ class AdminLawyerDetailSerializer(serializers.ModelSerializer):
             "reports_to",
             "reports_to_name",
             "admission_number",
+            "lsk_number",
             "practicing_certificate_number",
+            "practicing_certificate_expiry",
+            "practicing_certificate_status",
+            "years_of_practice",
             "bar_admission_date",
             "practice_areas",
             "is_notary",

@@ -26,8 +26,11 @@ from apps.cases.views.matter_operations_view import (
     DeadlineChangeView, DeadlineResolveView, LegalAssessmentActionView, LegalAssessmentView, MatterDeadlineView, MatterWorkstreamView,
     WorkstreamStageCompleteView,
 )
+from apps.cases.views.court_view import CourtDetailView, CourtListView
 
 urlpatterns = [
+    path("courts/", CourtListView.as_view(), name="court-directory"),
+    path("courts/<uuid:pk>/", CourtDetailView.as_view(), name="court-directory-detail"),
     path("", CaseListCreateView.as_view(), name="case-list"),
     path("open/", CaseListCreateView.as_view(), name="case-create"),
     path("courtroom/today/", VirtualCourtroomTodayView.as_view(), name="virtual-courtroom-today"),

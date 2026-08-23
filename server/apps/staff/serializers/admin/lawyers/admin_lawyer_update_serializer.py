@@ -36,6 +36,7 @@ class AdminLawyerUpdateSerializer(serializers.ModelSerializer):
             "reports_to",
             "admission_number",
             "practicing_certificate_number",
+            "practicing_certificate_expiry",
             "bar_admission_date",
             "practice_area_ids",
             "is_notary",
