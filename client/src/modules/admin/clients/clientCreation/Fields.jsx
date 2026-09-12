@@ -1,5 +1,7 @@
 import React from 'react';
 import ElasticTextInput from '@/components/ui/ElasticTextInput';
+import { COUNTRY_OPTIONS } from '@/modules/clients/shared/geographicOptions';
+import { KENYA_COUNTIES } from '@/modules/clients/shared/kenyaLocations';
 
 export function Field({ label, value = '', onChange, type = 'text', required = false, help = '' }) {
   if (type === 'checkbox') {
@@ -33,10 +35,19 @@ export function Field({ label, value = '', onChange, type = 'text', required = f
 
 export function SelectField({ label, value = '', onChange, options = [], required = false }) {
   return <label className='block text-sm'><span className='mb-1 block font-medium'>{label}{required ? ' *' : ''}</span>
-    <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2'>
+    <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} required={required} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2'>
       <option value=''>Select…</option>{options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   </label>;
 }
+
+export const CountryField = (props) => (
+  <SelectField {...props} options={COUNTRY_OPTIONS} />
+);
+
+export const KenyaCountyField = ({ country = 'Kenya', ...props }) => {
+  if ((country || '').trim().toLowerCase() !== 'kenya') return <Field {...props} />;
+  return <SelectField {...props} options={KENYA_COUNTIES.map((county) => ({ value: county, label: county }))} />;
+};
 
 export const StepPanel = ({ title, description, children }) => <section className='space-y-5 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5'><div><h2 className='text-xl font-semibold'>{title}</h2><p className='text-sm text-[color:var(--text-secondary)]'>{description}</p></div>{children}</section>;

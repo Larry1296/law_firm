@@ -1,5 +1,15 @@
 import React from 'react';
-import { Field, SelectField, StepPanel } from './Fields';
+import { CountryField, Field, SelectField, StepPanel } from './Fields';
+
+const COUNTRY_FIELDS = new Set([
+  'identification_country', 'nationality', 'citizenship', 'country_of_incorporation',
+  'country_of_registration', 'jurisdiction', 'headquarters_country',
+]);
+
+const PREFERRED_LANGUAGE_OPTIONS = [
+  { value: 'English', label: 'English' },
+  { value: 'Kiswahili', label: 'Kiswahili (Swahili)' },
+];
 
 const fieldsByType = {
   INDIVIDUAL: [['first_name','First name'],['middle_name','Middle name'],['last_name','Last name'],['preferred_name','Preferred name'],['identification_number','Identification number'],['identification_country','Issuing country'],['identification_expiry_date','Expiry date','date'],['nationality','Nationality'],['citizenship','Citizenship'],['preferred_language','Preferred language']],
@@ -24,7 +34,7 @@ export default function LegalIdentityStep({ state, metadata, setClient, setProfi
     {type === 'COOPERATIVE' && <SelectField label='Co-operative subtype' required value={p.subtype} onChange={(v) => setProfile({subtype:v})} options={metadata.cooperative_subtypes}/>} 
     {type === 'PUBLIC_ENTITY' && <SelectField label='Public entity subtype' required value={p.subtype} onChange={(v) => setProfile({subtype:v})} options={metadata.public_entity_subtypes}/>} 
     {type === 'INTERNATIONAL_ORGANIZATION' && <SelectField label='Organization type' required value={p.organization_type} onChange={(v) => setProfile({organization_type:v})} options={metadata.international_organization_types}/>} 
-    {type === 'OTHER_REQUIRES_REVIEW' ? <><Field label='Provisional legal description' required value={state.client.provisional_legal_description} onChange={(v)=>setClient({provisional_legal_description:v})}/><Field label='Enabling / registration evidence reference' required value={state.client.classification_evidence_reference} onChange={(v)=>setClient({classification_evidence_reference:v})}/></> : (fieldsByType[type] || []).map(([key,label,kind]) => <Field key={key} label={label} type={kind} value={p[key]} onChange={(v) => setProfile({[key]:v})}/>)}
+    {type === 'OTHER_REQUIRES_REVIEW' ? <><Field label='Provisional legal description' required value={state.client.provisional_legal_description} onChange={(v)=>setClient({provisional_legal_description:v})}/><Field label='Enabling / registration evidence reference' required value={state.client.classification_evidence_reference} onChange={(v)=>setClient({classification_evidence_reference:v})}/></> : (fieldsByType[type] || []).map(([key,label,kind]) => COUNTRY_FIELDS.has(key) ? <CountryField key={key} label={label} required={key === 'identification_country' && p.identification_type === 'PASSPORT'} value={p[key]} onChange={(v) => setProfile({[key]:v})}/> : key === 'preferred_language' ? <SelectField key={key} label={label} value={p[key]} onChange={(v) => setProfile({[key]:v})} options={PREFERRED_LANGUAGE_OPTIONS}/> : <Field key={key} label={label} type={kind} value={p[key]} onChange={(v) => setProfile({[key]:v})}/>)}
     </div>
   </StepPanel>;
 }

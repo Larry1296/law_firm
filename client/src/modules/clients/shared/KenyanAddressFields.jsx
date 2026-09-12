@@ -2,6 +2,7 @@ import { useState } from 'react';
 import FloatingInput from '@/components/ui/FloatingInput';
 import Select3D from '@/components/ui/Select3D';
 import { KENYA_COUNTIES, KENYA_COUNTY_TOWNS, localitiesForTown } from './kenyaLocations';
+import { COUNTRY_OPTIONS } from './geographicOptions';
 
 const syntheticEvent = (name, value) => ({ target: { name, value, type: 'text' } });
 
@@ -15,7 +16,6 @@ export default function KenyanAddressFields({ formData, onChange, errors = {}, n
   const town = formData[townName] || '';
   const locality = formData[localityName] || '';
   const isKenya = country.trim().toLowerCase() === 'kenya';
-  const [editingOtherCountry, setEditingOtherCountry] = useState(Boolean(country && !isKenya));
   const towns = KENYA_COUNTY_TOWNS[county] || [];
   const [otherTown, setOtherTown] = useState(Boolean(town && !towns.includes(town)));
   const localityOptions = localitiesForTown(town);
@@ -23,9 +23,7 @@ export default function KenyanAddressFields({ formData, onChange, errors = {}, n
 
   const chooseCountry = (event) => {
     const value = event.target.value;
-    const outside = value === 'OTHER';
-    setEditingOtherCountry(outside);
-    onChange(syntheticEvent(countryName, outside ? '' : 'Kenya'));
+    onChange(syntheticEvent(countryName, value));
     onChange(syntheticEvent(countyName, ''));
     onChange(syntheticEvent(townName, ''));
     onChange(syntheticEvent(localityName, ''));
@@ -49,13 +47,12 @@ export default function KenyanAddressFields({ formData, onChange, errors = {}, n
     onChange(syntheticEvent(localityName, isOther ? '' : event.target.value));
   };
 
-  const showKenyanFields = !editingOtherCountry && isKenya;
+  const showKenyanFields = isKenya;
 
   return <div className='col-span-full grid grid-cols-1 gap-4 rounded-xl border border-[color:var(--border)] p-4 md:grid-cols-2'>
     <div className='col-span-full'><p className='font-semibold'>Controlled physical location</p><p className='text-sm text-[color:var(--text-secondary)]'>Choose the country, county and nearest city or town, then select the nearest area, street or location.</p></div>
-    <Select3D name={`${countryName}_selector`} label='Country' value={showKenyanFields ? 'Kenya' : 'OTHER'} onChange={chooseCountry} wrapperClassName='mb-0' options={[{ value: 'Kenya', label: 'Kenya' }, { value: 'OTHER', label: 'Another country' }]} />
+    <Select3D name={countryName} label='Country' value={country} onChange={chooseCountry} wrapperClassName='mb-0' options={COUNTRY_OPTIONS} />
     {!showKenyanFields ? <>
-      <FloatingInput label='Country' name={countryName} value={country} onChange={onChange} error={errors[countryName]} required />
       <FloatingInput label='State / Region / County' name={countyName} value={county} onChange={onChange} error={errors[countyName]} />
       <FloatingInput label='Nearest City / Town' name={townName} value={town} onChange={onChange} error={errors[townName]} required />
       <FloatingInput label='Nearest Area / Street / Location' name={localityName} value={locality} onChange={onChange} error={errors[localityName]} />
