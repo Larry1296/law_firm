@@ -103,3 +103,5 @@ __all__ = [
     "ClientComplianceReview",
     "ClientComplianceHistory",
 ]
+
+from .walk_in_enquiry import WalkInEnquiry, WalkInEnquirySequence

@@ -128,6 +128,8 @@ const AdminCaseTimelinePage = lazy(
 
 /* CLIENTS */
 
+const WalkInEnquiriesPage = lazy(() => import('@/modules/clients/enquiries/WalkInEnquiriesPage'));
+
 const AdminClientsPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminClientsPage'),
 );
@@ -707,6 +709,7 @@ const AppRoutes = () => {
 
           {/* CLIENTS */}
           <Route path='clients' element={<AdminClientsPage />} />
+          <Route path='clients/walk-in-enquiries' element={<WalkInEnquiriesPage workspace='admin' />} />
           <Route path='clients/create' element={<AdminCreateClientPage />} />
           <Route path='clients/:id' element={<AdminClientDetailsPage />} />
           <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
@@ -861,6 +864,7 @@ const AppRoutes = () => {
 
           {/* CLIENTS */}
           <Route path='clients' element={<SecretaryClients />} />
+          <Route path='clients/walk-in-enquiries' element={<WalkInEnquiriesPage workspace='secretary' />} />
           <Route path='clients/create' element={<AdminCreateClientPage />} />
           <Route path='clients/:id' element={<SecretaryClientDetails />} />
 

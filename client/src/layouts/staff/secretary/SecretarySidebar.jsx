@@ -26,6 +26,7 @@ const links = [
     end: true,
     section: 'Overview',
   },
+  { name: 'Walk-in Enquiries', path: '/secretary/clients/walk-in-enquiries', icon: Users, section: 'Clients' },
   {
     name: 'Clients',
     path: '/secretary/clients',

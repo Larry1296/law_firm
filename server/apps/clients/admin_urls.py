@@ -1,3 +1,4 @@
+from apps.clients.views.walk_in_enquiry_view import WalkInEnquiryListCreateView
 from django.urls import path
 from apps.clients.views.onboarding_views import ClientOnboardingCreateView, ClientOnboardingMetadataView
 
@@ -62,6 +63,7 @@ from apps.clients.views.admin import (
 )
 
 urlpatterns = [
+    path("walk-in-enquiries/", WalkInEnquiryListCreateView.as_view(), name="admin-walk-in-enquiries"),
     path("onboarding-metadata/", ClientOnboardingMetadataView.as_view(), name="client-onboarding-metadata"),
     path("onboarding/", ClientOnboardingCreateView.as_view(), name="client-onboarding-create"),
     path("", ClientAdminListView.as_view(), name="admin-client-list"),

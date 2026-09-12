@@ -27,6 +27,7 @@ export const adminSidebarLinks = [
     section: 'Overview',
   },
 
+  { name: 'Walk-in Enquiries', path: '/admin/clients/walk-in-enquiries', icon: Users, section: 'Clients', ownerOnly: true },
   {
     name: 'Clients',
     path: '/admin/clients',
