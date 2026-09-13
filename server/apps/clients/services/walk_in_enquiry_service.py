@@ -14,7 +14,6 @@ from apps.clients.serializers.walk_in_enquiry_serializer import WalkInEnquirySer
 from apps.clients.services.walk_in_privacy_service import privacy_notice, WalkInPrivacyConfigSerializer
 from apps.common.choices import UserRole
 from apps.firm.models import LawFirm
-from apps.staff.models import Secretary
 from apps.staff.services.secretary import SecretaryClientService
 from apps.users.models import User
 

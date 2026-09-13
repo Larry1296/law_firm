@@ -1,4 +1,4 @@
-from apps.clients.views.walk_in_enquiry_view import WalkInEnquiryListCreateView
+from apps.clients.views.walk_in_enquiry_view import (WalkInEnquiryListCreateView, WalkInPrivacyNoticeView, WalkInNoticeDeliveryView, WalkInEnquiryCorrectionView)
 from django.urls import path
 from apps.clients.views.onboarding_views import ClientOnboardingCreateView, ClientOnboardingMetadataView
 
@@ -63,7 +63,10 @@ from apps.clients.views.admin import (
 )
 
 urlpatterns = [
-    path("walk-in-enquiries/", WalkInEnquiryListCreateView.as_view(), name="admin-walk-in-enquiries"),
+    path("walk-in-enquiries/privacy-notice/", WalkInPrivacyNoticeView.as_view(workspace="admin"), name="admin-walk-in-privacy-notice"),
+    path("walk-in-enquiries/notice-deliveries/", WalkInNoticeDeliveryView.as_view(workspace="admin"), name="admin-walk-in-notice-deliveries"),
+    path("walk-in-enquiries/<uuid:enquiry_id>/corrections/", WalkInEnquiryCorrectionView.as_view(workspace="admin"), name="admin-walk-in-corrections"),
+    path("walk-in-enquiries/", WalkInEnquiryListCreateView.as_view(workspace="admin"), name="admin-walk-in-enquiries"),
     path("onboarding-metadata/", ClientOnboardingMetadataView.as_view(), name="client-onboarding-metadata"),
     path("onboarding/", ClientOnboardingCreateView.as_view(), name="client-onboarding-create"),
     path("", ClientAdminListView.as_view(), name="admin-client-list"),
