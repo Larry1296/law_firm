@@ -104,4 +104,5 @@ __all__ = [
     "ClientComplianceHistory",
 ]
 
-from .walk_in_enquiry import WalkInEnquiry, WalkInEnquirySequence
+from .walk_in_enquiry import WalkInEnquiry, WalkInEnquirySequence, WalkInEnquiryCorrection
+from .walk_in_privacy import WalkInPrivacyConfig, WalkInNoticeDelivery
