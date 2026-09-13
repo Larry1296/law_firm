@@ -9,7 +9,8 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.audit_logs.models import AuditEvent
-from apps.clients.models import WalkInEnquiry, WalkInEnquirySequence
+from apps.clients.models import WalkInEnquiry, WalkInEnquirySequence, WalkInPrivacyConfig, WalkInEnquiryCorrection, WalkInNoticeDelivery
+from apps.clients.services.walk_in_privacy_service import privacy_notice
 from apps.clients.services.walk_in_enquiry_service import WalkInEnquiryService
 from apps.firm.models import LawFirm
 from apps.staff.models import Accountant, HR, IT, Lawyer, Secretary, SecretaryPermission, SecretaryPermissionGrant
@@ -23,10 +24,32 @@ def user(number, role='ADMIN'):
 
 
 def payload(**overrides):
-    return dict(received_at='2026-09-12T09:30:00+03:00', visitor_name='Jane Visitor',
+    return dict(enquiry_for='SELF', authority_status='NOT_REQUIRED', visitor_name='Jane Visitor',
         safe_contact='Call +254700123456 after 5pm', visitor_type='INDIVIDUAL',
         service_category='Employment', related_party_names=['  ABC Limited  ', '', '   ', 'John Doe'],
         description='Employment enquiry', privacy_acknowledged=True, **overrides)
+
+
+def configure(firm):
+    firm.email = 'privacy@example.com'
+    firm.phone_number = '+254700000000'
+    firm.physical_address = 'Test office, Nairobi'
+    firm.save()
+    return WalkInPrivacyConfig.objects.create(firm=firm, approved_by=firm.owner,
+        policy_version='test-v1', lawful_basis='LEGITIMATE_INTERESTS',
+        lawful_basis_explanation='Test policy: minimal intake, subject to rights assessment, including representative enquiries.',
+        mandatory_legal_requirement='No legal obligation to supply this intake information.',
+        recipients='Authorised intake staff and contracted hosting provider under confidentiality obligations.',
+        retention='Test policy only: delete or anonymise after 90 days unless a lawful hold applies.',
+        privacy_contact='Privacy lead: privacy@example.com', transfers='Test deployment: no overseas transfers.',
+        safeguards='Restricted roles, firm isolation and controlled correction history; hosting controls require review.')
+
+
+def receipt(actor):
+    firm = WalkInEnquiryService.firm_for(actor)
+    return str(WalkInEnquiryService.deliver_notice(user=actor, data={
+        'version': privacy_notice(firm)['notice']['version'], 'method': 'SCREEN', 'acknowledged': True,
+    }).pk)
 
 
 class WalkInEnquiryTests(TestCase):
@@ -35,6 +58,8 @@ class WalkInEnquiryTests(TestCase):
         self.firm = LawFirm.objects.create(owner=self.admin, name='Enquiry Firm', registration_number='ENQ-F1')
         self.other_admin = user(2)
         self.other_firm = LawFirm.objects.create(owner=self.other_admin, name='Other Firm', registration_number='ENQ-F2')
+        configure(self.firm)
+        configure(self.other_firm)
         self.secretary_user = user(3, 'STAFF')
         self.secretary = Secretary.objects.create(user=self.secretary_user, law_firm=self.firm,
             staff_number='SEC-1', date_hired=date(2026, 1, 1))
@@ -45,7 +70,13 @@ class WalkInEnquiryTests(TestCase):
         self.secretary_url = reverse('secretary-walk-in-enquiries')
 
     def post(self, data=None, url=None):
-        return self.api.post(url or self.url, payload() if data is None else data, format='json')
+        data = payload() if data is None else data.copy()
+        actor = self.api.handler._force_user
+        try:
+            data.setdefault('notice_receipt', receipt(actor))
+        except Exception:
+            pass  # Rejection tests intentionally use unauthorised actors.
+        return self.api.post(url or self.url, data, format='json')
 
     def test_reference_sequence_and_admin_access(self):
         with patch('apps.clients.services.walk_in_enquiry_service.timezone.now', return_value=datetime(2026, 1, 1, tzinfo=dt_timezone.utc)):
@@ -73,7 +104,7 @@ class WalkInEnquiryTests(TestCase):
             self.assertEqual(response.data['reference'], expected)
 
     def test_required_fields(self):
-        for field in ['received_at', 'visitor_name', 'safe_contact', 'visitor_type', 'service_category', 'description', 'privacy_acknowledged']:
+        for field in ['visitor_name', 'safe_contact', 'enquiry_for', 'authority_status', 'service_category', 'description', 'privacy_acknowledged']:
             for missing in [True, False]:
                 with self.subTest(field=field, missing=missing):
                     data = payload()
@@ -98,7 +129,7 @@ class WalkInEnquiryTests(TestCase):
         self.assertEqual(self.post(data).status_code, 201)
 
     def test_conditional_organisation_and_urgency_validation(self):
-        data = payload(); data['visitor_type'] = 'ORGANISATION_REPRESENTATIVE'
+        data = payload(); data.update(enquiry_for='ORGANISATION', authority_status='CLAIMED', visitor_capacity='Director')
         self.assertIn('organisation_name', self.post(data).data['errors'])
         data['organisation_name'] = 'Organisation'
         for urgency in WalkInEnquiry.UrgencyType.values[1:]:
@@ -159,18 +190,20 @@ class WalkInEnquiryTests(TestCase):
         self.assertEqual(event.object_identifier, response.data['id'])
         self.assertEqual(event.user, self.admin)
         self.assertEqual(event.firm, self.firm)
-        self.assertEqual(set(event.new_values), {'reference', 'status', 'visitor_type', 'service_category', 'urgency_type', 'critical_date'})
+        self.assertEqual(set(event.new_values), {'revision', 'received_time_overridden'})
         self.assertNotIn('Jane Visitor', str(event.new_values))
         before = WalkInEnquirySequence.objects.get().next_number
+        valid_data = payload(notice_receipt=receipt(self.admin))
         with patch('apps.clients.services.walk_in_enquiry_service.AuditService.record', side_effect=RuntimeError('audit failed')):
             with self.assertRaises(RuntimeError):
-                WalkInEnquiryService.create(user=self.admin, data=payload())
+                WalkInEnquiryService.create(user=self.admin, data=valid_data)
         self.assertEqual(WalkInEnquiry.objects.count(), 1)
         self.assertEqual(WalkInEnquirySequence.objects.get().next_number, before)
 
-    def test_newest_received_first(self):
+    @patch('apps.clients.services.walk_in_enquiry_service.timezone.now', return_value=datetime(2026, 9, 13, tzinfo=dt_timezone.utc))
+    def test_newest_received_first(self, _now):
         for received in ['2026-09-10T12:00:00+03:00', '2026-09-12T12:00:00+03:00', '2026-09-11T12:00:00+03:00']:
-            data = payload(); data['received_at'] = received
+            data = payload(); data.update(received_at=received, received_at_reason='Delayed register entry')
             self.post(data)
         rows = self.api.get(self.url).data['enquiries']
         self.assertEqual([row['received_at'][:10] for row in rows], ['2026-09-12', '2026-09-11', '2026-09-10'])
@@ -192,15 +225,17 @@ class WalkInEnquiryConcurrencyTests(TransactionTestCase):
     @skipUnlessDBFeature('has_select_for_update')
     def test_concurrent_first_requests_allocate_distinct_references(self):
         owner = user(90)
-        LawFirm.objects.create(owner=owner, name='Concurrent Firm', registration_number='ENQ-CONCURRENT')
+        firm = LawFirm.objects.create(owner=owner, name='Concurrent Firm', registration_number='ENQ-CONCURRENT')
+        configure(firm)
         barrier = Barrier(2)
 
         def record(_):
             close_old_connections()
             try:
                 actor = User.objects.get(pk=owner.pk)
+                data = payload(notice_receipt=receipt(actor))
                 barrier.wait(timeout=10)
-                return WalkInEnquiryService.create(user=actor, data=payload()).reference
+                return WalkInEnquiryService.create(user=actor, data=data).reference
             finally:
                 close_old_connections()
 
