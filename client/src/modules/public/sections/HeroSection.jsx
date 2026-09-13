@@ -69,7 +69,7 @@ export default function HeroSection() {
         }}
       >
         {/* Image Container */}
-        <div className='relative w-full h-screen overflow-hidden bg-black'>
+        <div className='relative w-full min-h-screen overflow-hidden bg-black'>
           {/* Five-second background carousel */}
           {heroBackgrounds.map((background, index) => (
             <motion.img
@@ -91,7 +91,7 @@ export default function HeroSection() {
           ))}
 
           {/* Hero Content */}
-          <div className='relative z-10 flex min-h-screen w-full items-center justify-center px-3 sm:px-4 lg:px-6 xl:px-8'>
+          <div className='relative z-10 flex min-h-screen w-full items-center justify-center px-3 pt-36 pb-12 sm:px-4 md:pt-40 lg:px-6 xl:px-8'>
             <div className='w-full max-w-6xl text-center'>
               {/* Small Badge */}
               <motion.div

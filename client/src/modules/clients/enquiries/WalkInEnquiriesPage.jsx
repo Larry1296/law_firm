@@ -65,7 +65,7 @@ export default function WalkInEnquiriesPage({ workspace = 'admin' }) {
     } finally { setSaving(false); }
   };
 
-  return <main className='mx-auto max-w-7xl space-y-6 p-4 text-text-primary-light dark:text-text-primary-dark md:p-8'>
+  return <main className='mx-auto min-w-0 w-full max-w-7xl space-y-6 p-4 text-text-primary-light dark:text-text-primary-dark md:p-8'>
     <header className='flex flex-wrap items-start justify-between gap-4'>
       <div><h1 className='text-2xl font-bold'>Walk-in Enquiries</h1><p className='mt-2 text-sm'>Step 1: Record minimal visitor and enquiry details for preliminary review.</p></div>
       {!open && <Button disabled={loading || !canCreate} onClick={() => { setForm(emptyEnquiry()); setErrors({}); setError(''); setOpen(true); }}>New walk-in enquiry</Button>}
@@ -104,6 +104,6 @@ export default function WalkInEnquiriesPage({ workspace = 'admin' }) {
         </fieldset>
       </form>
     </Card>}
-    <DataTable columns={columns} data={enquiries} loading={loading} emptyMessage='No walk-in enquiries recorded yet.' />
+    <DataTable fitToContainer desktopBreakpoint='xl' columns={columns} data={enquiries} loading={loading} emptyMessage='No walk-in enquiries recorded yet.' />
   </main>;
 }

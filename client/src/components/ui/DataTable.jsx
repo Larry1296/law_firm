@@ -13,6 +13,7 @@ export default function DataTable({
   mobileSubtitleKey = null,
   actions = null,
   fitToContainer = false,
+  desktopBreakpoint = 'lg',
 }) {
   if (loading) {
     return (
@@ -41,11 +42,11 @@ export default function DataTable({
       {/* ====================================================== */}
       {/* MOBILE + TABLET CARDS */}
       {/* ====================================================== */}
-      <div className='grid gap-4 lg:hidden'>
+      <div className={`grid min-w-0 gap-4 ${desktopBreakpoint === 'xl' ? 'xl:hidden' : 'lg:hidden'}`}>
         {data.map((row, index) => (
           <Card
             key={row.id || row.client_id || row.uuid || index}
-            className='p-5 animate-fadeIn'
+            className='min-w-0 p-5 animate-fadeIn'
           >
             <div className='space-y-4'>
               {/* HEADER */}
@@ -73,13 +74,13 @@ export default function DataTable({
                   return (
                     <div
                       key={column.key}
-                      className='flex items-start justify-between gap-4'
+                      className={fitToContainer ? 'grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-2 sm:gap-4' : 'flex items-start justify-between gap-4'}
                     >
                       <span className='text-sm font-medium text-slate-500 dark:text-text-muted-dark'>
                         {column.label}
                       </span>
 
-                      <div className='text-right text-sm font-medium text-slate-900 dark:text-white'>
+                      <div className={`${fitToContainer ? 'min-w-0 [overflow-wrap:anywhere] sm:text-right' : 'text-right'} text-sm font-medium text-slate-900 dark:text-white`}>
                         {column.render
                           ? column.render(value, row)
                           : (value ?? '—')}
@@ -103,7 +104,7 @@ export default function DataTable({
       {/* ====================================================== */}
       {/* DESKTOP TABLE */}
       {/* ====================================================== */}
-      <div className='hidden min-w-0 w-full lg:block'>
+      <div className={`hidden min-w-0 w-full ${desktopBreakpoint === 'xl' ? 'xl:block' : 'lg:block'}`}>
         <Card className='w-full overflow-hidden'>
           <div className={fitToContainer ? 'w-full overflow-x-hidden' : 'w-full overflow-x-auto'}>
             <table className={fitToContainer ? 'w-full table-fixed' : 'w-full min-w-max table-auto'}>
@@ -130,10 +131,10 @@ export default function DataTable({
                         tracking-[0.08em]
                         text-slate-700
                         dark:text-white
-                        whitespace-nowrap
+                        ${fitToContainer ? 'whitespace-normal [overflow-wrap:anywhere]' : 'whitespace-nowrap'}
                       `}
                     >
-                      <TableHeaderText>{column.label}</TableHeaderText>
+                      {fitToContainer ? column.label : <TableHeaderText>{column.label}</TableHeaderText>}
                     </th>
                   ))}
 
@@ -147,7 +148,7 @@ export default function DataTable({
                         font-semibold
                         text-slate-700
                         dark:text-white
-                        whitespace-nowrap
+                        ${fitToContainer ? 'whitespace-normal [overflow-wrap:anywhere]' : 'whitespace-nowrap'}
                       `}
                     >
                       <TableHeaderText>Actions</TableHeaderText>
@@ -184,7 +185,7 @@ export default function DataTable({
                             text-slate-700
                             dark:text-slate-200
                             align-middle
-                            ${fitToContainer ? 'whitespace-normal break-words' : 'whitespace-nowrap'}
+                            ${fitToContainer ? 'whitespace-normal [overflow-wrap:anywhere]' : 'whitespace-nowrap'}
                           `}
                         >
                           {column.render

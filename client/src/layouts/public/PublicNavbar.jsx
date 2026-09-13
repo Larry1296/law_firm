@@ -2,7 +2,6 @@ import { useState, useEffect, useContext } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Moon, Sun } from 'lucide-react';
 import logo from '@/assets/images/logo.png';
-import NavLink from '@/components/ui/Navlink';
 import ThemeContext from '@/core/store/ThemeContext';
 
 const links = [
@@ -69,17 +68,13 @@ export default function PublicNavbar() {
   return (
     <>
       {/* Navbar */}
-      <div className='fixed top-3 md:top-5 left-1/2 -translate-x-1/2 z-50 w-[95%] md:w-[92%]'>
+      <nav aria-label='Main navigation' className='fixed top-3 md:top-5 left-1/2 -translate-x-1/2 z-50 w-[95%] md:w-[92%] rounded-2xl shell-surface border border-white/20 backdrop-blur-xl public-navbar-shell'>
         <div
           className='
-            public-navbar-shell
             flex items-center justify-between
             gap-3
             px-4 md:px-6 py-4
             rounded-2xl
-            shell-surface
-            border border-white/20
-            backdrop-blur-xl
           '
         >
           {/* Logo */}
@@ -90,30 +85,24 @@ export default function PublicNavbar() {
               className='h-14 w-14 md:h-16 md:w-16 rounded-2xl object-cover border border-white/20'
             />
 
-            <span className='hidden xl:inline whitespace-nowrap text-white font-extrabold text-lg tracking-wide'>
+            <span className='hidden sm:inline xl:hidden 2xl:inline whitespace-nowrap text-white font-extrabold text-lg tracking-wide'>
               Sheria Master
             </span>
           </div>
 
           {/* Desktop Navigation */}
           {!isAuthPage && (
-            <div className='hidden lg:flex items-center gap-5 xl:gap-7'>
+            <div className='hidden xl:flex min-w-0 items-center gap-2 2xl:gap-3'>
               {links.map((link) => (
                 <div key={link.id} className='relative group'>
-                  <NavLink
-                    label={link.label}
+                  <button
+                    type='button'
                     onClick={() => handleScrollTo(link.id)}
-                    className='
-                      relative
-                      text-white
-                      font-extrabold
-                      tracking-wide
-                      text-base
-                      xl:text-lg
-                      transition-all duration-300
-                      hover:text-[color:var(--brand-accent)]
-                    '
-                  />
+                    aria-current={active === link.id ? 'location' : undefined}
+                    className='whitespace-nowrap rounded-xl px-3 py-2 text-sm 2xl:text-base text-white font-bold transition-colors hover:bg-white/10 hover:text-[color:var(--brand-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40'
+                  >
+                    {link.label}
+                  </button>
 
                   {/* Active underline */}
                   <span
@@ -129,7 +118,7 @@ export default function PublicNavbar() {
             </div>
           )}
 
-          <div className='flex items-center gap-3'>
+          <div className='flex shrink-0 items-center gap-2 sm:gap-3'>
             <button
               type='button'
               onClick={toggleTheme}
@@ -143,8 +132,11 @@ export default function PublicNavbar() {
             {/* Hamburger Menu */}
             {!isAuthPage && (
               <button
+                type='button'
                 onClick={() => setMenuOpen(!menuOpen)}
-                className='lg:hidden flex flex-col gap-1.5 p-2'
+                aria-expanded={menuOpen}
+                aria-controls='public-mobile-menu'
+                className='xl:hidden flex h-10 w-10 shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/10 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40'
                 aria-label='Toggle menu'
               >
                 <span
@@ -160,50 +152,31 @@ export default function PublicNavbar() {
             )}
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Mobile Menu */}
+      {/* Full-screen navigation, with room for the fixed navbar above it. */}
       {!isAuthPage && menuOpen && (
-        <div className='fixed inset-0 z-40 flex flex-col items-center justify-center shell-surface'>
-          {/* Close */}
-          <button
-            onClick={() => setMenuOpen(false)}
-            className='absolute top-6 right-6 text-4xl font-bold hover:text-[color:var(--brand-accent)]'
-          >
-            ✕
-          </button>
-
-          {/* Links */}
-          <div className='flex w-full max-w-md flex-col items-center gap-10 px-6'>
-            {links.map((link) => (
-              <div key={link.id} className='relative'>
-                <NavLink
-                  label={link.label}
+        <div
+          id='public-mobile-menu'
+          className='fixed inset-0 z-40 xl:hidden overflow-y-auto shell-surface'
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setMenuOpen(false);
+          }}
+        >
+          <div className='flex min-h-[100dvh] flex-col items-center justify-center px-6 pb-10 pt-36 md:pt-40'>
+            <nav aria-label='Expanded navigation' className='flex w-full max-w-md flex-col items-center gap-3 sm:gap-4'>
+              {links.map((link) => (
+                <button
+                  key={link.id}
+                  type='button'
                   onClick={() => handleScrollTo(link.id)}
-                  className='
-                    text-white
-                    text-2xl
-                    sm:text-3xl
-                    font-extrabold
-                    uppercase
-                    tracking-widest
-                    hover:text-[color:var(--brand-accent)]
-                  '
-                />
-
-                {/* Active underline */}
-                <span
-                  className={`
-                    absolute left-0 -bottom-1 h-[2px] w-full
-                    bg-[color:var(--brand-accent)]
-                    transition-transform duration-300
-                    ${active === link.id ? 'scale-x-100' : 'scale-x-0'}
-                  `}
-                />
-              </div>
-            ))}
-
-            <div className='w-full pt-4'></div>
+                  aria-current={active === link.id ? 'location' : undefined}
+                  className={`w-full rounded-xl px-4 py-3 text-center text-xl sm:text-2xl font-bold tracking-wide transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${active === link.id ? 'bg-white/10 text-[color:var(--brand-accent)]' : 'text-white'}`}
+                >
+                  {link.label}
+                </button>
+              ))}
+            </nav>
           </div>
         </div>
       )}
