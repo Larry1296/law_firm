@@ -82,7 +82,7 @@ class WalkInEnquiryService:
         if not values['acknowledged']:
             raise ValidationError({'privacy_acknowledged': 'The visitor must acknowledge the privacy notice.'})
         receipt = WalkInNoticeDelivery.objects.create(firm=firm, actor=user,
-            version=values['version'], snapshot=notice['notice'], method=values['method'])
+            version=values['version'], snapshot=notice['notice'], method=values['method'], delivered_at=timezone.now())
         AuditService.record(firm=firm, user=user, action='WALK_IN_NOTICE_DELIVERED', obj=receipt)
         return receipt
 
@@ -99,9 +99,9 @@ class WalkInEnquiryService:
         values = serializer.validated_data
         receipt_id = values.pop('notice_receipt', None)
         receipt = WalkInNoticeDelivery.objects.select_for_update().filter(
-            pk=receipt_id, firm=firm, actor=user, acknowledged=True, enquiry__isnull=True).first()
+            pk=receipt_id, firm=firm, actor=user, acknowledged=True).first()
         now = timezone.now()
-        if (not receipt or receipt.version != notice['notice']['version'] or
+        if (not receipt or WalkInEnquiry.objects.filter(notice_delivery=receipt).exists() or receipt.version != notice['notice']['version'] or
                 not now - timedelta(hours=24) <= receipt.delivered_at <= now):
             raise ValidationError({'notice_receipt': 'Deliver and acknowledge the current privacy notice before entering personal data. Receipts are single-use and valid for 24 hours.'})
         year = now.astimezone(ZoneInfo('Africa/Nairobi')).year

@@ -1,57 +1,35 @@
-# Step 1 — Walk-in Enquiry Registration
+# Step 1 — Walk-in Enquiry Capture
 
-Implemented a separate pre-client register. Enquiries have no client, conflict-check, consultation, KYC, engagement or matter relationship or conversion action. The only status is `RECEIVED_AWAITING_REVIEW` (Received — awaiting preliminary review).
+Step 1 is implemented and remains **not approved** until the real browser workflow is completed. It records a minimal pre-client enquiry only. It does not start conflict screening, consultations, onboarding, matter opening, billing, documents, court procedure or AI features.
 
-## API and permissions
+The frontend fetches the current versioned Kenya Data Protection Act section 29 notice before rendering personal-data fields. Incomplete firm identity or notice configuration blocks intake. Admins can configure a new policy version; secretaries are told the administrator must complete configuration. The notice covers controller identity, purpose, lawful basis, required and optional information, consequences, recipients and safeguards, retention, rights, privacy contact, transfers and ODPC complaints. Delivery supports SCREEN, READ_ALOUD and PAPER. Acknowledgement is notice-delivery evidence, explicitly separate from consent and lawful basis. A single-use receipt is required to create each enquiry.
 
-Both endpoints support GET (list) and POST (create):
+The form distinguishes SELF, OTHER and ORGANISATION. It keeps the visitor as the person making the enquiry and conditionally captures the prospective person or organisation, relationship/capacity and preliminary authority status. No national ID, merits evidence or upload is collected. Received time defaults to trusted server time; a different time requires a reason and future-time validation. Administrators can correct approved capture fields only through a reasoned, revision-checked workflow. Previous and replacement values, reason, actor, timestamp and revision are preserved in restricted history. Notice evidence and server fields are immutable; no delete operation exists. Secretaries may view history but cannot correct. Routes reject the wrong role and remain firm-isolated.
 
-- `/api/admin/clients/walk-in-enquiries/`
-- `/api/staff/secretary/clients/walk-in-enquiries/`
+## Endpoints
 
-GET returns `{ "enquiries": [...] }`, ordered by received time descending, then creation time and UUID. POST returns the created record with HTTP 201, including reference, status label and receiving staff name. Validation errors use the existing `message`, `detail`, and field-specific `errors` envelope. Only JSON submission is supported; there is no upload, update, delete or conversion operation.
+- `GET/POST /api/admin/clients/walk-in-enquiries/`
+- `GET/POST /api/staff/secretary/clients/walk-in-enquiries/`
+- `GET/PUT /api/admin/clients/walk-in-enquiries/privacy-notice/`
+- `GET /api/staff/secretary/clients/walk-in-enquiries/privacy-notice/`
+- `POST /api/{admin|staff/secretary}/clients/walk-in-enquiries/notice-deliveries/`
+- `GET/POST /api/{admin|staff/secretary}/clients/walk-in-enquiries/{id}/corrections/`
 
-Both routes use the same authorization service. Active firm-owning administrators may list and create for their own firm. Secretaries must have system role `STAFF`, an active secretary profile, `can_manage_client_intake`, and an active `MANAGE_CLIENTS` grant. Other users receive HTTP 403. The service resolves the firm and receiving user from authentication; submitted firm, receiver, reference or status values cannot override them.
+Migration `0038_walkinenquiry_authority_status_and_more.py` adds privacy configuration and delivery evidence, enquiry identity/authority and timing fields, immutable notice snapshots and correction history.
 
-References use the allocation-time calendar year in Africa/Nairobi, independently of a backdated received timestamp. The service locks the existing firm row before accessing the firm/year sequence, including first allocation in a new year. Sequence, enquiry and immutable `WALK_IN_ENQUIRY_RECORDED` audit event commit atomically. Database constraints enforce firm/reference uniqueness, firm/year sequence uniqueness, acknowledgement and the single status. Audit metadata excludes visitor name, contact, description, organisation name and related-party names.
-
-## Files created
-
-- `server/apps/clients/models/walk_in_enquiry.py`
-- `server/apps/clients/serializers/walk_in_enquiry_serializer.py`
-- `server/apps/clients/services/walk_in_enquiry_service.py`
-- `server/apps/clients/views/walk_in_enquiry_view.py`
-- `server/apps/clients/tests/test_walk_in_enquiries.py`
-- `server/apps/clients/migrations/0037_walkinenquiry_walkinenquirysequence.py`
-- `client/src/modules/clients/enquiries/WalkInEnquiriesPage.jsx`
-- `client/src/modules/clients/enquiries/WalkInEnquiriesPage.test.jsx`
-- `client/src/modules/clients/enquiries/enquiryForm.js`
-- `client/src/modules/clients/enquiries/walkInEnquiryService.js`
-- `server/docs/progress/step-1-walk-in-enquiries.md` (this report)
-
-## Files changed
-
-- `server/apps/clients/models/__init__.py` — model registration.
-- `server/apps/clients/admin_urls.py` — administrator endpoint.
-- `server/apps/staff/secretary_urls.py` — secretary endpoint.
-- `client/src/routes/index.jsx` — lazy-loaded workspace routes.
-- `client/src/modules/admin/config/adminSidebarLink.js` — owner-only Clients-section navigation.
-- `client/src/layouts/staff/secretary/SecretarySidebar.jsx` — Clients-section navigation.
-
-## Verification (12 September 2026)
+## Fresh verification (14 September 2026)
 
 | Check | Result |
 | --- | --- |
-| Django system check (`config.settings_test`) | Passed, zero issues |
-| `makemigrations --check --dry-run` (`config.settings_test`) | Passed, no changes detected |
-| Enquiry backend tests, SQLite | 14 discovered; 13 passed, one row-lock concurrency test skipped |
-| Enquiry backend tests, isolated PostgreSQL | All 14 passed, including concurrent first allocation |
-| Full backend suite, SQLite | 375 discovered; 348 passed, 27 skipped; no failures |
-| Frontend tests (`npm test -- --run`) | All 76 passed across 20 files, including 8 new enquiry tests |
-| ESLint (`npm run lint`) | Zero errors; 10 warnings in unchanged files |
-| Production build (`npm run build`) | Passed |
+| Django system check | Passed, zero issues |
+| `makemigrations --check --dry-run` | Passed, no changes detected |
+| Step 1 backend tests on PostgreSQL | 30 passed; 2 concurrency tests passed |
+| Complete frontend tests | 93 passed across 21 files |
+| ESLint | 0 errors; 10 existing warnings |
+| Production build | Passed |
 | `git diff --check` | Passed |
+| Real Chromium browser workflow | Blocked: installed Chromium requires unavailable `libcups.so.2` |
 
-The full backend command was `server/venv/bin/python server/test_all.py apps.courtroom.tests --noinput --keepdb`, with `TEST_SQLITE_NAME` pointing to an isolated database under `/tmp`. The extra courtroom label includes the standalone module omitted by the repository runner's package-only discovery. No existing tests were changed or weakened. PostgreSQL verification used the existing `config.settings_test` PostgreSQL configuration against an isolated local Unix-socket instance, which was stopped after the tests.
+Backend command: `TEST_DATABASE_BACKEND=postgresql TEST_DB_NAME=lawfirm_step1 TEST_DB_USER=step1_test TEST_DB_HOST=/tmp TEST_DB_PORT=55439 server/venv/bin/python server/manage.py test apps.clients.tests.test_walk_in_enquiries --settings=config.settings_test --noinput --keepdb`. Frontend commands from `client/`: `npm test -- --run`, `npm run lint`, and `VITE_API_BASE_URL=http://127.0.0.1:8011/api npm run build`.
 
-The 27 full-suite skips remain visible; the enquiry concurrency skip on SQLite was separately exercised successfully on PostgreSQL. Existing React hook warnings remain unresolved and unrelated to this feature. The migration was exercised on test databases; apply it to the deployment database before using the new register. Responsive cards/table and light/dark styles reuse the existing components; no separate manual browser visual inspection was performed.
+The real-browser script is `client/scripts/walk-in-browser.mjs`, with isolated fictional fixtures from `server/scripts/seed_walk_in_browser.py`. It covers admin and secretary configuration, all delivery methods, identity/authority variants, Nairobi timing, responsive layouts, correction history, role controls and refresh persistence. It has not passed because the available browser cannot start without `libcups.so.2`. Step 1 remains unapproved until the dependency is installed or another supported browser environment is used and the script completes.
