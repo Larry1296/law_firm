@@ -7,15 +7,15 @@ import Modal3D from '@/components/ui/Modal3D';
 
 export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
   return (
-    <Modal3D open={open} onClose={onClose} title='Create New Client'>
+    <Modal3D open={open} onClose={onClose} title='Create prospective client'>
       <div className='space-y-6'>
         <div>
           <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>
-            Choose Client Type
+            Choose access mode
           </h3>
 
           <p className='text-sm text-[color:var(--text-muted)] mt-1'>
-            Select how this client will interact with your law firm.
+            Access mode and lifecycle are independent. A new record starts as Prospective.
           </p>
         </div>
 
@@ -53,11 +53,10 @@ export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
               </div>
 
               <div>
-                <h4 className='font-semibold text-base'>Prospect</h4>
+                <h4 className='font-semibold text-base'>Portal-enabled</h4>
 
                 <p className='text-sm text-[color:var(--text-muted)] mt-1'>
-                  This prospect receives account access and can log into the
-                  system before becoming an official client.
+                  Controlled portal login, kept separate from client lifecycle status.
                 </p>
 
                 <div className='mt-3 flex flex-wrap gap-2'>
@@ -69,7 +68,7 @@ export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
                       bg-emerald-500/10
                     '
                   >
-                    Email Required
+                    Controlled portal login
                   </span>
 
                   <span
@@ -80,7 +79,7 @@ export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
                       bg-emerald-500/10
                     '
                   >
-                    Password Required
+                    Prospective lifecycle
                   </span>
 
                   <span
@@ -91,7 +90,7 @@ export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
                       bg-emerald-500/10
                     '
                   >
-                    Client Login Access
+                    Not accepted instructions
                   </span>
                 </div>
               </div>
@@ -135,11 +134,10 @@ export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
               </div>
 
               <div>
-                <h4 className='font-semibold text-base'>Assisted Client</h4>
+                <h4 className='font-semibold text-base'>Firm-managed</h4>
 
                 <p className='text-sm text-[color:var(--text-muted)] mt-1'>
-                  Internal client record only. The client cannot log into the
-                  portal.
+                  Internal record with no portal login. This is the normal default for a new prospective client.
                 </p>
 
                 <div className='mt-3 flex flex-wrap gap-2'>
@@ -151,7 +149,7 @@ export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
                       bg-blue-500/10
                     '
                   >
-                    No User Account
+                    No portal login
                   </span>
 
                   <span
@@ -162,7 +160,7 @@ export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
                       bg-blue-500/10
                     '
                   >
-                    No Login Access
+                    Prospective lifecycle
                   </span>
 
                   <span
@@ -173,7 +171,7 @@ export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
                       bg-blue-500/10
                     '
                   >
-                    Firm Managed
+                    Staff assisted
                   </span>
                 </div>
               </div>
@@ -201,9 +199,7 @@ export default function ClientTypeSelectorModal({ open, onClose, onSelect }) {
             <p className='text-sm font-medium'>Recommended Workflow</p>
 
             <p className='text-xs text-[color:var(--text-muted)] mt-1'>
-              Use Prospects for individuals who need access to documents,
-              case updates and billing before becoming official clients. Use Assisted Clients for walk-ins,
-              consultations and clients managed entirely by firm staff.
+              Lifecycle values are Prospective, Official and Archived. Select Firm-managed unless controlled portal access is deliberately required.
             </p>
           </div>
         </div>

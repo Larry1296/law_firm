@@ -2,17 +2,19 @@
 
 ```mermaid
 flowchart LR
-  A[Enquiry] --> B[Conflict Check]
-  B --> C[Firm Decision]
-  C --> D[KYC]
-  D --> E[Engagement]
-  E --> F[Matter Opening]
-  F --> G[Workstream]
-  G --> H[Financial Clearance]
-  H --> I[Closing Review]
-  I --> J[Archive]
-  J --> K[Retention Review]
-  K --> L{Destruction or Preservation}
+  A[Prospective client] --> B[Proposed matter]
+  B --> C[Conflict screening]
+  C --> D[Advocate conflict decision]
+  D --> E[Firm Decision]
+  E --> F[KYC]
+  F --> G[Engagement]
+  G --> H[Matter Opening]
+  H --> I[Workstream]
+  I --> J[Financial Clearance]
+  J --> K[Closing Review]
+  K --> L[Archive]
+  L --> M[Retention Review]
+  M --> N{Destruction or Preservation}
 ```
 
 ## Controlled intake and opening
@@ -23,11 +25,9 @@ The transactional opening service locks the proposed-matter row and verifies fir
 
 Before clearance, the API limits intake to identity, contact, broad instructions, parties, urgency and known dates. Long factual narratives, detailed objectives and sensitive documents are rejected until clearance. An unavoidable urgent exception requires a reason, receiving user and timestamp; the proposal and upload are flagged restricted and omitted from ordinary list views. Conflict-review permissions are required to handle the restricted record.
 
-### Preliminary review bridge
+## Digital entry workflow
 
-After walk-in reception, an assigned active advocate performs a preliminary review. The advocate may correct only the prospective identity, visitor capacity, broad service, working title, parties, broad forum, urgency, critical date and a short non-confidential note. The advocate records one of five dispositions with a reason and server timestamp. Requesting minimum information creates an administrative task containing the enquiry reference only. Refer and decline close the enquiry without creating a client or proposed matter.
-
-Proceeding to conflict screening records an advocate authorisation for either lawyer creation or an explicitly assigned secretary creation task. The atomic conversion creates or links an internal prospective client and the existing proposed-matter conflict-check record, which starts awaiting conflict screening. It creates no portal account, KYC, engagement, accepted instruction, case or legal matter. Existing prospects are linked only after authorised identity verification; matching names do not merge records. Optional physical-file control is limited to reference, opening, location, custody and movement history and is labelled `PROSPECTIVE — CONFLICT/ACCEPTANCE PENDING`.
+The system begins after manual reception and the advocate's initial brief encounter. An authorised firm user creates or selects a same-firm prospective or official client, then creates the existing proposed-matter conflict-check record. It starts `NOT_STARTED` with acceptance pending and no engagement or case. The system collects only identity, broad instructions, relevant parties, urgency and known dates, then routes directly to conflict screening. A firm-managed prospect has no portal login and remains `PROSPECTIVE`; portal access is a separate controlled process. Similar names never merge records automatically.
 
 ## Engagement administration
 

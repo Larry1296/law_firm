@@ -15,11 +15,9 @@ import {
   Calendar,
   FileText,
   MessageSquare,
-  CheckSquare,
 } from 'lucide-react';
 
 const links = [
-  { name: 'Assigned enquiry tasks', path: '/secretary/clients/preliminary-enquiries', icon: CheckSquare, section: 'Clients' },
   {
     name: 'Dashboard',
     path: '/secretary/dashboard',
@@ -27,7 +25,6 @@ const links = [
     end: true,
     section: 'Overview',
   },
-  { name: 'Walk-in Enquiries', path: '/secretary/clients/walk-in-enquiries', icon: Users, section: 'Clients' },
   {
     name: 'Clients',
     path: '/secretary/clients',

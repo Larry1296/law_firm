@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 
 export const adminSidebarLinks = [
-  { name: 'Preliminary enquiries', path: '/admin/clients/preliminary-enquiries', icon: Users, section: 'Clients' },
   {
     name: 'Dashboard',
     path: '/admin/dashboard',
@@ -28,7 +27,6 @@ export const adminSidebarLinks = [
     section: 'Overview',
   },
 
-  { name: 'Walk-in Enquiries', path: '/admin/clients/walk-in-enquiries', icon: Users, section: 'Clients', ownerOnly: true },
   {
     name: 'Clients',
     path: '/admin/clients',

@@ -1,4 +1,3 @@
-import PreliminaryEnquiriesPage from '@/modules/clients/enquiries/PreliminaryEnquiriesPage';
 import React, { lazy, Suspense } from 'react';
 
 import { Routes, Route, Navigate } from 'react-router-dom';
@@ -129,11 +128,11 @@ const AdminCaseTimelinePage = lazy(
 
 /* CLIENTS */
 
-const WalkInEnquiriesPage = lazy(() => import('@/modules/clients/enquiries/WalkInEnquiriesPage'));
 
 const AdminClientsPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminClientsPage'),
 );
+const ProposedMatterEntryPage = lazy(() => import('@/modules/admin/clients/pages/ProposedMatterEntryPage'));
 
 const AdminCreateClientPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminCreateClientPage'),
@@ -710,9 +709,7 @@ const AppRoutes = () => {
 
           {/* CLIENTS */}
           <Route path='clients' element={<AdminClientsPage />} />
-          <Route path='clients/walk-in-enquiries' element={<WalkInEnquiriesPage workspace='admin' />} />
-          <Route path='clients/preliminary-enquiries' element={<PreliminaryEnquiriesPage workspace='admin' />} />
-          <Route path='clients/preliminary-lawyer' element={<PreliminaryEnquiriesPage workspace='lawyer' />} />
+          <Route path='clients/proposed-matters/new' element={<ProposedMatterEntryPage />} />
           <Route path='clients/create' element={<AdminCreateClientPage />} />
           <Route path='clients/:id' element={<AdminClientDetailsPage />} />
           <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
@@ -829,7 +826,6 @@ const AppRoutes = () => {
           {/* INTERNAL AI TEMPORARILY PAUSED
           <Route path='cases/:id/ai-analysis' element={<LawyerCaseAIAnalysisPage />} />
           */}
-          <Route path='clients/preliminary-enquiries' element={<PreliminaryEnquiriesPage workspace='lawyer' />} />
           <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/conflict-checks/:checkId' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/conflict-checks/:checkId/open-matter' element={<LawyerCreateCase />} />
@@ -868,8 +864,6 @@ const AppRoutes = () => {
 
           {/* CLIENTS */}
           <Route path='clients' element={<SecretaryClients />} />
-          <Route path='clients/walk-in-enquiries' element={<WalkInEnquiriesPage workspace='secretary' />} />
-          <Route path='clients/preliminary-enquiries' element={<PreliminaryEnquiriesPage workspace='secretary' />} />
           <Route path='clients/create' element={<AdminCreateClientPage />} />
           <Route path='clients/:id' element={<SecretaryClientDetails />} />
 

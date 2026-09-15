@@ -17,7 +17,6 @@ import {
   // INTERNAL AI TEMPORARILY PAUSED: Brain, Search,
   Gavel,
   // INTERNAL AI TEMPORARILY PAUSED: BookOpen,
-  ListTodo,
   CheckCircle,
   User,
   Shield,
@@ -26,7 +25,6 @@ import {
 
 //* ================= LAWYER NAVIGATION ================= */
 const links = [
-  { name: 'Preliminary enquiries', path: '/lawyer/clients/preliminary-enquiries', icon: ListTodo, section: 'Work Management' },
   {
     name: 'Dashboard',
     path: '/lawyer/dashboard',

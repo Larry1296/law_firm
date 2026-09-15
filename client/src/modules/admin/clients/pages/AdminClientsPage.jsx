@@ -252,6 +252,7 @@ export default function AdminClientsPage() {
           >
             + Create Client
           </Button3D>
+          <Button3D variant='secondary' onClick={() => navigate('/admin/clients/proposed-matters/new')}>New proposed matter / Start conflict check</Button3D>
           <Button3D onClick={refetch}>
             {isFetching ? 'Refreshing...' : 'Refresh'}
           </Button3D>

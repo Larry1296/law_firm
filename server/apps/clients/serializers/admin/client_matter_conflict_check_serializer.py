@@ -108,8 +108,6 @@ class ProposedMatterJurisdictionSerializer(serializers.ModelSerializer):
 
 
 class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
-    originating_enquiry = serializers.UUIDField(source="preliminary_review.enquiry_id", read_only=True, default=None)
-    preliminary_review_id = serializers.UUIDField(source="preliminary_review.id", read_only=True, default=None)
     status_label = serializers.CharField(source="get_status_display", read_only=True)
     responsible_lawyer_name = serializers.CharField(source="responsible_lawyer.user.full_name", read_only=True)
     review_assigned_to_name = serializers.CharField(source="review_assigned_to.user.full_name", read_only=True)
@@ -212,8 +210,6 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "reference_number",
-            "originating_enquiry",
-            "preliminary_review_id",
             "proposed_matter_title",
             "urgency_level",
             "limitation_or_deadline_date",

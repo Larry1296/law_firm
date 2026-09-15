@@ -5,6 +5,10 @@ import axiosInstance from '@/core/api/axios';
 ========================================================= */
 
 const adminClientsService = {
+  async createProposedMatter(payload) {
+    const { data } = await axiosInstance.post('/admin/clients/proposed-matters/', payload);
+    return data;
+  },
   async getOnboardingMetadata() {
     const { data } = await axiosInstance.get('/admin/clients/onboarding-metadata/');
     return data;

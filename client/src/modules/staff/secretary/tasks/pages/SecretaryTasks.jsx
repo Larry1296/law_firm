@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import Card from '@/components/ui/Card';
@@ -14,7 +13,6 @@ export default function SecretaryTasks() {
   return (
     <div className='space-y-6 p-4 md:p-6'>
       <SectionHeading title='Tasks' subtitle='Assigned secretarial tasks' />
-      <Link className='underline' to='/secretary/clients/preliminary-enquiries'>Open assigned enquiry tasks</Link>
 
       <Card className='p-6'>
         {isLoading && <p>Loading tasks...</p>}
