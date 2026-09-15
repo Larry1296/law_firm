@@ -37,6 +37,24 @@ from apps.users.models import User
 
 
 class ClientAdminCreateService:
+    @staticmethod
+    @transaction.atomic
+    def create_preliminary_prospect(*, firm, created_by, full_name, entity_kind):
+        """Minimal internal identity. Full onboarding remains a later explicit operation."""
+        if entity_kind not in ('PERSON', 'ORGANISATION') or not full_name.strip():
+            raise ValidationError('A prospective person/entity name is required.')
+        client = Client.objects.create(
+            firm=firm, created_by=created_by, full_name=full_name.strip(),
+            client_type=Client.ClientType.INDIVIDUAL if entity_kind == 'PERSON' else Client.ClientType.OTHER_REQUIRES_REVIEW,
+            classification_review_status=Client.ClassificationReviewStatus.NOT_REQUIRED if entity_kind == 'PERSON' else Client.ClassificationReviewStatus.REQUIRES_REVIEW,
+            access_type=Client.AccessType.ASSISTED, lifecycle_status=Client.LifecycleStatus.PROSPECTIVE,
+            is_verified=False, user=None,
+        )
+
+        from apps.audit_logs.services import AuditService
+        AuditService.record(firm=firm, user=created_by, action='PRELIMINARY_PROSPECT_CREATED', obj=client)
+        return client
+
     COMPANY_PROFILE_TYPES = {
         Client.ClientType.COMPANY,
         Client.ClientType.BUSINESS_ENTITY,

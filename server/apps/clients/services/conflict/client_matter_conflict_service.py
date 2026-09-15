@@ -22,6 +22,32 @@ from apps.staff.models import Lawyer, LawyerPermission
 
 
 class ClientMatterConflictService:
+    @classmethod
+    def create_from_preliminary_review(cls, *, review, client, actor):
+        """Called inside the locked preliminary conversion transaction; no screening/onboarding."""
+        if review.state != 'AUTHORISED' or review.outcome != 'PROCEED_TO_CONFLICT_SCREENING':
+            raise PermissionDenied('Recorded preliminary authorisation is required.')
+        check = ClientMatterConflictCheck.objects.create(
+            firm=review.enquiry.firm, client=client, reference_number=cls._next_reference(review.enquiry.firm),
+            proposed_matter_title=review.working_title, proposed_instructions=review.service_category,
+            responsible_lawyer=review.lawyer, created_by=actor,
+            urgency_level=review.urgency, limitation_or_deadline_date=review.critical_date,
+            jurisdiction_facts={'practice_area': review.service_category, 'forum': review.forum},
+            status=ConflictCheckStatus.NOT_STARTED,
+        )
+        ConflictCheckParty.objects.create(conflict_check=check, name=client.full_name,
+            party_type=review.entity_kind, role=ConflictCheckParty.PartyRole.PROSPECTIVE_CLIENT, created_by=actor)
+        for field, role in [('adverse_parties', 'PROPOSED_ADVERSE_PARTY'), ('related_parties', 'RELATED_ENTITY')]:
+            for party in getattr(review, field):
+                ConflictCheckParty.objects.create(conflict_check=check, name=party['name'],
+                    party_type=party['party_type'], role=role, created_by=actor)
+        cls._record_history(check, from_status='', to_status=check.status, action='PROPOSED_MATTER_CREATED',
+            summary='Authorised preliminary enquiry received; awaiting conflict screening.', actor=actor,
+            metadata={'enquiry_id': str(review.enquiry_id), 'preliminary_review_id': str(review.pk)})
+        AuditService.record(firm=check.firm, user=actor, action='PRELIMINARY_PROPOSAL_CREATED', obj=check,
+            new={'enquiry_id': str(review.enquiry_id), 'preliminary_review_id': str(review.pk)})
+        return check
+
     ALLOWED_TRANSITIONS = {
         ConflictCheckStatus.NOT_STARTED: {ConflictCheckStatus.IN_PROGRESS},
         ConflictCheckStatus.IN_PROGRESS: {
@@ -190,7 +216,7 @@ class ClientMatterConflictService:
         lawyer = cls._active_lawyer_for_user(user, firm)
         if lawyer is None:
             raise PermissionDenied("Only firm admins and active lawyers can manage conflict checks.")
-        if not lawyer.has_permission(LawyerPermission.CREATE_CASES):
+        if not lawyer.has_permission(LawyerPermission.CREATE_CASES) and not lawyer.preliminary_reviews.exists():
             raise PermissionDenied("Lawyer permission is required to manage proposed matters.")
 
     @classmethod

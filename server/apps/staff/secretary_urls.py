@@ -1,3 +1,4 @@
+from apps.clients.views.preliminary_review_view import PreliminaryQueueView, PreliminaryDetailView, PreliminaryActionView
 from apps.clients.views.walk_in_enquiry_view import (WalkInEnquiryListCreateView, WalkInPrivacyNoticeView, WalkInNoticeDeliveryView, WalkInEnquiryCorrectionView)
 from django.urls import include, path
 from apps.clients.views.onboarding_views import ClientOnboardingCreateView, ClientOnboardingMetadataView
@@ -19,6 +20,14 @@ from apps.staff.views.secretary import (
 )
 
 urlpatterns = [
+    path("clients/preliminary-enquiries/", PreliminaryQueueView.as_view(workspace="secretary"), name="secretary-preliminary-queue"),
+    path("clients/preliminary-enquiries/<uuid:enquiry_id>/", PreliminaryDetailView.as_view(workspace="secretary"), name="secretary-preliminary-detail"),
+    path("clients/preliminary-enquiries/<uuid:enquiry_id>/assign/", PreliminaryActionView.as_view(workspace="secretary", action="assign"), name="secretary-preliminary-assign"),
+    path("clients/preliminary-enquiries/<uuid:enquiry_id>/decide/", PreliminaryActionView.as_view(workspace="secretary", action="decide"), name="secretary-preliminary-decide"),
+    path("clients/preliminary-enquiries/<uuid:enquiry_id>/follow_up/", PreliminaryActionView.as_view(workspace="secretary", action="follow_up"), name="secretary-preliminary-follow_up"),
+    path("clients/preliminary-enquiries/<uuid:enquiry_id>/convert/", PreliminaryActionView.as_view(workspace="secretary", action="convert"), name="secretary-preliminary-convert"),
+    path("clients/preliminary-enquiries/<uuid:enquiry_id>/physical_file/", PreliminaryActionView.as_view(workspace="secretary", action="physical_file"), name="secretary-preliminary-physical_file"),
+
     path("clients/walk-in-enquiries/privacy-notice/", WalkInPrivacyNoticeView.as_view(workspace="secretary"), name="secretary-walk-in-privacy-notice"),
     path("clients/walk-in-enquiries/notice-deliveries/", WalkInNoticeDeliveryView.as_view(workspace="secretary"), name="secretary-walk-in-notice-deliveries"),
     path("clients/walk-in-enquiries/<uuid:enquiry_id>/corrections/", WalkInEnquiryCorrectionView.as_view(workspace="secretary"), name="secretary-walk-in-corrections"),

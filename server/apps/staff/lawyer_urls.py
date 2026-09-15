@@ -1,3 +1,4 @@
+from apps.clients.views.preliminary_review_view import PreliminaryQueueView, PreliminaryDetailView, PreliminaryActionView
 from django.urls import path
 
 from apps.clients.views.admin.client_matter_conflict_check_view import (
@@ -29,6 +30,14 @@ from apps.ai.views import LawyerCaseAssessmentView, LawyerCasePriorityListView, 
 from apps.staff.views.lawyer.lawyer_tasks_view import LawyerTasksView
 
 urlpatterns = [
+    path("clients/preliminary-enquiries/", PreliminaryQueueView.as_view(workspace="lawyer"), name="lawyer-preliminary-queue"),
+    path("clients/preliminary-enquiries/<uuid:enquiry_id>/", PreliminaryDetailView.as_view(workspace="lawyer"), name="lawyer-preliminary-detail"),
+    path("clients/preliminary-enquiries/<uuid:enquiry_id>/assign/", PreliminaryActionView.as_view(workspace="lawyer", action="assign"), name="lawyer-preliminary-assign"),
+    path("clients/preliminary-enquiries/<uuid:enquiry_id>/decide/", PreliminaryActionView.as_view(workspace="lawyer", action="decide"), name="lawyer-preliminary-decide"),
+    path("clients/preliminary-enquiries/<uuid:enquiry_id>/follow_up/", PreliminaryActionView.as_view(workspace="lawyer", action="follow_up"), name="lawyer-preliminary-follow_up"),
+    path("clients/preliminary-enquiries/<uuid:enquiry_id>/convert/", PreliminaryActionView.as_view(workspace="lawyer", action="convert"), name="lawyer-preliminary-convert"),
+    path("clients/preliminary-enquiries/<uuid:enquiry_id>/physical_file/", PreliminaryActionView.as_view(workspace="lawyer", action="physical_file"), name="lawyer-preliminary-physical_file"),
+
     path("ai/matters/", LawyerCasePriorityListView.as_view(), name="lawyer-ai-matters"),
     path("ai/matters/<uuid:case_id>/", LawyerCaseAssessmentView.as_view(), name="lawyer-ai-matter-detail"),
     path("ai/matters/<uuid:case_id>/assessments/", LawyerCaseAssessmentView.as_view(), name="lawyer-ai-matter-assessment-create"),

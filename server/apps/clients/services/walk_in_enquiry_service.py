@@ -42,7 +42,7 @@ class WalkInEnquiryService:
 
     @classmethod
     def list(cls, *, user, workspace=None):
-        return WalkInEnquiry.objects.filter(firm=cls.firm_for(user, workspace)).select_related('received_by')
+        return WalkInEnquiry.objects.filter(firm=cls.firm_for(user, workspace)).select_related('received_by', 'preliminary_review')
 
     @classmethod
     @transaction.atomic

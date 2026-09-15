@@ -15,7 +15,11 @@ EDITABLE_FIELDS = [
 
 
 class WalkInEnquirySerializer(serializers.ModelSerializer):
-    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    status_label = serializers.SerializerMethodField()
+
+    def get_status_label(self, obj):
+        review = getattr(obj, 'preliminary_review', None)
+        return review.get_state_display() if review else obj.get_status_display()
     urgency_label = serializers.CharField(source='get_urgency_type_display', read_only=True)
     received_by_name = serializers.CharField(source='received_by.full_name', read_only=True)
     related_party_names = serializers.ListField(

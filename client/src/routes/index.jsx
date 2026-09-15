@@ -1,3 +1,4 @@
+import PreliminaryEnquiriesPage from '@/modules/clients/enquiries/PreliminaryEnquiriesPage';
 import React, { lazy, Suspense } from 'react';
 
 import { Routes, Route, Navigate } from 'react-router-dom';
@@ -710,6 +711,8 @@ const AppRoutes = () => {
           {/* CLIENTS */}
           <Route path='clients' element={<AdminClientsPage />} />
           <Route path='clients/walk-in-enquiries' element={<WalkInEnquiriesPage workspace='admin' />} />
+          <Route path='clients/preliminary-enquiries' element={<PreliminaryEnquiriesPage workspace='admin' />} />
+          <Route path='clients/preliminary-lawyer' element={<PreliminaryEnquiriesPage workspace='lawyer' />} />
           <Route path='clients/create' element={<AdminCreateClientPage />} />
           <Route path='clients/:id' element={<AdminClientDetailsPage />} />
           <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
@@ -826,6 +829,7 @@ const AppRoutes = () => {
           {/* INTERNAL AI TEMPORARILY PAUSED
           <Route path='cases/:id/ai-analysis' element={<LawyerCaseAIAnalysisPage />} />
           */}
+          <Route path='clients/preliminary-enquiries' element={<PreliminaryEnquiriesPage workspace='lawyer' />} />
           <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/conflict-checks/:checkId' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/conflict-checks/:checkId/open-matter' element={<LawyerCreateCase />} />
@@ -865,6 +869,7 @@ const AppRoutes = () => {
           {/* CLIENTS */}
           <Route path='clients' element={<SecretaryClients />} />
           <Route path='clients/walk-in-enquiries' element={<WalkInEnquiriesPage workspace='secretary' />} />
+          <Route path='clients/preliminary-enquiries' element={<PreliminaryEnquiriesPage workspace='secretary' />} />
           <Route path='clients/create' element={<AdminCreateClientPage />} />
           <Route path='clients/:id' element={<SecretaryClientDetails />} />
 

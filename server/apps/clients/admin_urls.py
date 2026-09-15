@@ -1,3 +1,4 @@
+from apps.clients.views.preliminary_review_view import PreliminaryQueueView, PreliminaryDetailView, PreliminaryActionView
 from apps.clients.views.walk_in_enquiry_view import (WalkInEnquiryListCreateView, WalkInPrivacyNoticeView, WalkInNoticeDeliveryView, WalkInEnquiryCorrectionView)
 from django.urls import path
 from apps.clients.views.onboarding_views import ClientOnboardingCreateView, ClientOnboardingMetadataView
@@ -63,6 +64,14 @@ from apps.clients.views.admin import (
 )
 
 urlpatterns = [
+    path("preliminary-enquiries/", PreliminaryQueueView.as_view(workspace="admin"), name="admin-preliminary-queue"),
+    path("preliminary-enquiries/<uuid:enquiry_id>/", PreliminaryDetailView.as_view(workspace="admin"), name="admin-preliminary-detail"),
+    path("preliminary-enquiries/<uuid:enquiry_id>/assign/", PreliminaryActionView.as_view(workspace="admin", action="assign"), name="admin-preliminary-assign"),
+    path("preliminary-enquiries/<uuid:enquiry_id>/decide/", PreliminaryActionView.as_view(workspace="admin", action="decide"), name="admin-preliminary-decide"),
+    path("preliminary-enquiries/<uuid:enquiry_id>/follow_up/", PreliminaryActionView.as_view(workspace="admin", action="follow_up"), name="admin-preliminary-follow_up"),
+    path("preliminary-enquiries/<uuid:enquiry_id>/convert/", PreliminaryActionView.as_view(workspace="admin", action="convert"), name="admin-preliminary-convert"),
+    path("preliminary-enquiries/<uuid:enquiry_id>/physical_file/", PreliminaryActionView.as_view(workspace="admin", action="physical_file"), name="admin-preliminary-physical_file"),
+
     path("walk-in-enquiries/privacy-notice/", WalkInPrivacyNoticeView.as_view(workspace="admin"), name="admin-walk-in-privacy-notice"),
     path("walk-in-enquiries/notice-deliveries/", WalkInNoticeDeliveryView.as_view(workspace="admin"), name="admin-walk-in-notice-deliveries"),
     path("walk-in-enquiries/<uuid:enquiry_id>/corrections/", WalkInEnquiryCorrectionView.as_view(workspace="admin"), name="admin-walk-in-corrections"),

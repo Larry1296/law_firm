@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 
 const links = [
+  { name: 'Assigned enquiry tasks', path: '/secretary/clients/preliminary-enquiries', icon: CheckSquare, section: 'Clients' },
   {
     name: 'Dashboard',
     path: '/secretary/dashboard',
