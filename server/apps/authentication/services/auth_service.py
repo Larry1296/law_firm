@@ -184,7 +184,7 @@ class AuthService:
             return False, "Invalid refresh token"
 
     @staticmethod
-    def request_password_reset(email: str):
+    def request_password_reset(email: str, *, fail_silently=True):
         user = User.objects.filter(email__iexact=email, is_active=True).first()
 
         if user is None:
@@ -205,7 +205,7 @@ class AuthService:
             ),
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
             recipient_list=[user.email],
-            fail_silently=True,
+            fail_silently=fail_silently,
         )
 
         return {

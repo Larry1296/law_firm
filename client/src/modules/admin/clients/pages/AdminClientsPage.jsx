@@ -23,14 +23,12 @@ import Button3D from '@/components/ui/Button3D';
 import SectionHeading from '@/components/ui/SectionHeading';
 import ResponsiveFilterTabs from '@/components/ui/ResponsiveFilterTabs';
 import { CLIENT_CATEGORY_TABS } from '@/modules/clients/shared/clientListTabs';
-import ClientCreationChooser from '@/modules/clients/shared/ClientCreationChooser';
 
 export default function AdminClientsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [searchBy, setSearchBy] = useState('NAME');
   const [activeCategoryTab, setActiveCategoryTab] = useState('ALL');
-  const [showCreationChooser, setShowCreationChooser] = useState(false);
 
   const {
     analytics,
@@ -232,9 +230,6 @@ export default function AdminClientsPage() {
     );
   }
 
-  const goToCreate = (type, mode) => {
-    navigate(`/admin/clients/create?type=${type}&mode=${mode || ''}`);
-  };
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
@@ -248,7 +243,7 @@ export default function AdminClientsPage() {
         <div className='flex w-full flex-wrap items-center justify-between gap-3'>
           <Button3D
             variant='primary'
-            onClick={() => setShowCreationChooser(true)}
+            onClick={() => navigate('/admin/clients/create')}
           >
             + Create Client
           </Button3D>
@@ -259,11 +254,6 @@ export default function AdminClientsPage() {
         </div>
       </div>
 
-      <ClientCreationChooser
-        open={showCreationChooser}
-        onClose={() => setShowCreationChooser(false)}
-        onSelect={goToCreate}
-      />
 
       <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-4'>
         <StatsCard

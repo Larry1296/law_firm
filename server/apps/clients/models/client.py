@@ -157,6 +157,9 @@ class Client(models.Model):
         default=AccessType.ASSISTED,
     )
 
+    alternative_names = models.CharField(max_length=255, blank=True, default="")
+    portal_status = models.CharField(max_length=30, default="NOT_REQUESTED", choices=[("NOT_REQUESTED", "Not requested"), ("PORTAL_ENABLED_PENDING", "Portal invitation pending"), ("INVITED", "Invited")])
+
     # Identification
 
     national_id = models.CharField(

@@ -28,11 +28,6 @@ export const useAdminClients = (params = {}) => {
      CREATE CLIENT
   ========================================================= */
 
-  const createClientMutation = useMutation({
-    mutationFn: ({ payload, clientType }) =>
-      adminClientsService.createClient(payload, clientType),
-  });
-
   /* =========================================================
      UPDATE CLIENT
   ========================================================= */
@@ -112,12 +107,6 @@ export const useAdminClients = (params = {}) => {
     isError,
     error,
     refetch,
-
-    /* Create (unified) */
-    createClient: (payload, clientType) =>
-      createClientMutation.mutateAsync({ payload, clientType }),
-
-    isCreatingClient: createClientMutation.isPending,
 
     /* Update */
     updateClient: updateClientMutation.mutateAsync,

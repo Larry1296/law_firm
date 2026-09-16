@@ -18,7 +18,6 @@ import Button3D from '@/components/ui/Button3D';
 import ResponsiveFilterTabs from '@/components/ui/ResponsiveFilterTabs';
 import useSecretaryDashboard from '@/modules/staff/secretary/dashboard/hooks/useSecretaryDashboard';
 import { CLIENT_CATEGORY_TABS } from '@/modules/clients/shared/clientListTabs';
-import ClientCreationChooser from '@/modules/clients/shared/ClientCreationChooser';
 
 const hasPermission = (permissions, permission) =>
   permissions.map((item) => String(item).toUpperCase()).includes(permission);
@@ -28,16 +27,12 @@ export default function SecretaryClients() {
   const [search, setSearch] = useState('');
   const [searchBy, setSearchBy] = useState('NAME');
   const [activeCategoryTab, setActiveCategoryTab] = useState('ALL');
-  const [showCreationChooser, setShowCreationChooser] = useState(false);
 
   const { clients = [], loading, refetch } = useSecretaryClients();
   const { data: dashboardData } = useSecretaryDashboard();
   const permissions = dashboardData?.permissions || [];
   const canManageClients = hasPermission(permissions, 'MANAGE_CLIENTS');
 
-  const goToCreate = (type, mode) => {
-    navigate(`/secretary/clients/create?type=${type}&mode=${mode || ''}`);
-  };
 
   const categoryCounts = useMemo(
     () =>
@@ -133,7 +128,7 @@ export default function SecretaryClients() {
           {canManageClients && (
             <Button3D
               variant='primary'
-              onClick={() => setShowCreationChooser(true)}
+              onClick={() => navigate('/secretary/clients/create')}
             >
               + Create Client
             </Button3D>
@@ -143,11 +138,6 @@ export default function SecretaryClients() {
         </div>
       </div>
 
-      <ClientCreationChooser
-        open={showCreationChooser}
-        onClose={() => setShowCreationChooser(false)}
-        onSelect={goToCreate}
-      />
 
       <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
         <StatsCard

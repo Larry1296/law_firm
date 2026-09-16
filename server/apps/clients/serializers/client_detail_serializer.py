@@ -150,6 +150,9 @@ class ClientDetailSerializer(
         fields = [
             "id",
             "full_name",
+            "alternative_names",
+            "portal_status",
+            "classification_review_reason",
             "email",
             "phone_number",
             "national_id",

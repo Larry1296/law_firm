@@ -13,6 +13,7 @@ import {
   X,
   User,
   Calendar,
+  CheckSquare,
   FileText,
   MessageSquare,
 } from 'lucide-react';

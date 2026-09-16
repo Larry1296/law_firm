@@ -147,7 +147,7 @@ class LimitedLiabilityPartnershipClient(models.Model):
         related_name="llp_profile",
     )
     registered_name = models.CharField(max_length=255)
-    llp_registration_number = models.CharField(max_length=100, db_index=True)
+    llp_registration_number = models.CharField(max_length=100, db_index=True, blank=True, default="")
     kra_pin = models.CharField(max_length=50, blank=True, default="")
     registration_date = models.DateField(null=True, blank=True)
     country_of_registration = models.CharField(max_length=100, default="Kenya")
@@ -226,8 +226,8 @@ class CooperativeClient(models.Model):
         related_name="cooperative_profile",
     )
     registered_name = models.CharField(max_length=255)
-    registration_number = models.CharField(max_length=100, db_index=True)
-    subtype = models.CharField(max_length=50, choices=CooperativeSubtype.choices)
+    registration_number = models.CharField(max_length=100, db_index=True, blank=True, default="")
+    subtype = models.CharField(max_length=50, choices=CooperativeSubtype.choices, blank=True, default="")
     registration_date = models.DateField(null=True, blank=True)
     kra_pin = models.CharField(max_length=50, blank=True, default="")
     registered_office = models.TextField(blank=True, default="")
@@ -376,7 +376,7 @@ class PublicEntityClient(models.Model):
         related_name="public_entity_profile",
     )
     official_name = models.CharField(max_length=255)
-    subtype = models.CharField(max_length=80, choices=PublicEntitySubtype.choices)
+    subtype = models.CharField(max_length=80, choices=PublicEntitySubtype.choices, blank=True, default="")
     enabling_instrument = models.CharField(max_length=255, blank=True, default="")
     parent_ministry_or_county = models.CharField(max_length=255, blank=True, default="")
     legal_capacity_notes = models.TextField(blank=True, default="")
@@ -421,7 +421,7 @@ class InternationalOrganizationClient(models.Model):
         related_name="international_organization_profile",
     )
     official_name = models.CharField(max_length=255)
-    organization_type = models.CharField(max_length=80, choices=OrganizationType.choices)
+    organization_type = models.CharField(max_length=80, choices=OrganizationType.choices, blank=True, default="")
     founding_instrument = models.CharField(max_length=255, blank=True, default="")
     headquarters_country = models.CharField(max_length=100, blank=True, default="")
     kenya_recognition_details = models.TextField(blank=True, default="")

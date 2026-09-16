@@ -1,0 +1,439 @@
+{
+  "legal_client_types": [
+    {
+      "value": "INDIVIDUAL",
+      "label": "Individual / Natural Person",
+      "description": "A natural person retaining the firm in their own legal capacity."
+    },
+    {
+      "value": "SOLE_PROPRIETORSHIP",
+      "label": "Sole Proprietorship",
+      "description": "An individual proprietor operating under a registered or trading business name."
+    },
+    {
+      "value": "COMPANY",
+      "label": "Company",
+      "description": "A Kenyan or foreign incorporated company or corporate body."
+    },
+    {
+      "value": "PARTNERSHIP",
+      "label": "Partnership",
+      "description": "Record the preliminary identity of the partnership; verification follows conflict clearance."
+    },
+    {
+      "value": "LIMITED_LIABILITY_PARTNERSHIP",
+      "label": "Limited Liability Partnership (LLP)",
+      "description": "Record the preliminary identity of the limited liability partnership (llp); verification follows conflict clearance."
+    },
+    {
+      "value": "COOPERATIVE",
+      "label": "Co-operative Society",
+      "description": "Record the preliminary identity of the co-operative society; verification follows conflict clearance."
+    },
+    {
+      "value": "SOCIETY_OR_ASSOCIATION",
+      "label": "Society / Association",
+      "description": "Record the preliminary identity of the society / association; verification follows conflict clearance."
+    },
+    {
+      "value": "NON_PROFIT_ORGANIZATION",
+      "label": "Public Benefit Organization (PBO)",
+      "description": "Record the preliminary identity of the public benefit organization (pbo); verification follows conflict clearance."
+    },
+    {
+      "value": "TRUST",
+      "label": "Trust / Trustees",
+      "description": "Record the preliminary identity of the trust / trustees; verification follows conflict clearance."
+    },
+    {
+      "value": "ESTATE",
+      "label": "Estate of a Deceased Person",
+      "description": "Record the preliminary identity of the estate of a deceased person; verification follows conflict clearance."
+    },
+    {
+      "value": "PUBLIC_ENTITY",
+      "label": "Public / Statutory Entity",
+      "description": "Record the preliminary identity of the public / statutory entity; verification follows conflict clearance."
+    },
+    {
+      "value": "INTERNATIONAL_ORGANIZATION",
+      "label": "International Organization",
+      "description": "Record the preliminary identity of the international organization; verification follows conflict clearance."
+    },
+    {
+      "value": "OTHER_REQUIRES_REVIEW",
+      "label": "Other \u2014 classification review required",
+      "description": "Use only where the legal capacity cannot yet be established; acceptance is blocked pending review."
+    }
+  ],
+  "prospective_profiles": {
+    "INDIVIDUAL": {
+      "name_field": null,
+      "fields": [
+        {
+          "key": "preferred_name",
+          "label": "Preferred / other names",
+          "required": false
+        }
+      ]
+    },
+    "SOLE_PROPRIETORSHIP": {
+      "name_field": "registered_business_name",
+      "fields": [
+        {
+          "key": "proprietor_name",
+          "label": "Proprietor legal name",
+          "required": true
+        },
+        {
+          "key": "trading_name",
+          "label": "Business / trading name",
+          "required": true
+        },
+        {
+          "key": "business_registration_number",
+          "label": "Registration identifier (if available)",
+          "required": false
+        }
+      ]
+    },
+    "COMPANY": {
+      "name_field": "company_name",
+      "fields": [
+        {
+          "key": "trading_name",
+          "label": "Trading name",
+          "required": false
+        },
+        {
+          "key": "registration_number",
+          "label": "Company registration number (if available)",
+          "required": false
+        },
+        {
+          "key": "country_of_incorporation",
+          "label": "Country of incorporation",
+          "required": true
+        }
+      ]
+    },
+    "PARTNERSHIP": {
+      "name_field": "partnership_name",
+      "fields": [
+        {
+          "key": "registration_number",
+          "label": "Registration number (if available)",
+          "required": false
+        },
+        {
+          "key": "subtype",
+          "label": "Partnership type",
+          "required": true,
+          "options": [
+            {
+              "value": "GENERAL_PARTNERSHIP",
+              "label": "General Partnership"
+            },
+            {
+              "value": "LIMITED_PARTNERSHIP",
+              "label": "Limited Partnership"
+            },
+            {
+              "value": "FOREIGN_PARTNERSHIP",
+              "label": "Foreign Partnership"
+            }
+          ]
+        }
+      ]
+    },
+    "LIMITED_LIABILITY_PARTNERSHIP": {
+      "name_field": "registered_name",
+      "fields": [
+        {
+          "key": "llp_registration_number",
+          "label": "LLP registration number (if available)",
+          "required": false
+        }
+      ]
+    },
+    "COOPERATIVE": {
+      "name_field": "registered_name",
+      "fields": [
+        {
+          "key": "registration_number",
+          "label": "Registration number (if available)",
+          "required": false
+        },
+        {
+          "key": "regulator_name",
+          "label": "Regulator (if known)",
+          "required": false
+        }
+      ]
+    },
+    "SOCIETY_OR_ASSOCIATION": {
+      "name_field": "legal_name",
+      "fields": [
+        {
+          "key": "common_name",
+          "label": "Common / trading name",
+          "required": false
+        },
+        {
+          "key": "registration_number",
+          "label": "Registration number (if available)",
+          "required": false
+        },
+        {
+          "key": "registration_authority",
+          "label": "Regulator (if known)",
+          "required": false
+        }
+      ]
+    },
+    "NON_PROFIT_ORGANIZATION": {
+      "name_field": "registered_name",
+      "fields": [
+        {
+          "key": "registration_number",
+          "label": "Registration number (if available)",
+          "required": false
+        },
+        {
+          "key": "registration_authority",
+          "label": "Regulator (if known)",
+          "required": false
+        }
+      ]
+    },
+    "TRUST": {
+      "name_field": "trust_name",
+      "fields": []
+    },
+    "ESTATE": {
+      "name_field": "estate_name",
+      "fields": [
+        {
+          "key": "deceased_full_name",
+          "label": "Deceased person\u2019s legal name",
+          "required": true
+        }
+      ]
+    },
+    "PUBLIC_ENTITY": {
+      "name_field": "official_name",
+      "fields": [
+        {
+          "key": "enabling_instrument",
+          "label": "Establishing law / identifier (if known)",
+          "required": false
+        }
+      ]
+    },
+    "INTERNATIONAL_ORGANIZATION": {
+      "name_field": "official_name",
+      "fields": [
+        {
+          "key": "founding_instrument",
+          "label": "Establishing instrument / status (if known)",
+          "required": false
+        }
+      ]
+    },
+    "OTHER_REQUIRES_REVIEW": {
+      "name_field": null,
+      "fields": []
+    }
+  },
+  "prospective_representative_types": {
+    "COMPANY": [
+      "DIRECTOR",
+      "COMPANY_SECRETARY",
+      "AUTHORIZED_AGENT"
+    ],
+    "PARTNERSHIP": [
+      "PARTNER",
+      "AUTHORIZED_AGENT"
+    ],
+    "LIMITED_LIABILITY_PARTNERSHIP": [
+      "DESIGNATED_PARTNER",
+      "PARTNER",
+      "AUTHORIZED_AGENT"
+    ],
+    "COOPERATIVE": [
+      "COOPERATIVE_OFFICER",
+      "AUTHORIZED_AGENT"
+    ],
+    "SOCIETY_OR_ASSOCIATION": [
+      "SOCIETY_OFFICIAL",
+      "AUTHORIZED_AGENT"
+    ],
+    "NON_PROFIT_ORGANIZATION": [
+      "PBO_OFFICIAL",
+      "AUTHORIZED_AGENT"
+    ],
+    "TRUST": [
+      "TRUSTEE",
+      "AUTHORIZED_AGENT"
+    ],
+    "ESTATE": [
+      "EXECUTOR",
+      "ADMINISTRATOR",
+      "AUTHORIZED_AGENT"
+    ],
+    "PUBLIC_ENTITY": [
+      "AUTHORIZED_PUBLIC_OFFICER",
+      "ACCOUNTING_OFFICER",
+      "COUNTY_ATTORNEY",
+      "ATTORNEY_GENERAL_REPRESENTATIVE"
+    ],
+    "INTERNATIONAL_ORGANIZATION": [
+      "AUTHORIZED_AGENT"
+    ],
+    "SOLE_PROPRIETORSHIP": [
+      "PROPRIETOR",
+      "AUTHORIZED_AGENT"
+    ],
+    "INDIVIDUAL": [
+      "AUTHORIZED_AGENT"
+    ],
+    "OTHER_REQUIRES_REVIEW": [
+      "AUTHORIZED_AGENT",
+      "OTHER"
+    ]
+  },
+  "representative_categories": [
+    {
+      "value": "PROPRIETOR",
+      "label": "Proprietor",
+      "description": ""
+    },
+    {
+      "value": "PARTNER",
+      "label": "Partner",
+      "description": ""
+    },
+    {
+      "value": "DESIGNATED_PARTNER",
+      "label": "Designated Partner",
+      "description": ""
+    },
+    {
+      "value": "DIRECTOR",
+      "label": "Director",
+      "description": ""
+    },
+    {
+      "value": "COMPANY_SECRETARY",
+      "label": "Company Secretary",
+      "description": ""
+    },
+    {
+      "value": "TRUSTEE",
+      "label": "Trustee",
+      "description": ""
+    },
+    {
+      "value": "EXECUTOR",
+      "label": "Executor",
+      "description": ""
+    },
+    {
+      "value": "ADMINISTRATOR",
+      "label": "Administrator",
+      "description": ""
+    },
+    {
+      "value": "SOCIETY_OFFICIAL",
+      "label": "Society Official",
+      "description": ""
+    },
+    {
+      "value": "PBO_OFFICIAL",
+      "label": "PBO Official",
+      "description": ""
+    },
+    {
+      "value": "COOPERATIVE_OFFICER",
+      "label": "Co-operative Officer",
+      "description": ""
+    },
+    {
+      "value": "ACCOUNTING_OFFICER",
+      "label": "Accounting Officer",
+      "description": ""
+    },
+    {
+      "value": "ATTORNEY_GENERAL_REPRESENTATIVE",
+      "label": "Attorney-General Representative",
+      "description": ""
+    },
+    {
+      "value": "COUNTY_ATTORNEY",
+      "label": "County Attorney",
+      "description": ""
+    },
+    {
+      "value": "AUTHORIZED_PUBLIC_OFFICER",
+      "label": "Authorized Public Officer",
+      "description": ""
+    },
+    {
+      "value": "AUTHORIZED_AGENT",
+      "label": "Authorized Agent",
+      "description": ""
+    },
+    {
+      "value": "SCHOOL_INSTITUTION_AUTHORIZED_OFFICER",
+      "label": "School / Institution Authorized Officer",
+      "description": ""
+    },
+    {
+      "value": "UNIVERSITY_AUTHORIZED_OFFICER",
+      "label": "University Authorized Officer",
+      "description": ""
+    },
+    {
+      "value": "OTHER",
+      "label": "Other",
+      "description": ""
+    }
+  ],
+  "privacy_lawful_bases": [
+    {
+      "value": "CONSENT",
+      "label": "Consent",
+      "description": ""
+    },
+    {
+      "value": "CONTRACTUAL_NECESSITY",
+      "label": "Contractual necessity",
+      "description": ""
+    },
+    {
+      "value": "LEGAL_OBLIGATION",
+      "label": "Legal obligation",
+      "description": ""
+    },
+    {
+      "value": "PUBLIC_INTEREST",
+      "label": "Public interest",
+      "description": ""
+    },
+    {
+      "value": "LEGITIMATE_INTERESTS",
+      "label": "Legitimate interests",
+      "description": ""
+    },
+    {
+      "value": "VITAL_INTERESTS",
+      "label": "Vital interests",
+      "description": ""
+    },
+    {
+      "value": "MULTIPLE_APPLICABLE_BASES",
+      "label": "Multiple applicable lawful bases",
+      "description": ""
+    }
+  ]
+}

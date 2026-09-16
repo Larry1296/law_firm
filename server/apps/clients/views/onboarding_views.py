@@ -1,6 +1,5 @@
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -8,16 +7,11 @@ from apps.clients.onboarding_metadata import onboarding_metadata
 from apps.clients.serializers.client_detail_serializer import ClientDetailSerializer
 from apps.clients.serializers.onboarding_serializers import ClientOnboardingCreateSerializer
 from apps.clients.services.onboarding_service import ClientOnboardingService
-from apps.common.choices import UserRole
-from apps.staff.services.secretary import SecretaryClientService
 
 
 def onboarding_firm(user):
-    if user.role == UserRole.ADMIN and hasattr(user, "owned_firm"):
-        return user.owned_firm
-    if user.role == UserRole.SECRETARY:
-        return SecretaryClientService.ensure_can_manage_clients(user).law_firm
-    raise PermissionDenied("You are not authorized to onboard clients.")
+    from apps.clients.services.prospective_client_service import prospective_firm
+    return prospective_firm(user)
 
 
 class ClientOnboardingMetadataView(APIView):

@@ -1,3 +1,4 @@
+import ProspectiveClientActions from '@/modules/clients/shared/ProspectiveClientActions';
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -115,6 +116,7 @@ const SecretaryClientDetails = () => {
       </div>
 
       <SectionHeading title={pageTitle} subtitle='Client Details' />
+      <ProspectiveClientActions client={client} workspace='secretary' />
 
       {/* CLIENT HEADER */}
       <Card className='p-5'>

@@ -1,3 +1,4 @@
+import ProspectiveClientActions from '@/modules/clients/shared/ProspectiveClientActions';
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -219,6 +220,7 @@ export default function AdminClientDetailsPage() {
         title={pageTitle}
         subtitle='Client Details'
       />
+      <ProspectiveClientActions client={client} workspace='admin' />
       <PageSectionNav
         ariaLabel='Client page sections'
         sections={[

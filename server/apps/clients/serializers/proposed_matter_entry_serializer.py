@@ -1,20 +1,14 @@
 from rest_framework import serializers
 
-from apps.clients.models import Client
 from apps.clients.serializers.admin.client_matter_conflict_check_serializer import ProposedMatterSerializer
 
 
-class ProspectiveClientInputSerializer(serializers.Serializer):
-    legal_name = serializers.CharField(max_length=255)
-    client_type = serializers.ChoiceField(choices=Client.ClientType.choices, required=False, default=Client.ClientType.INDIVIDUAL)
-    email = serializers.EmailField(required=False, allow_blank=True)
-    phone_number = serializers.CharField(required=False, allow_blank=True, max_length=30)
-    privacy = serializers.DictField()
+from apps.clients.serializers.prospective_client_serializer import ProspectiveClientCreateSerializer
 
 
 class ProposedMatterEntrySerializer(serializers.Serializer):
     client_id = serializers.UUIDField(required=False, allow_null=True)
-    prospective_client = ProspectiveClientInputSerializer(required=False)
+    prospective_client = ProspectiveClientCreateSerializer(required=False)
     proposed_matter = ProposedMatterSerializer()
 
     def validate(self, attrs):

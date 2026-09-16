@@ -5,65 +5,6 @@ import axiosInstance from '@/core/api/axios';
 ========================================================= */
 
 const adminClientsService = {
-  async createProposedMatter(payload) {
-    const { data } = await axiosInstance.post('/admin/clients/proposed-matters/', payload);
-    return data;
-  },
-  async getOnboardingMetadata() {
-    const { data } = await axiosInstance.get('/admin/clients/onboarding-metadata/');
-    return data;
-  },
-  async createOnboardingClient(payload) {
-    const { data } = await axiosInstance.post('/admin/clients/onboarding/', payload);
-    return data;
-  },
-  createEndpoints: {
-    INDIVIDUAL: '/admin/clients/individuals/create/',
-    COMPANY: '/admin/clients/companies/create/',
-    SOLE_PROPRIETORSHIP: '/admin/clients/legal-entities/create/',
-    PARTNERSHIP: '/admin/clients/legal-entities/create/',
-    LIMITED_LIABILITY_PARTNERSHIP: '/admin/clients/legal-entities/create/',
-    COOPERATIVE: '/admin/clients/legal-entities/create/',
-    SOCIETY_OR_ASSOCIATION: '/admin/clients/legal-entities/create/',
-    NON_PROFIT_ORGANIZATION: '/admin/clients/legal-entities/create/',
-    TRUST: '/admin/clients/legal-entities/create/',
-    ESTATE: '/admin/clients/legal-entities/create/',
-    PUBLIC_ENTITY: '/admin/clients/legal-entities/create/',
-    INTERNATIONAL_ORGANIZATION: '/admin/clients/legal-entities/create/',
-
-  },
-
-  /* ======================================================
-     CREATE INDIVIDUAL CLIENT
-  ====================================================== */
-  async createIndividualClient(payload) {
-    const { data } = await axiosInstance.post(
-      this.createEndpoints.INDIVIDUAL,
-      payload,
-    );
-
-    return data;
-  },
-
-  /* ======================================================
-     CREATE COMPANY CLIENT  🔴 ADD THIS
-  ====================================================== */
-  async createCompanyClient(payload) {
-    const { data } = await axiosInstance.post(
-      this.createEndpoints.COMPANY,
-      payload,
-    );
-
-    return data;
-  },
-
-  async createClient(payload, clientType = 'INDIVIDUAL') {
-    const endpoint =
-      this.createEndpoints[clientType] || this.createEndpoints.INDIVIDUAL;
-    const { data } = await axiosInstance.post(endpoint, payload);
-    return data;
-  },
-
   /* ======================================================
      CLIENT LIST
   ====================================================== */

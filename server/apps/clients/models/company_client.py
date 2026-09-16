@@ -5,6 +5,7 @@ from django.utils import timezone
 
 class CompanyClient(models.Model):
     class CompanyStatus(models.TextChoices):
+        UNKNOWN = "UNKNOWN", "Unknown"
         ACTIVE = "ACTIVE", "Active"
         DORMANT = "DORMANT", "Dormant"
         UNDER_ADMINISTRATION = (
@@ -19,6 +20,7 @@ class CompanyClient(models.Model):
         OTHER = "OTHER", "Other"
 
     class CompanyType(models.TextChoices):
+        UNKNOWN = "UNKNOWN", "Not yet classified"
         PRIVATE_LIMITED_COMPANY = (
             "PRIVATE_LIMITED_COMPANY",
             "Private Company Limited by Shares",
@@ -72,6 +74,8 @@ class CompanyClient(models.Model):
     registration_number = models.CharField(
         max_length=100,
         unique=True,
+        null=True,
+        blank=True,
         db_index=True,
         help_text="Registration number shown on the incorporation certificate.",
     )
@@ -268,7 +272,7 @@ class CompanyClient(models.Model):
 
     def save(self, *args, **kwargs):
         self.company_name = self.company_name.strip()
-        self.registration_number = self.registration_number.strip().upper()
+        self.registration_number = (self.registration_number or "").strip().upper() or None
         self.trading_name = self.trading_name.strip()
         self.full_clean()
         super().save(*args, **kwargs)

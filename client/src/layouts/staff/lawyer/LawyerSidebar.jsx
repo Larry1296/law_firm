@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Briefcase,
   Calendar,
+  ListTodo,
   FileText,
   MessageSquare,
   Bell,

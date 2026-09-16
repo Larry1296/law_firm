@@ -132,6 +132,7 @@ const AdminCaseTimelinePage = lazy(
 const AdminClientsPage = lazy(
   () => import('@/modules/admin/clients/pages/AdminClientsPage'),
 );
+const CompleteClientOnboardingPage = lazy(() => import('@/modules/admin/clients/pages/CompleteClientOnboardingPage'));
 const ProposedMatterEntryPage = lazy(() => import('@/modules/admin/clients/pages/ProposedMatterEntryPage'));
 
 const AdminCreateClientPage = lazy(
@@ -711,6 +712,7 @@ const AppRoutes = () => {
           <Route path='clients' element={<AdminClientsPage />} />
           <Route path='clients/proposed-matters/new' element={<ProposedMatterEntryPage />} />
           <Route path='clients/create' element={<AdminCreateClientPage />} />
+          <Route path='clients/:id/complete-onboarding' element={<CompleteClientOnboardingPage />} />
           <Route path='clients/:id' element={<AdminClientDetailsPage />} />
           <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/conflict-checks/:checkId' element={<ClientConflictCheckPage />} />
@@ -864,7 +866,10 @@ const AppRoutes = () => {
 
           {/* CLIENTS */}
           <Route path='clients' element={<SecretaryClients />} />
+          <Route path='clients/proposed-matters/new' element={<ProposedMatterEntryPage />} />
+          <Route path='clients/:id/conflict-checks/new' element={<ProposedMatterEntryPage />} />
           <Route path='clients/create' element={<AdminCreateClientPage />} />
+          <Route path='clients/:id/complete-onboarding' element={<CompleteClientOnboardingPage />} />
           <Route path='clients/:id' element={<SecretaryClientDetails />} />
 
           {/* CASES */}

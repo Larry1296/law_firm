@@ -22,22 +22,23 @@ CANONICAL_CLIENT_TYPES = [
 
 CLIENT_TYPE_LABELS = {
     "INDIVIDUAL": "Individual / Natural Person",
-    "SOLE_PROPRIETORSHIP": "Sole Proprietor / Registered Business",
-    "COMPANY": "Company / Corporate Body",
+    "SOLE_PROPRIETORSHIP": "Sole Proprietorship",
+    "COMPANY": "Company",
     "PARTNERSHIP": "Partnership",
     "LIMITED_LIABILITY_PARTNERSHIP": "Limited Liability Partnership (LLP)",
     "COOPERATIVE": "Co-operative Society",
-    "SOCIETY_OR_ASSOCIATION": "Registered Society / Association",
+    "SOCIETY_OR_ASSOCIATION": "Society / Association",
     "NON_PROFIT_ORGANIZATION": "Public Benefit Organization (PBO)",
     "TRUST": "Trust / Trustees",
     "ESTATE": "Estate of a Deceased Person",
     "PUBLIC_ENTITY": "Public / Statutory Entity",
     "INTERNATIONAL_ORGANIZATION": "International Organization",
-    "OTHER_REQUIRES_REVIEW": "Other legally recognized person or body — classification review required",
+    "OTHER_REQUIRES_REVIEW": "Other — classification review required",
 }
 
 
 def onboarding_metadata():
+    from apps.clients.prospective_metadata import PROSPECTIVE_PROFILES, REPRESENTATIVE_TYPES
     descriptions = {
         "INDIVIDUAL": "A natural person retaining the firm in their own legal capacity.",
         "SOLE_PROPRIETORSHIP": "An individual proprietor operating under a registered or trading business name.",
@@ -45,9 +46,11 @@ def onboarding_metadata():
         "OTHER_REQUIRES_REVIEW": "Use only where the legal capacity cannot yet be established; acceptance is blocked pending review.",
     }
     return {
+        "prospective_profiles": PROSPECTIVE_PROFILES,
+        "prospective_representative_types": REPRESENTATIVE_TYPES,
         "schema_version": "2026.1",
-        "legal_client_types": [{"value": value, "label": CLIENT_TYPE_LABELS[value], "description": descriptions.get(value, "")} for value in CANONICAL_CLIENT_TYPES],
-        "access_types": _choices([(Client.AccessType.ASSISTED, "Assisted"), (Client.AccessType.PORTAL_ENABLED, "Portal enabled")]),
+        "legal_client_types": [{"value": value, "label": CLIENT_TYPE_LABELS[value], "description": descriptions.get(value, f"Record the preliminary identity of the {CLIENT_TYPE_LABELS[value].lower()}; verification follows conflict clearance.")} for value in CANONICAL_CLIENT_TYPES],
+        "access_types": _choices([(Client.AccessType.ASSISTED, "Firm-managed — no portal login"), (Client.AccessType.PORTAL_ENABLED, "Portal-enabled — controlled client dashboard access")]),
         "classification_review_statuses": _choices(Client.ClassificationReviewStatus.choices),
         "representative_categories": _choices(ClientRepresentative.RepresentativeCategory.choices),
         "sectors": _choices(ClientSectorProfile.Sector.choices),

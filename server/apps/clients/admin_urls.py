@@ -1,3 +1,5 @@
+from apps.clients.views.prospective_client_views import ClientOnboardingCompletionView
+from apps.clients.views.prospective_client_views import ProspectiveClientCreateView, ProspectivePortalInviteView, ProspectiveEntryOptionsView, ProspectiveClientDetailView
 from django.urls import path
 from apps.clients.views.onboarding_views import ClientOnboardingCreateView, ClientOnboardingMetadataView
 from apps.clients.views.proposed_matter_entry_view import ProposedMatterEntryView
@@ -63,6 +65,12 @@ from apps.clients.views.admin import (
 )
 
 urlpatterns = [
+    path("<uuid:client_id>/complete-onboarding/", ClientOnboardingCompletionView.as_view(), name="admin-complete-onboarding"),
+    path("prospective/", ProspectiveClientCreateView.as_view(), name="admin-prospective-create"),
+    path("entry-options/", ProspectiveEntryOptionsView.as_view(), name="admin-prospective-options"),
+    path("<uuid:client_id>/portal-invitation/", ProspectivePortalInviteView.as_view(), name="admin-prospective-invite"),
+    path("<uuid:client_id>/prospective-detail/", ProspectiveClientDetailView.as_view(), name="admin-prospective-detail"),
+
     path("proposed-matters/", ProposedMatterEntryView.as_view(), name="admin-proposed-matter-entry"),
     path("onboarding-metadata/", ClientOnboardingMetadataView.as_view(), name="client-onboarding-metadata"),
     path("onboarding/", ClientOnboardingCreateView.as_view(), name="client-onboarding-create"),
