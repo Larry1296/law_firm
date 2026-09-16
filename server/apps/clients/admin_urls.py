@@ -1,3 +1,4 @@
+from apps.clients.views.intake_privacy_views import IntakePrivacyConfigView
 from apps.clients.views.prospective_client_views import ClientOnboardingCompletionView
 from apps.clients.views.prospective_client_views import ProspectiveClientCreateView, ProspectivePortalInviteView, ProspectiveEntryOptionsView, ProspectiveClientDetailView
 from django.urls import path
@@ -65,6 +66,8 @@ from apps.clients.views.admin import (
 )
 
 urlpatterns = [
+    path("intake-privacy/", IntakePrivacyConfigView.as_view(), name="intake-privacy-list"),
+    path("intake-privacy/<int:pk>/<str:action>/", IntakePrivacyConfigView.as_view(), name="intake-privacy-action"),
     path("<uuid:client_id>/complete-onboarding/", ClientOnboardingCompletionView.as_view(), name="admin-complete-onboarding"),
     path("prospective/", ProspectiveClientCreateView.as_view(), name="admin-prospective-create"),
     path("entry-options/", ProspectiveEntryOptionsView.as_view(), name="admin-prospective-options"),

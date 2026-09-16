@@ -44,7 +44,7 @@ class ProspectiveCreationTests(TestCase):
     def setUp(self):
         self.admin = person('prospect-admin@example.test')
         self.firm = LawFirm.objects.create(owner=self.admin, name='Prospective Firm', registration_number='PROSPECT-1')
-        IntakePrivacyConfig.objects.create(firm=self.firm, policy_version='2026.1', lawful_basis='LEGITIMATE_INTERESTS', is_active=True, approved_by=self.admin, approved_at=timezone.now())
+        IntakePrivacyConfig.objects.create(firm=self.firm, policy_version='2026.1', lawful_basis='LEGITIMATE_INTERESTS', notice_text='Approved notice', status='ACTIVE', approved_by=self.admin, approved_at=timezone.now(), activated_by=self.admin, activated_at=timezone.now())
         self.api = APIClient()
         self.api.force_authenticate(self.admin)
         self.url = reverse('admin-prospective-create')
@@ -310,13 +310,14 @@ class ProspectiveCreationTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
 
     def test_privacy_configuration_required_and_server_controlled(self):
-        config = self.firm.intake_privacy
-        for field, value in [('is_active', False), ('approved_by', None), ('approved_at', None)]:
-            original = getattr(config, field)
-            setattr(config, field, value); config.save()
-            self.assertIsNone(self.api.get(reverse('client-onboarding-metadata')).data['intake_privacy'])
-            self.assertEqual(self.api.post(self.url, prospect_payload(), format='json').status_code, 400)
-            setattr(config, field, original); config.save()
+        config = IntakePrivacyConfig.active_for(self.firm)
+        from apps.clients.services.intake_privacy_service import transition_config
+        transition_config(firm=self.firm, user=self.admin, pk=config.pk, action='retire')
+        self.assertIsNone(self.api.get(reverse('client-onboarding-metadata')).data['intake_privacy'])
+        self.assertEqual(self.api.post(self.url, prospect_payload(), format='json').status_code, 400)
+        config = IntakePrivacyConfig.objects.create(firm=self.firm, policy_version='2026.2',
+            notice_text='Replacement notice', lawful_basis='LEGITIMATE_INTERESTS')
+        transition_config(firm=self.firm, user=self.admin, pk=config.pk, action='activate')
         for field, value in [('lawful_basis', 'CONSENT'), ('privacy_notice_version', 'forged'), ('delivered_by', self.admin.id), ('delivered_at', timezone.now().isoformat()), ('data_source', 'forged')]:
             payload = prospect_payload(); payload['privacy'][field] = value
             self.assertEqual(self.api.post(self.url, payload, format='json').status_code, 400)
@@ -330,7 +331,7 @@ class ProspectiveCreationTests(TestCase):
             self.assertEqual(privacy.delivered_by, self.admin)
             self.assertIsNotNone(privacy.delivered_at)
             self.assertEqual(privacy.acknowledged, acknowledged)
-        config.delete()
+        transition_config(firm=self.firm, user=self.admin, pk=config.pk, action='retire')
         self.assertEqual(self.api.post(self.url, prospect_payload(), format='json').status_code, 400)
 
     def test_pbo_requires_explicit_unverified_classification(self):
@@ -413,5 +414,9 @@ class ProspectiveCreationTests(TestCase):
     def test_another_firms_privacy_approval_cannot_enable_creation(self):
         other_admin = person('privacy-other@example.test')
         other_firm = LawFirm.objects.create(owner=other_admin, name='Other privacy firm', registration_number='PRIVACY-OTHER')
-        config = self.firm.intake_privacy; config.firm = other_firm; config.save()
+        from apps.clients.services.intake_privacy_service import transition_config
+        config = IntakePrivacyConfig.active_for(self.firm)
+        transition_config(firm=self.firm, user=self.admin, pk=config.pk, action='retire')
+        other = IntakePrivacyConfig.objects.create(firm=other_firm, policy_version='other-v1', notice_text='Other notice', lawful_basis='LEGITIMATE_INTERESTS')
+        transition_config(firm=other_firm, user=other_admin, pk=other.pk, action='activate')
         self.assertEqual(self.api.post(self.url, prospect_payload(), format='json').status_code, 400)

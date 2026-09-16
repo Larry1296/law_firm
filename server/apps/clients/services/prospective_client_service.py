@@ -29,6 +29,9 @@ class ProspectiveClientService:
     def create(*, user, data):
         from apps.clients.serializers.prospective_client_serializer import ProspectiveClientCreateSerializer
         firm = prospective_firm(user)
+        # Serialize creation with privacy activation/retirement for this firm.
+        from apps.firm.models import LawFirm
+        LawFirm.objects.select_for_update().get(pk=firm.pk)
         serializer = ProspectiveClientCreateSerializer(data=data)
         serializer.is_valid(raise_exception=True)
         values = dict(serializer.validated_data)
