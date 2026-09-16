@@ -33,6 +33,7 @@ class AuthService:
 
     @staticmethod
     def build_session_payload(user):
+        from apps.authentication.portal_access import portal_access_allowed
         must_change_password = (
             False if user.role == UserRole.ADMIN else user.must_change_password
         )
@@ -55,6 +56,7 @@ class AuthService:
                 "access_type": client_profile.access_type,
                 "lifecycle_status": client_profile.lifecycle_status,
                 "portal_access_exists": bool(client_profile.user_id),
+                "portal_access_allowed": portal_access_allowed(user),
             }
 
         return {

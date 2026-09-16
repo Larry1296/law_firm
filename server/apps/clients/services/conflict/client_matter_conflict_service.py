@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.audit_logs.services import AuditService
+from .identity_names import client_identity_names
 
 from apps.clients.models import (
     Client,
@@ -133,7 +134,13 @@ class ClientMatterConflictService:
 
     @classmethod
     def _run_automatic_search(cls, *, firm, check, names_checked, source_categories):
+        names_checked = list(names_checked or []) + client_identity_names(check.client)
+        for party in check.parties.all():
+            names_checked.extend([party.name, *(party.aliases or [])])
         terms = cls._normalized_terms(names_checked)
+        # Automatic searches always cover every internal source, regardless of the
+        # manually selected evidence sources.
+        source_categories = ConflictCheckSourceCategory.values
         if not terms:
             return []
         matches = []
@@ -144,26 +151,32 @@ class ClientMatterConflictService:
 
         if ConflictCheckSourceCategory.CURRENT_CLIENTS in source_categories:
             for client in Client.objects.filter(firm=firm, is_active=True).exclude(id=check.client_id):
-                if contains_term(client.full_name):
+                if any(contains_term(name) for name in client_identity_names(client)):
                     matches.append({"source": ConflictCheckSourceCategory.CURRENT_CLIENTS, "record_type": "client", "record_id": str(client.id), "name": client.full_name})
         if ConflictCheckSourceCategory.FORMER_CLIENTS in source_categories:
             for client in Client.objects.filter(firm=firm, is_active=False):
-                if contains_term(client.full_name):
+                if any(contains_term(name) for name in client_identity_names(client)):
                     matches.append({"source": ConflictCheckSourceCategory.FORMER_CLIENTS, "record_type": "client", "record_id": str(client.id), "name": client.full_name})
         if ConflictCheckSourceCategory.OPEN_MATTERS in source_categories:
-            for matter in Case.objects.filter(firm=firm, matter_status=Case.MatterStatus.MATTER_OPEN):
-                if contains_term(matter.title) or contains_term(matter.plaintiff) or contains_term(matter.defendant):
+            for matter in Case.objects.filter(firm=firm).exclude(matter_status=Case.MatterStatus.CLOSED):
+                if any(contains_term(name) for name in [matter.title, matter.plaintiff, matter.defendant, *client_identity_names(matter.client)]):
                     matches.append({"source": ConflictCheckSourceCategory.OPEN_MATTERS, "record_type": "matter", "record_id": str(matter.id), "name": matter.case_number})
         if ConflictCheckSourceCategory.CLOSED_MATTERS in source_categories:
             for matter in Case.objects.filter(firm=firm, matter_status=Case.MatterStatus.CLOSED):
-                if contains_term(matter.title) or contains_term(matter.plaintiff) or contains_term(matter.defendant):
+                if any(contains_term(name) for name in [matter.title, matter.plaintiff, matter.defendant, *client_identity_names(matter.client)]):
                     matches.append({"source": ConflictCheckSourceCategory.CLOSED_MATTERS, "record_type": "matter", "record_id": str(matter.id), "name": matter.case_number})
         if ConflictCheckSourceCategory.PROSPECTIVE_CLIENTS in source_categories:
             for candidate in ClientMatterConflictCheck.objects.filter(firm=firm).exclude(id=check.id):
                 candidate_terms = [candidate.proposed_matter_title, candidate.proposed_instructions, candidate.factual_summary]
-                candidate_terms.extend(candidate.parties.values_list("name", flat=True))
+                candidate_terms.extend(client_identity_names(candidate.client))
+                for party in candidate.parties.all():
+                    candidate_terms.extend([party.name, *(party.aliases or [])])
                 if any(contains_term(value) for value in candidate_terms):
                     matches.append({"source": ConflictCheckSourceCategory.PROSPECTIVE_CLIENTS, "record_type": "proposed_matter", "record_id": str(candidate.id), "name": candidate.reference_number})
+        for party in ConflictCheckParty.objects.filter(conflict_check__firm=firm).exclude(conflict_check=check):
+            if any(contains_term(name) for name in [party.name, *(party.aliases or [])]):
+                matches.append({"source": ConflictCheckSourceCategory.RELATED_PARTIES, "record_type": "conflict_party",
+                                "record_id": str(party.id), "name": party.name})
         return matches
 
     @staticmethod
@@ -452,6 +465,7 @@ class ClientMatterConflictService:
         ConflictCheckParty.objects.create(
             conflict_check=check,
             name=client.full_name,
+            aliases=client_identity_names(client)[1:],
             party_type=cls._client_party_type(client),
             role=ConflictCheckParty.PartyRole.PROSPECTIVE_CLIENT,
             identification_reference=client.national_id or client.passport_number or "",
@@ -655,6 +669,9 @@ class ClientMatterConflictService:
             invalid_sources = [item for item in sources if item not in ConflictCheckSourceCategory.values]
             if invalid_sources:
                 raise ValidationError({"source_categories_checked": "One or more source categories are invalid."})
+            names_checked = cls._normalize_list(names_checked + client_identity_names(check.client) + [
+                name for party in check.parties.all() for name in [party.name, *(party.aliases or [])]
+            ])
             if not names_checked:
                 raise ValidationError({"names_checked": "Record the names checked."})
             if not sources:

@@ -14,7 +14,7 @@ PROSPECTIVE_PROFILES = {
     "LIMITED_LIABILITY_PARTNERSHIP": {"name_field": "registered_name", "fields": [field("llp_registration_number", "LLP registration number (if available)")]},
     "COOPERATIVE": {"name_field": "registered_name", "fields": [field("registration_number", "Registration number (if available)"), field("regulator_name", "Regulator (if known)")]},
     "SOCIETY_OR_ASSOCIATION": {"name_field": "legal_name", "fields": [field("common_name", "Common / trading name"), field("registration_number", "Registration number (if available)"), field("registration_authority", "Regulator (if known)")]},
-    "NON_PROFIT_ORGANIZATION": {"name_field": "registered_name", "fields": [field("registration_number", "Registration number (if available)"), field("registration_authority", "Regulator (if known)")]},
+    "NON_PROFIT_ORGANIZATION": {"name_field": "registered_name", "fields": [field("nonprofit_form", "Proposed PBO classification (unverified)", True, [{"value": "PUBLIC_BENEFIT_ORGANIZATION", "label": "Public Benefit Organization (PBO) — unverified"}]), field("registration_number", "Registration number (if available)"), field("registration_authority", "Regulator (if known)")]},
     "TRUST": {"name_field": "trust_name", "fields": []},
     "ESTATE": {"name_field": "estate_name", "fields": [field("deceased_full_name", "Deceased person’s legal name", True)]},
     "PUBLIC_ENTITY": {"name_field": "official_name", "fields": [field("enabling_instrument", "Establishing law / identifier (if known)")]},

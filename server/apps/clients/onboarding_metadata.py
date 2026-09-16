@@ -43,6 +43,7 @@ def onboarding_metadata():
         "INDIVIDUAL": "A natural person retaining the firm in their own legal capacity.",
         "SOLE_PROPRIETORSHIP": "An individual proprietor operating under a registered or trading business name.",
         "COMPANY": "A Kenyan or foreign incorporated company or corporate body.",
+        "NON_PROFIT_ORGANIZATION": "Select only for a proposed Public Benefit Organization (PBO); status remains unverified until onboarding. Other nonprofits must use their legal form (company, trust or society), or Other for classification review.",
         "OTHER_REQUIRES_REVIEW": "Use only where the legal capacity cannot yet be established; acceptance is blocked pending review.",
     }
     return {

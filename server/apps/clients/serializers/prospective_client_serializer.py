@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.clients.models import Client, ClientPrivacyRecord, ClientRepresentative
+from apps.clients.models import Client, ClientRepresentative
 from apps.clients.onboarding_metadata import CANONICAL_CLIENT_TYPES
 from apps.clients.prospective_metadata import PROSPECTIVE_PROFILES, REPRESENTATIVE_TYPES
 from apps.clients.services.onboarding_service import PROFILE_MODELS
@@ -24,11 +24,8 @@ class PreliminaryRepresentativeSerializer(StrictSerializer):
 
 
 class ProspectivePrivacySerializer(StrictSerializer):
-    lawful_basis = serializers.ChoiceField(choices=ClientPrivacyRecord.LawfulBasis.choices)
-    privacy_notice_version = serializers.CharField(max_length=50)
     privacy_notice_delivered = serializers.BooleanField()
-    delivery_method = serializers.CharField(max_length=30)
-    data_source = serializers.CharField(max_length=100)
+    delivery_method = serializers.ChoiceField(choices=['PAPER', 'EMAIL', 'SMS', 'VERBAL', 'PORTAL'])
     acknowledged = serializers.BooleanField(default=False)
     acknowledgement_reference = serializers.CharField(max_length=255, required=False, allow_blank=True)
 

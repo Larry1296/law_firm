@@ -36,6 +36,7 @@ export default function AdminCreateClientPage() {
   const submit = async (event) => {
     event.preventDefault();
     setError('');
+    if (!metadata?.intake_privacy) return setError('An approved active firm intake-privacy configuration is required.');
     if (!state.privacy.privacy_notice_delivered) return setError('Confirm delivery of the privacy notice.');
     if (showRep && (!rep?.full_legal_name || !rep?.role_title || !rep?.representative_category)) return setError('Record the representative name and capacity.');
     if (portal && kind !== 'INDIVIDUAL' && (!rep?.is_portal_contact || !rep?.email)) return setError('Select an authorised portal contact and enter their email.');
@@ -94,16 +95,17 @@ export default function AdminCreateClientPage() {
           {portal && kind !== 'INDIVIDUAL' && <Field type='checkbox' label='Use this authorised portal contact' required value={rep?.is_portal_contact} onChange={(is_portal_contact) => setRep({ is_portal_contact })} />}
         </div></StepPanel>}
         <StepPanel title='Privacy notice delivery'><div className='grid gap-4 sm:grid-cols-2'>
-          <SelectField label='Lawful basis' required options={metadata.privacy_lawful_bases} value={state.privacy.lawful_basis} onChange={(lawful_basis) => setObject('privacy', { lawful_basis })} />
-          <Field label='Data source' required value={state.privacy.data_source} onChange={(data_source) => setObject('privacy', { data_source })} />
-          <Field label='Privacy notice version' required value={state.privacy.privacy_notice_version} onChange={(privacy_notice_version) => setObject('privacy', { privacy_notice_version })} />
-          <Field label='Delivery method' required value={state.privacy.delivery_method} onChange={(delivery_method) => setObject('privacy', { delivery_method })} />
+          {!metadata.intake_privacy && <p role='alert'>An approved active firm intake-privacy configuration is required before creation.</p>}
+          <label className='block text-sm'><span className='mb-1 block font-medium'>Lawful basis</span><input className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2' readOnly value={metadata.intake_privacy?.lawful_basis_label || ''} /></label>
+          <label className='block text-sm'><span className='mb-1 block font-medium'>Privacy notice version</span><input className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2' readOnly value={metadata.intake_privacy?.policy_version || ''} /></label>
+          <SelectField label='Delivery method' required options={['PAPER', 'EMAIL', 'SMS', 'VERBAL', 'PORTAL'].map(value => ({value, label: value}))} value={state.privacy.delivery_method} onChange={(delivery_method) => setObject('privacy', { delivery_method })} />
+          <p>Acknowledgement is optional and is not consent. The delivering staff member and time are recorded automatically.</p>
           <Field label='Privacy notice delivered' type='checkbox' required value={state.privacy.privacy_notice_delivered} onChange={(privacy_notice_delivered) => setObject('privacy', { privacy_notice_delivered })} />
           <Field label='Acknowledged where appropriate' type='checkbox' value={state.privacy.acknowledged} onChange={(acknowledged) => setObject('privacy', { acknowledged })} />
           {state.privacy.acknowledged && <Field label='Acknowledgement reference' value={state.privacy.acknowledgement_reference} onChange={(acknowledgement_reference) => setObject('privacy', { acknowledgement_reference })} />}
         </div></StepPanel>
-        <p>{portal ? 'Portal invitation remains pending. Send it separately from client details.' : 'No login account or invitation will be created.'} Compliance checks remain not started. No matter will be opened.</p>
-        <button type='submit' disabled={saving} className='w-full rounded-lg bg-blue-600 px-5 py-3 text-white disabled:opacity-50 sm:w-auto'>{saving ? 'Creating…' : 'Create prospective client'}</button>
+        <p>{portal ? 'Portal-enabled records intended access only. Invitation becomes available after conflict clearance and firm acceptance.' : 'No login account or invitation will be created.'} Compliance checks remain not started. No matter will be opened.</p>
+        <button type='submit' disabled={saving || !metadata.intake_privacy} className='w-full rounded-lg bg-blue-600 px-5 py-3 text-white disabled:opacity-50 sm:w-auto'>{saving ? 'Creating…' : 'Create prospective client'}</button>
       </>}
     </form>}
   </main>;

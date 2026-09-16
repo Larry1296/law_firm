@@ -15,6 +15,10 @@ const RoleRoute = ({ allowedRoles, children }) => {
     return <Navigate to="/unauthorized" replace />;
   }
 
+  if (effectiveRole === 'PROSPECT' && user?.client?.portal_access_allowed !== true) {
+    return <p role="status">Portal access becomes available after conflict clearance and firm acceptance.</p>;
+  }
+
   return children;
 };
 

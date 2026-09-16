@@ -103,3 +103,5 @@ __all__ = [
     "ClientComplianceReview",
     "ClientComplianceHistory",
 ]
+
+from .intake_privacy import IntakePrivacyConfig

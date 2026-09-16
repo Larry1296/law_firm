@@ -2,6 +2,8 @@ from datetime import date
 from unittest.mock import patch
 from django.core import mail
 from django.test import TestCase
+from django.utils import timezone
+from apps.clients.models import IntakePrivacyConfig
 from django.urls import reverse
 from rest_framework.test import APIClient
 from apps.audit_logs.models import AuditEvent
@@ -25,8 +27,7 @@ def person(email, role=UserRole.ADMIN):
 def prospect_payload(kind='INDIVIDUAL', access='ASSISTED'):
     payload = {'full_name': f'Prospective {kind}', 'client_type': kind, 'access_type': access,
                'email': 'prospect@example.test', 'phone_number': '+254700098765',
-               'privacy': {'lawful_basis': 'LEGITIMATE_INTERESTS', 'privacy_notice_version': '2026.1',
-                           'privacy_notice_delivered': True, 'delivery_method': 'PAPER', 'data_source': 'DIRECT'}, 'legal_profile': {}}
+               'privacy': {'privacy_notice_delivered': True, 'delivery_method': 'PAPER'}, 'legal_profile': {}}
     for field in PROSPECTIVE_PROFILES[kind]['fields']:
         if field['required']:
             payload['legal_profile'][field['key']] = field['options'][0]['value'] if field.get('options') else 'Preliminary value'
@@ -43,9 +44,16 @@ class ProspectiveCreationTests(TestCase):
     def setUp(self):
         self.admin = person('prospect-admin@example.test')
         self.firm = LawFirm.objects.create(owner=self.admin, name='Prospective Firm', registration_number='PROSPECT-1')
+        IntakePrivacyConfig.objects.create(firm=self.firm, policy_version='2026.1', lawful_basis='LEGITIMATE_INTERESTS', is_active=True, approved_by=self.admin, approved_at=timezone.now())
         self.api = APIClient()
         self.api.force_authenticate(self.admin)
         self.url = reverse('admin-prospective-create')
+
+    def accept(self, client):
+        lawyer, _ = Lawyer.objects.get_or_create(user=self.admin, defaults=dict(law_firm=self.firm, staff_number='GATE-A', admission_number='GATE-A', date_hired=date(2026, 1, 1)))
+        return ClientMatterConflictCheck.objects.create(client=client, firm=self.firm, responsible_lawyer=lawyer,
+            reference_number=f'GATE-{client.id}', proposed_matter_title='Advice', proposed_instructions='Advice',
+            status='CLEARED', acceptance_decision='ACCEPTED')
 
     def create(self, kind='INDIVIDUAL', access='ASSISTED'):
         response = self.api.post(self.url, prospect_payload(kind, access), format='json')
@@ -124,7 +132,7 @@ class ProspectiveCreationTests(TestCase):
             self.assertEqual(self.api.post(self.url, payload, format='json').status_code, 400)
 
     def test_privacy_evidence_is_required(self):
-        for field in ['lawful_basis', 'privacy_notice_version', 'privacy_notice_delivered', 'delivery_method', 'data_source']:
+        for field in ['privacy_notice_delivered', 'delivery_method']:
             payload = prospect_payload(); payload['privacy'].pop(field)
             self.assertEqual(self.api.post(self.url, payload, format='json').status_code, 400)
         payload = prospect_payload(); payload['privacy']['privacy_notice_delivered'] = False
@@ -143,6 +151,7 @@ class ProspectiveCreationTests(TestCase):
                 client = self.create(kind, 'PORTAL_ENABLED')
                 self.assertIsNone(client.user_id)
                 self.assertEqual(client.portal_status, 'PORTAL_ENABLED_PENDING')
+                self.accept(client)
                 response = self.api.post(reverse('admin-prospective-invite', args=[client.id]))
                 self.assertEqual(response.status_code, 200, response.data)
                 self.assertNotIn('password', str(response.data).lower())
@@ -169,6 +178,7 @@ class ProspectiveCreationTests(TestCase):
 
     def test_portal_and_delivery_failure_roll_back_invitation(self):
         client = self.create(access='PORTAL_ENABLED')
+        self.accept(client)
         before = User.objects.count()
         for target in ['apps.clients.services.admin.client_admin_create_service.ClientAdminCreateService._create_portal_user', 'apps.authentication.services.auth_service.AuthService.request_password_reset', 'apps.clients.services.prospective_client_service.AuditService.record']:
             with self.subTest(target=target), patch(target, side_effect=RuntimeError('test failure')):
@@ -232,7 +242,7 @@ class ProspectiveCreationTests(TestCase):
 
     def test_full_onboarding_requires_clearance_and_preserves_gates(self):
         client = self.create()
-        data = {'client': {'full_name': client.full_name, 'client_type': 'INDIVIDUAL', 'access_type': 'ASSISTED'}, 'legal_profile': {'identification_type': 'NATIONAL_ID', 'identification_number': '12345678'}, 'privacy': prospect_payload()['privacy']}
+        data = {'client': {'full_name': client.full_name, 'client_type': 'INDIVIDUAL', 'access_type': 'ASSISTED'}, 'legal_profile': {'identification_type': 'NATIONAL_ID', 'identification_number': '12345678'}, 'privacy': {**prospect_payload()['privacy'], 'lawful_basis': 'LEGITIMATE_INTERESTS', 'privacy_notice_version': '2026.1'}}
         url = reverse('admin-complete-onboarding', args=[client.id])
         self.assertEqual(self.api.put(url, data, format='json').status_code, 400)
         lawyer = Lawyer.objects.create(user=self.admin, law_firm=self.firm, staff_number='ADV-1', admission_number='ADV-1', date_hired=date(2026, 1, 1))
@@ -286,3 +296,122 @@ class ProspectiveCreationTests(TestCase):
                 ProposedMatterEntryService.create(user=self.admin, data=data)
         self.assertFalse(Client.objects.exists())
         self.assertFalse(AuditEvent.objects.exists())
+
+    def test_invitation_requires_clearance_and_acceptance_on_same_proposal(self):
+        client = self.create(access='PORTAL_ENABLED')
+        url = reverse('admin-prospective-invite', args=[client.id])
+        self.assertEqual(self.api.post(url).status_code, 400)
+        check = self.accept(client)
+        for status, decision in [('NOT_STARTED', 'PENDING'), ('CLEARED', 'PENDING'), ('IN_PROGRESS', 'ACCEPTED'), ('CLEARED', 'DECLINED')]:
+            check.status = status; check.acceptance_decision = decision; check.save()
+            self.assertEqual(self.api.post(url).status_code, 400)
+            client.refresh_from_db()
+            self.assertIsNone(client.user_id)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_privacy_configuration_required_and_server_controlled(self):
+        config = self.firm.intake_privacy
+        for field, value in [('is_active', False), ('approved_by', None), ('approved_at', None)]:
+            original = getattr(config, field)
+            setattr(config, field, value); config.save()
+            self.assertIsNone(self.api.get(reverse('client-onboarding-metadata')).data['intake_privacy'])
+            self.assertEqual(self.api.post(self.url, prospect_payload(), format='json').status_code, 400)
+            setattr(config, field, original); config.save()
+        for field, value in [('lawful_basis', 'CONSENT'), ('privacy_notice_version', 'forged'), ('delivered_by', self.admin.id), ('delivered_at', timezone.now().isoformat()), ('data_source', 'forged')]:
+            payload = prospect_payload(); payload['privacy'][field] = value
+            self.assertEqual(self.api.post(self.url, payload, format='json').status_code, 400)
+        for acknowledged in [False, True]:
+            payload = prospect_payload(); payload['privacy']['acknowledged'] = acknowledged
+            response = self.api.post(self.url, payload, format='json')
+            self.assertEqual(response.status_code, 201, response.data)
+            privacy = Client.objects.get(pk=response.data['client']['id']).privacy
+            self.assertEqual(privacy.lawful_basis, 'LEGITIMATE_INTERESTS')
+            self.assertEqual(privacy.privacy_notice_version, config.policy_version)
+            self.assertEqual(privacy.delivered_by, self.admin)
+            self.assertIsNotNone(privacy.delivered_at)
+            self.assertEqual(privacy.acknowledged, acknowledged)
+        config.delete()
+        self.assertEqual(self.api.post(self.url, prospect_payload(), format='json').status_code, 400)
+
+    def test_pbo_requires_explicit_unverified_classification(self):
+        payload = prospect_payload('NON_PROFIT_ORGANIZATION')
+        payload['legal_profile'].pop('nonprofit_form')
+        self.assertEqual(self.api.post(self.url, payload, format='json').status_code, 400)
+        payload['legal_profile']['nonprofit_form'] = 'OTHER_NON_PROFIT'
+        self.assertEqual(self.api.post(self.url, payload, format='json').status_code, 400)
+        client = self.create('NON_PROFIT_ORGANIZATION')
+        self.assertEqual(client.nonprofit_profile.pbo_or_ngo_status, 'UNVERIFIED')
+        self.assertFalse(client.nonprofit_profile.registration_verified)
+        for kind in ['COMPANY', 'TRUST', 'SOCIETY_OR_ASSOCIATION', 'OTHER_REQUIRES_REVIEW']:
+            other = self.create(kind)
+            self.assertFalse(hasattr(other, 'nonprofit_profile'))
+
+    def test_proposal_includes_all_preliminary_identity_names(self):
+        from apps.clients.services.conflict import ClientMatterConflictService
+        from apps.clients.services.conflict.identity_names import client_identity_names
+        client = self.create('SOLE_PROPRIETORSHIP')
+        client.alternative_names = 'Former name; Another name'; client.save()
+        client.sole_proprietorship_profile.trading_name = 'Trading brand'
+        client.sole_proprietorship_profile.save()
+        lawyer = self.accept(client).responsible_lawyer
+        check = ClientMatterConflictService.create_proposed_matter(user=self.admin, client_id=client.id, data={
+            'proposed_matter_title': 'Advice', 'proposed_instructions': 'Advice', 'responsible_lawyer_id': lawyer.id,
+            'no_adverse_party_currently_known': True, 'no_adverse_party_explanation': 'Advice only'})
+        party = check.parties.get(role='PROSPECTIVE_CLIENT')
+        self.assertEqual(set([party.name, *party.aliases]), set(client_identity_names(client)))
+        self.assertTrue({'Former name', 'Another name', 'Trading brand', 'Preliminary value', 'Portal Contact'} <= set(party.aliases))
+
+    def test_automatic_search_uses_all_identity_and_party_aliases(self):
+        from apps.clients.models import ConflictCheckParty
+        from apps.clients.services.conflict import ClientMatterConflictService
+        client = self.create('COMPANY'); check = self.accept(client)
+        client.company_profile.trading_name = 'Unique trading brand'; client.company_profile.save()
+        for active in [True, False]:
+            candidate = Client.objects.create(firm=self.firm, full_name='Unrelated name', alternative_names='Unique trading brand', is_active=active)
+            matches = ClientMatterConflictService._run_automatic_search(firm=self.firm, check=check, names_checked=['Unrelated query'], source_categories=['OTHER'])
+            self.assertTrue(any(m['record_id'] == str(candidate.id) and m['record_type'] == 'client' for m in matches))
+            candidate.delete()
+        other = self.create(); proposal = self.accept(other)
+        party = ConflictCheckParty.objects.create(conflict_check=proposal, name='Different name', role='OTHER', aliases=['Unique trading brand'])
+        matches = ClientMatterConflictService._run_automatic_search(firm=self.firm, check=check, names_checked=[], source_categories=[])
+        self.assertTrue(any(m['record_type'] == 'proposed_matter' and m['record_id'] == str(proposal.id) for m in matches))
+        self.assertTrue(any(m['record_type'] == 'conflict_party' and m['record_id'] == str(party.id) for m in matches))
+
+    def test_existing_prospect_token_cannot_access_business_apis_before_acceptance(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from apps.authentication.services.auth_service import AuthService
+        client = self.create(access='PORTAL_ENABLED')
+        user = person('existing-portal@example.test', UserRole.PROSPECT)
+        client.user = user; client.save()
+        api = APIClient(); api.credentials(HTTP_AUTHORIZATION=f'Bearer {RefreshToken.for_user(user).access_token}')
+        for url, method in [
+            (reverse('client-kyc-document-upload', args=[client.id]), 'post'),
+            (reverse('client-documents'), 'get'),
+            (reverse('client-profile'), 'put'),
+            (reverse('client-cases'), 'get'),
+            (reverse('communication-thread-list'), 'get'),
+        ]:
+            response = getattr(api, method)(url)
+            self.assertEqual(response.status_code, 403, response.data)
+            self.assertIn('firm acceptance', str(response.data))
+        self.assertFalse(AuthService.build_session_payload(user)['user']['client']['portal_access_allowed'])
+        check = self.accept(client)
+        self.assertTrue(AuthService.build_session_payload(user)['user']['client']['portal_access_allowed'])
+        check.acceptance_decision = 'PENDING'; check.save()
+        self.assertFalse(AuthService.build_session_payload(user)['user']['client']['portal_access_allowed'])
+
+    def test_automatic_search_covers_open_and_closed_matter_names(self):
+        from apps.clients.services.conflict import ClientMatterConflictService
+        client = self.create(); check = self.accept(client)
+        other = Client.objects.create(firm=self.firm, full_name='Matter owner')
+        for index, status in enumerate(['MATTER_OPEN', 'CLOSED']):
+            matter = Case.objects.create(firm=self.firm, client=other, title='Different title',
+                plaintiff=client.full_name, case_number=f'MATCH-{index}', matter_status=status)
+            matches = ClientMatterConflictService._run_automatic_search(firm=self.firm, check=check, names_checked=[], source_categories=['OTHER'])
+            self.assertTrue(any(m['record_type'] == 'matter' and m['record_id'] == str(matter.id) for m in matches))
+
+    def test_another_firms_privacy_approval_cannot_enable_creation(self):
+        other_admin = person('privacy-other@example.test')
+        other_firm = LawFirm.objects.create(owner=other_admin, name='Other privacy firm', registration_number='PRIVACY-OTHER')
+        config = self.firm.intake_privacy; config.firm = other_firm; config.save()
+        self.assertEqual(self.api.post(self.url, prospect_payload(), format='json').status_code, 400)

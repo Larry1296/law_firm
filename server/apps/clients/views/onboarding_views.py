@@ -18,8 +18,12 @@ class ClientOnboardingMetadataView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        onboarding_firm(request.user)
-        return Response(onboarding_metadata())
+        from apps.clients.models import IntakePrivacyConfig
+        config = IntakePrivacyConfig.active_for(onboarding_firm(request.user))
+        data = onboarding_metadata()
+        data['intake_privacy'] = {'policy_version': config.policy_version, 'lawful_basis': config.lawful_basis,
+                                  'lawful_basis_label': config.get_lawful_basis_display()} if config else None
+        return Response(data)
 
 
 class ClientOnboardingCreateView(APIView):

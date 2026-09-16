@@ -38,7 +38,7 @@
     {
       "value": "NON_PROFIT_ORGANIZATION",
       "label": "Public Benefit Organization (PBO)",
-      "description": "Record the preliminary identity of the public benefit organization (pbo); verification follows conflict clearance."
+      "description": "Select only for a proposed Public Benefit Organization (PBO); status remains unverified until onboarding. Other nonprofits must use their legal form (company, trust or society), or Other for classification review."
     },
     {
       "value": "TRUST",
@@ -194,6 +194,17 @@
     "NON_PROFIT_ORGANIZATION": {
       "name_field": "registered_name",
       "fields": [
+        {
+          "key": "nonprofit_form",
+          "label": "Proposed PBO classification (unverified)",
+          "required": true,
+          "options": [
+            {
+              "value": "PUBLIC_BENEFIT_ORGANIZATION",
+              "label": "Public Benefit Organization (PBO) \u2014 unverified"
+            }
+          ]
+        },
         {
           "key": "registration_number",
           "label": "Registration number (if available)",

@@ -12,11 +12,11 @@ vi.mock('@/modules/clients/shared/prospectiveClientService', () => ({
   creationError: (e) => e.message,
 }));
 afterEach(cleanup);
-beforeEach(() => { vi.clearAllMocks(); service.metadata.mockResolvedValue(metadata); });
+beforeEach(() => { vi.clearAllMocks(); service.metadata.mockResolvedValue({...metadata, intake_privacy: {policy_version: 'approved-v2', lawful_basis: 'LEGITIMATE_INTERESTS', lawful_basis_label: 'Legitimate interests'}}); });
 const change = (label, value) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 const renderPage = (path='/admin/clients/create') => render(<MemoryRouter initialEntries={[path]}><Routes><Route path='/:workspace/clients/create' element={<CreatePage />} /><Route path='/:workspace/clients/:id/conflict-checks/new' element={<p>Proposed matter route</p>} /></Routes></MemoryRouter>);
 const selectCategory = async (kind) => { await screen.findByLabelText(/Legal client category/); change(/Legal client category/, kind); };
-const fillPrivacy = () => { change(/Data source/, 'DIRECT'); change(/Delivery method/, 'PAPER'); fireEvent.click(screen.getByLabelText(/Privacy notice delivered/)); };
+const fillPrivacy = () => { change(/Delivery method/, 'PAPER'); fireEvent.click(screen.getByLabelText(/Privacy notice delivered/)); };
 
 describe('single prospective-client creation page', () => {
   it('defaults to Firm-managed and displays one access group and one backend category dropdown', async () => {
@@ -89,5 +89,52 @@ describe('direct proposed-matter entry', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Record proposed matter / Start conflict check' }));
     await waitFor(() => expect(service.proposedMatter).toHaveBeenCalled());
     expect(service.proposedMatter.mock.calls[0][1]).toMatchObject({ client_id: 'client-id', proposed_matter: { responsible_lawyer_id: 'lawyer-id', parties: [{ name: 'Other Company' }, { name: 'Related Person', role: 'OTHER' }] } });
+  });
+});
+
+describe('creation safeguards', () => {
+  it('loads read-only approved privacy and submits only delivery evidence', async () => {
+    service.create.mockResolvedValue({client: {id: 'new', access_type: 'PORTAL_ENABLED'}});
+    renderPage(); await selectCategory('INDIVIDUAL');
+    expect(screen.getByLabelText('Lawful basis')).toHaveAttribute('readonly');
+    expect(screen.getByLabelText('Privacy notice version')).toHaveValue('approved-v2');
+    expect(screen.getByLabelText('Privacy notice version')).toHaveAttribute('readonly');
+    expect(screen.queryByLabelText(/Data source/)).not.toBeInTheDocument();
+    expect(screen.getByText(/optional and is not consent/)).toBeInTheDocument();
+    change(/Full legal name/, 'Jane'); change(/Alternative names/, 'Former Jane');
+    fireEvent.click(screen.getByLabelText(/Portal-enabled/)); change(/Safe email/, 'jane@example.test'); fillPrivacy();
+    fireEvent.click(screen.getByRole('button', {name: 'Create prospective client'}));
+    await screen.findByText('Prospective client created');
+    const payload = service.create.mock.calls[0][1];
+    expect(payload.privacy).toEqual({privacy_notice_delivered: true, delivery_method: 'PAPER', acknowledged: false});
+    expect(payload.alternative_names).toBe('Former Jane');
+    expect(service.invite).not.toHaveBeenCalled();
+    expect(screen.queryByText('Send portal invitation')).not.toBeInTheDocument();
+    expect(screen.queryByText('Complete onboarding / KYC')).not.toBeInTheDocument();
+  });
+  it('blocks creation without an active approved firm configuration', async () => {
+    service.metadata.mockResolvedValue({...metadata, intake_privacy: null});
+    renderPage(); await selectCategory('INDIVIDUAL');
+    expect(screen.getByRole('button', {name: 'Create prospective client'})).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('approved active firm intake-privacy');
+    expect(service.create).not.toHaveBeenCalled();
+  });
+  it('requires explicit unverified PBO classification and offers other legal forms', async () => {
+    renderPage(); await selectCategory('NON_PROFIT_ORGANIZATION');
+    expect(screen.getByRole('option', {name: 'Public Benefit Organization (PBO)'})).toBeInTheDocument();
+    expect(screen.getByLabelText(/Proposed PBO classification/)).toBeRequired();
+    expect(screen.getByText(/Other nonprofits must use their legal form/)).toBeInTheDocument();
+    expect(screen.getByRole('option', {name: 'Other — classification review required'})).toBeInTheDocument();
+  });
+  it('retains proprietor, trading and representative names in preliminary payload', async () => {
+    service.create.mockResolvedValue({client: {id: 'new', access_type: 'ASSISTED'}});
+    renderPage(); await selectCategory('SOLE_PROPRIETORSHIP');
+    change(/Legal \/ registered name/, 'Legal name'); change(/Alternative names/, 'Alias');
+    change(/Proprietor legal name/, 'Owner'); change(/Business \/ trading name/, 'Brand');
+    fireEvent.click(screen.getByRole('button', {name: 'Add representative / contact'}));
+    change(/Representative name/, 'Agent'); change(/Representative capacity/, 'AUTHORIZED_AGENT'); change(/Role \/ capacity description/, 'Agent');
+    fillPrivacy(); fireEvent.click(screen.getByRole('button', {name: 'Create prospective client'}));
+    await screen.findByText('Prospective client created');
+    expect(service.create.mock.calls[0][1]).toMatchObject({full_name: 'Legal name', alternative_names: 'Alias', legal_profile: {proprietor_name: 'Owner', trading_name: 'Brand'}, representative: {full_legal_name: 'Agent'}});
   });
 });

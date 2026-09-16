@@ -33,6 +33,11 @@ class ProspectiveClientService:
         serializer.is_valid(raise_exception=True)
         values = dict(serializer.validated_data)
         privacy = values.pop('privacy')
+        from apps.clients.models import IntakePrivacyConfig
+        config = IntakePrivacyConfig.active_for(firm)
+        if config is None:
+            raise ValidationError({'privacy': 'An approved active firm intake-privacy configuration is required.'})
+        privacy.update(lawful_basis=config.lawful_basis, privacy_notice_version=config.policy_version)
         profile_data = values.pop('legal_profile')
         rep = values.pop('representative', None)
         acting_for_self = values.pop('acting_for_self')
@@ -51,7 +56,7 @@ class ProspectiveClientService:
             profile_data.update(company_status='UNKNOWN', company_type='UNKNOWN')
             profile_data['registration_number'] = profile_data.get('registration_number') or None
         elif kind == 'NON_PROFIT_ORGANIZATION':
-            profile_data['nonprofit_form'] = 'PUBLIC_BENEFIT_ORGANIZATION'
+            profile_data['pbo_or_ngo_status'] = 'UNVERIFIED'
         elif kind == 'INDIVIDUAL':
             profile_data.update(nationality='', citizenship='')
         model = PROFILE_MODELS.get(kind)
@@ -80,6 +85,8 @@ class ProspectiveClientService:
             client = Client.objects.select_for_update().get(id=client_id, firm=firm, is_active=True, lifecycle_status='PROSPECTIVE')
         except Client.DoesNotExist as exc:
             raise ValidationError('Active prospective client not found in this firm.') from exc
+        if not client.matter_conflict_checks.filter(firm=firm, status='CLEARED', acceptance_decision='ACCEPTED').exists():
+            raise ValidationError('Conflict clearance and firm acceptance are required before portal invitation.')
         if client.access_type != Client.AccessType.PORTAL_ENABLED:
             raise ValidationError('Firm-managed clients cannot receive portal invitations.')
         if client.user_id or client.portal_status != 'PORTAL_ENABLED_PENDING':

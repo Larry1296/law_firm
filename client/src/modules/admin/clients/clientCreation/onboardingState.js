@@ -50,6 +50,6 @@ export function buildProspectivePayload(state, metadata) {
     legal_profile: Object.fromEntries(keys.filter((key) => state.legal_profile[key] !== undefined).map((key) => [key, state.legal_profile[key]])),
     representative: state.representatives[0] || undefined,
     ...(kind === 'OTHER_REQUIRES_REVIEW' ? { provisional_legal_description: client.provisional_legal_description, classification_review_reason: client.classification_review_reason, classification_evidence_reference: client.classification_evidence_reference } : {}),
-    privacy: state.privacy,
+    privacy: Object.fromEntries(['privacy_notice_delivered', 'delivery_method', 'acknowledged', 'acknowledgement_reference'].map(key => [key, state.privacy[key]])),
   });
 }
