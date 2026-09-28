@@ -48,17 +48,17 @@ export function StatTile({ label, value, hint, icon: Icon, tone = 'default' }) {
 
 export function Button({ children, variant = 'primary', size = 'md', className = '', ...props }) {
   const variants = {
-    primary: 'bg-brand-primary text-white hover:bg-[#0e2c47] dark:bg-sky-600 dark:hover:bg-sky-500',
-    secondary: 'border border-border-light bg-surface-light text-text-primary-light hover:bg-background-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:hover:bg-background-dark',
-    danger: 'bg-error text-white hover:bg-red-700',
-    ghost: 'text-text-primary-light hover:bg-background-light dark:text-text-primary-dark dark:hover:bg-background-dark',
+    primary: 'btn-primary',
+    secondary: 'btn-secondary',
+    danger: 'bg-error text-white hover:bg-red-700 disabled:opacity-50',
+    ghost: 'bg-transparent text-text-primary-light hover:bg-background-light disabled:opacity-50 dark:text-text-primary-dark dark:hover:bg-background-dark',
   };
-  const sizes = { sm: 'px-3 py-1.5 text-xs', md: 'px-4 py-2 text-sm' };
+  const sizes = { sm: 'px-3 py-1.5 text-xs', md: 'text-sm' };
   return (
     <button
       type='button'
       {...props}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/60 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-offset-surface-dark ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`btn ${variants[variant]} ${sizes[size]} ${className}`}
     >
       {children}
     </button>
@@ -67,14 +67,14 @@ export function Button({ children, variant = 'primary', size = 'md', className =
 
 export function Field({ label, hint, error, required, children, className = '' }) {
   return (
-    <label className={`block ${className}`}>
-      <span className='mb-1 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+    <label className={`form-label ${className}`}>
+      <span>
         {label}
-        {required && <span className='text-error' aria-hidden='true'> *</span>}
+        {required && <span className='text-[color:var(--form-danger)]' aria-hidden='true'> *</span>}
       </span>
       {children}
-      {hint && !error && <span className='mt-1 block text-xs text-text-muted-light dark:text-text-muted-dark'>{hint}</span>}
-      {error && <span role='alert' className='mt-1 block text-xs font-medium text-error dark:text-red-300'>{error}</span>}
+      {hint && !error && <span className='form-hint'>{hint}</span>}
+      {error && <span role='alert' className='form-error text-xs'>{error}</span>}
     </label>
   );
 }

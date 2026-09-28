@@ -22,6 +22,18 @@ class TaxConfigurationSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ("firm",)
 
+    def validate(self, attrs):
+        # DRF does not call Model.clean(), so repeat its rules here along with the
+        # one-configuration-per-date constraint, which would otherwise surface as a 500.
+        if attrs.get("vat_rate", 0) < 0 or attrs.get("withholding_tax_rate", 0) < 0:
+            raise serializers.ValidationError("Tax rates cannot be negative.")
+        if attrs.get("vat_registered") and not attrs.get("vat_registration_number", "").strip():
+            raise serializers.ValidationError({"vat_registration_number": "A VAT registration number is required when VAT registration is enabled."})
+        firm = self.context.get("firm")
+        if firm and TaxConfiguration.objects.filter(firm=firm, effective_from=attrs.get("effective_from")).exists():
+            raise serializers.ValidationError({"effective_from": "A tax configuration already takes effect on this date. Choose another date."})
+        return attrs
+
 
 class InvoiceLineInputSerializer(serializers.Serializer):
     line_type = serializers.ChoiceField(choices=InvoiceLine.LineType.choices)

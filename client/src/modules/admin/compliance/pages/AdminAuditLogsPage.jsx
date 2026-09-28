@@ -50,7 +50,7 @@ export default function AdminAuditLogsPage() {
         <label className='block max-w-md text-sm'>
           <span className='mb-1 block font-medium'>Filter by action, person, role or record</span>
           <input
-            className='w-full rounded-lg border border-border-light bg-white px-3 py-2 text-sm dark:border-border-dark dark:bg-slate-900'
+            className='form-control w-full text-sm'
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder='e.g. MATTER_OPENED or Otieno'

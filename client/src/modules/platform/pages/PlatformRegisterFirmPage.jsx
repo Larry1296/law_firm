@@ -236,11 +236,14 @@ export default function PlatformRegisterFirmPage() {
   const set = (section, key) => (event) => {
     const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
     setForm((current) => ({ ...current, [section]: { ...current[section], [key]: value } }));
-    setErrors((current) => {
-      const next = { ...current };
-      delete next[`${section}.${key}`];
-      return next;
-    });
+    clearErrors(`${section}.${key}`);
+  };
+
+  // Drop a field's error, and any the server nested under it (e.g. practice_areas.0).
+  const clearErrors = (field) => {
+    setErrors((current) => Object.fromEntries(
+      Object.entries(current).filter(([name]) => name !== field && !name.startsWith(`${field}.`)),
+    ));
   };
 
   const toggleArea = (area) => {
@@ -250,7 +253,7 @@ export default function PlatformRegisterFirmPage() {
         ? current.practice_areas.filter((item) => item !== area)
         : [...current.practice_areas, area],
     }));
-    setErrors(({ practice_areas: _removed, ...rest }) => rest);
+    clearErrors('practice_areas');
   };
 
   const addCustomArea = () => {
@@ -312,6 +315,8 @@ export default function PlatformRegisterFirmPage() {
   }
 
   const err = (key) => errors[key];
+  // A rejection that named fields is resolved once those fields are corrected; hide its summary then.
+  const serverFlaggedFields = Object.keys(register.error?.response?.data?.errors || {}).length > 0;
   const current = STEPS[stepIndex];
   const monthlyPrice = selectedPlan && (form.subscription.billing_cycle === 'ANNUAL' ? selectedPlan.annual_price : selectedPlan.monthly_price);
   const withVat = monthlyPrice ? Number(monthlyPrice) * (1 + vatRate / 100) : null;
@@ -599,8 +604,8 @@ export default function PlatformRegisterFirmPage() {
             </div>
           )}
 
-          {register.error && !Object.keys(errors).length && <div className='mt-6'><ErrorNotice error={register.error} /></div>}
-          {register.error && Object.keys(errors).length > 0 && (
+          {register.error && !serverFlaggedFields && <div className='mt-6'><ErrorNotice error={register.error} /></div>}
+          {register.error && serverFlaggedFields && Object.keys(errors).length > 0 && (
             <div className='mt-6'><ErrorNotice>{getApiErrorMessage(register.error)}</ErrorNotice></div>
           )}
 

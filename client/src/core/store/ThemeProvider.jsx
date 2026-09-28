@@ -1,118 +1,63 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import ThemeContext from '@/core/store/ThemeContext';
 import {
+  clearLegacyThemeKeys,
   getSystemTheme,
   getThemeStorageKey,
-  isValidTheme,
-  persistLastActiveTheme,
-  readLastActiveTheme,
+  readThemeChoice,
+  saveThemeChoice,
 } from '@/core/utils/themeIdentity';
 
+clearLegacyThemeKeys();
+
+// Visitors on the homepage and sign-in pages share one browser profile, so a
+// toggle there lasts only for the visit; signed-in users keep their choice.
+const SESSION_ONLY_ROLES = new Set(['public', 'auth']);
+
+/**
+ * The theme is the device's light/dark setting, following it live, unless the
+ * user has explicitly chosen one with the theme toggle.
+ */
 const ThemeProvider = ({ children, user, role }) => {
-  const storageKey = useMemo(
-    () => getThemeStorageKey({ role, user }),
-    [role, user],
-  );
+  const storageKey = useMemo(() => getThemeStorageKey({ role, user }), [role, user]);
+  const remembersChoice = !SESSION_ONLY_ROLES.has(String(role || '').toLowerCase());
 
-  const followsLastActiveTheme = useMemo(
-    () => String(role || '').toLowerCase() === 'auth',
-    [role],
-  );
+  const [systemTheme, setSystemTheme] = useState(getSystemTheme);
+  const [choice, setChoice] = useState(() => ({
+    key: storageKey,
+    theme: remembersChoice ? readThemeChoice(storageKey) : null,
+  }));
 
-  const followsSystemTheme = useMemo(
-    () => String(role || '').toLowerCase() === 'public',
-    [role],
-  );
-
-  const resolveInitialTheme = () => {
-    if (followsSystemTheme) {
-      return getSystemTheme();
-    }
-
-    const storedTheme = localStorage.getItem(storageKey);
-    const lastActiveTheme = readLastActiveTheme();
-
-    if (followsLastActiveTheme && lastActiveTheme) {
-      return lastActiveTheme;
-    }
-
-    if (isValidTheme(storedTheme)) {
-      return storedTheme;
-    }
-
-    return lastActiveTheme || getSystemTheme();
-  };
-
-  /*
-    Prevent unnecessary sync loops
-  */
-  const previousStorageKey = useRef(storageKey);
-
-  /*
-    Initialize instantly from localStorage
-    to avoid flash/flicker
-  */
-  const [theme, setTheme] = useState(() => {
-    return resolveInitialTheme();
-  });
-
-  /*
-    Only update theme if actual user changes
-  */
-  useEffect(() => {
-    if (previousStorageKey.current !== storageKey) {
-      previousStorageKey.current = storageKey;
-
-      setTheme(resolveInitialTheme());
-    }
-  }, [storageKey]);
+  // A different signed-in user brings their own choice (or none).
+  const chosenTheme = choice.key === storageKey
+    ? choice.theme
+    : remembersChoice ? readThemeChoice(storageKey) : null;
+  const theme = chosenTheme || systemTheme;
 
   useEffect(() => {
-    if (!followsSystemTheme) return undefined;
-
-    // Re-read the external OS preference when system-following is enabled.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTheme(getSystemTheme());
-
     const media = window.matchMedia?.('(prefers-color-scheme: dark)');
     if (!media) return undefined;
 
-    const handleSystemThemeChange = (event) => {
-      setTheme(event.matches ? 'dark' : 'light');
-    };
-
+    const handleSystemThemeChange = (event) => setSystemTheme(event.matches ? 'dark' : 'light');
     media.addEventListener?.('change', handleSystemThemeChange);
+    return () => media.removeEventListener?.('change', handleSystemThemeChange);
+  }, []);
 
-    return () => {
-      media.removeEventListener?.('change', handleSystemThemeChange);
-    };
-  }, [followsSystemTheme]);
-
-  /*
-    Apply theme to DOM + persist
-  */
   useEffect(() => {
-    const root = document.documentElement;
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
 
-    root.classList.toggle('dark', theme === 'dark');
-
-    localStorage.setItem(storageKey, theme);
-    persistLastActiveTheme(theme);
-  }, [theme, storageKey]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  const setTheme = (next) => {
+    const value = typeof next === 'function' ? next(theme) : next;
+    setChoice({ key: storageKey, theme: value });
+    if (remembersChoice) saveThemeChoice(storageKey, value);
   };
 
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+
   return (
-    <ThemeContext.Provider
-      value={{
-        theme,
-        setTheme,
-        toggleTheme,
-      }}
-    >
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

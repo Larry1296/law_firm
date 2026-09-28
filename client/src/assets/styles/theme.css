@@ -325,14 +325,20 @@ body {
 
 .app-swal-confirm,
 .swal2-popup .swal2-confirm {
-  background: var(--brand-primary) !important;
+  /* SweetAlert puts each prompt's confirmButtonColor (red for destructive actions) in this variable. */
+  background: var(--swal2-confirm-button-background-color, var(--brand-primary)) !important;
   border-radius: 10px !important;
   color: #ffffff !important;
 }
 
+/* The default action colour is gold in dark mode, which needs dark text. */
+.swal2-popup .app-swal-confirm-default {
+  color: var(--form-on-primary, #ffffff) !important;
+}
+
 .app-swal-cancel,
 .swal2-popup .swal2-cancel {
-  background: var(--text-muted) !important;
+  background: var(--swal2-cancel-button-background-color, var(--text-muted)) !important;
   border-radius: 10px !important;
   color: #ffffff !important;
 }

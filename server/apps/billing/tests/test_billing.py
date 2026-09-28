@@ -261,3 +261,30 @@ class FinancialControlTests(TestCase):
         })
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertNotIn("matter", serializer.validated_data)
+
+    def test_tax_configuration_api_applies_model_rules_and_one_version_per_date(self):
+        from rest_framework.test import APIClient
+
+        api = APIClient()
+        api.force_authenticate(self.owner)
+        url = "/api/finance/tax-configurations/"
+
+        missing_number = api.post(url, {"effective_from": "2026-01-01", "vat_registered": True, "vat_rate": "16"}, format="json")
+        self.assertEqual(missing_number.status_code, 400)
+        self.assertIn("vat_registration_number", missing_number.data["errors"])
+
+        created = api.post(url, {
+            "effective_from": "2026-01-01", "vat_registered": True,
+            "vat_registration_number": "P051234567X", "vat_rate": "16",
+        }, format="json")
+        self.assertEqual(created.status_code, 201, created.data)
+
+        duplicate = api.post(url, {"effective_from": "2026-01-01", "vat_rate": "0"}, format="json")
+        self.assertEqual(duplicate.status_code, 400)
+        self.assertIn("effective_from", duplicate.data["errors"])
+
+        self.assertEqual(len(api.get(url).data["tax_configurations"]), 1)
+
+        clerk = APIClient()
+        clerk.force_authenticate(self.checker_user)
+        self.assertEqual(clerk.get(url).status_code, 403)

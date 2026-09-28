@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import {
   formattedInputEvent,
@@ -16,7 +16,8 @@ export default function FloatingInput({
   error,
   disabled = false,
   className = '',
-  noFloat = false,
+  // Labels always sit above the control; accepted so older callers don't leak it to the DOM.
+  noFloat: _noFloat,
   autoComplete,
   autoCorrect,
   autoCapitalize,
@@ -27,21 +28,13 @@ export default function FloatingInput({
   format = 'auto',
   ...props
 }) {
-  const [focused, setFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const generatedId = useId();
+  const inputId = name || generatedId;
 
   const isPassword = type === 'password';
-  const isDate = type === 'date';
-
   const inputType = isPassword && showPassword ? 'text' : type;
   const isNumber = type === 'number';
-  const hasValue = String(value ?? '').length > 0;
-
-  const shouldFloat = !noFloat && !isDate;
-  const showTopLabel = label && (!shouldFloat || focused || hasValue);
-  const inputPlaceholder = shouldFloat && !focused && !hasValue
-    ? label
-    : placeholder;
   const supportsWritingAssist = ![
     'password',
     'number',
@@ -57,41 +50,25 @@ export default function FloatingInput({
   const titleCaseOnBlur = shouldTitleCaseInput({ name, type, format });
 
   return (
-    <div data-form-field className={`w-full space-y-1.5 ${className}`}>
-      <div>
-        {showTopLabel && (
-          <label
-            htmlFor={name}
-            className={`block text-sm font-semibold leading-5 transition-colors ${error ? 'text-error dark:text-red-400' : 'text-text-primary-light dark:text-text-primary-dark'}`}
-          >
-            {label}{props.required ? ' *' : ''}
-          </label>
-        )}
-      </div>
+    <div data-form-field className={`form-label w-full ${className}`}>
+      {label && (
+        <label htmlFor={inputId} className={error ? 'text-[color:var(--form-danger)]' : undefined}>
+          {label}{props.required ? ' *' : ''}
+        </label>
+      )}
 
-      {/* INPUT WRAPPER */}
-      <div
-        className={`
-          relative w-full rounded-lg border transition duration-150
-          bg-white dark:bg-slate-950/35 ${error ? 'border-error ring-2 ring-error/20' : 'border-border-light dark:border-border-dark'}
-          ${focused && !error ? 'border-brand-primary ring-2 ring-brand-primary/20' : ''}
-          ${disabled ? 'opacity-60 cursor-not-allowed' : ''}
-        `}
-      >
-        {/* INPUT */}
+      <div className={isPassword ? 'password-field' : undefined}>
         <input
-          id={name}
+          id={inputId}
           name={name}
           type={inputType}
           value={value}
           onChange={onChange}
-          placeholder={inputPlaceholder}
+          placeholder={placeholder}
           disabled={disabled}
           aria-invalid={Boolean(error)}
-          aria-describedby={error ? `${name}-error` : undefined}
-          onFocus={() => setFocused(true)}
+          aria-describedby={error ? `${inputId}-error` : undefined}
           onBlur={(event) => {
-            setFocused(false);
             if (titleCaseOnBlur) {
               const formattedValue = toTitleCase(event.currentTarget.value);
               if (formattedValue !== event.currentTarget.value) {
@@ -118,28 +95,23 @@ export default function FloatingInput({
           spellCheck={spellCheck ?? supportsWritingAssist}
           step={isNumber ? props.step ?? 'any' : props.step}
           {...props}
-          className={`
-            floating-input-field min-h-11 w-full rounded-lg bg-transparent px-3.5 py-2.5 text-sm outline-none
-            text-[color:var(--text-primary)] placeholder:font-normal placeholder:text-[color:var(--text-muted)] placeholder:opacity-70
-            dark:text-slate-100 dark:placeholder:text-slate-400 dark:[color-scheme:dark]
-            disabled:cursor-not-allowed aria-[invalid=true]:placeholder:text-red-500
-          `}
+          className='form-control floating-input-field'
         />
 
-        {/* PASSWORD TOGGLE */}
         {isPassword && (
           <button
             type='button'
-            onClick={() => setShowPassword(!showPassword)}
-            className='absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'
+            className='password-toggle'
+            aria-label={`${showPassword ? 'Hide' : 'Show'} ${String(label || 'password').toLowerCase()}`}
+            aria-controls={inputId}
+            onClick={() => setShowPassword((current) => !current)}
           >
-            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            {showPassword ? <EyeOff size={20} aria-hidden='true' /> : <Eye size={20} aria-hidden='true' />}
           </button>
         )}
       </div>
 
-      {/* ERROR */}
-      {error && <p id={`${name}-error`} className='mt-2 text-sm text-red-500'>{error}</p>}
+      {error && <p id={`${inputId}-error`} className='form-error'>{error}</p>}
     </div>
   );
 }

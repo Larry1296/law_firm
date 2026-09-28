@@ -11,7 +11,8 @@ const getThemeValues = () => {
     color: styles.getPropertyValue('--text-primary').trim() || '#0f172a',
     muted: styles.getPropertyValue('--text-muted').trim() || '#64748b',
     border: styles.getPropertyValue('--border').trim() || '#e2e8f0',
-    primary: styles.getPropertyValue('--brand-primary').trim() || '#0a2540',
+    // The form action colour: navy in light mode, gold in dark mode.
+    primary: styles.getPropertyValue('--form-primary').trim() || styles.getPropertyValue('--brand-primary').trim() || '#0a2540',
     error: styles.getPropertyValue('--error').trim() || '#ef4444',
   };
 };
@@ -33,7 +34,7 @@ const withTheme = (options = {}) => {
       htmlContainer: `app-swal-html ${customClass.htmlContainer || ''}`,
       actions: `app-swal-actions ${customClass.actions || ''}`,
       input: `app-swal-input ${customClass.input || ''}`,
-      confirmButton: `app-swal-confirm ${customClass.confirmButton || ''}`,
+      confirmButton: `app-swal-confirm ${options.confirmButtonColor ? '' : 'app-swal-confirm-default'} ${customClass.confirmButton || ''}`,
       cancelButton: `app-swal-cancel ${customClass.cancelButton || ''}`,
       validationMessage: `app-swal-validation ${customClass.validationMessage || ''}`,
     },

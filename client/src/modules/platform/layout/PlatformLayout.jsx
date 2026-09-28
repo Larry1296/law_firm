@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 
 import logo from '@/assets/images/logo.png';
+import Footer from '@/components/shared/Footer';
 import AuthContext from '@/core/store/AuthContext';
 import ThemeContext from '@/core/store/ThemeContext';
 
@@ -126,10 +127,11 @@ export default function PlatformLayout() {
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </header>
-        <main key={location.pathname} className='min-h-0 flex-1 overflow-y-auto'>
-          <div className='mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:py-8'>
+        <main key={location.pathname} className='relative flex min-h-0 flex-1 flex-col overflow-y-auto'>
+          <div className='mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:py-8'>
             <Outlet />
           </div>
+          <Footer />
         </main>
       </div>
     </div>

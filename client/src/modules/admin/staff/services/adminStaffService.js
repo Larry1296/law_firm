@@ -253,6 +253,7 @@ const adminStaffService = {
           can_manage_client_intake: payload.can_manage_client_intake ?? true,
           can_receive_documents: payload.can_receive_documents ?? true,
           permission_codes: payload.permission_codes || [],
+          assigned_lawyer_ids: payload.assigned_lawyer_ids || [],
           notes: payload.notes || '',
         };
 
@@ -380,6 +381,14 @@ const adminStaffService = {
 
     const { data } = await axiosInstance.post(endpoint, body);
 
+    return data;
+  },
+
+  async updateSecretaryAdvocates(secretaryId, lawyerIds) {
+    const { data } = await axiosInstance.patch(
+      `/admin/staff/secretaries/${secretaryId}/update/`,
+      { assigned_lawyer_ids: lawyerIds },
+    );
     return data;
   },
 

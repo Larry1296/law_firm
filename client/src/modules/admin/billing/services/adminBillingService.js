@@ -11,6 +11,8 @@ const adminBillingService = {
   async getRegisters() { return (await axiosInstance.get('/finance/registers/')).data; },
   async getAccounts() { return (await axiosInstance.get('/finance/accounts/')).data; },
   async createAccount(payload) { return (await axiosInstance.post('/finance/accounts/', payload)).data; },
+  async getTaxConfigurations() { return (await axiosInstance.get('/finance/tax-configurations/')).data; },
+  async createTaxConfiguration(payload) { return (await axiosInstance.post('/finance/tax-configurations/', payload)).data; },
   async receiveClientMoney(payload) { return (await axiosInstance.post('/finance/client-money/receipts/', payload)).data; },
   async receivePreMatterRetainer(payload) { return (await axiosInstance.post('/finance/client-money/retainers/', payload)).data; },
   async getClientUnallocatedFunds(clientId) { return (await axiosInstance.get(`/finance/clients/${clientId}/unallocated-funds/`)).data; },

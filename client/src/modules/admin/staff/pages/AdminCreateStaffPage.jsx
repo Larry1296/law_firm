@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import Swal from '@/core/utils/themedSwal';
+import { getApiErrorMessage } from '@/core/utils/errorMessages';
 
 import Card from '@/components/ui/Card';
 import { FormButton as Button3D } from '@/components/forms';
@@ -11,7 +12,10 @@ import FloatingInput from '@/components/ui/FloatingInput';
 import Select3D from '@/components/ui/Select3D';
 
 import adminFirmService from '@/modules/admin/firm/services/adminFirmService';
+import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
 import { useAdminStaff } from '@/modules/admin/staff/hooks/useAdminStaff';
+import StaffPermissionPicker from '@/modules/admin/staff/components/StaffPermissionPicker';
+import AdvocateChecklist from '@/modules/admin/staff/components/AdvocateChecklist';
 
 const STAFF_ROLE_OPTIONS = [
   { value: 'LAWYER', label: 'Lawyer', defaultJobTitle: 'Lawyer' },
@@ -20,57 +24,6 @@ const STAFF_ROLE_OPTIONS = [
   { value: 'HR', label: 'Human Resource', defaultJobTitle: 'Human Resource Officer' },
   { value: 'IT', label: 'IT Support', defaultJobTitle: 'IT Support' },
 ];
-
-const ROLE_PERMISSION_OPTIONS = {
-  LAWYER: [
-    ['MANAGE_ASSIGNED_CASES', 'Manage Assigned Cases'],
-    ['CREATE_CASES', 'Create legal matters'],
-    ['ASSIGN_OTHER_LAWYER', 'Assign another responsible advocate'],
-    ['MANAGE_CASE_DOCUMENTS', 'Manage Case Documents'],
-    ['SCHEDULE_HEARINGS', 'Schedule Hearings'],
-    ['MANAGE_CLIENT_COMMUNICATIONS', 'Manage Client Communications'],
-    // INTERNAL AI TEMPORARILY PAUSED
-    // ['USE_LEGAL_RESEARCH', 'Use Legal Research'],
-    // ['USE_AI_TOOLS', 'Use AI Tools'],
-    ['APPROVE_DOCUMENTS', 'Approve Documents'],
-    ['VIEW_BILLING', 'View Billing'],
-  ],
-  SECRETARY: [
-    ['MANAGE_CASES', 'Manage Cases'],
-    ['MANAGE_TASKS', 'Manage Tasks'],
-    ['MANAGE_CLIENTS', 'Manage Clients'],
-    ['MANAGE_DOCUMENTS', 'Manage Documents'],
-    ['MANAGE_CALENDAR', 'Manage Calendar'],
-    ['SEND_COMMUNICATIONS', 'Send Communications'],
-    ['VIEW_REPORTS', 'View Reports'],
-    ['MANAGE_BILLING', 'Manage Billing'],
-  ],
-  ACCOUNTANT: [
-    ['MANAGE_INVOICES', 'Manage Invoices'],
-    ['MANAGE_PAYMENTS', 'Manage Payments'],
-    ['MANAGE_EXPENSES', 'Manage Expenses'],
-    ['VIEW_FINANCIAL_REPORTS', 'View Financial Reports'],
-    ['MANAGE_CLIENT_BILLING', 'Manage Client Billing'],
-    ['MANAGE_PAYROLL', 'Manage Payroll'],
-    ['MANAGE_TAX_RECORDS', 'Manage Tax Records'],
-  ],
-  HR: [
-    ['MANAGE_STAFF_RECORDS', 'Manage Staff Records'],
-    ['MANAGE_RECRUITMENT', 'Manage Recruitment'],
-    ['MANAGE_LEAVE', 'Manage Leave'],
-    ['MANAGE_PAYROLL_RECORDS', 'Manage Payroll Records'],
-    ['MANAGE_PERFORMANCE', 'Manage Performance'],
-    ['VIEW_HR_REPORTS', 'View HR Reports'],
-  ],
-  IT: [
-    ['MANAGE_USERS', 'Manage Users'],
-    ['MANAGE_SYSTEM_SETTINGS', 'Manage System Settings'],
-    ['MANAGE_SECURITY', 'Manage Security'],
-    ['VIEW_AUDIT_LOGS', 'View Audit Logs'],
-    ['MANAGE_BACKUPS', 'Manage Backups'],
-    ['MANAGE_INTEGRATIONS', 'Manage Integrations'],
-  ],
-};
 
 const ROLE_DEFAULT_WORK_OPTIONS = {
   LAWYER: [
@@ -108,10 +61,18 @@ const getDefaultJobTitle = (role) =>
   STAFF_ROLE_OPTIONS.find((option) => option.value === role)?.defaultJobTitle ||
   'Staff';
 
+// The API names a few fields differently from this form.
+const SERVER_FIELD_TO_FORM = {
+  national_id_number: 'national_id',
+  first_name: 'full_name',
+  last_name: 'full_name',
+};
+
 export default function AdminCreateStaffPage() {
   const navigate = useNavigate();
 
   const { createStaff } = useAdminStaff();
+  const { lawyers } = useFirmLawyers();
   const { data: departments = [], isLoading: isLoadingDepartments } = useQuery({
     queryKey: ['admin-firm-departments'],
     queryFn: adminFirmService.getDepartments,
@@ -122,6 +83,7 @@ export default function AdminCreateStaffPage() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -166,25 +128,18 @@ export default function AdminCreateStaffPage() {
     can_manage_security: false,
     can_access_audit_logs: true,
     permission_codes: [],
+    assigned_lawyer_ids: [],
     notes: '',
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setFieldErrors(({ [name]: _cleared, ...rest }) => rest);
 
     setFormData((prev) => ({
       ...prev,
       [name]: value,
       ...(name === 'branch' ? { department_unit: '', department: '' } : {}),
-    }));
-  };
-
-  const handlePermissionChange = (permission) => {
-    setFormData((prev) => ({
-      ...prev,
-      permission_codes: prev.permission_codes.includes(permission)
-        ? prev.permission_codes.filter((p) => p !== permission)
-        : [...prev.permission_codes, permission],
     }));
   };
 
@@ -194,13 +149,12 @@ export default function AdminCreateStaffPage() {
       firm_role: role,
       job_title: getDefaultJobTitle(role),
       permission_codes: [],
+      assigned_lawyer_ids: [],
     }));
   };
 
   const roleDefaultWorkOptions =
     ROLE_DEFAULT_WORK_OPTIONS[formData.firm_role] || [];
-  const rolePermissionOptions =
-    ROLE_PERMISSION_OPTIONS[formData.firm_role] || [];
   const availableDepartments = departments.filter(
     (department) =>
       !formData.branch ||
@@ -245,14 +199,16 @@ export default function AdminCreateStaffPage() {
 
       navigate('/admin/staff');
     } catch (error) {
+      const serverErrors = error?.response?.data?.errors || {};
+      const marked = Object.fromEntries(
+        Object.entries(serverErrors).map(([key, message]) => [SERVER_FIELD_TO_FORM[key] || key, message]),
+      );
+      setFieldErrors(marked);
+      const reasons = Object.values(marked);
       Swal.fire({
         icon: 'error',
-        title: 'Error',
-        text:
-          error?.message ||
-          error?.response?.data?.detail ||
-          error?.response?.data?.message ||
-          'Failed to create staff.',
+        title: 'The staff member was not created',
+        text: reasons.length > 1 ? reasons.join(' ') : getApiErrorMessage(error, 'Failed to create staff.'),
       });
     } finally {
       setIsSubmitting(false);
@@ -271,6 +227,7 @@ export default function AdminCreateStaffPage() {
           <FloatingInput
             label='Full Name'
             name='full_name'
+            error={fieldErrors.full_name}
             value={formData.full_name}
             onChange={handleChange}
             required
@@ -279,6 +236,7 @@ export default function AdminCreateStaffPage() {
           <FloatingInput
             label='National ID'
             name='national_id'
+            error={fieldErrors.national_id}
             value={formData.national_id}
             onChange={handleChange}
             required
@@ -287,6 +245,7 @@ export default function AdminCreateStaffPage() {
           <FloatingInput
             label='Phone Number'
             name='phone_number'
+            error={fieldErrors.phone_number}
             value={formData.phone_number}
             onChange={handleChange}
             required
@@ -296,13 +255,14 @@ export default function AdminCreateStaffPage() {
             label='Email Address'
             type='email'
             name='email'
+            error={fieldErrors.email}
             value={formData.email}
             onChange={handleChange}
             required
           />
 
           <div>
-            <label className='block text-sm font-medium mb-2'>Staff Role</label>
+            <label className='mb-1.5 block text-[13px] font-semibold text-[color:var(--text-muted)]'>Staff Role</label>
 
             <Select3D
               value={formData.firm_role}
@@ -317,6 +277,7 @@ export default function AdminCreateStaffPage() {
               <FloatingInput
                 label='Admission Number'
                 name='admission_number'
+                error={fieldErrors.admission_number}
                 value={formData.admission_number}
                 onChange={handleChange}
                 required
@@ -327,6 +288,7 @@ export default function AdminCreateStaffPage() {
               label='Date Hired'
               type='date'
               name='date_hired'
+              error={fieldErrors.date_hired}
               value={formData.date_hired}
               onChange={handleChange}
               required
@@ -403,6 +365,7 @@ export default function AdminCreateStaffPage() {
             <FloatingInput
               label='Job Title'
               name='job_title'
+              error={fieldErrors.job_title}
               value={formData.job_title}
               onChange={handleChange}
             />
@@ -410,6 +373,7 @@ export default function AdminCreateStaffPage() {
             <FloatingInput
               label='Staff Number'
               name='staff_number'
+              error={fieldErrors.staff_number}
               value={formData.staff_number}
               onChange={handleChange}
             />
@@ -417,6 +381,7 @@ export default function AdminCreateStaffPage() {
             <FloatingInput
               label='Employee Number'
               name='employee_number'
+              error={fieldErrors.employee_number}
               value={formData.employee_number}
               onChange={handleChange}
             />
@@ -425,6 +390,7 @@ export default function AdminCreateStaffPage() {
               label='Work Email'
               type='email'
               name='work_email'
+              error={fieldErrors.work_email}
               value={formData.work_email}
               onChange={handleChange}
             />
@@ -432,6 +398,7 @@ export default function AdminCreateStaffPage() {
             <FloatingInput
               label='Office Location'
               name='office_location'
+              error={fieldErrors.office_location}
               value={formData.office_location}
               onChange={handleChange}
             />
@@ -441,6 +408,7 @@ export default function AdminCreateStaffPage() {
                 <FloatingInput
                   label='Accounting Specialization'
                   name='accounting_specialization'
+                  error={fieldErrors.accounting_specialization}
                   value={formData.accounting_specialization}
                   onChange={handleChange}
                 />
@@ -448,6 +416,7 @@ export default function AdminCreateStaffPage() {
                 <FloatingInput
                   label='Professional License Number'
                   name='professional_license_number'
+                  error={fieldErrors.professional_license_number}
                   value={formData.professional_license_number}
                   onChange={handleChange}
                 />
@@ -458,6 +427,7 @@ export default function AdminCreateStaffPage() {
               <FloatingInput
                 label='HR Specialization'
                 name='hr_specialization'
+                error={fieldErrors.hr_specialization}
                 value={formData.hr_specialization}
                 onChange={handleChange}
               />
@@ -468,6 +438,7 @@ export default function AdminCreateStaffPage() {
                 <FloatingInput
                   label='Technical Specialization'
                   name='technical_specialization'
+                  error={fieldErrors.technical_specialization}
                   value={formData.technical_specialization}
                   onChange={handleChange}
                 />
@@ -475,6 +446,7 @@ export default function AdminCreateStaffPage() {
                 <FloatingInput
                   label='Certification'
                   name='certification'
+                  error={fieldErrors.certification}
                   value={formData.certification}
                   onChange={handleChange}
                 />
@@ -507,26 +479,41 @@ export default function AdminCreateStaffPage() {
               </div>
 
               <h3 className='font-semibold pt-2'>
-                Extra Admin Permissions
+                Permissions
               </h3>
+              <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
+                Grant only what this person&apos;s job needs. Approvals always need someone other than the person who prepared the entry. You can change these later from the staff member&apos;s page.
+              </p>
 
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-                {rolePermissionOptions.map(([code, label]) => (
-                  <label key={code} className='flex items-center gap-2'>
-                    <input
-                      type='checkbox'
-                      checked={formData.permission_codes.includes(code)}
-                      onChange={() => handlePermissionChange(code)}
-                    />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
+              <StaffPermissionPicker
+                role={formData.firm_role}
+                selected={formData.permission_codes}
+                onChange={(permission_codes) =>
+                  setFormData((prev) => ({ ...prev, permission_codes }))
+                }
+              />
+
+              {formData.firm_role === 'SECRETARY' && (
+                <>
+                  <h3 className='font-semibold pt-2'>Advocates this secretary supports</h3>
+                  <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
+                    The secretary works on these advocates&apos; matters: filing register, client document requests and the diary.
+                  </p>
+                  <AdvocateChecklist
+                    lawyers={lawyers}
+                    selected={formData.assigned_lawyer_ids}
+                    onChange={(assigned_lawyer_ids) =>
+                      setFormData((prev) => ({ ...prev, assigned_lawyer_ids }))
+                    }
+                  />
+                </>
+              )}
 
               {formData.firm_role !== 'LAWYER' && (
                 <FloatingInput
                   label='Notes'
                   name='notes'
+                  error={fieldErrors.notes}
                   value={formData.notes}
                   onChange={handleChange}
                 />

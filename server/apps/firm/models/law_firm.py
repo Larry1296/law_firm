@@ -116,3 +116,11 @@ class LawFirm(TimestampedModel):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        # A newly uploaded logo is squared and resized so it always fills its tile.
+        if self.logo and not getattr(self.logo, "_committed", True):
+            from apps.firm.logo import normalize_logo
+
+            self.logo = normalize_logo(self.logo)
+        super().save(*args, **kwargs)

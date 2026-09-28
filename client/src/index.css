@@ -46,7 +46,7 @@ table tbody td {
   form[data-validation-attempted='true'] input:invalid,
   form[data-validation-attempted='true'] select:invalid,
   form[data-validation-attempted='true'] textarea:invalid,
-  [data-form-field].form-field-invalid > div,
+  [data-form-field].form-field-invalid .form-control,
   [data-form-field] [aria-invalid='true'] {
     border-color: #c2413a;
     box-shadow: 0 0 0 2px rgba(194, 65, 58, 0.14);
@@ -319,7 +319,11 @@ table tbody td {
     var(--background);
 }
 
+/* The dashboard's scroll area is the positioning context, so absolutely
+   positioned content (sr-only labels, hidden inputs) scrolls and clips with the
+   page instead of stretching the browser window below the footer. */
 .app-main {
+  position: relative;
   background-color: transparent !important;
   background-image:
     radial-gradient(circle at 88% 10%, rgba(18, 56, 90, 0.08), transparent 30rem),
@@ -369,64 +373,19 @@ html:not(.dark) .app-main:has(.dashboard-grid) .dashboard-grid {
   font-weight: 750;
 }
 
-/* Form controls intentionally use a single underline, including on focus. */
+/* Field labels sit above their control: small, muted and upright (see Forms below). */
 [data-form-field] > label,
 [data-form-field] > div:first-child > label {
   color: var(--text-muted);
-  font-size: 1rem !important;
-  font-style: italic;
-  font-weight: 700 !important;
-  letter-spacing: 0.035em;
-  line-height: 1.25;
-  text-transform: none;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 [data-form-field].form-field-invalid > label,
-[data-form-field].form-field-invalid > div:first-child > label,
-[data-form-field] [aria-invalid='true'] ~ label {
-  color: #dc2626 !important;
-}
-
-[data-form-field] input,
-[data-form-field] select,
-[data-form-field] textarea,
-[data-form-field] button[aria-haspopup='listbox'] {
-  font-style: normal;
-  font-size: 0.875rem;
-  font-weight: 400;
-  letter-spacing: normal;
-}
-
-form input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
-form select:focus,
-form textarea:focus,
-[data-form-field] button[aria-haspopup='listbox']:focus,
-[data-form-field] button[aria-haspopup='listbox']:focus-visible {
-  border-style: solid !important;
-  border-width: 0 0 2px !important;
-  border-radius: 0 !important;
-  border-bottom-color: var(--brand-primary) !important;
-  outline: none !important;
-  box-shadow: none !important;
-  --tw-ring-offset-shadow: 0 0 #0000 !important;
-  --tw-ring-shadow: 0 0 #0000 !important;
-}
-
-[data-form-field] > div:has(> input),
-[data-form-field] > div:has(> textarea),
-[data-form-field] > div:has(> input):focus-within,
-[data-form-field] > div:has(> textarea):focus-within {
-  border-style: solid !important;
-  border-width: 0 0 1px !important;
-  border-radius: 0 !important;
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-[data-form-field] > div:has(> input):focus-within,
-[data-form-field] > div:has(> textarea):focus-within {
-  border-bottom-width: 2px !important;
-  border-bottom-color: var(--brand-primary) !important;
+[data-form-field].form-field-invalid > div:first-child > label {
+  color: var(--form-danger);
 }
 
 /* CSS Variables for theme-aware colors */
@@ -645,19 +604,6 @@ input.floating-input-field:-webkit-autofill:active {
   color: var(--text-muted-dark) !important;
 }
 
-.dark .auth-layout input,
-.dark .auth-layout select,
-.dark .auth-layout textarea {
-  background-color: #162238 !important;
-  border-color: #334155 !important;
-  color: var(--text-primary-dark) !important;
-}
-
-.dark .auth-layout input::placeholder,
-.dark .auth-layout textarea::placeholder {
-  color: var(--text-muted-dark) !important;
-}
-
 @media (min-width: 1024px) {
   .auth-layout {
     min-height: 100vh;
@@ -798,9 +744,9 @@ html:not(.dark) .text-slate-900 {
   color: var(--text-primary-light) !important;
 }
 
-html:not(.dark) input,
-html:not(.dark) select,
-html:not(.dark) textarea {
+html:not(.dark) input:not(.form-control):not([type='checkbox']):not([type='radio']),
+html:not(.dark) select:not(.form-control),
+html:not(.dark) textarea:not(.form-control) {
   background-color: var(--surface-light);
   border-color: #c8c0b4;
   color: var(--text-primary-light);
@@ -811,9 +757,9 @@ html:not(.dark) textarea::placeholder {
   color: #77717b;
 }
 
-html:not(.dark) input:focus,
-html:not(.dark) select:focus,
-html:not(.dark) textarea:focus {
+html:not(.dark) input:not(.form-control):not([type='checkbox']):not([type='radio']):focus,
+html:not(.dark) select:not(.form-control):focus,
+html:not(.dark) textarea:not(.form-control):focus {
   border-color: var(--brand-primary);
   box-shadow: 0 0 0 3px rgba(18, 56, 90, 0.16);
 }
@@ -925,7 +871,7 @@ html:not(.dark) .public-home > section:not(#home) button:not([class*="text-white
   color: var(--brand-primary);
 }
 
-html:not(.dark) .public-home > section:not(#home) input,
+html:not(.dark) .public-home > section:not(#home) input:not([type='checkbox']):not([type='radio']),
 html:not(.dark) .public-home > section:not(#home) textarea {
   background-color: var(--surface-light) !important;
   border-color: #bdb4a7 !important;
@@ -950,4 +896,377 @@ html:not(.dark) .public-home #home [class*="via-black"] {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+/* ==========================================================================
+   Forms
+   One look for every form: a surface card, uppercase eyebrow, stacked labels,
+   quiet bordered controls with a strong focus outline, and solid buttons.
+   Colours stay Sheria's: navy actions in light mode, gold in dark mode.
+   ========================================================================== */
+
+:root {
+  --form-primary: #12385A;
+  --form-primary-hover: #0C2740;
+  --form-on-primary: #FFFFFF;
+  --form-primary-soft: #E7EDF3;
+  --form-danger: #B42318;
+  --form-shadow: 0 16px 40px rgba(18, 56, 90, 0.09);
+}
+
+.dark {
+  --form-primary: #D4A646;
+  --form-primary-hover: #E2B957;
+  --form-on-primary: #1A1203;
+  --form-primary-soft: rgba(212, 166, 70, 0.14);
+  --form-danger: #FCA5A5;
+  --form-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+@layer components {
+  .form-card {
+    display: grid;
+    gap: 15px;
+    width: min(100%, 760px);
+    margin-inline: auto;
+    padding: 28px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: var(--surface);
+    color: var(--text-primary);
+    box-shadow: var(--form-shadow);
+  }
+
+  .form-card--narrow {
+    width: min(100%, 460px);
+  }
+
+  .form-eyebrow {
+    color: var(--form-primary);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .form-title {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .form-lead {
+    margin: -6px 0 0;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+
+  .form-label {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .form-control {
+    width: 100%;
+    min-height: 44px;
+    padding: 11px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background-color: var(--surface);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 400;
+    line-height: 1.4;
+  }
+
+  .form-control::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+  }
+
+  .form-control:focus-visible {
+    outline: 3px solid var(--form-primary);
+    outline-offset: 2px;
+    box-shadow: none;
+    --tw-ring-shadow: 0 0 #0000;
+  }
+
+  .form-control:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .form-control[aria-invalid='true'] {
+    border-color: var(--form-danger);
+  }
+
+  :where(textarea).form-control {
+    min-height: 96px;
+    resize: vertical;
+  }
+
+  /* Native select chrome is taller than a text input; draw our own chevron instead. */
+  :where(select).form-control {
+    appearance: none;
+    padding-right: 36px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%235F6673' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 12px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+  }
+
+  .dark :where(select).form-control {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  .form-control[readonly] {
+    background-color: var(--background);
+    color: var(--text-muted);
+  }
+
+  .dark .form-control {
+    color-scheme: dark;
+    background-color: var(--background);
+  }
+
+  .form-hint {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .form-error {
+    color: var(--form-danger);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .form-alert {
+    padding: 12px 14px;
+    border: 1px solid color-mix(in srgb, var(--form-danger) 45%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--form-danger) 9%, transparent);
+    color: var(--form-danger);
+    font-size: 0.875rem;
+  }
+
+  .form-success {
+    padding: 14px;
+    border-radius: 10px;
+    background: var(--form-primary-soft);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+  }
+
+  .form-divider {
+    width: 100%;
+    margin: 0;
+    border: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .form-link {
+    color: var(--form-primary);
+    font-weight: 600;
+  }
+
+  .form-link:hover {
+    text-decoration: underline;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 16px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    font: inherit;
+    font-weight: 700;
+    line-height: 1.25;
+    cursor: pointer;
+    transition: background-color 150ms, border-color 150ms, color 150ms;
+  }
+
+  .btn:focus-visible {
+    outline: 3px solid var(--form-primary);
+    outline-offset: 2px;
+    --tw-ring-shadow: 0 0 #0000;
+  }
+
+  .btn:disabled {
+    border-color: var(--border);
+    background: var(--border);
+    color: var(--text-muted);
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--form-primary);
+    color: var(--form-on-primary);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--form-primary-hover);
+  }
+
+  .btn-secondary {
+    border-color: var(--form-primary);
+    background: var(--form-primary-soft);
+    color: var(--form-primary);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--form-primary) 16%, transparent);
+  }
+
+  .password-field {
+    position: relative;
+  }
+
+  .password-field .form-control {
+    padding-right: 52px;
+  }
+
+  .password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    transform: translateY(-50%);
+  }
+
+  .password-toggle:hover {
+    color: var(--text-primary);
+  }
+
+  .password-toggle:focus-visible {
+    outline: 2px solid var(--form-primary);
+    outline-offset: -4px;
+    --tw-ring-shadow: 0 0 #0000;
+  }
+
+  /* Auth pages: one centred card under the public navbar. */
+  .auth-page {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: calc(100vh - 140px);
+    padding: 120px 16px 48px;
+  }
+
+  .auth-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-self: start;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 700;
+  }
+
+  .auth-back:hover,
+  .auth-back:focus-visible {
+    color: var(--form-primary);
+  }
+}
+
+input.form-control:-webkit-autofill,
+input.form-control:-webkit-autofill:hover,
+input.form-control:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-primary) !important;
+  box-shadow: 0 0 0 1000px var(--surface) inset !important;
+  transition: background-color 9999s ease-out;
+}
+
+/* Checkboxes and radios: one drawn style everywhere, in the form colour.
+   Visually hidden ones (sr-only, used behind custom cards) are left alone. */
+input:is([type='checkbox'], [type='radio']):not(.sr-only) {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 5px;
+  background-color: var(--surface);
+  vertical-align: middle;
+  cursor: pointer;
+  transition: background-color 120ms, border-color 120ms;
+}
+
+input[type='radio']:not(.sr-only) {
+  border-radius: 999px;
+}
+
+.dark input:is([type='checkbox'], [type='radio']):not(.sr-only) {
+  background-color: var(--background);
+}
+
+input:is([type='checkbox'], [type='radio']):not(.sr-only):hover:not(:disabled) {
+  border-color: var(--form-primary);
+}
+
+input:is([type='checkbox'], [type='radio']):not(.sr-only):is(:checked, :indeterminate) {
+  border-color: var(--form-primary);
+  background-color: var(--form-primary);
+}
+
+/* The tick and the radio dot are drawn in the colour that reads on the fill. */
+input[type='checkbox']:not(.sr-only)::before,
+input[type='radio']:not(.sr-only)::before {
+  content: '';
+  transform: scale(0);
+  transition: transform 120ms ease-out;
+  background-color: var(--form-on-primary);
+}
+
+input[type='checkbox']:not(.sr-only)::before {
+  width: 11px;
+  height: 11px;
+  clip-path: polygon(14% 44%, 0 58%, 40% 97%, 100% 23%, 86% 10%, 39% 70%);
+}
+
+input[type='checkbox']:not(.sr-only):indeterminate::before {
+  height: 2px;
+  clip-path: none;
+}
+
+input[type='radio']:not(.sr-only)::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+input:is([type='checkbox'], [type='radio']):not(.sr-only):is(:checked, :indeterminate)::before {
+  transform: scale(1);
+}
+
+input:is([type='checkbox'], [type='radio']):not(.sr-only):focus-visible {
+  outline: 3px solid var(--form-primary);
+  outline-offset: 2px;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+}
+
+input:is([type='checkbox'], [type='radio']):not(.sr-only):disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }

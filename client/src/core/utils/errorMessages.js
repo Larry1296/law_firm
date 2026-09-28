@@ -27,6 +27,13 @@ const valueToMessage = (value) => {
   return String(value);
 };
 
+const STATUS_MESSAGES = {
+  404: 'This service is not available right now. Please try again later.',
+  500: 'The server ran into a problem. Please try again later.',
+  502: 'The server is unavailable. Please try again later.',
+  503: 'The server is unavailable. Please try again later.',
+};
+
 export const getApiErrorMessage = (
   error,
   fallback = 'Something went wrong. Please try again.',
@@ -35,6 +42,11 @@ export const getApiErrorMessage = (
 
   if (!data) {
     return error?.message || fallback;
+  }
+
+  // An HTML error page (a server 404/500) is never shown to the user as text.
+  if (typeof data === 'string' && /^\s*</.test(data)) {
+    return STATUS_MESSAGES[error.response.status] || fallback;
   }
 
   const message =

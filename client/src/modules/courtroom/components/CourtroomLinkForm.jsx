@@ -36,7 +36,7 @@ const emptyForm = {
   link_verified: false,
 };
 
-const inputClass = 'w-full rounded-lg border border-border-light bg-white px-3 py-2 text-sm dark:border-border-dark dark:bg-slate-900';
+const inputClass = 'form-control';
 
 export default function CourtroomLinkForm({ caseId }) {
   const [form, setForm] = useState(emptyForm);

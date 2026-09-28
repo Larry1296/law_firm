@@ -11,17 +11,16 @@ import subscriptionService from '@/modules/subscription/services/subscriptionSer
 
 const FirmSignup = lazy(() => import('@/modules/auth/pages/FirmSignup'));
 
-const inputClass =
-  'w-full rounded-xl border border-border-light bg-surface-light px-3.5 py-2.5 text-sm text-text-primary-light placeholder:text-text-muted-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50 dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark';
+const inputClass = 'form-control';
 
 function Field({ label, required, error, children, className = '' }) {
   return (
-    <label className={`block ${className}`}>
-      <span className='mb-1.5 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-        {label}{required && <span className='text-error' aria-hidden='true'> *</span>}
+    <label className={`form-label ${className}`}>
+      <span>
+        {label}{required && <span className='text-[color:var(--form-danger)]' aria-hidden='true'> *</span>}
       </span>
       {children}
-      {error && <span role='alert' className='mt-1 block text-xs font-medium text-error dark:text-red-300'>{error}</span>}
+      {error && <span role='alert' className='form-error text-xs'>{error}</span>}
     </label>
   );
 }

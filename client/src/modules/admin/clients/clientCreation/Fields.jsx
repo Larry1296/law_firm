@@ -26,16 +26,16 @@ export function Field({ label, value = '', onChange, type = 'text', required = f
     />;
   }
 
-  return <label className='block text-sm text-[color:var(--text-primary)]'>
-    <span className='mb-1 block font-medium'>{label}{required ? ' *' : ''}</span>
-    <input type={type} required={required} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)]' />
+  return <label className='form-label'>
+    <span>{label}{required ? ' *' : ''}</span>
+    <input type={type} required={required} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className='form-control w-full' />
     {help && <span className='mt-1 block text-xs text-[color:var(--text-secondary)]'>{help}</span>}
   </label>;
 }
 
 export function SelectField({ label, value = '', onChange, options = [], required = false }) {
-  return <label className='block text-sm text-[color:var(--text-primary)]'><span className='mb-1 block font-medium'>{label}{required ? ' *' : ''}</span>
-    <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} required={required} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-[color:var(--text-primary)]'>
+  return <label className='form-label'><span>{label}{required ? ' *' : ''}</span>
+    <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} required={required} className='form-control w-full'>
       <option value=''>Select…</option>{options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   </label>;

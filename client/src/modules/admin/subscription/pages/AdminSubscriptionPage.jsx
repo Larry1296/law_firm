@@ -19,8 +19,7 @@ import {
 const INVOICES_QUERY_KEY = ['subscription', 'invoices'];
 const primaryButton =
   'inline-flex min-h-10 items-center justify-center rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500';
-const inputClass =
-  'w-full rounded-lg border border-border-light bg-white px-3 py-2 text-sm text-gray-900 dark:border-border-dark dark:bg-slate-900 dark:text-white';
+const inputClass = 'form-control';
 
 function UsageMeter({ label, used, limit }) {
   const unlimited = limit === null || limit === undefined;

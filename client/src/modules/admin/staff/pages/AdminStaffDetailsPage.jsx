@@ -8,7 +8,12 @@ import SectionHeading from '@/components/ui/SectionHeading';
 import BackLink from '@/components/ui/BackLink';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { Input3D } from '@/components/ui/Input3D';
-import PermissionsManagement from '@/components/ui/PermissionManagement';
+import Card from '@/components/ui/Card';
+import { getApiErrorMessage } from '@/core/utils/errorMessages';
+import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
+import StaffPermissionPicker from '@/modules/admin/staff/components/StaffPermissionPicker';
+import AdvocateChecklist from '@/modules/admin/staff/components/AdvocateChecklist';
+import { permissionCodesFor } from '@/modules/admin/staff/staffPermissionOptions';
 
 const staffKeys = {
   detail: (id) => ['admin-staff', id],
@@ -20,7 +25,10 @@ const SingleStaffDetailsPage = () => {
   const queryClient = useQueryClient();
   const role = searchParams.get('role');
 
-  const [, setNewPermission] = useState('');
+  // null means "not edited yet": show what the server has.
+  const [permissionDraft, setPermissionDraft] = useState(null);
+  const [advocateDraft, setAdvocateDraft] = useState(null);
+  const { lawyers } = useFirmLawyers();
 
   const {
     data: staff,
@@ -46,7 +54,15 @@ const SingleStaffDetailsPage = () => {
       queryClient.invalidateQueries({
         queryKey: staffKeys.detail(id),
       });
-      setNewPermission('');
+      setPermissionDraft(null);
+    },
+  });
+
+  const updateAdvocatesMutation = useMutation({
+    mutationFn: (lawyerIds) => staffService.updateSecretaryAdvocates(id, lawyerIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: staffKeys.detail(id) });
+      setAdvocateDraft(null);
     },
   });
 
@@ -130,14 +146,69 @@ const SingleStaffDetailsPage = () => {
         <StatsCard title='Permissions' value={permissions.length} />
       </div>
 
-      <PermissionsManagement
-        availablePermissions={staff.available_permissions || []}
-        assignedPermissions={permissions}
-        isUpdating={updatePermissionsMutation.isPending}
-        onChange={(updated) => {
-          updatePermissionsMutation.mutate(updated);
-        }}
-      />
+      <Card className='mb-6 space-y-4 p-5'>
+        <div>
+          <h2 className='text-lg font-bold'>Permissions</h2>
+          <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
+            Tick what this person may do, then save. Approvals always need someone other than the person who prepared the entry.
+          </p>
+        </div>
+        <StaffPermissionPicker
+          role={membership.role}
+          selected={permissionDraft ?? permissions}
+          disabled={updatePermissionsMutation.isPending}
+          onChange={setPermissionDraft}
+        />
+        {updatePermissionsMutation.isError && (
+          <p role='alert' className='text-sm text-error'>{getApiErrorMessage(updatePermissionsMutation.error)}</p>
+        )}
+        <div className='flex gap-3'>
+          <button
+            type='button'
+            className='rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50'
+            disabled={permissionDraft === null || updatePermissionsMutation.isPending}
+            onClick={() => {
+              // Keep grants the picker does not list (e.g. paused AI tools) instead of silently revoking them.
+              const listed = permissionCodesFor(membership.role);
+              const unlisted = permissions.filter((code) => !listed.includes(code));
+              updatePermissionsMutation.mutate([...unlisted, ...permissionDraft]);
+            }}
+          >
+            {updatePermissionsMutation.isPending ? 'Saving…' : 'Save permissions'}
+          </button>
+          {permissionDraft !== null && (
+            <button type='button' className='text-sm font-semibold' onClick={() => setPermissionDraft(null)}>Discard changes</button>
+          )}
+        </div>
+      </Card>
+
+      {membership.role === 'SECRETARY' && (
+        <Card className='mb-6 space-y-4 p-5'>
+          <div>
+            <h2 className='text-lg font-bold'>Advocates supported</h2>
+            <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
+              The secretary works on these advocates&apos; matters: filing register, client document requests and the diary.
+            </p>
+          </div>
+          <AdvocateChecklist
+            lawyers={lawyers}
+            selected={advocateDraft ?? (staff.secretary?.assigned_lawyers || []).map((lawyer) => String(lawyer.id))}
+            disabled={updateAdvocatesMutation.isPending}
+            onChange={setAdvocateDraft}
+          />
+          {updateAdvocatesMutation.isError && (
+            <p role='alert' className='text-sm text-error'>{getApiErrorMessage(updateAdvocatesMutation.error)}</p>
+          )}
+          <button
+            type='button'
+            className='rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50'
+            disabled={advocateDraft === null || updateAdvocatesMutation.isPending}
+            onClick={() => updateAdvocatesMutation.mutate(advocateDraft)}
+          >
+            {updateAdvocatesMutation.isPending ? 'Saving…' : 'Save advocates'}
+          </button>
+        </Card>
+      )}
       {/* ROLE-SPECIFIC METRICS */}
       {membership.role === 'LAWYER' && (
         <div

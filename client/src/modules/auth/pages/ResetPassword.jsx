@@ -1,13 +1,12 @@
-import { LockKeyhole, ArrowLeft } from 'lucide-react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { LockKeyhole } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 
 import useAuth from '@/modules/auth/hook/useAuth';
 
-import Card from '@/components/ui/Card';
 import Button3D from '@/components/ui/Button3D';
-import PasswordInput from '@/components/ui/PasswordInput';
-import AuthShowcase from '@/modules/auth/components/AuthShowcase';
+import FloatingInput from '@/components/ui/FloatingInput';
+import AuthFormCard from '@/modules/auth/components/AuthFormCard';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -20,7 +19,6 @@ export default function ResetPassword() {
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [show, setShow] = useState(false);
   const [localError, setLocalError] = useState(null);
 
   const handleSubmit = async (e) => {
@@ -48,66 +46,38 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className='flex-1 flex flex-col lg:flex-row min-h-screen'>
-      <AuthShowcase icon={LockKeyhole} title='Set a new password' text='Choose a strong password to secure your account.' />
+    <AuthFormCard
+      showcase={{ icon: LockKeyhole, title: 'Set a new password', text: 'Choose a strong password to secure your account.' }}
+      title='Set a new password'
+      lead='Choose a strong password. You will sign in with it from now on.'
+      backTo='/login'
+      backLabel='Back to sign in'
+      error={localError || error}
+      onSubmit={handleSubmit}
+    >
+      <FloatingInput
+        label='New password'
+        name='new_password'
+        type='password'
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+        autoComplete='new-password'
+        required
+      />
 
-      {/* RIGHT PANEL */}
-      <div className='w-full lg:w-1/2 flex flex-col items-center justify-center px-6 pt-32 pb-12 min-h-screen bg-gray-50'>
-        <Card className='w-full max-w-md p-8 my-auto'>
-          <Link
-            to='/login'
-            className='flex items-center gap-2 text-sm text-blue-600 mb-6'
-          >
-            <ArrowLeft size={16} />
-            Back to login
-          </Link>
+      <FloatingInput
+        label='Confirm password'
+        name='confirm_password'
+        type='password'
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+        autoComplete='new-password'
+        required
+      />
 
-          <h2 className='text-2xl font-bold mb-2'>Reset Password</h2>
-
-          <p className='text-sm text-gray-500 mb-6'>
-            Enter your new password below.
-          </p>
-
-          <form onSubmit={handleSubmit} className='space-y-5'>
-            <PasswordInput
-              placeholder='New Password'
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              type={show ? 'text' : 'password'}
-            />
-
-            <PasswordInput
-              placeholder='Confirm Password'
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              type={show ? 'text' : 'password'}
-            />
-
-            <label className='flex items-center gap-2 text-sm'>
-              <input
-                type='checkbox'
-                checked={show}
-                onChange={() => setShow(!show)}
-              />
-              Show password
-            </label>
-
-            {/* LOCAL ERROR */}
-            {localError && (
-              <p className='text-red-500 text-sm text-center'>{localError}</p>
-            )}
-
-            {/* API ERROR */}
-            {error && (
-              <p className='text-red-500 text-sm text-center'>{error}</p>
-            )}
-
-            <Button3D type='submit' className='w-full' disabled={loading}>
-              {loading ? 'Resetting...' : 'Reset Password'}
-            </Button3D>
-          </form>
-        </Card>
-      </div>
-    </div>
+      <Button3D type='submit' className='w-full' disabled={loading}>
+        {loading ? 'Saving…' : 'Save password'}
+      </Button3D>
+    </AuthFormCard>
   );
 }

@@ -99,7 +99,7 @@ export default function Select3D({
       {label && (
         <label
           htmlFor={name}
-          className={`block text-sm font-semibold leading-5 transition-colors ${error ? 'text-error dark:text-red-400' : 'text-text-primary-light dark:text-text-primary-dark'}`}
+          className={`block text-[13px] font-semibold ${error ? 'text-[color:var(--form-danger)]' : 'text-[color:var(--text-muted)]'}`}
         >
           {label}{required ? ' *' : ''}
         </label>
@@ -117,15 +117,7 @@ export default function Select3D({
           if (!disabled) setOpen((current) => !current);
         }}
         onBlur={props.onBlur}
-        className={`
-          flex min-h-11 w-full items-center justify-between rounded-lg border
-          bg-white px-3.5 py-2.5 text-left text-sm text-text-primary-light transition
-          ${error ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-400' : 'border-border-light dark:border-border-dark'}
-          dark:bg-slate-950/35 dark:text-text-primary-dark
-          focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20
-          disabled:cursor-not-allowed disabled:opacity-60
-          ${className}
-        `}
+        className={`form-control flex items-center justify-between text-left ${className}`}
       >
         <span className={selectedOptions.length ? '' : 'text-text-muted-light dark:text-text-muted-dark'}>
           {displayValue}
@@ -173,7 +165,7 @@ export default function Select3D({
         </div>
       )}
 
-      {error && <p id={`${name}-error`} className='mt-2 text-sm text-red-500'>{error}</p>}
+      {error && <p id={`${name}-error`} className='form-error'>{error}</p>}
     </div>
   );
 }

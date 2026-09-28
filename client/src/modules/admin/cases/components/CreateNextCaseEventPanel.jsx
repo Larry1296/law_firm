@@ -212,8 +212,7 @@ export default function CreateNextCaseEventPanel({
     }
   };
 
-  const fieldClass =
-    'w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark';
+  const fieldClass = 'form-control';
 
   return (
     <div className="rounded-xl border border-border-light bg-surface-light p-6 dark:border-border-dark dark:bg-surface-dark">

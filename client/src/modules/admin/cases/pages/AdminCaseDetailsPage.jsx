@@ -1087,7 +1087,7 @@ const AdminCaseDetailsPage = () => {
               type='datetime-local'
               value={transitionDraft.effective_at}
               onChange={(event) => setTransitionDraft((current) => ({ ...current, effective_at: event.target.value }))}
-              className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+              className='form-control'
             />
             <ElasticTextArea
               label='Reason or description'
@@ -1098,23 +1098,23 @@ const AdminCaseDetailsPage = () => {
             />
             {selectedTransition?.to_state === 'FILED' && (
               <div className='grid gap-4 rounded-xl border border-border-light p-4 dark:border-border-dark lg:col-span-2 md:grid-cols-2'>
-                <input type='date' value={transitionMetadata.filing_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, filing_date: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
-                <input placeholder='Official court case number' value={transitionMetadata.official_court_case_number} onChange={(event) => setTransitionMetadata((current) => ({ ...current, official_court_case_number: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
-                <input placeholder='eFiling reference' value={transitionMetadata.efiling_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, efiling_reference: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
-                <input placeholder='Assessment reference' value={transitionMetadata.assessment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, assessment_reference: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
-                <input placeholder='Payment reference' value={transitionMetadata.payment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_reference: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
-                <input type='date' value={transitionMetadata.payment_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_date: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
-                <input type='number' min='0' placeholder='Court fee amount' value={transitionMetadata.court_fee_amount} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_fee_amount: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
-                <input placeholder='Court station' value={transitionMetadata.court_station} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_station: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
-                <input placeholder='Registry' value={transitionMetadata.registry} onChange={(event) => setTransitionMetadata((current) => ({ ...current, registry: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+                <input type='date' value={transitionMetadata.filing_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, filing_date: event.target.value }))} className='form-control' />
+                <input placeholder='Official court case number' value={transitionMetadata.official_court_case_number} onChange={(event) => setTransitionMetadata((current) => ({ ...current, official_court_case_number: event.target.value }))} className='form-control' />
+                <input placeholder='eFiling reference' value={transitionMetadata.efiling_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, efiling_reference: event.target.value }))} className='form-control' />
+                <input placeholder='Assessment reference' value={transitionMetadata.assessment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, assessment_reference: event.target.value }))} className='form-control' />
+                <input placeholder='Payment reference' value={transitionMetadata.payment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_reference: event.target.value }))} className='form-control' />
+                <input type='date' value={transitionMetadata.payment_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_date: event.target.value }))} className='form-control' />
+                <input type='number' min='0' placeholder='Court fee amount' value={transitionMetadata.court_fee_amount} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_fee_amount: event.target.value }))} className='form-control' />
+                <input placeholder='Court station' value={transitionMetadata.court_station} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_station: event.target.value }))} className='form-control' />
+                <input placeholder='Registry' value={transitionMetadata.registry} onChange={(event) => setTransitionMetadata((current) => ({ ...current, registry: event.target.value }))} className='form-control' />
               </div>
             )}
             {selectedTransition?.to_state === 'AWAITING_SERVICE' && (
               <div className='grid gap-4 rounded-xl border border-border-light p-4 dark:border-border-dark lg:col-span-2 md:grid-cols-2'>
                 <label className='flex items-center gap-2 text-sm'><input type='checkbox' checked={transitionMetadata.sealed_documents_received} onChange={(event) => setTransitionMetadata((current) => ({ ...current, sealed_documents_received: event.target.checked }))} /> Sealed documents received</label>
                 <label className='flex items-center gap-2 text-sm'><input type='checkbox' checked={transitionMetadata.service_package_prepared} onChange={(event) => setTransitionMetadata((current) => ({ ...current, service_package_prepared: event.target.checked }))} /> Service package prepared</label>
-                <input placeholder='Responsible person' value={transitionMetadata.responsible_person} onChange={(event) => setTransitionMetadata((current) => ({ ...current, responsible_person: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
-                <input type='date' value={transitionMetadata.target_service_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, target_service_date: event.target.value }))} className='rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark' />
+                <input placeholder='Responsible person' value={transitionMetadata.responsible_person} onChange={(event) => setTransitionMetadata((current) => ({ ...current, responsible_person: event.target.value }))} className='form-control' />
+                <input type='date' value={transitionMetadata.target_service_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, target_service_date: event.target.value }))} className='form-control' />
               </div>
             )}
             <button
@@ -1266,7 +1266,7 @@ const AdminCaseDetailsPage = () => {
                   type='datetime-local'
                   value={conflictDraft.effective_at}
                   onChange={(event) => setConflictDraft((current) => ({ ...current, effective_at: event.target.value }))}
-                  className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  className='form-control w-full'
                 />
                 {conflictErrors.effective_at && <p className='mt-1 text-sm text-error'>{conflictErrors.effective_at}</p>}
               </div>
@@ -1437,7 +1437,7 @@ const AdminCaseDetailsPage = () => {
                     value={ctsDraft.cts_reference}
                     onChange={(event) => setCtsDraft((current) => ({ ...current, cts_reference: event.target.value.toUpperCase() }))}
                     placeholder='e.g. CTS-HCCOMM-2026-001248'
-                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                    className='form-control w-full'
                   />
                   {ctsErrors.cts_reference && <p className='mt-1 text-sm text-error'>{ctsErrors.cts_reference}</p>}
                 </div>
@@ -1449,7 +1449,7 @@ const AdminCaseDetailsPage = () => {
                     value={ctsDraft.verification_source}
                     onChange={(event) => setCtsDraft((current) => ({ ...current, verification_source: event.target.value }))}
                     placeholder='Judiciary eFiling portal, court registry, cause list, stamped pleading'
-                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                    className='form-control w-full'
                   />
                   {ctsErrors.verification_source && <p className='mt-1 text-sm text-error'>{ctsErrors.verification_source}</p>}
                 </div>
@@ -1512,7 +1512,7 @@ const AdminCaseDetailsPage = () => {
                     type='number'
                     value={jurisdictionValues.claim_amount}
                     onChange={(event) => setJurisdictionDraft((current) => ({ ...current, claim_amount: event.target.value }))}
-                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                    className='form-control w-full'
                   />
                   {jurisdictionErrors.claim_amount && <p className='mt-1 text-sm text-error'>{jurisdictionErrors.claim_amount}</p>}
                 </div>
@@ -1523,7 +1523,7 @@ const AdminCaseDetailsPage = () => {
                   <input
                     value={jurisdictionValues.currency}
                     onChange={(event) => setJurisdictionDraft((current) => ({ ...current, currency: event.target.value.toUpperCase() }))}
-                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                    className='form-control w-full'
                   />
                 </div>
                 <div>
@@ -1558,7 +1558,7 @@ const AdminCaseDetailsPage = () => {
                   <input
                     value={jurisdictionValues.court_station}
                     onChange={(event) => setJurisdictionDraft((current) => ({ ...current, court_station: event.target.value }))}
-                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                    className='form-control w-full'
                   />
                 </div>
                 <div>
@@ -1569,7 +1569,7 @@ const AdminCaseDetailsPage = () => {
                     value={jurisdictionValues.judicial_officer_rank}
                     onChange={(event) => setJurisdictionDraft((current) => ({ ...current, judicial_officer_rank: event.target.value }))}
                     placeholder='Judge, magistrate, chairperson, or leave blank'
-                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                    className='form-control w-full'
                   />
                 </div>
                 <div className='md:col-span-2'>
@@ -1995,7 +1995,7 @@ const AdminCaseDetailsPage = () => {
               <input
                 value={eventDraft.event_subtype}
                 onChange={(event) => setEventDraft((current) => ({ ...current, event_subtype: event.target.value }))}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
             </div>
 
@@ -2006,7 +2006,7 @@ const AdminCaseDetailsPage = () => {
               <input
                 value={eventDraft.title}
                 onChange={(event) => setEventDraft((current) => ({ ...current, title: event.target.value }))}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
               {eventErrors.title && <p className='mt-1 text-sm text-error'>{eventErrors.title}</p>}
             </div>
@@ -2018,7 +2018,7 @@ const AdminCaseDetailsPage = () => {
               <input
                 value='Scheduled'
                 readOnly
-                className='w-full rounded-xl border border-border-light bg-background-light px-4 py-3 text-text-muted-light dark:border-border-dark dark:bg-background-dark dark:text-text-muted-dark'
+                className='form-control w-full'
               />
             </div>
 
@@ -2030,7 +2030,7 @@ const AdminCaseDetailsPage = () => {
                 type='datetime-local'
                 value={eventDraft.starts_at}
                 onChange={(event) => setEventDraft((current) => ({ ...current, starts_at: event.target.value }))}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
               {eventErrors.starts_at && <p className='mt-1 text-sm text-error'>{eventErrors.starts_at}</p>}
             </div>
@@ -2043,7 +2043,7 @@ const AdminCaseDetailsPage = () => {
                 type='datetime-local'
                 value={eventDraft.ends_at}
                 onChange={(event) => setEventDraft((current) => ({ ...current, ends_at: event.target.value }))}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
               {eventErrors.ends_at && <p className='mt-1 text-sm text-error'>{eventErrors.ends_at}</p>}
             </div>
@@ -2068,7 +2068,7 @@ const AdminCaseDetailsPage = () => {
                 value={eventDraft.court}
                 onChange={(event) => setEventDraft((current) => ({ ...current, court: event.target.value }))}
                 placeholder={courtName || 'High Court of Kenya'}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
             </div>
 
@@ -2080,7 +2080,7 @@ const AdminCaseDetailsPage = () => {
                 value={eventDraft.court_station}
                 onChange={(event) => setEventDraft((current) => ({ ...current, court_station: event.target.value }))}
                 placeholder={caseData.court_station || 'Nairobi'}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
             </div>
 
@@ -2092,7 +2092,7 @@ const AdminCaseDetailsPage = () => {
                 value={eventDraft.courtroom}
                 onChange={(event) => setEventDraft((current) => ({ ...current, courtroom: event.target.value }))}
                 placeholder='Leave blank if not allocated'
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
             </div>
 
@@ -2104,7 +2104,7 @@ const AdminCaseDetailsPage = () => {
                 value={eventDraft.judicial_officer}
                 onChange={(event) => setEventDraft((current) => ({ ...current, judicial_officer: event.target.value }))}
                 placeholder='Judge, deputy registrar, magistrate, chairperson, or leave blank'
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
             </div>
 
@@ -2118,7 +2118,7 @@ const AdminCaseDetailsPage = () => {
                     value={eventDraft.virtual_meeting_url}
                     onChange={(event) => setEventDraft((current) => ({ ...current, virtual_meeting_url: event.target.value }))}
                     placeholder='Do not enter public links unless authorized'
-                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                    className='form-control w-full'
                   />
                 </div>
                 <div>
@@ -2129,7 +2129,7 @@ const AdminCaseDetailsPage = () => {
                     value={eventDraft.virtual_access_instructions}
                     onChange={(event) => setEventDraft((current) => ({ ...current, virtual_access_instructions: event.target.value }))}
                     placeholder='Meeting ID, cause list note, or access instruction'
-                    className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                    className='form-control w-full'
                   />
                 </div>
               </>
@@ -2144,7 +2144,7 @@ const AdminCaseDetailsPage = () => {
                   value={eventDraft.physical_venue}
                   onChange={(event) => setEventDraft((current) => ({ ...current, physical_venue: event.target.value }))}
                   placeholder={courtLocation || 'Milimani Law Courts, Nairobi'}
-                  className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                  className='form-control w-full'
                 />
               </div>
             )}
@@ -2174,7 +2174,7 @@ const AdminCaseDetailsPage = () => {
               <input
                 value={eventDraft.next_action}
                 onChange={(event) => setEventDraft((current) => ({ ...current, next_action: event.target.value }))}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
             </div>
 
@@ -2186,7 +2186,7 @@ const AdminCaseDetailsPage = () => {
                 type='datetime-local'
                 value={eventDraft.next_date}
                 onChange={(event) => setEventDraft((current) => ({ ...current, next_date: event.target.value }))}
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
             </div>
           </div>

@@ -228,6 +228,9 @@ export default function ClientConflictCheckPage() {
     queryFn: () => adminClientsService.getClientDetails(clientId),
     enabled: !isLawyer && !!clientId,
   });
+  const engagementLetterOptions = (clientData?.client?.documents || [])
+    .filter((document) => document.subtype === 'ENGAGEMENT_LETTER')
+    .map((document) => ({ value: document.id, label: `${document.reference} · ${document.title}` }));
   const { data: check, isLoading } = useQuery({
     queryKey: ['client-conflict-check', isLawyer, clientId, checkId],
     queryFn: () => service.getConflictCheck(clientId, checkId),
@@ -727,7 +730,10 @@ export default function ClientConflictCheckPage() {
               <Input3D label='Required retainer' type='number' value={engagementDraft.required_retainer} onChange={(e) => setEngagementDraft((value) => ({ ...value, required_retainer: e.target.value }))} />
               <Input3D label='Retainer due date' type='date' value={engagementDraft.retainer_due_date} onChange={(e) => setEngagementDraft((value) => ({ ...value, retainer_due_date: e.target.value }))} />
               <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>Retainer receipt status is set only by posting an immutable client-account receipt after this engagement version is created.</p>
-              <Input3D label='Engagement letter document ID' value={engagementDraft.engagement_letter_document} onChange={(e) => setEngagementDraft((value) => ({ ...value, engagement_letter_document: e.target.value }))} />
+              <div>
+                <Select3D label='Signed engagement letter' value={engagementDraft.engagement_letter_document} onChange={(e) => setEngagementDraft((value) => ({ ...value, engagement_letter_document: e.target.value }))} options={engagementLetterOptions} placeholder={engagementLetterOptions.length ? 'Select the letter from the client file' : 'None recorded yet'} />
+                {!engagementLetterOptions.length && <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>Needed before approval. The secretary records it under Documents with the type &quot;Engagement letter / retainer agreement&quot;.</p>}
+              </div>
               <Input3D label='Date sent' type='datetime-local' value={engagementDraft.sent_at} onChange={(e) => setEngagementDraft((value) => ({ ...value, sent_at: e.target.value }))} />
               <Input3D label='Date signed' type='datetime-local' value={engagementDraft.signed_at} onChange={(e) => setEngagementDraft((value) => ({ ...value, signed_at: e.target.value }))} />
               <Input3D label='Signed by' value={engagementDraft.signed_by} onChange={(e) => setEngagementDraft((value) => ({ ...value, signed_by: e.target.value }))} />

@@ -38,7 +38,7 @@ const REGISTER_TYPES = [
 ];
 const SERVICE_TYPES = new Set(['SUMMONS', 'AFFIDAVIT_OF_SERVICE']);
 
-const inputClass = 'w-full rounded-lg border border-border-light bg-white px-3 py-2 text-sm dark:border-border-dark dark:bg-slate-900';
+const inputClass = 'form-control';
 const friendly = (value) => (value || '').replaceAll('_', ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 
 const emptyFiling = {

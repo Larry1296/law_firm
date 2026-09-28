@@ -41,7 +41,7 @@ class TaxConfigurationListCreateView(APIView):
 
     def post(self, request):
         firm = FinanceAccess.require(request.user, AccountantPermission.MANAGE_TAX_RECORDS)
-        serializer = TaxConfigurationSerializer(data=request.data)
+        serializer = TaxConfigurationSerializer(data=request.data, context={"firm": firm})
         serializer.is_valid(raise_exception=True)
         record = serializer.save(firm=firm)
         return Response({"tax_configuration": TaxConfigurationSerializer(record).data}, status=status.HTTP_201_CREATED)

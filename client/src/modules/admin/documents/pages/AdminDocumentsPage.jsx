@@ -71,7 +71,7 @@ export default function AdminDocumentsPage() {
         <form className='flex flex-col gap-2 sm:flex-row sm:items-end' onSubmit={(event) => { event.preventDefault(); setQuery(search.trim()); }}>
           <label className='flex-1 text-sm'>
             <span className='mb-1 block font-medium'>Search by title, reference, file name or client</span>
-            <input className='w-full rounded-lg border border-border-light bg-white px-3 py-2 dark:border-border-dark dark:bg-slate-900' value={search} onChange={(event) => setSearch(event.target.value)} />
+            <input className='form-control w-full' value={search} onChange={(event) => setSearch(event.target.value)} />
           </label>
           <button type='submit' className='rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white dark:bg-blue-500'>Search</button>
         </form>

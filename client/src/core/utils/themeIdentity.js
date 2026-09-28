@@ -39,11 +39,13 @@ export const getThemeUserIdentity = (user) => {
   return directIdentity || readJwtIdentity() || 'guest';
 };
 
-export const getThemeStorageKey = ({ role = 'public', user } = {}) => {
-  return `theme-${normalize(role) || 'public'}-${getThemeUserIdentity(user)}`;
-};
+// Only a theme the user explicitly chose is stored; with no choice the app
+// follows the device's light/dark setting.
+const CHOICE_PREFIX = 'theme-choice-';
 
-export const LAST_ACTIVE_THEME_KEY = 'theme-last-active';
+export const getThemeStorageKey = ({ role = 'public', user } = {}) => {
+  return `${CHOICE_PREFIX}${normalize(role) || 'public'}-${getThemeUserIdentity(user)}`;
+};
 
 export const isValidTheme = (theme) => ['light', 'dark'].includes(theme);
 
@@ -55,32 +57,34 @@ export const getSystemTheme = () => {
     : 'light';
 };
 
-export const readLastActiveTheme = () => {
+export const readThemeChoice = (storageKey) => {
   try {
-    const theme = localStorage.getItem(LAST_ACTIVE_THEME_KEY);
+    const theme = localStorage.getItem(storageKey);
     return isValidTheme(theme) ? theme : null;
   } catch {
     return null;
   }
 };
 
-export const persistLastActiveTheme = (theme) => {
-  if (!isValidTheme(theme)) return;
-
+export const saveThemeChoice = (storageKey, theme) => {
   try {
-    localStorage.setItem(LAST_ACTIVE_THEME_KEY, theme);
+    localStorage.setItem(storageKey, theme);
   } catch {
     // Ignore storage failures so theme switching never breaks navigation.
   }
 };
 
-export const persistThemeForUser = ({ role, user, theme }) => {
-  if (!isValidTheme(theme)) return;
-
+/*
+  Earlier versions saved whatever theme was showing on every visit, which
+  pinned users to it instead of their device setting. Those values were never
+  a choice, so they are dropped.
+*/
+export const clearLegacyThemeKeys = () => {
   try {
-    localStorage.setItem(getThemeStorageKey({ role, user }), theme);
-    persistLastActiveTheme(theme);
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith('theme-') && !key.startsWith(CHOICE_PREFIX))
+      .forEach((key) => localStorage.removeItem(key));
   } catch {
-    // Ignore storage failures so auth and routing stay uninterrupted.
+    // Storage may be unavailable (private mode); nothing to clean.
   }
 };

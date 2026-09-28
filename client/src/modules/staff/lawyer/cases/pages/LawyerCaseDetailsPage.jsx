@@ -670,7 +670,7 @@ export default function LawyerCaseDetailsPage() {
               value={statusNote}
               onChange={(event) => setStatusNote(event.target.value)}
               placeholder='Optional update note'
-              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition placeholder:text-text-muted-light focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:placeholder:text-text-muted-dark'
+              className='form-control w-full'
             />
           </div>
 
@@ -730,7 +730,7 @@ export default function LawyerCaseDetailsPage() {
                     starts_at: event.target.value,
                   }))
                 }
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
             </div>
 
@@ -747,7 +747,7 @@ export default function LawyerCaseDetailsPage() {
                   }))
                 }
                 placeholder='Mention, hearing, filing follow-up...'
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition placeholder:text-text-muted-light focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:placeholder:text-text-muted-dark'
+                className='form-control w-full'
               />
             </div>
 
@@ -763,7 +763,7 @@ export default function LawyerCaseDetailsPage() {
                     court_station: event.target.value,
                   }))
                 }
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
             </div>
 
@@ -779,7 +779,7 @@ export default function LawyerCaseDetailsPage() {
                     courtroom: event.target.value,
                   }))
                 }
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
             </div>
 
@@ -795,7 +795,7 @@ export default function LawyerCaseDetailsPage() {
                     judicial_officer: event.target.value,
                   }))
                 }
-                className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                className='form-control w-full'
               />
             </div>
           </div>
@@ -811,7 +811,7 @@ export default function LawyerCaseDetailsPage() {
               }
               placeholder='Optional event notes'
               rows={3}
-              className='w-full rounded-xl border border-border-light bg-surface-light px-4 py-3 text-text-primary-light shadow-soft transition placeholder:text-text-muted-light focus:border-brand-primary focus:outline-none dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:placeholder:text-text-muted-dark'
+              className='form-control w-full'
             />
 
             <label className='inline-flex items-center gap-3 rounded-xl border border-border-light px-4 py-3 text-sm font-semibold text-text-primary-light dark:border-border-dark dark:text-text-primary-dark'>

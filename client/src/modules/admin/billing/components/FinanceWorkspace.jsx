@@ -48,6 +48,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   const [disbursements, setDisbursements] = useState([]);
   const [reconciliations, setReconciliations] = useState([]);
   const [creditNotes, setCreditNotes] = useState([]);
+  const [taxConfigurations, setTaxConfigurations] = useState([]);
   const [ledger, setLedger] = useState(null);
   const [busy, setBusy] = useState(false);
   const [unavailable, setUnavailable] = useState([]);
@@ -62,6 +63,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   const [officeReceipt, setOfficeReceipt] = useState({ account: '', receipt_number: '', amount_received: '', currency: 'KES', payment_date: today, payment_method: 'MOBILE_MONEY', bank_transaction_reference: '', invoice: '' });
   const [reconciliation, setReconciliation] = useState({ account: '', period_end: today, statement_balance: '', reconciliation_data: {} });
   const [credit, setCredit] = useState({ invoice: '', credit_note_number: '', credit_date: today, amount: '', reason: '' });
+  const [tax, setTax] = useState({ effective_from: today, vat_registered: true, vat_registration_number: '', vat_rate: '16', tax_inclusive: false });
   const [ledgerMatter, setLedgerMatter] = useState('');
   const [modal, setModal] = useState(null);
 
@@ -75,6 +77,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       ['Disbursements', adminBillingService.getDisbursements()],
       ['Reconciliations', adminBillingService.getReconciliations()],
       ['Credit notes', adminBillingService.getCreditNotes()],
+      ['Tax settings', adminBillingService.getTaxConfigurations()],
     ];
     const results = await Promise.allSettled(calls.map(([, call]) => call));
     const value = (index) => (results[index].status === 'fulfilled' ? results[index].value : {});
@@ -84,6 +87,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
     setPayments(value(3).payment_instructions || []); setTimeEntries(value(4).time_entries || []);
     setDisbursements(value(5).disbursements || []); setReconciliations(value(6).reconciliations || []);
     setCreditNotes(value(7).credit_notes || []);
+    setTaxConfigurations(value(8).tax_configurations || []);
   };
 
   // The initial fetch synchronizes this page with the finance API.
@@ -126,6 +130,12 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       ? run(() => adminBillingService.addInvoiceBillables(item.id, values), 'Approved billable records linked to the draft invoice.')
       : Promise.resolve()),
   });
+  // Newest first from the API; the one in use is the latest active version already in effect.
+  const currentTax = taxConfigurations.find((item) => item.is_active && item.effective_from <= today);
+  const taxSummary = currentTax?.vat_registered && Number(currentTax.vat_rate) > 0
+    ? `VAT ${Number(currentTax.vat_rate)}%${currentTax.tax_inclusive ? ' (included in the fee)' : ' added on professional fees'}, from ${currentTax.effective_from}`
+    : 'No VAT: the firm is not VAT-registered, or no tax setting is in effect';
+
   const inspectLedger = () => run(async () => { const data = await adminBillingService.getMatterLedger(ledgerMatter); setLedger(data.ledger); });
 
   return <div className='space-y-6 p-4 text-text-primary-light dark:text-text-primary-dark sm:p-6'>
@@ -162,7 +172,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
         </div>
         <Input label='Professional fees description' name='description' value={invoice.description} onChange={update(setInvoice)} />
         <Input label='Fee amount (KES, excl. VAT)' type='number' min='0' step='0.01' name='amount' value={invoice.amount} onChange={update(setInvoice)} />
-        <p className='text-xs text-text-muted-light dark:text-text-muted-dark'>VAT is added from the firm&apos;s tax configuration. Link approved time and disbursements after creating the draft.</p>
+        <p className='text-xs text-text-muted-light dark:text-text-muted-dark'>Tax in use: {taxSummary}. Change it under VAT and tax settings. Link approved time and disbursements after creating the draft.</p>
         <button className={button} disabled={busy}>Create draft</button>
       </form>
 
@@ -236,6 +246,29 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
           <button disabled={busy} className={button}>Add account</button>
         </form>
         <ul className='mt-3 space-y-1 text-sm'>{accounts.map((item) => <li key={item.id}>{item.account_type === 'CLIENT' ? 'Client' : 'Office'} · {item.name} · {item.account_reference}</li>)}</ul>
+      </details>
+
+      <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>VAT and tax settings</summary>
+        <p className='mt-3 text-sm text-text-muted-light dark:text-text-muted-dark'>Each invoice keeps the setting in effect on the day it is created, so a change never alters issued invoices. To change VAT, add a new setting with the date it takes effect. Have the firm&apos;s accountant confirm the VAT position with KRA first.</p>
+        <form className='mt-3 space-y-3' onSubmit={submit(() => adminBillingService.createTaxConfiguration({
+          effective_from: tax.effective_from,
+          vat_registered: tax.vat_registered,
+          vat_registration_number: tax.vat_registered ? tax.vat_registration_number : '',
+          vat_rate: tax.vat_registered ? tax.vat_rate : '0',
+          tax_inclusive: tax.vat_registered && tax.tax_inclusive,
+        }), 'Tax setting saved. New invoices use it from its effective date.')}>
+          <Input label='Takes effect from' type='date' name='effective_from' value={tax.effective_from} onChange={update(setTax)} />
+          <label className='block text-sm'><input type='checkbox' checked={tax.vat_registered} onChange={(event) => setTax({ ...tax, vat_registered: event.target.checked })} /> The firm is registered for VAT</label>
+          {tax.vat_registered && <>
+            <div className='grid gap-3 sm:grid-cols-2'>
+              <Input label='VAT registration number (KRA PIN)' name='vat_registration_number' value={tax.vat_registration_number} onChange={update(setTax)} />
+              <Input label='VAT rate (%)' type='number' min='0' max='100' step='0.01' name='vat_rate' value={tax.vat_rate} onChange={update(setTax)} />
+            </div>
+            <label className='block text-sm'><input type='checkbox' checked={tax.tax_inclusive} onChange={(event) => setTax({ ...tax, tax_inclusive: event.target.checked })} /> Fees are quoted with VAT already included</label>
+          </>}
+          <button disabled={busy} className={button}>Save tax setting</button>
+        </form>
+        <ul className='mt-3 space-y-1 text-sm'>{taxConfigurations.map((item) => <li key={item.id}>From {item.effective_from} · {item.vat_registered ? `VAT ${Number(item.vat_rate)}% · ${item.vat_registration_number}` : 'Not VAT-registered'}{item.id === currentTax?.id && <strong> · in use</strong>}</li>)}</ul>
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Client-money payment instruction</summary>

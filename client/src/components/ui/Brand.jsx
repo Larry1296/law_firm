@@ -30,9 +30,9 @@ export default function Brand({
     return (
       <div className='flex w-full flex-col items-center justify-center text-center'>
         {firmLogo ? (
-          <img src={firmLogo} alt={`${firm.name} logo`} onError={() => setLogoFailed(true)} className={`${size} rounded-2xl bg-white object-contain`} />
+          <img src={firmLogo} alt={`${firm.name} logo`} onError={() => setLogoFailed(true)} className={`${size} aspect-square shrink-0 rounded-2xl bg-[color:var(--surface)] object-cover ring-1 ring-[color:var(--border)]`} />
         ) : (
-          <span aria-hidden='true' className={`${size} flex items-center justify-center rounded-2xl bg-brand-accent text-lg font-extrabold text-[#1a1203]`}>
+          <span aria-hidden='true' className={`${size} flex items-center justify-center rounded-2xl bg-brand-accent text-3xl font-extrabold text-[#1a1203]`}>
             {initials(firm.name) || firm.name[0]}
           </span>
         )}

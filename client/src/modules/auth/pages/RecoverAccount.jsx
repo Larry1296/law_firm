@@ -1,13 +1,11 @@
-import { ArrowLeft, ShieldCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
 import useAuth from '@/modules/auth/hook/useAuth';
 
-import Card from '@/components/ui/Card';
 import Button3D from '@/components/ui/Button3D';
 import FloatingInput from '@/components/ui/FloatingInput';
-import AuthShowcase from '@/modules/auth/components/AuthShowcase';
+import AuthFormCard from '@/modules/auth/components/AuthFormCard';
 
 export default function RecoverAccount() {
   const { recoverAccount, loading, error } = useAuth();
@@ -56,7 +54,7 @@ export default function RecoverAccount() {
       const res = await recoverAccount(payload);
 
       // backend response shape safe access
-      setResult(res?.data || res);
+      setResult((res?.data || res)?.detail);
     } catch (err) {
       console.error(
         'Recover account failed:',
@@ -66,65 +64,37 @@ export default function RecoverAccount() {
   };
 
   return (
-    <div className='flex-1 flex flex-col lg:flex-row min-h-screen'>
-      <AuthShowcase icon={ShieldCheck} title='Recover your account' text='Use your National ID or phone number to find your account.' />
+    <AuthFormCard
+      showcase={{ icon: ShieldCheck, title: 'Recover your account', text: 'Use your National ID or phone number to find your account.' }}
+      title='Recover your account'
+      lead='Forgot which email you use? Enter your National ID or phone number and we will email a reset link to the address on your account.'
+      backTo='/login'
+      backLabel='Back to sign in'
+      error={localError || error}
+      onSubmit={handleSubmit}
+    >
+      <FloatingInput
+        label='National ID'
+        name='national_id'
+        value={form.national_id}
+        onChange={handleChange}
+        format='none'
+      />
 
-      {/* RIGHT */}
-      <div className='w-full lg:w-1/2 flex flex-col items-center justify-center px-6 pt-32 pb-12 min-h-screen bg-gray-50'>
-        <Card className='w-full max-w-md p-8 my-auto'>
-          <Link
-            to='/login'
-            className='flex items-center gap-2 text-sm text-blue-600 mb-6'
-          >
-            <ArrowLeft size={16} />
-            Back to login
-          </Link>
+      <FloatingInput
+        label='Phone number'
+        name='phone_number'
+        type='tel'
+        value={form.phone_number}
+        onChange={handleChange}
+        format='none'
+      />
 
-          <h2 className='text-2xl font-bold mb-2'>Account Recovery</h2>
+      <Button3D type='submit' className='w-full' disabled={loading}>
+        {loading ? 'Sending…' : 'Send reset link'}
+      </Button3D>
 
-          <p className='text-sm text-gray-500 mb-6'>
-            Enter at least one identifier.
-          </p>
-
-          <form onSubmit={handleSubmit} className='space-y-5'>
-            <FloatingInput
-              label='National ID'
-              name='national_id'
-              value={form.national_id}
-              onChange={handleChange}
-            />
-
-            <FloatingInput
-              label='Phone Number'
-              name='phone_number'
-              value={form.phone_number}
-              onChange={handleChange}
-            />
-
-            {localError && (
-              <p className='text-red-500 text-sm text-center'>{localError}</p>
-            )}
-
-            {error && (
-              <p className='text-red-500 text-sm text-center'>
-                {error?.response?.data?.message || error}
-              </p>
-            )}
-
-            <Button3D type='submit' className='w-full' disabled={loading}>
-              {loading ? 'Searching...' : 'Find Account'}
-            </Button3D>
-
-            {result && (
-              <div className='mt-4 p-3 bg-green-50 text-green-700 text-sm rounded text-center'>
-                Account found:
-                <br />
-                <strong>{result.email_hint}</strong>
-              </div>
-            )}
-          </form>
-        </Card>
-      </div>
-    </div>
+      {result && <p role='status' className='form-success'>{result}</p>}
+    </AuthFormCard>
   );
 }

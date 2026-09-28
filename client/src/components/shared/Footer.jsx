@@ -8,7 +8,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6 py-12 grid md:grid-cols-3 gap-10">
         {/* LOGO / ABOUT */}
         <div>
-          <Brand size="h-16 w-16" textSize="text-2xl" textColor="text-white" />
+          <Brand size="h-24 w-24" textSize="text-2xl" textColor="text-white" />
           <p className="mt-4 text-sm text-white dark:text-white/80">
             Practice management for Kenyan law firms: matters, courts, clients
             and accounts, with a private workspace for every firm.

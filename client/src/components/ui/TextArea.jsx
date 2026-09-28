@@ -28,20 +28,7 @@ export default function Textarea({
         autoCapitalize={autoCapitalize}
         spellCheck={spellCheck}
         {...props}
-        className='
-          w-full px-3 py-2
-          border border-[color:var(--border)]
-          rounded-lg
-          shadow-sm
-          bg-[color:var(--surface-raised)]
-          text-[color:var(--text-primary)]
-          placeholder:text-[color:var(--text-muted)]
-          focus:outline-none
-          focus:ring-2 focus:ring-[color:var(--brand-primary)]
-          focus:border-[color:var(--brand-primary)]
-          transition
-          resize-none
-        '
+        className='form-control w-full resize-none'
       />
     </div>
   );

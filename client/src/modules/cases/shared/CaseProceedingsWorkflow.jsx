@@ -111,10 +111,10 @@ export default function CaseProceedingsWorkflow({ caseData }) {
         <form className={box} onSubmit={submit}>
           <h2 className='text-lg font-semibold'>Proceedings · Record Outcome</h2>
           <div className='mt-3 grid gap-3 md:grid-cols-2'>
-            <select className='rounded-lg border p-2 bg-transparent' value={form.proceeded ? 'yes' : 'no'} onChange={(e) => setForm({ ...form, proceeded: e.target.value === 'yes' })}>
+            <select className='form-control' value={form.proceeded ? 'yes' : 'no'} onChange={(e) => setForm({ ...form, proceeded: e.target.value === 'yes' })}>
               <option value='yes'>Proceeded</option><option value='no'>Did not proceed</option>
             </select>
-            <select className='rounded-lg border p-2 bg-transparent' value={form.outcome_code} onChange={(e) => {
+            <select className='form-control' value={form.outcome_code} onChange={(e) => {
               const outcomeCode = e.target.value;
               const shouldRelist = ['ADJOURNED', 'DID_NOT_PROCEED'].includes(outcomeCode);
               setForm({
@@ -126,11 +126,11 @@ export default function CaseProceedingsWorkflow({ caseData }) {
             }}>
               {['PROCEEDED', 'ADJOURNED', 'PART_HEARD', 'DIRECTIONS_ISSUED', 'DATE_ISSUED', 'RULING_DELIVERED', 'JUDGMENT_DELIVERED', 'SETTLED', 'WITHDRAWN', 'DISMISSED', 'DID_NOT_PROCEED', 'OTHER'].map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
             </select>
-            <textarea required className='rounded-lg border p-2 bg-transparent md:col-span-2' placeholder='Outcome' value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })} />
-            <input className='rounded-lg border p-2 bg-transparent' placeholder='Appearances, comma-separated' value={form.attendance} onChange={(e) => setForm({ ...form, attendance: e.target.value })} />
-            <input className='rounded-lg border p-2 bg-transparent' placeholder='Court orders and directions' value={form.orders_directions} onChange={(e) => setForm({ ...form, orders_directions: e.target.value })} />
-            {form.outcome_code === 'ADJOURNED' && <textarea required className='rounded-lg border p-2 bg-transparent md:col-span-2' placeholder='Adjournment reason (carried into the re-listed event)' value={form.adjournment_reason} onChange={(e) => setForm({ ...form, adjournment_reason: e.target.value })} />}
-            <select className='rounded-lg border p-2 bg-transparent' value={form.next_event_type} onChange={(e) => {
+            <textarea required className='form-control md:col-span-2' placeholder='Outcome' value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })} />
+            <input className='form-control' placeholder='Appearances, comma-separated' value={form.attendance} onChange={(e) => setForm({ ...form, attendance: e.target.value })} />
+            <input className='form-control' placeholder='Court orders and directions' value={form.orders_directions} onChange={(e) => setForm({ ...form, orders_directions: e.target.value })} />
+            {form.outcome_code === 'ADJOURNED' && <textarea required className='form-control md:col-span-2' placeholder='Adjournment reason (carried into the re-listed event)' value={form.adjournment_reason} onChange={(e) => setForm({ ...form, adjournment_reason: e.target.value })} />}
+            <select className='form-control' value={form.next_event_type} onChange={(e) => {
               const selected = options.find((option) => option.value === e.target.value);
               setForm({
                 ...form,
@@ -144,8 +144,8 @@ export default function CaseProceedingsWorkflow({ caseData }) {
               )}
               {options.map((option) => <option key={option.value} value={option.value}>{option.recommended ? 'Recommended: ' : ''}{option.label}</option>)}
             </select>
-            <input type='datetime-local' className='rounded-lg border p-2 bg-transparent' value={form.next_date} onChange={(e) => setForm({ ...form, next_date: e.target.value })} />
-            {form.next_event_type === 'OTHER_COURT_DIRECTED' && <textarea required className='rounded-lg border p-2 bg-transparent md:col-span-2' placeholder='Details of the exceptional court direction' value={form.court_direction_details} onChange={(e) => setForm({ ...form, court_direction_details: e.target.value })} />}
+            <input type='datetime-local' className='form-control' value={form.next_date} onChange={(e) => setForm({ ...form, next_date: e.target.value })} />
+            {form.next_event_type === 'OTHER_COURT_DIRECTED' && <textarea required className='form-control md:col-span-2' placeholder='Details of the exceptional court direction' value={form.court_direction_details} onChange={(e) => setForm({ ...form, court_direction_details: e.target.value })} />}
           </div>
           {message && <p className='mt-3 text-sm'>{message}</p>}
           <button disabled={saving} className='mt-3 rounded-lg bg-primary px-4 py-2 text-white disabled:opacity-60'>{saving ? 'Saving…' : 'Save proceeding'}</button>

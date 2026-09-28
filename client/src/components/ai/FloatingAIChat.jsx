@@ -92,6 +92,7 @@ export default function FloatingAIChat({
   const widgetRef = useRef(null);
   const textareaRef = useRef(null);
   const messagesRef = useRef(null);
+  const latestQuestionRef = useRef(null);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -142,9 +143,20 @@ export default function FloatingAIChat({
     return () => desktop.removeEventListener('change', enforceDesktopOnlyMaximize);
   }, []);
 
+  // Pin the latest question to the top of the thread so its answer reads downward.
   useEffect(() => {
-    if (messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+    const container = messagesRef.current;
+    if (!container) return;
+    const question = latestQuestionRef.current;
+    if (!question) {
+      container.scrollTop = 0;
+      return;
+    }
+    const offset = question.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    container.scrollTop += offset - parseFloat(getComputedStyle(container).paddingTop || '0');
   }, [messages, loading]);
+
+  const latestQuestionIndex = messages.findLastIndex((item) => item.role === 'user');
 
   const resizeInput = () => {
     const input = textareaRef.current;
@@ -235,7 +247,7 @@ export default function FloatingAIChat({
 
           <div ref={messagesRef} aria-live='polite' aria-busy={loading} className='min-h-0 flex-1 space-y-4 overflow-y-auto p-4'>
             {messages.map((item, index) => (
-              <article key={`${item.role}-${index}`} className={item.role === 'user' ? 'ml-10 rounded-2xl rounded-br-sm bg-brand-primary p-3 text-sm text-white' : `mr-5 rounded-2xl rounded-bl-sm border p-3 text-sm ${item.error ? 'border-red-300 bg-red-50 text-red-800' : 'border-border-light bg-background-light text-text-primary-light dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark'}`}>
+              <article key={`${item.role}-${index}`} ref={index === latestQuestionIndex ? latestQuestionRef : undefined} className={item.role === 'user' ? 'ml-10 rounded-2xl rounded-br-sm bg-brand-primary p-3 text-sm text-white' : `mr-5 rounded-2xl rounded-bl-sm border p-3 text-sm ${item.error ? 'border-red-300 bg-red-50 text-red-800' : 'border-border-light bg-background-light text-text-primary-light dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark'}`}>
                 <SafeMarkdown content={item.content} />
                 {item.disclaimer && <p className='mt-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100'>{item.disclaimer}</p>}
                 {item.sources?.length > 0 && (

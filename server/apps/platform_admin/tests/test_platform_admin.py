@@ -94,7 +94,12 @@ class PlatformAccessTests(PlatformTestCase):
             "create_platform_admin", "--email", "second@sheriamaster.test", "--password", PASSWORD,
             stdout=StringIO(),
         )
-        self.assertEqual(User.objects.get(email="second@sheriamaster.test").role, UserRole.PLATFORM_ADMIN)
+        admin = User.objects.get(email="second@sheriamaster.test")
+        self.assertEqual(admin.role, UserRole.PLATFORM_ADMIN)
+        # SQLite ignores varchar limits; check the placeholders fit PostgreSQL's varchar(20).
+        max_length = User._meta.get_field("phone_number").max_length
+        self.assertLessEqual(len(admin.phone_number), max_length)
+        self.assertLessEqual(len(admin.national_id_number), User._meta.get_field("national_id_number").max_length)
 
 
 class FirmRegistrationTests(PlatformTestCase):

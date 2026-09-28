@@ -43,14 +43,15 @@ class Command(BaseCommand):
         except ValidationError as exc:
             raise CommandError(" ".join(exc.messages)) from exc
 
-        placeholder = uuid.uuid4().hex[:12].upper()
+        # phone_number and national_id_number are varchar(20); keep the placeholder within that.
+        placeholder = f"PA-{uuid.uuid4().hex[:12].upper()}"
         user = User.objects.create_platform_admin(
             email=email,
             password=password,
             first_name=options["first_name"],
             last_name=options["last_name"],
-            phone_number=options["phone"] or f"PLATFORM-{placeholder}",
-            national_id_number=options["national_id"] or f"PLATFORM-{placeholder}",
+            phone_number=options["phone"] or placeholder,
+            national_id_number=options["national_id"] or placeholder,
         )
         self.stdout.write(self.style.SUCCESS(
             f"Platform administrator {user.email} created. Sign in from the homepage to open the platform console."

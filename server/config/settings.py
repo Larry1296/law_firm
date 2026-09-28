@@ -297,5 +297,5 @@ FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@sheriamaster.local")
 EMAIL_BACKEND = config(
     "EMAIL_BACKEND",
-    default="django.core.mail.backends.console.EmailBackend",
+    default="apps.common.mail_backends.ReadableConsoleEmailBackend",
 )

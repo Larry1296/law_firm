@@ -1,22 +1,20 @@
+import { ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
 import { saveAuthSession } from '@/core/utils/authStorage';
 import { useNavigate, Link } from 'react-router-dom';
 import { flushSync } from 'react-dom';
-import { ShieldCheck, Lock, ArrowLeft } from 'lucide-react';
 
 import authService from '@/modules/auth/service/authService';
 import { useContext } from 'react';
 import AuthContext from '@/core/store/AuthContext';
 
-import Card from '@/components/ui/Card';
 import Button3D from '@/components/ui/Button3D';
 import FloatingInput from '@/components/ui/FloatingInput';
 import Swal from '@/core/utils/themedSwal';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
-import { persistThemeForUser } from '@/core/utils/themeIdentity';
 import { getClientDashboardPath, getEffectiveRole } from '@/core/utils/effectiveRole';
-import AuthShowcase from '@/modules/auth/components/AuthShowcase';
+import AuthFormCard from '@/modules/auth/components/AuthFormCard';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -56,32 +54,6 @@ export default function Login() {
     if (effectiveRole === 'IT') return navigate('/it/dashboard', { replace: true });
 
     return navigate('/', { replace: true });
-  };
-
-  const getDashboardThemeRole = (sessionUser) => {
-    if (sessionUser.role === 'PLATFORM_ADMIN') return 'platform';
-    if (sessionUser.role === 'ADMIN') return 'admin';
-    if (['OFFICIAL_CLIENT', 'PROSPECT'].includes(sessionUser.role)) {
-      return 'client';
-    }
-
-    if (sessionUser.role === 'STAFF') {
-      return String(sessionUser.firm_role || '').toLowerCase();
-    }
-
-    return 'public';
-  };
-
-  const persistLoginThemeForDashboard = (sessionUser) => {
-    const currentTheme = document.documentElement.classList.contains('dark')
-      ? 'dark'
-      : 'light';
-
-    persistThemeForUser({
-      role: getDashboardThemeRole(sessionUser),
-      user: sessionUser,
-      theme: currentTheme,
-    });
   };
 
   const promptPasswordChoice = async ({ sessionUser, access, refresh }) => {
@@ -208,8 +180,6 @@ export default function Login() {
         is_firm_owner: isFirmOwner ?? user.is_firm_owner ?? false,
       };
 
-      persistLoginThemeForDashboard(sessionUser);
-
       /* =====================================================
          AUTH CONTEXT UPDATE + STORAGE
       ===================================================== */
@@ -242,104 +212,61 @@ export default function Login() {
   };
 
   return (
-    <div className='flex-1 flex flex-col lg:flex-row min-h-screen'>
-      <AuthShowcase icon={ShieldCheck} title='Your firm, one sign-in away' text='Firm owners, advocates, staff and clients all sign in here and land in their own firm’s workspace.' />
+    <AuthFormCard
+      showcase={{ icon: ShieldCheck, title: 'Your firm, one sign-in away', text: 'Firm owners, advocates, staff and clients all sign in here and land in their own firm’s workspace.' }}
+      title='Welcome back'
+      lead='One sign-in for every firm on Sheria Master. Use the email your firm registered for you.'
+      error={error}
+      onSubmit={handleLogin}
+    >
+      <FloatingInput
+        label='Email'
+        name='email'
+        type='email'
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        autoComplete='username'
+        required
+      />
 
-      {/* RIGHT PANEL */}
-      <div className='w-full lg:w-1/2 flex flex-col items-center justify-center px-6 pt-40 pb-10 bg-gray-50 dark:bg-[#0b1220]'>
-        <Card className='w-full max-w-md p-8 my-auto'>
-          <Link
-            to='/'
-            className='flex items-center gap-2 text-sm text-blue-600 mb-6'
-          >
-            <ArrowLeft size={16} />
-            Back to Home
-          </Link>
+      <FloatingInput
+        label='Password'
+        name='password'
+        type='password'
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        autoComplete='current-password'
+        required
+      />
 
-          <div className='flex items-center gap-2 mb-6'>
-            <Lock className='text-blue-600' />
-            <h2 className='text-2xl font-bold'>Login</h2>
-          </div>
+      <label className='flex items-start gap-2 text-sm text-[color:var(--text-primary)]'>
+        <input
+          type='checkbox'
+          className='mt-1'
+          checked={rememberMe}
+          onChange={(event) => setRememberMe(event.target.checked)}
+          aria-describedby='remember-me-help'
+        />
+        <span>
+          Remember me
+          <span id='remember-me-help' className='form-hint block'>
+            Stay signed in after the browser closes. Leave unchecked on a shared device.
+          </span>
+        </span>
+      </label>
 
-          <form onSubmit={handleLogin} className='space-y-5'>
-            <FloatingInput
-              label='Email'
-              type='email'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+      <Button3D type='submit' className='w-full' disabled={loading}>
+        {openingDashboard ? 'Opening dashboard…' : loading ? 'Signing in…' : 'Sign in'}
+      </Button3D>
 
-            <FloatingInput
-              label='Password'
-              type='password'
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-
-            {/* =====================================================
-               REMEMBER ME (NOW FUNCTIONAL)
-            ===================================================== */}
-            <div className='flex justify-between text-sm'>
-              <label className='flex items-center gap-2 text-gray-800 dark:text-gray-200'>
-                <input
-                  type='checkbox'
-                  checked={rememberMe}
-                  onChange={(event) => setRememberMe(event.target.checked)}
-                  aria-describedby='remember-me-help'
-                />
-                Remember me
-              </label>
-
-              <div className='flex flex-col items-end gap-1'>
-                {/* NORMAL PASSWORD RESET FLOW */}
-                <Link
-                  to='/forgot-password'
-                  className='text-blue-700 hover:underline'
-                >
-                  Forgot password?
-                </Link>
-
-                {/* ACCOUNT RECOVERY FLOW (NEW) */}
-                <Link
-                  to='/recover-account'
-                  className='text-gray-600 hover:text-blue-700 dark:text-gray-300 dark:hover:text-blue-300 text-xs'
-                >
-                  Can’t access your email?
-                </Link>
-              </div>
-            </div>
-            <p id='remember-me-help' className='-mt-3 text-xs text-gray-600 dark:text-gray-400'>
-              Keep me signed in on this device after the browser is closed. Leave unchecked on a shared device.
-            </p>
-
-            <Button3D type='submit' className='w-full' disabled={loading}>
-              {openingDashboard
-                ? 'Opening dashboard...'
-                : loading
-                  ? 'Signing in...'
-                  : 'Login'}
-            </Button3D>
-
-            <p className='text-center text-sm text-gray-700 dark:text-gray-300'>
-              New law firm?{' '}
-              <Link to='/register-firm' className='font-semibold text-blue-700 hover:underline dark:text-blue-300'>
-                Register your firm
-              </Link>
-            </p>
-
-            {/* ERROR */}
-            {error && (
-              <p className='text-red-500 dark:text-red-300 text-center text-sm'>
-                {error}
-              </p>
-            )}
-
-            <p className='text-sm text-center mt-6 text-gray-600 dark:text-gray-300'>
-              One sign-in for every firm on Sheria Master: use the email your firm registered for you and you will open your own firm&apos;s dashboard. Staff and client accounts are created by the firm.
-            </p>
-          </form>
-        </Card>
+      <div className='flex flex-wrap justify-between gap-2 text-sm'>
+        <Link to='/forgot-password' className='form-link'>Forgot password?</Link>
+        <Link to='/recover-account' className='form-link'>Can’t access your email?</Link>
       </div>
-    </div>
+
+      <hr className='form-divider' />
+      <span className='text-sm text-[color:var(--text-muted)]'>New law firm?</span>
+      <Link to='/register-firm' className='btn btn-secondary'>Register your firm</Link>
+    </AuthFormCard>
   );
 }
