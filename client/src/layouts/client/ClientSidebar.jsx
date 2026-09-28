@@ -6,6 +6,7 @@ import {
   User,
   Users,
   FileText,
+  ReceiptText,
   Calendar,
   Briefcase,
   Bell,
@@ -39,6 +40,12 @@ const links = [
     name: 'Documents',
     path: '/client/documents',
     icon: <FileText size={18} />,
+    section: 'Documents',
+  },
+  {
+    name: 'Fees & Client Account',
+    path: '/client/billing',
+    icon: <ReceiptText size={18} />,
     section: 'Documents',
   },
   {

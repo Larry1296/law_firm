@@ -156,3 +156,47 @@ class PasswordResetFlowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400, response.data)
+
+
+class AccountRecoveryTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        self.api = APIClient()
+        self.user = User.objects.create_user(
+            email="wanjiku@example.com", password="strong-pass123", first_name="Wanjiku",
+            last_name="Kamau", phone_number="+254712345678", national_id_number="34299508",
+        )
+
+    def recover(self, **payload):
+        return self.api.post(reverse("recover-account"), payload, format="json")
+
+    def test_matching_national_id_emails_a_reset_link_to_the_account(self):
+        from django.core import mail
+
+        response = self.recover(national_id="34299508")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["wanjiku@example.com"])
+        self.assertIn("/reset-password?uid=", mail.outbox[0].body)
+
+    def test_phone_number_matches_in_local_format(self):
+        from django.core import mail
+
+        self.recover(phone_number="0712 345 678")
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_reply_does_not_reveal_whether_an_account_exists(self):
+        from django.core import mail
+
+        found = self.recover(national_id="34299508")
+        missing = self.recover(national_id="99999999")
+        mismatched = self.recover(national_id="34299508", phone_number="0700000000")
+        self.assertEqual(found.data["detail"], missing.data["detail"])
+        self.assertEqual(found.data["detail"], mismatched.data["detail"])
+        self.assertNotIn("wanjiku", str(missing.data) + str(found.data.get("detail")))
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_an_identifier_is_required(self):
+        self.assertEqual(self.recover().status_code, 400)

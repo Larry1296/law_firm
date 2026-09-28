@@ -313,6 +313,13 @@ class EventService:
         return list(unique.values())
 
     @classmethod
+    def can_configure_courtroom(cls, user, case):
+        if cls.is_admin_for_firm(user, case.firm):
+            return True
+        lawyer = getattr(user, "lawyer_profile", None)
+        return lawyer is not None and lawyer.is_active and case.assigned_lawyer_id == lawyer.id
+
+    @classmethod
     def ensure_can_manage(cls, user, case):
         if cls.is_admin_for_firm(user, case.firm):
             return True
@@ -556,8 +563,8 @@ class EventService:
         case = cls.scoped_cases(user).get(id=case_id)
         cls.ensure_can_manage(user, case)
         courtroom_fields = {"virtual_meeting_url", "virtual_access_instructions", "virtual_courtroom_url", "virtual_courtroom_available_from", "virtual_courtroom_available_until", "is_virtual_courtroom_enabled"}
-        if any(validated_data.get(field) for field in courtroom_fields) and not cls.is_admin_for_firm(user, case.firm):
-            raise PermissionError("Only the firm administrator may configure courtroom access.")
+        if any(validated_data.get(field) for field in courtroom_fields) and not cls.can_configure_courtroom(user, case):
+            raise PermissionError("Only the firm administrator or the assigned advocate may configure courtroom access.")
         if validated_data.get("event_type") in cls.COURT_EVENT_TYPES:
             validated_data.setdefault(
                 "hearing_mode",
@@ -597,8 +604,8 @@ class EventService:
         event = cls.scoped_events(user).select_for_update(of=("self",)).get(id=event_id)
         cls.ensure_can_manage(user, event.case)
         courtroom_fields = {"virtual_meeting_url", "virtual_access_instructions", "virtual_courtroom_url", "virtual_courtroom_available_from", "virtual_courtroom_available_until", "is_virtual_courtroom_enabled"}
-        if courtroom_fields.intersection(validated_data) and not cls.is_admin_for_firm(user, event.case.firm):
-            raise PermissionError("Only the firm administrator may configure courtroom access.")
+        if courtroom_fields.intersection(validated_data) and not cls.can_configure_courtroom(user, event.case):
+            raise PermissionError("Only the firm administrator or the assigned advocate may configure courtroom access.")
         for field, value in validated_data.items():
             setattr(event, field, value)
         event.save()

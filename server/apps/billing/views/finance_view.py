@@ -213,7 +213,11 @@ class OfficeTransferView(APIView):
     def post(self, request):
         serializer = OfficeTransferSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        entry = ClientMoneyService.transfer_to_office(user=request.user, **serializer.validated_data)
+        data = serializer.validated_data
+        entry = ClientMoneyService.transfer_to_office(
+            user=request.user, invoice_id=data["invoice"], client_account_id=data["client_account"],
+            office_account_id=data["office_account"], amount=data["amount"], basis=data["basis"],
+        )
         return Response({"transaction": LedgerTransactionSerializer(entry).data}, status=status.HTTP_201_CREATED)
 
 
@@ -318,3 +322,64 @@ class ReconciliationApproveView(APIView):
     def post(self, request, reconciliation_id):
         record = OperationalFinanceService.approve_reconciliation(user=request.user, reconciliation_id=reconciliation_id)
         return Response({"reconciliation": AccountReconciliationSerializer(record).data})
+
+
+class FinanceRegisterView(APIView):
+    """Matters, clients and fee earners for finance pickers, so nobody types record identifiers."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from rest_framework.exceptions import PermissionDenied
+
+        from apps.cases.models import Case
+        from apps.staff.models import Lawyer
+
+        firm = FinanceAccess.firm(request.user)
+        is_owner = firm.owner_id == request.user.id
+        profile = getattr(request.user, "accountant_profile", None)
+        if not is_owner and not (profile and profile.law_firm_id == firm.id and profile.is_active):
+            raise PermissionDenied("Finance access is required.")
+
+        matters = (
+            Case.objects.filter(firm=firm)
+            .exclude(matter_status__in=[Case.MatterStatus.ARCHIVED, Case.MatterStatus.CANCELLED])
+            .select_related("client")
+            .order_by("-created_at")
+        )
+        clients = Client.objects.filter(firm=firm, is_active=True).order_by("full_name")
+        fee_earners = Lawyer.objects.filter(law_firm=firm, is_active=True).select_related("user").order_by("user__first_name")
+        retainer_targets = []
+        for check in (
+            ClientMatterConflictCheck.objects.filter(firm=firm, acceptance_decision="ACCEPTED", created_case__isnull=True)
+            .select_related("client").order_by("-created_at")
+        ):
+            engagement = (
+                EngagementRecord.objects.filter(proposed_matter=check)
+                .exclude(status__in=["SUPERSEDED", "CANCELLED"]).order_by("-created_at").first()
+            )
+            if engagement:
+                retainer_targets.append({
+                    "client_id": str(check.client_id), "client_name": check.client.full_name,
+                    "proposed_matter_id": str(check.id), "engagement_id": str(engagement.id),
+                    "label": f"{check.client.full_name} — {check.proposed_matter_title} ({check.reference_number})",
+                })
+        return Response({
+            "matters": [
+                {
+                    "id": str(matter.id), "case_number": matter.case_number, "title": matter.title,
+                    "client_id": str(matter.client_id), "client_name": matter.client.full_name,
+                    "matter_status": matter.get_matter_status_display(),
+                }
+                for matter in matters
+            ],
+            "clients": [
+                {"id": str(client.id), "full_name": client.full_name, "lifecycle_status": client.lifecycle_status}
+                for client in clients
+            ],
+            "retainer_targets": retainer_targets,
+            "fee_earners": [
+                {"user_id": str(lawyer.user_id), "full_name": lawyer.user.full_name, "staff_number": lawyer.staff_number}
+                for lawyer in fee_earners
+            ],
+        })

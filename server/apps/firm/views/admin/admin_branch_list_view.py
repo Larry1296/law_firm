@@ -8,6 +8,8 @@ from apps.firm.serializers.branch_serializer import (
     BranchWriteSerializer,
 )
 from apps.firm.views.admin.admin_firm_base_view import AdminFirmBaseView
+from apps.subscriptions.catalog import Limit
+from apps.subscriptions.services import SubscriptionService
 
 
 class AdminBranchListView(AdminFirmBaseView):
@@ -30,9 +32,11 @@ class AdminBranchListView(AdminFirmBaseView):
         ).exists():
             raise ValidationError({"name": "A branch with this name already exists."})
 
+        if serializer.validated_data.get("is_active", True):
+            SubscriptionService.check_limit(firm, Limit.BRANCHES)
         branch = Branch.objects.create(
             firm=firm,
-            branch_leader=serializer.validated_data.pop("branch_leader"),
+            branch_leader=serializer.validated_data.pop("branch_leader", None) or firm.owner,
             **serializer.validated_data,
         )
 

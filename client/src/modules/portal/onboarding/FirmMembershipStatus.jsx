@@ -1,296 +1,72 @@
-// src/modules/portal/onboarding/FirmMembershipStatus.jsx
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { CheckCircle2, Circle, CircleDot } from 'lucide-react';
 
-import { motion } from "framer-motion";
-import {
-  ShieldCheck,
-  Clock3,
-  CheckCircle2,
-  Building2,
-  UserCheck,
-  FileText,
-  ArrowRight,
-  Mail,
-  Phone,
-} from "lucide-react";
+import axiosInstance from '@/core/api/axios';
+import Card from '@/components/ui/Card';
+import SectionHeading from '@/components/ui/SectionHeading';
+import { getApiErrorMessage } from '@/core/utils/errorMessages';
 
-const timeline = [
-  {
-    id: 1,
-    title: "Account Created",
-    description: "Your portal account was successfully registered.",
-    status: "completed",
-    date: "12 May 2026",
-    icon: <UserCheck size={18} />,
-  },
-  {
-    id: 2,
-    title: "Documents Submitted",
-    description: "Identity and intake documents uploaded.",
-    status: "completed",
-    date: "14 May 2026",
-    icon: <FileText size={18} />,
-  },
-  {
-    id: 3,
-    title: "Firm Review",
-    description: "Your onboarding request is under legal team review.",
-    status: "pending",
-    date: "In Progress",
-    icon: <Clock3 size={18} />,
-  },
-  {
-    id: 4,
-    title: "Firm Membership Activation",
-    description: "You will gain access to case collaboration tools.",
-    status: "upcoming",
-    date: "Pending",
-    icon: <Building2 size={18} />,
-  },
-];
-
-const requirements = [
-  "National ID or Passport Verification",
-  "Signed engagement agreement",
-  "Conflict check approval",
-  "Consultation assessment completed",
-  "Initial intake documents uploaded",
-];
+const STATE = {
+  completed: { Icon: CheckCircle2, className: 'text-green-700 dark:text-green-400', label: 'Done' },
+  current: { Icon: CircleDot, className: 'text-blue-700 dark:text-blue-300', label: 'In progress' },
+  upcoming: { Icon: Circle, className: 'text-gray-400 dark:text-gray-500', label: 'Not started' },
+};
 
 export default function FirmMembershipStatus() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['client-onboarding-status'],
+    queryFn: async () => (await axiosInstance.get('/client/onboarding-status/')).data,
+  });
+
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* HEADER */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Firm Membership Status
-          </h1>
+    <div className='space-y-6 p-4 md:p-6'>
+      <SectionHeading
+        title='My instructions'
+        subtitle='Before an advocate can act, the firm must clear a conflict-of-interest check, accept your instructions, verify your identity and agree an engagement letter with you.'
+        hero={false}
+        align='left'
+        size='compact'
+      />
 
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 max-w-2xl">
-            Track your onboarding progress and monitor your transition into a
-            fully managed law firm client account.
-          </p>
-        </div>
+      {isLoading && <Card className='p-6'>Loading your progress…</Card>}
+      {error && <Card className='p-6 text-red-700 dark:text-red-300'>{getApiErrorMessage(error, 'Could not load your progress.')}</Card>}
+      {!isLoading && !error && data.instructions.length === 0 && (
+        <Card className='p-6'>No instructions are recorded yet. The firm records your instructions after your first meeting with an advocate.</Card>
+      )}
 
-        <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-amber-100 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
-          <Clock3 size={20} className="text-amber-600 dark:text-amber-400" />
-
-          <div>
-            <p className="text-xs text-amber-700 dark:text-amber-300">
-              Current Status
-            </p>
-
-            <p className="font-semibold text-amber-800 dark:text-amber-200">
-              Under Review
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* STATUS OVERVIEW */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* MEMBERSHIP CARD */}
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="lg:col-span-2 rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-surface-dark shadow-soft p-6"
-        >
-          <div className="flex items-start justify-between gap-4">
+      {data?.instructions.map((item) => (
+        <Card key={item.reference} className='p-6'>
+          <div className='flex flex-wrap items-start justify-between gap-2'>
             <div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="text-brand-primary" size={22} />
-
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Membership Progress
-                </h2>
-              </div>
-
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                Your onboarding request is currently being processed by the
-                firm's client intake department.
-              </p>
+              <h2 className='text-lg font-semibold'>{item.title}</h2>
+              <p className='text-sm text-[color:var(--text-muted)]'>Reference {item.reference} · received {new Date(item.received_on).toLocaleDateString('en-KE')}</p>
             </div>
-
-            <div className="hidden sm:flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-primary/10">
-              <span className="text-xl font-bold text-brand-primary">75%</span>
-            </div>
+            {item.matter && <span className='rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-800 dark:bg-green-500/20 dark:text-green-200'>Matter {item.matter.case_number} open</span>}
           </div>
+          {item.outcome && <p role='status' className='mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-100'>{item.outcome}</p>}
+          <ol className='mt-5 space-y-3'>
+            {item.steps.map((step) => {
+              const { Icon, className, label } = STATE[step.state];
+              return (
+                <li key={step.label} className='flex items-center gap-3'>
+                  <Icon size={20} className={className} aria-hidden='true' />
+                  <span className={step.state === 'upcoming' ? 'text-[color:var(--text-muted)]' : 'font-medium'}>{step.label}</span>
+                  <span className='sr-only'>— {label}</span>
+                </li>
+              );
+            })}
+          </ol>
+          <p className='mt-4 text-sm text-[color:var(--text-muted)]'>Engagement letter: {item.engagement_status}</p>
+        </Card>
+      ))}
 
-          {/* PROGRESS */}
-          <div className="mt-6">
-            <div className="w-full h-3 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
-              <div className="h-full w-[75%] bg-brand-primary rounded-full" />
-            </div>
-
-            <div className="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-              <span>Application Submitted</span>
-              <span>Awaiting Final Approval</span>
-            </div>
-          </div>
-
-          {/* TIMELINE */}
-          <div className="mt-8 space-y-5">
-            {timeline.map((item) => (
-              <div key={item.id} className="flex items-start gap-4 relative">
-                {/* LINE */}
-                {item.id !== timeline.length && (
-                  <div className="absolute left-[17px] top-10 h-14 w-[2px] bg-gray-200 dark:bg-gray-700" />
-                )}
-
-                {/* ICON */}
-                <div
-                  className={`relative z-10 flex items-center justify-center w-9 h-9 rounded-full border ${
-                    item.status === "completed"
-                      ? "bg-emerald-100 border-emerald-200 text-emerald-600"
-                      : item.status === "pending"
-                        ? "bg-amber-100 border-amber-200 text-amber-600"
-                        : "bg-gray-100 border-gray-200 text-gray-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400"
-                  }`}
-                >
-                  {item.status === "completed" ? (
-                    <CheckCircle2 size={18} />
-                  ) : (
-                    item.icon
-                  )}
-                </div>
-
-                {/* CONTENT */}
-                <div className="flex-1 pb-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
-                      {item.title}
-                    </h3>
-
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {item.date}
-                    </span>
-                  </div>
-
-                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    {item.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* REQUIREMENTS */}
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-surface-dark shadow-soft p-6"
-        >
-          <div className="flex items-center gap-2">
-            <FileText className="text-brand-primary" size={20} />
-
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Verification Checklist
-            </h2>
-          </div>
-
-          <div className="mt-5 space-y-4">
-            {requirements.map((item, index) => (
-              <div key={index} className="flex items-start gap-3">
-                <div className="mt-1">
-                  <CheckCircle2
-                    size={18}
-                    className={`${
-                      index <= 2
-                        ? "text-emerald-500"
-                        : "text-gray-300 dark:text-gray-600"
-                    }`}
-                  />
-                </div>
-
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  {item}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <button className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-primary hover:bg-blue-700 text-white px-4 py-3 text-sm font-medium transition">
-            Continue Onboarding
-            <ArrowRight size={16} />
-          </button>
-        </motion.div>
-      </div>
-
-      {/* BENEFITS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          {
-            title: "Case Collaboration",
-            text: "Access live case updates and communicate with assigned legal teams.",
-            icon: <Building2 size={22} />,
-          },
-          {
-            title: "Secure Documents",
-            text: "Receive contracts, filings, and legal notices directly in your portal.",
-            icon: <ShieldCheck size={22} />,
-          },
-          {
-            title: "Priority Support",
-            text: "Get dedicated support and consultation scheduling assistance.",
-            icon: <UserCheck size={22} />,
-          },
-        ].map((item, index) => (
-          <motion.div
-            key={item.title}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-surface-dark shadow-soft p-6"
-          >
-            <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-brand-primary/10 text-brand-primary">
-              {item.icon}
-            </div>
-
-            <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
-              {item.title}
-            </h3>
-
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-              {item.text}
-            </p>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* SUPPORT */}
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-gradient-to-r from-brand-primary to-blue-700 p-8 text-white shadow-medium"
-      >
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div>
-            <h2 className="text-2xl font-bold">
-              Need help with your onboarding?
-            </h2>
-
-            <p className="mt-2 text-sm text-blue-100 max-w-2xl">
-              Our intake and support team can assist you with missing documents,
-              verification issues, and membership activation questions.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <button className="inline-flex items-center gap-2 rounded-2xl bg-white text-brand-primary px-5 py-3 text-sm font-semibold hover:bg-gray-100 transition">
-              <Mail size={16} />
-              Contact Support
-            </button>
-
-            <button className="inline-flex items-center gap-2 rounded-2xl border border-white/30 px-5 py-3 text-sm font-semibold hover:bg-white/10 transition">
-              <Phone size={16} />
-              Call Intake Team
-            </button>
-          </div>
-        </div>
-      </motion.div>
+      {data?.firm && (
+        <Card className='p-6 text-sm'>
+          <h2 className='font-semibold'>Questions?</h2>
+          <p className='mt-1'>Contact {data.firm.name}{data.firm.phone_number && ` on ${data.firm.phone_number}`}{data.firm.email && ` or ${data.firm.email}`}. Once your matter is opened you can follow it from your <Link className='font-semibold text-blue-700 hover:underline dark:text-blue-300' to='/portal/dashboard'>dashboard</Link>.</p>
+        </Card>
+      )}
     </div>
   );
 }

@@ -7,15 +7,20 @@ from apps.common.models.timestamped_model import TimestampedModel
 
 class LawFirm(TimestampedModel):
     """
-    Represents the law firm that owns this system.
+    A tenant of the platform: one subscribing law firm.
 
-    This platform is deployed for a single law firm.
-    The LawFirm model stores the firm's identity and
-    general business information.
+    Every firm-owned record is scoped to a LawFirm, and each firm has one
+    FirmSubscription (apps.subscriptions). The LawFirm model stores the
+    firm's identity and general business information.
 
     It does not store staff, clients, cases or
     operational data.
     """
+
+    class BusinessStructure(models.TextChoices):
+        SOLE_PRACTITIONER = "SOLE_PRACTITIONER", "Sole practitioner"
+        PARTNERSHIP = "PARTNERSHIP", "Partnership"
+        LLP = "LLP", "Limited liability partnership"
 
     id = models.UUIDField(
         primary_key=True,
@@ -27,6 +32,26 @@ class LawFirm(TimestampedModel):
         max_length=255,
         unique=True,
         help_text="Registered name of the law firm.",
+    )
+
+    business_structure = models.CharField(
+        max_length=30,
+        choices=BusinessStructure.choices,
+        default=BusinessStructure.PARTNERSHIP,
+        db_default=BusinessStructure.PARTNERSHIP,
+    )
+
+    county = models.CharField(
+        max_length=60,
+        blank=True,
+        db_default="",
+        help_text="County of the head office.",
+    )
+
+    town = models.CharField(
+        max_length=100,
+        blank=True,
+        db_default="",
     )
 
     registration_number = models.CharField(

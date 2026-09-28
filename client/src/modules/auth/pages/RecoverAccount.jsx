@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
@@ -8,6 +7,7 @@ import useAuth from '@/modules/auth/hook/useAuth';
 import Card from '@/components/ui/Card';
 import Button3D from '@/components/ui/Button3D';
 import FloatingInput from '@/components/ui/FloatingInput';
+import AuthShowcase from '@/modules/auth/components/AuthShowcase';
 
 export default function RecoverAccount() {
   const { recoverAccount, loading, error } = useAuth();
@@ -67,22 +67,7 @@ export default function RecoverAccount() {
 
   return (
     <div className='flex-1 flex flex-col lg:flex-row min-h-screen'>
-      {/* LEFT */}
-      <div className='hidden lg:flex lg:w-1/2 bg-blue-700 flex-col items-center justify-center px-10 pt-32 pb-12 relative overflow-hidden'>
-        <motion.div
-          animate={{ scale: [1, 1.2, 1], x: [0, 40, 0], y: [0, -30, 0] }}
-          transition={{ duration: 8, repeat: Infinity }}
-          className='absolute w-96 h-96 bg-blue-500/40 rounded-full blur-3xl'
-        />
-
-        <div className='relative text-center text-white max-w-md'>
-          <ShieldCheck size={90} className='mx-auto mb-6' />
-          <h1 className='text-4xl font-bold mb-4'>Recover Account</h1>
-          <p className='text-blue-100'>
-            Use National ID or Phone Number to find your account.
-          </p>
-        </div>
-      </div>
+      <AuthShowcase icon={ShieldCheck} title='Recover your account' text='Use your National ID or phone number to find your account.' />
 
       {/* RIGHT */}
       <div className='w-full lg:w-1/2 flex flex-col items-center justify-center px-6 pt-32 pb-12 min-h-screen bg-gray-50'>

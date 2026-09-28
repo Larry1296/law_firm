@@ -1,5 +1,5 @@
 import uuid
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
 from django.db.models import Sum
@@ -26,12 +26,10 @@ class FinanceAccess:
     @classmethod
     def require(cls, user, code):
         firm = cls.firm(user)
-        sensitive_checker_codes = {
-            AccountantPermission.APPROVE_INVOICES,
-            AccountantPermission.APPROVE_CLIENT_MONEY_PAYMENTS,
-            AccountantPermission.RECONCILE_ACCOUNTS,
-        }
-        if user.role == UserRole.ADMIN and firm.owner_id == user.id and code not in sensitive_checker_codes:
+        # The managing partner is an advocate of the firm and may sign off client-account
+        # withdrawals and fee notes (Advocates (Accounts) Rules). Every approval separately
+        # refuses the person who prepared the entry, so maker-checker still holds.
+        if user.role == UserRole.ADMIN and firm.owner_id == user.id:
             return firm
         profile = getattr(user, "accountant_profile", None)
         if not profile or profile.law_firm_id != firm.id or not profile.is_active or not profile.has_permission(code):
@@ -40,11 +38,40 @@ class FinanceAccess:
 
 
 class InvoiceService:
-    @staticmethod
-    def _totals(lines):
+    CENT = Decimal("0.01")
+
+    @classmethod
+    def line_amount(cls, line):
+        return (Decimal(str(line["quantity"])) * Decimal(str(line["unit_price"]))).quantize(cls.CENT, rounding=ROUND_HALF_UP)
+
+    @classmethod
+    def with_vat(cls, lines, tax_configuration):
+        """Add VAT on professional fees for a VAT-registered firm unless a tax line was entered.
+
+        Disbursements paid on the client's behalf, such as court fees, are not charged VAT.
+        """
+        if not tax_configuration or not tax_configuration.vat_registered or not tax_configuration.vat_rate:
+            return lines
+        if tax_configuration.tax_inclusive or any(line["line_type"] == InvoiceLine.LineType.TAX for line in lines):
+            return lines
+        fees = sum(
+            (cls.line_amount(line) for line in lines if line["line_type"] == InvoiceLine.LineType.PROFESSIONAL_FEE),
+            Decimal("0"),
+        )
+        if not fees:
+            return lines
+        vat = (fees * tax_configuration.vat_rate / Decimal("100")).quantize(cls.CENT, rounding=ROUND_HALF_UP)
+        rate = tax_configuration.vat_rate.normalize()
+        return [*lines, {
+            "line_type": InvoiceLine.LineType.TAX, "description": f"VAT at {rate}% on professional fees",
+            "quantity": Decimal("1"), "unit_price": vat,
+        }]
+
+    @classmethod
+    def _totals(cls, lines):
         totals = {kind: Decimal("0") for kind, _ in InvoiceLine.LineType.choices}
         for line in lines:
-            amount = Decimal(str(line["quantity"])) * Decimal(str(line["unit_price"]))
+            amount = cls.line_amount(line)
             totals[line["line_type"]] += amount
         professional = totals[InvoiceLine.LineType.PROFESSIONAL_FEE]
         tax = totals[InvoiceLine.LineType.TAX]
@@ -82,13 +109,14 @@ class InvoiceService:
             raise ValidationError({"matter": "Matter and client must belong to your firm."})
         if not lines:
             raise ValidationError({"line_items": "At least one invoice line is required."})
+        tax_configuration = TaxConfiguration.objects.filter(firm=firm, is_active=True, effective_from__lte=timezone.localdate()).order_by("-effective_from").first()
+        lines = cls.with_vat(lines, tax_configuration)
         professional, tax, disbursements, adjustment, total = cls._totals(lines)
         invoice = Invoice(
             firm=firm, created_by=user, professional_fees=professional, tax_amount=tax,
             disbursements_total=disbursements, discount_adjustment=adjustment,
             total_amount=total, balance=total, **data,
         )
-        tax_configuration = TaxConfiguration.objects.filter(firm=firm, is_active=True, effective_from__lte=timezone.localdate()).order_by("-effective_from").first()
         if tax_configuration:
             invoice.tax_configuration_snapshot = {
                 "id": str(tax_configuration.id), "effective_from": tax_configuration.effective_from.isoformat(),
@@ -101,8 +129,7 @@ class InvoiceService:
         invoice.full_clean()
         invoice.save()
         for item in lines:
-            amount = Decimal(str(item["quantity"])) * Decimal(str(item["unit_price"]))
-            InvoiceLine.objects.create(invoice=invoice, amount=amount, **item)
+            InvoiceLine.objects.create(invoice=invoice, amount=cls.line_amount(item), **item)
         AuditService.record(firm=firm, user=user, action="INVOICE_CREATED", obj=invoice, new={"status": invoice.status, "total_amount": invoice.total_amount})
         return invoice
 

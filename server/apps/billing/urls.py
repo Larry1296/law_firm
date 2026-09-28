@@ -4,13 +4,14 @@ from apps.billing.views.finance_view import (
     ClientMoneyReceiptView, CreditNoteActionView, CreditNoteListCreateView,
     DisbursementApproveView, DisbursementListCreateView,
     FinancialAccountListCreateView, InvoiceActionView, InvoiceBillableItemsView, InvoiceListCreateView,
-    ClientUnallocatedFundsView, MatterLedgerView, OfficeMoneyReceiptView, OfficeTransferView,
+    ClientUnallocatedFundsView, FinanceRegisterView, MatterLedgerView, OfficeMoneyReceiptView, OfficeTransferView,
     PaymentInstructionApproveView, PaymentInstructionListCreateView,
     PreMatterRetainerReceiptView, ReconciliationApproveView, ReconciliationListCreateView, TaxConfigurationListCreateView, TimeEntryApproveView,
     TimeEntryListCreateView, TransactionReversalView,
 )
 
 urlpatterns = [
+    path("registers/", FinanceRegisterView.as_view(), name="finance-registers"),
     path("accounts/", FinancialAccountListCreateView.as_view(), name="financial-accounts"),
     path("tax-configurations/", TaxConfigurationListCreateView.as_view(), name="tax-configurations"),
     path("invoices/", InvoiceListCreateView.as_view(), name="finance-invoices"),

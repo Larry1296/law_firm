@@ -6,14 +6,18 @@ from .views.logout_view import LogoutView
 from .views.change_password_view import ChangePasswordView
 from .views.forgot_password_view import ForgotPasswordView
 from .views.me_view import MeView
+from .views.register_view import RegisterFirmView
+from .views.recover_account_view import RecoverAccountView
 from .views.reset_password_view import ResetPasswordView
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
+    path("register-firm/", RegisterFirmView.as_view(), name="register-firm"),
     path("me/", MeView.as_view(), name="auth-me"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("change-password/", ChangePasswordView.as_view(), name="change-password"),
     path("forgot-password/", ForgotPasswordView.as_view(), name="forgot-password"),
     path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
+    path("recover-account/", RecoverAccountView.as_view(), name="recover-account"),
 ]

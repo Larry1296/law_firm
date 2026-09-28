@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { LockKeyhole, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
@@ -8,6 +7,7 @@ import useAuth from '@/modules/auth/hook/useAuth';
 import Card from '@/components/ui/Card';
 import Button3D from '@/components/ui/Button3D';
 import PasswordInput from '@/components/ui/PasswordInput';
+import AuthShowcase from '@/modules/auth/components/AuthShowcase';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -49,30 +49,7 @@ export default function ResetPassword() {
 
   return (
     <div className='flex-1 flex flex-col lg:flex-row min-h-screen'>
-      {/* LEFT PANEL */}
-      <div className='hidden lg:flex lg:w-1/2 bg-blue-700 relative flex-col items-center justify-center px-10 pt-32 pb-12 overflow-hidden'>
-        <motion.div
-          animate={{ scale: [1, 1.2, 1], x: [0, 40, 0], y: [0, -30, 0] }}
-          transition={{ duration: 8, repeat: Infinity }}
-          className='absolute w-96 h-96 bg-blue-500/40 rounded-full blur-3xl'
-        />
-
-        <motion.div
-          animate={{ scale: [1, 1.3, 1], x: [0, -50, 0], y: [0, 40, 0] }}
-          transition={{ duration: 10, repeat: Infinity }}
-          className='absolute w-96 h-96 bg-indigo-400/30 rounded-full blur-3xl'
-        />
-
-        <div className='relative text-center text-white max-w-md'>
-          <LockKeyhole size={90} className='mx-auto mb-6' />
-
-          <h1 className='text-4xl font-bold mb-4'>Set New Password</h1>
-
-          <p className='text-blue-100'>
-            Choose a strong password to secure your account.
-          </p>
-        </div>
-      </div>
+      <AuthShowcase icon={LockKeyhole} title='Set a new password' text='Choose a strong password to secure your account.' />
 
       {/* RIGHT PANEL */}
       <div className='w-full lg:w-1/2 flex flex-col items-center justify-center px-6 pt-32 pb-12 min-h-screen bg-gray-50'>

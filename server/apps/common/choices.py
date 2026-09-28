@@ -9,7 +9,9 @@ class UserRole(models.TextChoices):
     ADMIN = "ADMIN", "Admin"
     STAFF = "STAFF", "Staff"
     OFFICIAL_CLIENT = "OFFICIAL_CLIENT", "Official Client"
-    PROSPECT = "PROSPECT", "Prospect" 
+    PROSPECT = "PROSPECT", "Prospect"
+    # Operates the SaaS platform itself; belongs to no law firm.
+    PLATFORM_ADMIN = "PLATFORM_ADMIN", "Platform administrator"
 
 
 # ==========================================================

@@ -1,10 +1,13 @@
 import { Menu, Sun, Moon } from 'lucide-react';
 import { useContext } from 'react';
 import ThemeContext from '@/core/store/ThemeContext';
+import AuthContext from '@/core/store/AuthContext';
 import NotificationBellDropdown from '@/modules/notifications/components/NotificationBellDropdown';
 
 export default function AdminTopbar({ onMenuClick }) {
   const { theme, toggleTheme } = useContext(ThemeContext);
+  const { user } = useContext(AuthContext);
+  const firmName = user?.firm?.name;
 
   const bgTopbar = 'shell-surface';
   const hoverEffect = 'shell-hover';
@@ -20,7 +23,9 @@ export default function AdminTopbar({ onMenuClick }) {
       >
         <Menu size={22} />
       </button>
-      <h1 className='font-semibold text-base sm:text-lg'>Admin Dashboard</h1>
+      <h1 className='min-w-0 truncate font-semibold text-base sm:text-lg'>
+        {firmName ? `${firmName} · Administration` : 'Admin Dashboard'}
+      </h1>
       <div className='flex items-center gap-3 sm:gap-4'>
         {/* THEME */}
         <button onClick={toggleTheme} className={`p-2 rounded ${hoverEffect}`}>

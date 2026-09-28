@@ -1,3 +1,7 @@
+from django.utils import timezone
+
+from apps.cases.models import CaseEvent
+from apps.cases.services.my_work_service import MyWorkService
 from apps.notifications.services import NotificationService
 from apps.staff.services.secretary.secretary_case_service import SecretaryCaseService
 from apps.staff.services.secretary.secretary_client_service import SecretaryClientService
@@ -41,12 +45,12 @@ class SecretaryDashboardService:
                 "cases": cases.count(),
                 "active_cases": cases.filter(is_active=True).count(),
                 "clients": clients.count(),
-                "pending_tasks": cases.filter(status="PENDING").count(),
+                "pending_tasks": len(MyWorkService.items(user)),
                 "documents_to_prepare": documents_to_prepare,
                 "clients_with_active_matters": clients.filter(active_matter_count__gt=0).count(),
-                "appointments_today": cases.exclude(court_name="").count()
-                if secretary.can_schedule_appointments
-                else 0,
+                "appointments_today": CaseEvent.objects.filter(
+                    case__in=cases, starts_at__date=timezone.localdate(),
+                ).count(),
                 "notifications": NotificationService.unread_count(user),
                 "unread_notifications": NotificationService.unread_count(user),
             },
@@ -58,11 +62,5 @@ class SecretaryDashboardService:
                 "can_receive_documents": secretary.can_receive_documents,
             },
             "recent_notifications": recent_notifications,
-            "recent_activity": recent_notifications or [
-                {
-                    "id": "activity-001",
-                    "title": "Secretary dashboard ready",
-                    "description": "Your secretarial workspace is active.",
-                }
-            ],
+            "recent_activity": recent_notifications,
         }

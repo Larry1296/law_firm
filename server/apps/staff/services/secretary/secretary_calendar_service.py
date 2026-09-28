@@ -1,3 +1,9 @@
+from datetime import timedelta
+
+from django.db.models import Q
+from django.utils import timezone
+
+from apps.cases.models import CaseEvent
 from apps.staff.models import SecretaryPermission
 
 
@@ -13,13 +19,22 @@ class SecretaryCalendarService:
         ):
             raise PermissionError("Admin permission is required to manage calendar.")
 
+        events = (
+            CaseEvent.objects.filter(case__firm=secretary.law_firm)
+            .filter(Q(case__assigned_secretary=secretary) | Q(case__assigned_lawyer__in=secretary.assigned_lawyers.all()))
+            .filter(starts_at__gte=timezone.now() - timedelta(days=30))
+            .select_related("case", "case__client")
+            .distinct()
+            .order_by("starts_at")
+        )
         return [
             {
-                "id": "calendar-001",
-                "title": "Client appointment",
-                "starts_at": "2026-07-07T09:00:00Z",
-                "ends_at": "2026-07-07T10:00:00Z",
-                "location": "Main office",
-                "related_to": "Sample Client",
+                "id": str(event.id),
+                "title": event.title,
+                "starts_at": event.starts_at,
+                "ends_at": event.ends_at or event.starts_at,
+                "location": event.physical_venue or event.court or ("Virtual" if event.virtual_meeting_url else ""),
+                "related_to": f"{event.case.case_number} · {getattr(event.case.client, 'full_name', '')}",
             }
+            for event in events
         ]

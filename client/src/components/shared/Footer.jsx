@@ -10,8 +10,8 @@ export default function Footer() {
         <div>
           <Brand size="h-16 w-16" textSize="text-2xl" textColor="text-white" />
           <p className="mt-4 text-sm text-white dark:text-white/80">
-            Professional legal services you can trust. We provide reliable and
-            efficient legal solutions tailored to your needs.
+            Practice management for Kenyan law firms: matters, courts, clients
+            and accounts, with a private workspace for every firm.
           </p>
         </div>
 
@@ -53,7 +53,7 @@ export default function Footer() {
 
       {/* BOTTOM */}
       <div className="border-t border-white/30 text-center py-4 text-sm text-white dark:text-white/70">
-        © {new Date().getFullYear()} Sheria Desk. All rights reserved.
+        © {new Date().getFullYear()} Sheria Master. All rights reserved.
       </div>
     </footer>
   );

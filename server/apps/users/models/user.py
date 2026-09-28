@@ -19,6 +19,7 @@ class User(AbstractBaseUser, PermissionsMixin, TimestampedModel):
         - STAFF
         - OFFICIAL_CLIENT
         - PROSPECT
+        - PLATFORM_ADMIN (operates the platform; belongs to no firm)
 
     Employment information is stored in the Staff model.
     Client information is stored in the Client model.
@@ -93,6 +94,10 @@ class User(AbstractBaseUser, PermissionsMixin, TimestampedModel):
     @property
     def is_admin(self):
         return self.role == UserRole.ADMIN
+
+    @property
+    def is_platform_admin(self):
+        return self.role == UserRole.PLATFORM_ADMIN
 
     @property
     def is_staff_user(self):

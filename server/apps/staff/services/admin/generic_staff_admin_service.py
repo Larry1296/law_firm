@@ -4,6 +4,9 @@ from django.utils import timezone
 
 from apps.common.choices import EmploymentStatus, UserRole
 from apps.firm.models.firm_member import LawFirmMember
+from apps.staff.models import Lawyer
+from apps.subscriptions.catalog import Limit
+from apps.subscriptions.services import SubscriptionService
 from apps.users.services.auth_service import AuthService
 
 
@@ -66,6 +69,9 @@ class GenericStaffAdminService:
         validated_data,
         created_by,
     ):
+        SubscriptionService.check_limit(
+            law_firm, Limit.ADVOCATES if model is Lawyer else Limit.SUPPORT_STAFF,
+        )
         permission_codes = validated_data.pop("permission_codes", [])
 
         user, temp_password = AuthService.create_user_with_temp_password(
@@ -191,6 +197,7 @@ class GenericStaffAdminService:
 
     @staticmethod
     def activate_staff(*, staff, updated_by):
+        SubscriptionService.check_staff_seat(staff)
         staff.is_active = True
         staff.employment_status = EmploymentStatus.ACTIVE
         staff.date_terminated = None
@@ -213,6 +220,8 @@ class GenericStaffAdminService:
     def change_status(*, staff, employment_status, updated_by, termination_reason=None):
         staff.employment_status = employment_status
 
+        if employment_status == EmploymentStatus.ACTIVE:
+            SubscriptionService.check_staff_seat(staff)
         if employment_status == EmploymentStatus.TERMINATED:
             staff.is_active = False
             staff.date_terminated = timezone.now().date()

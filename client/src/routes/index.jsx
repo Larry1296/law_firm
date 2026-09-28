@@ -45,6 +45,8 @@ import ClientLayoutWrapper from '@/layouts/client/ClientLayoutWrapper';
 
 import PortalLayoutWrapper from '@/layouts/portal/ClientLayoutWrapper';
 
+import PlatformLayoutWrapper from '@/modules/platform/layout/PlatformLayoutWrapper';
+
 const SignedInDashboardRedirect = ({ children }) => {
   const { user, firmRole, isAuthenticated } = useAuth();
 
@@ -66,6 +68,8 @@ const SignedInDashboardRedirect = ({ children }) => {
 const HomePage = lazy(() => import('@/modules/public/HomePage'));
 
 const NotFound = lazy(() => import('@/modules/public/NotFound'));
+
+const RegisterFirmPage = lazy(() => import('@/modules/public/RegisterFirmPage'));
 
 const Unauthorized = lazy(() => import('@/modules/public/Unauthorized'));
 
@@ -274,6 +278,10 @@ const AdminSettingsPage = lazy(
 
 /* FIRM */
 
+const AdminSubscriptionPage = lazy(
+  () => import('@/modules/admin/subscription/pages/AdminSubscriptionPage'),
+);
+const ClientBillingPage = lazy(() => import('@/modules/client/billing/pages/ClientBillingPage'));
 const AdminFirmPage = lazy(
   () => import('@/modules/admin/firm/pages/AdminFirmPage'),
 );
@@ -349,6 +357,9 @@ const LawyerCourtroom = lazy(
   () => import('@/modules/staff/lawyer/courtroom/pages/LawyerCourtroomPage'),
 );
 
+const LawyerCourtPreparation = lazy(
+  () => import('@/modules/preparation/pages/LawyerCourtPreparationPage'),
+);
 const LawyerCourtroomDetails = lazy(
   () =>
     import('@/modules/staff/lawyer/courtroom/pages/LawyerCourtroomDetailsPage'),
@@ -578,52 +589,26 @@ const PortalDashboard = lazy(
   () => import('@/modules/portal/dashboard/PortalDashboard'),
 );
 
-const PortalConsultations = lazy(
-  () => import('@/modules/portal/consultations/PortalConsultations'),
-);
-
-const BookConsultation = lazy(
-  () => import('@/modules/portal/consultations/BookConsultation'),
-);
-
-const ConsultationDetails = lazy(
-  () => import('@/modules/portal/consultations/ConsultationDetails'),
-);
 
 
-const PortalMessages = lazy(
-  () => import('@/modules/portal/communications/PortalMessages'),
-);
 
-const PortalSupport = lazy(
-  () => import('@/modules/portal/communications/PortalSupport'),
-);
+
+
 
 
 const PortalDocuments = lazy(
   () => import('@/modules/portal/documents/PortalDocuments'),
 );
 
-const UploadDocuments = lazy(
-  () => import('@/modules/portal/documents/UploadDocuments'),
-);
 
 
-const IntakeForms = lazy(() => import('@/modules/portal/intake/IntakeForms'));
 
-const IntakeStatus = lazy(() => import('@/modules/portal/intake/IntakeStatus'));
 
-const NewIntakeForm = lazy(
-  () => import('@/modules/portal/intake/NewIntakeForm'),
-);
 
 
 const PortalNotifications = ClientNotificationsPage;
 
 
-const BecomeClient = lazy(
-  () => import('@/modules/portal/onboarding/BecomeClient'),
-);
 
 const FirmMembershipStatus = lazy(
   () => import('@/modules/portal/onboarding/FirmMembershipStatus'),
@@ -633,6 +618,19 @@ const FirmMembershipStatus = lazy(
 const PortalProfile = lazy(
   () => import('@/modules/portal/profile/PortalProfile'),
 );
+
+/* =========================================================
+  PLATFORM CONSOLE (system owner)
+========================================================= */
+
+const PlatformOverviewPage = lazy(() => import('@/modules/platform/pages/PlatformOverviewPage'));
+const PlatformFirmsPage = lazy(() => import('@/modules/platform/pages/PlatformFirmsPage'));
+const PlatformRegisterFirmPage = lazy(() => import('@/modules/platform/pages/PlatformRegisterFirmPage'));
+const PlatformFirmDetailPage = lazy(() => import('@/modules/platform/pages/PlatformFirmDetailPage'));
+const PlatformPlansPage = lazy(() => import('@/modules/platform/pages/PlatformPlansPage'));
+const PlatformUsersPage = lazy(() => import('@/modules/platform/pages/PlatformUsersPage'));
+const PlatformPaymentsPage = lazy(() => import('@/modules/platform/pages/PlatformPaymentsPage'));
+const PlatformRequestsPage = lazy(() => import('@/modules/platform/pages/PlatformRequestsPage'));
 
 /* =========================================================
   ROUTER
@@ -667,7 +665,43 @@ const AppRoutes = () => {
           />
           <Route path='/forgot-password' element={<ForgotPassword />} />
           <Route path='/recover-account' element={<RecoverAccount />} />
+          {/* Password emails link to /reset-password?uid=…&token=… */}
+          <Route path='/reset-password' element={<ResetPassword />} />
           <Route path='/reset-password/:token' element={<ResetPassword />} />
+        </Route>
+
+        {/* FIRM REGISTRATION (public entry point) */}
+        <Route element={<PublicLayoutWrapper />}>
+          <Route
+            path='/register-firm'
+            element={(
+              <SignedInDashboardRedirect>
+                <RegisterFirmPage />
+              </SignedInDashboardRedirect>
+            )}
+          />
+        </Route>
+
+        {/* PLATFORM CONSOLE */}
+        <Route
+          path='/platform/*'
+          element={
+            <ProtectedRoute>
+              <RoleRoute allowedRoles={['PLATFORM_ADMIN']}>
+                <PlatformLayoutWrapper />
+              </RoleRoute>
+            </ProtectedRoute>
+          }
+        >
+          <Route path='' element={<Navigate to='overview' replace />} />
+          <Route path='overview' element={<PlatformOverviewPage />} />
+          <Route path='firms' element={<PlatformFirmsPage />} />
+          <Route path='firms/register' element={<PlatformRegisterFirmPage />} />
+          <Route path='firms/:id' element={<PlatformFirmDetailPage />} />
+          <Route path='plans' element={<PlatformPlansPage />} />
+          <Route path='users' element={<PlatformUsersPage />} />
+          <Route path='payments' element={<PlatformPaymentsPage />} />
+          <Route path='requests' element={<PlatformRequestsPage />} />
         </Route>
 
 
@@ -785,6 +819,7 @@ const AppRoutes = () => {
 
           {/* FIRM */}
           <Route path='firm' element={<AdminFirmPage />} />
+          <Route path='subscription' element={<AdminSubscriptionPage />} />
           <Route path='public-knowledge' element={<AdminPublicKnowledgePage />} />
 
           {/* INTERNAL AI TEMPORARILY PAUSED
@@ -837,6 +872,7 @@ const AppRoutes = () => {
           <Route path='notifications' element={<LawyerNotifications />} />
           <Route path='courtroom' element={<LawyerCourtroom />} />
           <Route path='courtroom/:id' element={<LawyerCourtroomDetails />} />
+          <Route path='court-preparation' element={<LawyerCourtPreparation />} />
           <Route path='hearings' element={<Navigate to='../courtroom' replace />} />
           {/* INTERNAL AI TEMPORARILY PAUSED
           <Route path='research' element={<LawyerResearch />} />
@@ -991,6 +1027,7 @@ const AppRoutes = () => {
             element={<ClientCaseCommunicationPage />}
           />
           <Route path='documents' element={<ClientCaseDocuments />} />
+          <Route path='billing' element={<ClientBillingPage />} />
           <Route path='notifications' element={<ClientNotificationsPage />} />
           <Route path='profile' element={<ClientProfile />} />
         </Route>
@@ -1008,19 +1045,12 @@ const AppRoutes = () => {
         >
           <Route path='' element={<Navigate to='dashboard' replace />} />
           <Route path='dashboard' element={<PortalDashboard />} />
-          <Route path='consultations' element={<PortalConsultations />} />
-          <Route path='consultations/book' element={<BookConsultation />} />
-          <Route path='consultations/:id' element={<ConsultationDetails />} />
-          <Route path='messages' element={<PortalMessages />} />
-          <Route path='support' element={<PortalSupport />} />
           <Route path='documents' element={<PortalDocuments />} />
-          <Route path='documents/upload' element={<UploadDocuments />} />
-          <Route path='intake/forms' element={<IntakeForms />} />
-          <Route path='intake/status' element={<IntakeStatus />} />
-          <Route path='intake/new' element={<NewIntakeForm />} />
           <Route path='notifications' element={<PortalNotifications />} />
-          <Route path='become-client' element={<BecomeClient />} />
           <Route path='membership-status' element={<FirmMembershipStatus />} />
+          {['consultations/*', 'messages', 'support', 'intake/*', 'become-client', 'documents/upload'].map((path) => (
+            <Route key={path} path={path} element={<Navigate to='/portal/membership-status' replace />} />
+          ))}
           <Route path='profile' element={<PortalProfile />} />
         </Route>
 

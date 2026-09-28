@@ -61,8 +61,8 @@ class VirtualCourtroomService:
     @staticmethod
     def ensure_can_manage(user, case):
         firm = VirtualCourtroomService.get_user_firm(user)
-        if not VirtualCourtroomService.is_admin_for_firm(user, firm) or case.firm_id != firm.id:
-            raise PermissionError("Only the firm administrator may manage official courtroom links.")
+        if not firm or case.firm_id != firm.id or not EventService.can_configure_courtroom(user, case):
+            raise PermissionError("Only the firm administrator or the assigned advocate may manage official courtroom links.")
         return True
 
     @staticmethod

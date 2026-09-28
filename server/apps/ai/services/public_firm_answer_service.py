@@ -10,6 +10,7 @@ class PublicFirmAnswerService:
     FIRM_INTENTS = {
         "services", "overview", "contact", "location", "hours", "owner", "advocates",
         "consultation", "appointment", "fees", "careers", "complaints", "policies",
+        "getting_started", "portal",
     }
     SENSITIVE_TERMS = (
         "client list", "is a client", "clients", "case details", "matter details", "case number",
@@ -32,6 +33,8 @@ class PublicFirmAnswerService:
         "careers": {"careers"},
         "complaints": {"complaints"},
         "policies": {"privacy_terms"},
+        "getting_started": {"contact_information", "consultation", "appointment", "office_location", "working_hours"},
+        "portal": {"contact_information"},
     }
 
     @classmethod
@@ -40,6 +43,13 @@ class PublicFirmAnswerService:
         if any(term in value for term in cls.SENSITIVE_TERMS):
             return "sensitive"
         rules = (
+            ("portal", ("client portal", "your portal", "log in", "login", "sign in", "my dashboard")),
+            ("getting_started", (
+                "get started", "getting started", "become a client", "new client", "open a case", "open a file",
+                "instruct the firm", "instruct you", "hire you", "hire a lawyer", "hire an advocate", "engage the firm",
+                "how do i start", "where do i start", "what do i need to bring", "what should i bring",
+                "documents do i need to bring", "how does the process work",
+            )),
             ("services", ("legal services", "what services", "practice areas", "areas of practice", "what does the firm offer")),
             ("owner", ("who is the firm owner", "who owns the firm", "firm's owner", "owner of the firm", "who leads the firm")),
             ("advocates", ("advocates", "lawyers", "legal team", "your team", "who can represent")),
@@ -87,8 +97,35 @@ class PublicFirmAnswerService:
             return "a law firm"
         return value[0].lower() + value[1:] if value.lower().startswith(("a ", "an ", "the ")) else "a " + value[0].lower() + value[1:]
 
+    # How a new client is taken on, as the firm's system actually runs it.
+    GETTING_STARTED_STEPS = (
+        "**Tell us briefly what you need.** Contact or visit the firm. At this stage we only need your name, the names of the other people involved and a short description. Please don't send detailed documents yet.",
+        "**Conflict check.** An advocate confirms that the firm can act for you without a conflict of interest with anyone involved.",
+        "**Engagement.** If the firm can act, you receive an engagement letter setting out the work, the fees and any deposit.",
+        "**Identification.** As the law requires, the firm keeps copies of your identification. Individuals bring a national ID or passport and KRA PIN. Companies bring the certificate of incorporation, CR12, KRA PIN and a board resolution authorising the instructions.",
+        "**Your client portal.** Once your instructions are accepted, you are invited to a secure portal where you can follow your matter, see court dates, join virtual court sessions and upload documents the firm asks for.",
+    )
+
+    @classmethod
+    def compose_process(cls, firm_name, intent, articles):
+        if intent == "portal":
+            text = (
+                f"The {firm_name} client portal is by invitation. Once the firm accepts your instructions, it emails you a link "
+                "to set your password. If you are already a client and cannot sign in, use **Forgot password** on the login page, "
+                "or contact the firm."
+            )
+        else:
+            steps = "\n".join(f"{index}. {step}" for index, step in enumerate(cls.GETTING_STARTED_STEPS, start=1))
+            text = f"Here is how to become a client of {firm_name}:\n\n{steps}"
+        contact = cls.compose(firm_name, "contact", articles) if articles else ""
+        if contact.startswith("You can contact"):
+            text += "\n\n" + contact
+        return text + "\n\nThis is general information about the firm's process. Nothing you share here creates an advocate-client relationship."
+
     @classmethod
     def compose(cls, firm_name, intent, articles):
+        if intent in {"getting_started", "portal"}:
+            return cls.compose_process(firm_name, intent, articles)
         if intent == "sensitive":
             return "I can only provide information the firm has approved for public use. I cannot access or disclose client, matter, financial, staff-private or other confidential information."
         if not articles:

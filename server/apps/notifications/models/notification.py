@@ -14,6 +14,7 @@ class Notification(TimestampedModel):
         CASE_STATUS_UPDATE = "CASE_STATUS_UPDATE", "Case Status Update"
         CASE_EVENT = "CASE_EVENT", "Case Event"
         COURTROOM_LINK = "COURTROOM_LINK", "Courtroom Link"
+        COURT_PREPARATION = "COURT_PREPARATION", "Court Preparation"
         CHAT_MESSAGE = "CHAT_MESSAGE", "Chat Message"
         GENERAL = "GENERAL", "General"
 

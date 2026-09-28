@@ -37,6 +37,7 @@ class LawFirmSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
+            "business_structure",
             "registration_number",
             "kra_pin",
             "email",
@@ -44,6 +45,8 @@ class LawFirmSerializer(serializers.ModelSerializer):
             "website",
             "physical_address",
             "postal_address",
+            "county",
+            "town",
             "description",
             "logo",
             "is_active",
@@ -60,6 +63,8 @@ class LawFirmSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "registration_number",
+            # Suspension is decided by the platform administrator.
+            "is_active",
             "owner_email",
             "owner_name",
             "owner_user_role",

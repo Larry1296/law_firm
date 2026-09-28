@@ -8,11 +8,13 @@ from rest_framework.views import APIView
 from apps.ai.models import KnowledgeBaseCategory, KnowledgeBaseQuestionLog
 from apps.ai.serializers import KnowledgeBaseAskSerializer
 from apps.ai.services.knowledge_llm_service import (
+    PLATFORM_INSTRUCTION,
     KnowledgeProviderUnavailable,
     OpenAIKnowledgeProvider,
 )
 from apps.ai.services.knowledge_retrieval_service import KnowledgeRetrievalService
 from apps.ai.services.public_firm_resolver import PublicFirmResolver
+from apps.ai.services.court_process_guide_service import CourtProcessGuideService
 from apps.ai.services.public_firm_answer_service import PublicFirmAnswerService
 from apps.ai.services.public_knowledge_service import PublicKnowledgeEligibility
 from apps.ai.throttles import KnowledgeBaseAnonThrottle
@@ -53,7 +55,7 @@ def _source(item, intent="legal"):
             "title": provision.document.title,
             "source_name": "Kenya Law",
             "source_url": provision.document.official_url,
-            "source_reference": f"Article {provision.article_number} — {provision.heading}" if provision.article_number else provision.heading,
+            "source_reference": provision.citation,
             "last_verified_at": provision.document.last_verified_at.isoformat() if provision.document.last_verified_at else None,
         }
     article = item.article
@@ -121,6 +123,19 @@ class KnowledgeBaseAskView(APIView):
         if firm is None:
             return Response({"detail": "Public website firm could not be resolved safely."}, status=404)
         intent = PublicFirmAnswerService.classify(question)
+        guide = None if intent == "sensitive" else CourtProcessGuideService.answer(question, history, firm)
+        if guide is not None:
+            answer, step_number = guide
+            log = KnowledgeBaseQuestionLog.objects.create(
+                firm=firm, question=question, retrieval_score=1.0, status=KnowledgeBaseQuestionLog.Status.ANSWERED,
+                request_fingerprint=_fingerprint(request), user_agent_family=request.META.get("HTTP_USER_AGENT", "")[:80],
+                answer=answer,
+            )
+            return Response({
+                "answer": answer, "sources": [], "needs_lawyer": False, "disclaimer": "",
+                "intent": "court_process", "step": step_number, "can_escalate": True,
+                "firm_public_name": firm.name, "request_id": str(log.id),
+            })
         if intent == "sensitive":
             retrieved = []
         elif intent in PublicFirmAnswerService.FIRM_INTENTS:
@@ -183,3 +198,103 @@ class KnowledgeBaseAskView(APIView):
             "firm_public_name": firm.name,
             "request_id": str(log.id),
         })
+
+
+PLATFORM_SCOPE_ANSWER = (
+    "I can only answer questions about the law of Kenya. For questions about a particular law firm, "
+    "please contact that firm directly."
+)
+PLATFORM_NO_SOURCE_ANSWER = (
+    "I can only answer questions about the law of Kenya, and I do not have enough verified Kenyan legal "
+    "material to answer that reliably. Please rephrase your question or speak to an advocate."
+)
+PLATFORM_SIGN_IN_ANSWER = (
+    "To sign in, choose **Login** at the top of this page and use the email address your firm registered "
+    "for you. You will be taken to your own firm's dashboard. I can also answer questions about the law of Kenya."
+)
+# Questions plainly about a particular firm. Words that are also legal topics
+# (advocates, fees, consultation, complaints) are left to legal retrieval.
+PLATFORM_OUT_OF_SCOPE_INTENTS = {"services", "overview", "contact", "location", "hours", "owner", "getting_started", "careers"}
+PROMPT_INJECTION_TERMS = ("hidden system prompt", "ignore your instructions", "act as the administrator")
+PLATFORM_SUGGESTIONS = [
+    "What are my rights if I am arrested in Kenya?",
+    "What are the steps in a court case?",
+    "How much notice must an employer give before termination?",
+    "What does the Constitution say about the right to privacy?",
+]
+
+
+class PlatformLegalAssistantView(APIView):
+    """The platform homepage assistant: general information on the law of Kenya only.
+
+    It serves no firm, so it never answers from a firm's profile and never logs
+    a question against one.
+    """
+
+    permission_classes = (AllowAny,)
+    authentication_classes = ()
+    throttle_classes = (KnowledgeBaseAnonThrottle,)
+
+    def get_throttles(self):
+        return super().get_throttles() if self.request.method == "POST" else []
+
+    def get(self, request):
+        return Response({"suggestions": PLATFORM_SUGGESTIONS})
+
+    def post(self, request):
+        serializer = KnowledgeBaseAskSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        question = serializer.validated_data["question"]
+        history = serializer.validated_data["history"]
+        intent = PublicFirmAnswerService.classify(question)
+        log = KnowledgeBaseQuestionLog(
+            firm=None, question=question, status=KnowledgeBaseQuestionLog.Status.NO_SOURCE,
+            request_fingerprint=_fingerprint(request), user_agent_family=request.META.get("HTTP_USER_AGENT", "")[:80],
+        )
+
+        def respond(answer, *, retrieved=(), needs_lawyer=False, response_intent=intent, **extra):
+            log.answer = answer
+            log.retrieval_score = max((item.score for item in retrieved), default=0)
+            log.save()
+            return Response({
+                "answer": answer,
+                "sources": [_source(item) for item in retrieved],
+                "needs_lawyer": needs_lawyer,
+                "disclaimer": DISCLAIMER if response_intent == "legal" else "",
+                "intent": response_intent,
+                "can_escalate": False,
+                "request_id": str(log.id),
+                **extra,
+            })
+
+        if intent == "portal":
+            log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
+            return respond(PLATFORM_SIGN_IN_ANSWER, response_intent="out_of_scope")
+        if intent in PLATFORM_OUT_OF_SCOPE_INTENTS or any(term in question.lower() for term in PROMPT_INJECTION_TERMS):
+            log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
+            return respond(PLATFORM_SCOPE_ANSWER, response_intent="out_of_scope")
+
+        guide = CourtProcessGuideService.answer(question, history, None)
+        if guide is not None:
+            answer, step_number = guide
+            log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
+            return respond(answer, response_intent="court_process", step=step_number)
+
+        retrieved = KnowledgeRetrievalService.retrieve_law(question)
+        if not retrieved:
+            return respond(PLATFORM_NO_SOURCE_ANSWER, response_intent="out_of_scope")
+        try:
+            answer, needs_lawyer = OpenAIKnowledgeProvider().generate(
+                question, history, retrieved, instructions=PLATFORM_INSTRUCTION,
+            )
+            log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
+            log.model = settings.OPENAI_MODEL
+        except KnowledgeProviderUnavailable:
+            answer, needs_lawyer = _verified_extract_answer(retrieved), True
+            log.status = KnowledgeBaseQuestionLog.Status.PROVIDER_UNAVAILABLE
+            logger.warning("Platform legal assistant provider unavailable")
+        except Exception:
+            answer, needs_lawyer = _verified_extract_answer(retrieved), True
+            log.status = KnowledgeBaseQuestionLog.Status.ERROR
+            logger.exception("Platform legal assistant provider request failed")
+        return respond(answer, retrieved=retrieved, needs_lawyer=needs_lawyer)

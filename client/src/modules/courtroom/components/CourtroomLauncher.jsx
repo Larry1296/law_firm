@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ExternalLink, Headphones, ShieldCheck, Video } from 'lucide-react';
+import { ExternalLink, Headphones, ShieldCheck } from 'lucide-react';
+import useCourtroomLaunch from '@/modules/courtroom/hooks/useCourtroomLaunch';
 import courtroomService from '@/modules/courtroom/services/courtroomService';
 
 const instructions = {
@@ -11,19 +12,12 @@ const instructions = {
 
 export default function CourtroomLauncher({ session, client = false }) {
   const [testing, setTesting] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const { launch, busy, error, fallbackUrl } = useCourtroomLaunch(session.id);
   const event = session.event_summary || {};
-
-  const launch = async () => {
-    setBusy(true);
-    try {
-      const grant = await courtroomService.requestLaunch(session.id);
-      const popup = window.open('', '_blank', 'noopener,noreferrer');
-      const response = await courtroomService.openLaunch(grant.launch_token);
-      if (popup) popup.location = response.open_url;
-      else window.open(response.open_url, '_blank', 'noopener,noreferrer');
-    } finally { setBusy(false); }
-  };
+  const opensAt = session.client_access_from
+    ? new Date(session.client_access_from).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : '';
+  const locked = client && session.can_join === false;
 
   return (
     <section className='rounded-xl border border-border-light p-5 dark:border-border-dark' aria-label='Court readiness room'>
@@ -35,7 +29,9 @@ export default function CourtroomLauncher({ session, client = false }) {
       <div className='mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-950'><p>Use your proper court display name, join muted, remain in an appropriate environment, and observe courtroom decorum.</p><p className='mt-1 font-semibold'>Recording is prohibited unless the Court grants leave.</p></div>
       <p className='mt-3 text-sm'>{instructions[session.provider_type] || 'Sheria Master will open the authorised official provider in a separate tab or application.'}</p>
       {testing && <div className='mt-3 rounded-lg bg-slate-100 p-3 text-sm dark:bg-slate-800'>Check your internet connection, speakers, microphone and camera using your device settings. Permissions are requested only by the provider when you proceed.</div>}
-      <div className='mt-4 flex flex-wrap gap-2'><button type='button' onClick={() => setTesting((v) => !v)} className='inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold'><Headphones size={16}/>Readiness check</button><button type='button' onClick={launch} disabled={busy} className='inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50'><ExternalLink size={16}/>{busy ? 'Preparing…' : client ? 'Join Virtual Court' : 'Open Courtroom'}</button><button type='button' onClick={() => courtroomService.attendanceAction(session.id, { action: 'TECHNICAL_DIFFICULTY' })} className='inline-flex items-center gap-2 rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700'><ShieldCheck size={16}/>Report technical problem</button></div>
+      <div className='mt-4 flex flex-wrap gap-2'><button type='button' onClick={() => setTesting((v) => !v)} className='inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold'><Headphones size={16}/>Readiness check</button><button type='button' onClick={launch} disabled={busy || locked} className='inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50'><ExternalLink size={16}/>{busy ? 'Preparing…' : locked ? `Join opens at ${opensAt}` : client ? 'Join Virtual Court' : 'Open Courtroom'}</button><button type='button' onClick={() => courtroomService.attendanceAction(session.id, { action: 'TECHNICAL_DIFFICULTY' })} className='inline-flex items-center gap-2 rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700'><ShieldCheck size={16}/>Report technical problem</button></div>
+      {fallbackUrl && <p className='mt-3 text-sm'>Your browser blocked the new tab. <a href={fallbackUrl} target='_blank' rel='noopener noreferrer' className='font-bold text-brand-primary underline'>Open the courtroom</a></p>}
+      {error && <p role='alert' className='mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800'>{error}</p>}
     </section>
   );
 }

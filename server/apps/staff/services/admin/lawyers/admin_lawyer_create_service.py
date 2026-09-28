@@ -9,6 +9,8 @@ from apps.staff.services.admin.lawyers.admin_lawyer_number_service import (
 from apps.staff.services.admin.lawyers.admin_lawyer_permission_service import (
     AdminLawyerPermissionService,
 )
+from apps.subscriptions.catalog import Limit
+from apps.subscriptions.services import SubscriptionService
 from apps.users.services.auth_service import AuthService
 
 
@@ -25,6 +27,7 @@ class AdminLawyerCreateService:
     @staticmethod
     @transaction.atomic
     def create_lawyer(*, law_firm, validated_data, created_by):
+        SubscriptionService.check_limit(law_firm, Limit.ADVOCATES)
         practice_areas = validated_data.pop("practice_area_ids", [])
         permission_codes = validated_data.pop("permission_codes", [])
 

@@ -33,6 +33,8 @@ class InvoiceLineInputSerializer(serializers.Serializer):
 class InvoiceSerializer(serializers.ModelSerializer):
     line_items = InvoiceLineInputSerializer(many=True, write_only=True, required=False)
     rendered_line_items = serializers.SerializerMethodField()
+    case_number = serializers.CharField(source="matter.case_number", read_only=True)
+    client_name = serializers.CharField(source="client.full_name", read_only=True)
 
     class Meta:
         model = Invoice
@@ -98,6 +100,7 @@ class PreMatterRetainerReceiptSerializer(ClientMoneyReceiptSerializer):
 
 
 class PaymentInstructionSerializer(serializers.ModelSerializer):
+    case_number = serializers.CharField(source="matter.case_number", read_only=True, default="")
     class Meta:
         model = PaymentInstruction
         exclude = ("supporting_documents",)
@@ -145,6 +148,7 @@ class MatterClientLedgerSerializer(serializers.ModelSerializer):
 
 
 class TimeEntrySerializer(serializers.ModelSerializer):
+    case_number = serializers.CharField(source="matter.case_number", read_only=True, default="")
     class Meta:
         model = TimeEntry
         fields = "__all__"
@@ -152,6 +156,7 @@ class TimeEntrySerializer(serializers.ModelSerializer):
 
 
 class DisbursementSerializer(serializers.ModelSerializer):
+    case_number = serializers.CharField(source="matter.case_number", read_only=True, default="")
     class Meta:
         model = Disbursement
         fields = "__all__"

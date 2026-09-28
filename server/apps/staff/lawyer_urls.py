@@ -1,5 +1,7 @@
 from django.urls import path
 
+from apps.ai.views.court_preparation_view import AdvocateCourtPreparationRefreshView, AdvocateCourtPreparationView
+
 from apps.clients.views.admin.client_matter_conflict_check_view import (
     ClientMatterConflictCheckAcceptanceView,
     ClientMatterConflictCheckClearedUnconsumedView,
@@ -27,6 +29,7 @@ from apps.staff.views.lawyer.lawyer_notifications_view import LawyerNotification
 from apps.staff.views.lawyer.lawyer_profile_view import LawyerProfileView
 from apps.ai.views import LawyerCaseAssessmentView, LawyerCasePriorityListView, LawyerFindingFeedbackView
 from apps.staff.views.lawyer.lawyer_tasks_view import LawyerTasksView
+from apps.staff.views.lawyer.lawyer_approvals_view import LawyerApprovalsView
 from apps.clients.views.proposed_matter_entry_view import ProposedMatterEntryView
 
 urlpatterns = [
@@ -34,6 +37,8 @@ urlpatterns = [
     path("ai/matters/", LawyerCasePriorityListView.as_view(), name="lawyer-ai-matters"),
     path("ai/matters/<uuid:case_id>/", LawyerCaseAssessmentView.as_view(), name="lawyer-ai-matter-detail"),
     path("ai/matters/<uuid:case_id>/assessments/", LawyerCaseAssessmentView.as_view(), name="lawyer-ai-matter-assessment-create"),
+    path("ai/court-preparation/", AdvocateCourtPreparationView.as_view(), name="lawyer-court-preparation"),
+    path("ai/court-preparation/<uuid:event_id>/refresh/", AdvocateCourtPreparationRefreshView.as_view(), name="lawyer-court-preparation-refresh"),
     path("ai/cases/", LawyerCasePriorityListView.as_view(), name="lawyer-ai-case-priorities"),
     path("ai/cases/<uuid:case_id>/", LawyerCaseAssessmentView.as_view(), name="lawyer-ai-case-assessment"),
     path("ai/cases/<uuid:case_id>/assessments/<uuid:assessment_id>/feedback/", LawyerFindingFeedbackView.as_view(), name="lawyer-ai-finding-feedback"),
@@ -60,6 +65,7 @@ urlpatterns = [
     path("clients/<uuid:client_id>/conflict-checks/<uuid:check_id>/jurisdiction/reopen/", ProposedMatterJurisdictionReopenView.as_view(), name="lawyer-client-jurisdiction-reopen"),
     path("calendar/", LawyerCalendarView.as_view(), name="lawyer-calendar"),
     path("tasks/", LawyerTasksView.as_view(), name="lawyer-tasks"),
+    path("approvals/", LawyerApprovalsView.as_view(), name="lawyer-approvals"),
     path("documents/", LawyerDocumentsView.as_view(), name="lawyer-documents"),
     path("documents/upload/", LawyerDocumentsView.as_view(), name="lawyer-document-upload"),
     path("documents/requests/<uuid:request_id>/review/", LawyerDocumentRequestReviewView.as_view(), name="lawyer-document-request-review"),

@@ -84,16 +84,7 @@ class LawyerDocumentService:
             case = cases.select_related("client", "firm").get(id=data.get("case_id"))
         except Exception as exc:
             raise ValidationError({"case_id": "Select one of your assigned matters."}) from exc
-        title = (data.get("title") or "").strip()
-        if not title:
-            raise ValidationError({"title": "Describe the document required from the client."})
-        item = DocumentRequest.objects.create(
-            firm=case.firm, client=case.client, case=case, requested_by=user, title=title,
-            document_type=data.get("document_type") or "OTHER",
-            instructions=(data.get("instructions") or "").strip(), due_date=data.get("due_date") or None,
-            status=DocumentRequest.Status.AWAITING_SECRETARY_DISPATCH,
-        )
-        DocumentWorkflowService.notify_secretaries_of_request(item, user)
+        item = DocumentWorkflowService.create_request(user=user, case=case, data=data)
         return DocumentWorkflowService.serialize_request(item)
 
     @staticmethod
@@ -175,7 +166,7 @@ class LawyerDocumentService:
         item.status = (
             DocumentRequest.Status.ACCEPTED
             if decision == "ACCEPTED"
-            else DocumentRequest.Status.AWAITING_SECRETARY_DISPATCH
+            else DocumentRequest.Status.REPLACEMENT_REQUIRED
         )
         item.fulfilled_document.review_status = "ACCEPTED" if decision == "ACCEPTED" else "NEEDS_REPLACEMENT"
         item.fulfilled_document.review_notes = (data.get("notes") or "").strip()
@@ -192,7 +183,9 @@ class LawyerDocumentService:
         ])
         item.save(update_fields=["status", "updated_at"])
         if decision == "REPLACEMENT_REQUIRED":
-            DocumentWorkflowService.notify_secretaries_of_request(item, user, replacement=True)
+            DocumentWorkflowService.notify_client_of_request(
+                item, user, replacement=True, reason=item.fulfilled_document.review_notes,
+            )
         elif item.client.user_id:
             NotificationService.create(
                 firm=item.firm, recipient=item.client.user, actor=user, case=item.case,

@@ -29,6 +29,8 @@ from apps.clients.services.conflict import ClientMatterConflictService
 from apps.common.choices import JurisdictionStatus, UserRole
 from apps.notifications.services import NotificationService
 from apps.staff.models import Lawyer, LawyerPermission, Secretary, SecretaryPermission
+from apps.subscriptions.catalog import Limit
+from apps.subscriptions.services import SubscriptionService
 
 
 class CaseService:
@@ -348,6 +350,7 @@ class CaseService:
     @transaction.atomic
     def create_case(*, user, validated_data):
         firm = CaseService.get_user_firm(user)
+        SubscriptionService.check_limit(firm, Limit.ACTIVE_MATTERS)
         opening_context = {
             "forum": validated_data.get("forum", Case.Forum.COURT),
             "entry_route": validated_data.get("entry_route", Case.EntryRoute.NEW_INSTRUCTION),

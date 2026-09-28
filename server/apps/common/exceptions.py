@@ -131,5 +131,8 @@ def custom_exception_handler(exc, context):
         "detail": message,
         "errors": errors,
     }
+    error_code = getattr(exc, "error_code", None)
+    if error_code:
+        response.data["code"] = error_code
 
     return response

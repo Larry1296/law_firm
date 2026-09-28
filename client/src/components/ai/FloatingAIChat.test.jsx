@@ -4,11 +4,19 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import FloatingAIChat from './FloatingAIChat';
-import { askKnowledgeBase, getKnowledgeBaseCategories } from './knowledgeBaseService';
+import {
+  askKnowledgeBase,
+  askLegalAssistant,
+  getKnowledgeBaseCategories,
+  getLegalAssistantSuggestions,
+} from './knowledgeBaseService';
+import { openLegalAssistant } from './assistantEvents';
 
 vi.mock('./knowledgeBaseService', () => ({
   askKnowledgeBase: vi.fn(),
+  askLegalAssistant: vi.fn(),
   getKnowledgeBaseCategories: vi.fn(),
+  getLegalAssistantSuggestions: vi.fn(),
 }));
 
 const groundedResponse = {
@@ -169,5 +177,22 @@ describe('FloatingAIChat', () => {
     await user.type(screen.getByLabelText('Ask a question'), 'What applies to my dispute?{enter}');
     expect(await screen.findByText(/General legal information only/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /speak to an advocate/i })).toBeInTheDocument();
+  });
+
+  it('answers only about Kenyan law on the platform homepage, never from a firm', async () => {
+    getLegalAssistantSuggestions.mockResolvedValue(['What are my rights if I am arrested?']);
+    askLegalAssistant.mockResolvedValue({ ...groundedResponse, needs_lawyer: true });
+    const user = userEvent.setup();
+    render(<FloatingAIChat mode='platform' />);
+
+    openLegalAssistant();
+    expect(await screen.findByRole('dialog', { name: 'Kenyan law assistant' })).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'What are my rights if I am arrested?' }));
+
+    await waitFor(() => expect(askLegalAssistant).toHaveBeenCalled());
+    expect(askKnowledgeBase).not.toHaveBeenCalled();
+    expect(getKnowledgeBaseCategories).not.toHaveBeenCalled();
+    expect(await screen.findByText(/speak to a qualified advocate/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Speak to an advocate' })).not.toBeInTheDocument();
   });
 });

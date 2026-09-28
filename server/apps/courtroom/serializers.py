@@ -119,6 +119,8 @@ class AdminCourtroomSessionSerializer(SafeSessionMixin, serializers.ModelSeriali
         provider = attrs.get("provider") or getattr(self.instance, "provider", None)
         url = attrs.get("join_url") or getattr(self.instance, "join_url", "")
         attrs["provider_detected"] = CourtroomService.detect_provider(url, provider)
+        if self.instance is None and event and CourtroomSession.objects.filter(event=event).exists():
+            raise serializers.ValidationError("This court date already has a court link. Update the existing session instead.")
         if event and provider and provider.firm_id != event.case.firm_id:
             raise serializers.ValidationError("Provider and event must belong to the same firm.")
         advocate = attrs.get("responsible_advocate")
@@ -135,6 +137,13 @@ class AdminCourtroomSessionSerializer(SafeSessionMixin, serializers.ModelSeriali
         return attrs
 
 
+class AdvocateCourtroomSessionWriteSerializer(AdminCourtroomSessionSerializer):
+    """What the assigned advocate may set when attaching the court link to their own matter."""
+
+    class Meta(AdminCourtroomSessionSerializer.Meta):
+        fields = ["id", "event_id", "event_summary", "provider", "provider_type", "join_url", "link_source", "link_source_reference", "link_verified", "link_verified_at", "client_attendance_requirement", "client_access_enabled", "client_access_from", "client_access_until", "status", "notes", "created_at", "updated_at"]
+
+
 class AdvocateCourtroomSessionSerializer(SafeSessionMixin, serializers.ModelSerializer):
     class Meta:
         model = CourtroomSession
@@ -142,9 +151,14 @@ class AdvocateCourtroomSessionSerializer(SafeSessionMixin, serializers.ModelSeri
 
 
 class ClientCourtroomSessionSummarySerializer(SafeSessionMixin, serializers.ModelSerializer):
+    can_join = serializers.SerializerMethodField()
+
+    def get_can_join(self, obj):
+        return CourtroomService.client_can_join(obj)
+
     class Meta:
         model = CourtroomSession
-        fields = ["id", "event_summary", "provider_type", "client_attendance_requirement", "status"]
+        fields = ["id", "event_summary", "provider_type", "client_attendance_requirement", "status", "client_access_from", "client_access_until", "can_join"]
 
 
 class CourtroomLaunchResponseSerializer(serializers.Serializer):

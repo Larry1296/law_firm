@@ -1,17 +1,5 @@
-import { ReceiptText } from 'lucide-react';
-
-import StaffWorkspacePage from '@/modules/staff/common/pages/StaffWorkspacePage';
-import { staffRoleConfigs } from '@/modules/staff/common/config/staffRoleConfigs';
+import FinanceWorkspace from '@/modules/admin/billing/components/FinanceWorkspace';
 
 export default function AccountantBilling() {
-  return (
-    <StaffWorkspacePage
-      config={staffRoleConfigs.accountant}
-      endpoint='billing'
-      responseKey='billing'
-      title='Billing'
-      description='Invoices, payments, and finance work assigned to you.'
-      icon={ReceiptText}
-    />
-  );
+  return <FinanceWorkspace heading='Finance: fee notes, office money and client money' />;
 }

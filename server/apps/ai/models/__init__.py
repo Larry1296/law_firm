@@ -17,6 +17,8 @@ from .case_assessment import AIAssessmentAudit, AICaseAssessment, AIAssessmentRe
 from .legal_source import LegalProvision, LegalSourceDocument
 from .ai_document_analysis import AIDocumentAnalysis
 
+from .court_preparation import CourtPreparationBrief
+
 __all__ = [
     "KnowledgeBaseArticle",
     "KnowledgeBaseCategory",
@@ -36,4 +38,5 @@ __all__ = [
     "MatterOutcome",
     "PublicAdvocateProfile",
     "PublicFirmKnowledgePolicy",
+    "CourtPreparationBrief",
 ]

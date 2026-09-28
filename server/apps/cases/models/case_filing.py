@@ -8,7 +8,11 @@ from apps.common.models.timestamped_model import TimestampedModel
 class CaseFiling(TimestampedModel):
     class FilingType(models.TextChoices):
         PLAINT = "PLAINT", "Plaint"
+        SUMMONS = "SUMMONS", "Summons to enter appearance"
+        MEMORANDUM_OF_APPEARANCE = "MEMORANDUM_OF_APPEARANCE", "Memorandum of appearance"
         DEFENCE = "DEFENCE", "Defence"
+        REPLY_TO_DEFENCE = "REPLY_TO_DEFENCE", "Reply to defence"
+        REQUEST_FOR_JUDGMENT = "REQUEST_FOR_JUDGMENT", "Request for judgment"
         PETITION = "PETITION", "Petition"
         NOTICE_OF_MOTION = "NOTICE_OF_MOTION", "Notice of Motion"
         CHAMBER_SUMMONS = "CHAMBER_SUMMONS", "Chamber Summons"
@@ -26,6 +30,9 @@ class CaseFiling(TimestampedModel):
         CONSENT = "CONSENT", "Consent"
         ORDER = "ORDER", "Court Order"
         DECREE = "DECREE", "Decree"
+        BILL_OF_COSTS = "BILL_OF_COSTS", "Bill of costs"
+        CERTIFICATE_OF_COSTS = "CERTIFICATE_OF_COSTS", "Certificate of costs"
+        WARRANT_OF_ATTACHMENT = "WARRANT_OF_ATTACHMENT", "Warrant of attachment and sale"
         RULING = "RULING", "Ruling"
         JUDGMENT = "JUDGMENT", "Judgment"
         AFFIDAVIT_OF_SERVICE = "AFFIDAVIT_OF_SERVICE", "Affidavit of Service"
@@ -48,6 +55,8 @@ class CaseFiling(TimestampedModel):
     description = models.TextField(blank=True, default="")
     filed_at = models.DateTimeField(null=True, blank=True)
     served_at = models.DateTimeField(null=True, blank=True)
+    # Date by which the other side must respond, e.g. the demand period chosen in a demand letter.
+    response_due_date = models.DateField(null=True, blank=True)
     official_court_case_number = models.CharField(max_length=120, blank=True, default="")
     efiling_reference = models.CharField(max_length=120, blank=True, default="")
     assessment_reference = models.CharField(max_length=120, blank=True, default="")

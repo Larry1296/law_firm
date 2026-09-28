@@ -8,6 +8,7 @@ const adminBillingService = {
   async getCreditNotes(params = {}) { return (await axiosInstance.get('/finance/credit-notes/', { params })).data; },
   async createCreditNote(payload) { return (await axiosInstance.post('/finance/credit-notes/', payload)).data; },
   async creditNoteAction(id, action) { return (await axiosInstance.post(`/finance/credit-notes/${id}/${action}/`)).data; },
+  async getRegisters() { return (await axiosInstance.get('/finance/registers/')).data; },
   async getAccounts() { return (await axiosInstance.get('/finance/accounts/')).data; },
   async createAccount(payload) { return (await axiosInstance.post('/finance/accounts/', payload)).data; },
   async receiveClientMoney(payload) { return (await axiosInstance.post('/finance/client-money/receipts/', payload)).data; },

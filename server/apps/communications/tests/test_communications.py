@@ -687,7 +687,7 @@ class CommunicationApiTests(TestCase):
         self.assertEqual(inbox.status_code, 200, inbox.data)
         self.assertEqual(inbox.data["threads"], [])
 
-    def test_advocate_document_request_is_routed_through_assigned_lawyer_secretary(self):
+    def test_advocate_document_request_goes_to_client_and_informs_assigned_lawyer_secretary(self):
         self.case.assigned_secretary = None
         self.case.save(update_fields=["assigned_secretary", "updated_at"])
 
@@ -701,12 +701,14 @@ class CommunicationApiTests(TestCase):
             },
         )
 
-        self.assertEqual(result["status"], DocumentRequest.Status.AWAITING_SECRETARY_DISPATCH)
+        self.assertEqual(result["status"], DocumentRequest.Status.OPEN)
         self.assertEqual(result["drawer_reference"], self.client.kyc_drawer_reference)
         self.assertFalse(result["digital_copy_available"])
+        if self.client.user_id:
+            self.assertTrue(Notification.objects.filter(recipient=self.client.user, title="Document requested").exists())
         notification = Notification.objects.get(
             recipient=self.secretary_user,
-            title="Advocate document request awaiting dispatch",
+            title="Document requested from client",
         )
         self.assertEqual(notification.case, self.case)
         self.assertEqual(

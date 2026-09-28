@@ -1,3 +1,5 @@
+import { Navigate } from 'react-router-dom';
+
 export default function AdminInvoicesPage() {
-  return <div>Admin Invoices Page</div>;
+  return <Navigate to='/admin/billing' replace />;
 }

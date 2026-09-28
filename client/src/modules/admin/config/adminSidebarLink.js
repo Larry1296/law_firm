@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Settings,
   Building2,
+  Receipt,
   Globe2,
   // INTERNAL AI TEMPORARILY PAUSED: Bot, Brain, Lightbulb,
   MonitorCog,
@@ -57,6 +58,7 @@ export const adminSidebarLinks = [
   // { name: 'AI Recommendations', path: '/admin/ai/recommendations', icon: Lightbulb, section: 'Reports & Intelligence' },
 
   { name: 'Firm', path: '/admin/firm', icon: Building2, section: 'Firm Administration' },
+  { name: 'Subscription', path: '/admin/subscription', icon: Receipt, section: 'Firm Administration' },
   { name: 'Chatbot Knowledge', path: '/admin/public-knowledge', icon: Globe2, section: 'Firm Administration' },
   { name: 'Compliance', path: '/admin/compliance', icon: ShieldCheck, section: 'Firm Administration' },
   { name: 'Settings', path: '/admin/settings', icon: Settings, section: 'Firm Administration' },

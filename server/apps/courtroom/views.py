@@ -22,6 +22,7 @@ from apps.courtroom.serializers import (
     CourtroomSessionSerializer,
     AdminCourtroomSessionSerializer,
     AdvocateCourtroomSessionSerializer,
+    AdvocateCourtroomSessionWriteSerializer,
     ClientCourtroomSessionSummarySerializer,
     CourtroomLaunchResponseSerializer,
 )
@@ -66,15 +67,21 @@ class CourtroomProviderDetailView(AdminRequiredMixin, generics.RetrieveUpdateAPI
             CourtroomProvider.objects.filter(firm=provider.firm).exclude(id=provider.id).update(is_default=False)
 
 
+def session_serializer_for(request):
+    user = request.user
+    if user.role == UserRole.ADMIN:
+        return AdminCourtroomSessionSerializer
+    if hasattr(user, "client_profile"):
+        return ClientCourtroomSessionSummarySerializer
+    if request.method in ("POST", "PUT", "PATCH"):
+        return AdvocateCourtroomSessionWriteSerializer
+    return AdvocateCourtroomSessionSerializer
+
+
 class CourtroomSessionListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     def get_serializer_class(self):
-        user = self.request.user
-        if user.role == UserRole.ADMIN:
-            return AdminCourtroomSessionSerializer
-        if hasattr(user, "client_profile"):
-            return ClientCourtroomSessionSummarySerializer
-        return AdvocateCourtroomSessionSerializer
+        return session_serializer_for(self.request)
 
     def get_queryset(self):
         queryset = CourtroomService.sessions_for_user(self.request.user)
@@ -87,38 +94,26 @@ class CourtroomSessionListCreateView(generics.ListCreateAPIView):
         return queryset
 
     def perform_create(self, serializer):
-        if self.request.user.role != UserRole.ADMIN:
-            raise PermissionDenied("Only firm administrators can create courtroom sessions.")
-        event = serializer.validated_data["event"]
-        if not CourtroomService.admin_case_events(self.request.user).filter(id=event.id).exists():
-            raise PermissionDenied("This event is outside your firm.")
-        extra = {"created_by": self.request.user, "responsible_advocate": event.case.assigned_lawyer}
-        if serializer.validated_data.get("link_verified"):
-            extra.update(link_verified_by=self.request.user, link_verified_at=timezone.now())
-        session = serializer.save(**extra)
-        CourtroomService.sync_event_link(session)
+        event = serializer.validated_data.get("event")
+        if event is None or not CourtroomService.can_manage_session(self.request.user, event):
+            raise PermissionDenied("Only the firm administrator or the matter's assigned advocate can add a court link.")
+        CourtroomService.save_session(serializer, user=self.request.user)
 
 
 class CourtroomSessionDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     def get_serializer_class(self):
-        if self.request.user.role == UserRole.ADMIN:
-            return AdminCourtroomSessionSerializer
-        if hasattr(self.request.user, "client_profile"):
-            return ClientCourtroomSessionSummarySerializer
-        return AdvocateCourtroomSessionSerializer
+        return session_serializer_for(self.request)
 
     def get_queryset(self):
         return CourtroomService.sessions_for_user(self.request.user)
 
     def perform_update(self, serializer):
-        if self.request.user.role != UserRole.ADMIN:
-            raise PermissionDenied("Only firm administrators can update courtroom sessions.")
-        extra = {}
-        if serializer.validated_data.get("link_verified"):
-            extra.update(link_verified_by=self.request.user, link_verified_at=timezone.now())
-        session = serializer.save(**extra)
-        CourtroomService.sync_event_link(session)
+        user = self.request.user
+        events = {serializer.instance.event, serializer.validated_data.get("event", serializer.instance.event)}
+        if not all(CourtroomService.can_manage_session(user, event) for event in events):
+            raise PermissionDenied("Only the firm administrator or the matter's assigned advocate can change this court link.")
+        CourtroomService.save_session(serializer, user=user)
 
 
 class CourtroomStatusUpdateView(APIView):
@@ -138,7 +133,10 @@ class CourtroomStatusUpdateView(APIView):
 class CourtroomLaunchRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def post(self, request, session_id):
-        grant = CourtroomService.issue_launch_grant(request.user, session_id)
+        try:
+            grant = CourtroomService.issue_launch_grant(request.user, session_id)
+        except PermissionError as exc:
+            raise PermissionDenied(str(exc))
         return Response(CourtroomLaunchResponseSerializer(grant).data, status=status.HTTP_201_CREATED)
 
 

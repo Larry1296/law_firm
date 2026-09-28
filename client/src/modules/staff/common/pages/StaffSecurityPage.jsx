@@ -9,7 +9,7 @@ import Swal from '@/core/utils/themedSwal';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import staffWorkspaceService from '@/modules/staff/common/services/staffWorkspaceService';
 
-export default function StaffSecurityPage({ config }) {
+export default function StaffSecurityPage({ config, submitPassword }) {
   const [form, setForm] = useState({
     old_password: '',
     new_password: '',
@@ -26,7 +26,8 @@ export default function StaffSecurityPage({ config }) {
     setLoading(true);
 
     try {
-      await staffWorkspaceService.changePassword(config.apiBase, form);
+      if (submitPassword) await submitPassword(form);
+      else await staffWorkspaceService.changePassword(config.apiBase, form);
       setForm({ old_password: '', new_password: '', confirm_password: '' });
       await Swal.fire({
         icon: 'success',

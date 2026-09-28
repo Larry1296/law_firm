@@ -501,6 +501,25 @@ html {
 
 body {
   @apply bg-[color:var(--background)] text-[color:var(--text-primary)] transition-colors duration-300;
+  /* Page text is read-only: never show a text cursor on it. Text stays selectable for copying. */
+  caret-color: transparent;
+  cursor: default;
+}
+
+input,
+textarea,
+select,
+[contenteditable]:not([contenteditable='false']) {
+  caret-color: auto;
+  cursor: auto;
+}
+
+a,
+button,
+[role='button'],
+summary,
+label[for] {
+  cursor: pointer;
 }
 
 input.floating-input-field:-webkit-autofill,

@@ -37,4 +37,5 @@ class LoginView(APIView):
             "user": result["user"],
             "firm": result["firm"],
             "firm_role": result["firm_role"],
+            "is_firm_owner": result["is_firm_owner"],
         }, status=status.HTTP_200_OK)

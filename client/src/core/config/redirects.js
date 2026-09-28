@@ -1,4 +1,6 @@
 export const ROLE_DASHBOARD = {
+  PLATFORM_ADMIN: "/platform/overview",
+
   ADMIN: "/admin/dashboard",
 
   OFFICIAL_CLIENT: "/client/dashboard",

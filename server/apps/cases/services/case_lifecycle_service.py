@@ -71,6 +71,20 @@ class CaseLifecycleService:
 
 
 
+    # A filed suit may end before judgment by settlement, consent, withdrawal (Order 25),
+    # striking out, dismissal or abatement; the outcome must be recorded first.
+    EARLY_CONCLUSION_STAGES = {
+        Case.CourtStage.FILED, Case.CourtStage.AWAITING_ASSESSMENT_OR_PAYMENT, Case.CourtStage.AWAITING_SERVICE,
+        Case.CourtStage.SERVICE_IN_PROGRESS, Case.CourtStage.AWAITING_RESPONSE, Case.CourtStage.PLEADINGS_OPEN,
+        Case.CourtStage.PLEADINGS_CLOSED, Case.CourtStage.CASE_MANAGEMENT, Case.CourtStage.PRE_TRIAL,
+        Case.CourtStage.AWAITING_HEARING, Case.CourtStage.HEARING_IN_PROGRESS, Case.CourtStage.SUBMISSIONS,
+        Case.CourtStage.JUDGMENT_RESERVED,
+    }
+    EARLY_CONCLUSION_OUTCOMES = {
+        Case.OutcomeStatus.SETTLED, Case.OutcomeStatus.WITHDRAWN, Case.OutcomeStatus.STRUCK_OUT,
+        Case.OutcomeStatus.DISMISSED, Case.OutcomeStatus.CONSENT_RECORDED, Case.OutcomeStatus.ABATED,
+    }
+
     CIVIL_SUIT_TRANSITIONS = {
 
         CaseLifecycleTransition.Dimension.MATTER_STATUS: {
@@ -174,78 +188,108 @@ class CaseLifecycleService:
                 Case.CourtStage.AWAITING_ASSESSMENT_OR_PAYMENT,
 
                 Case.CourtStage.AWAITING_SERVICE,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.AWAITING_ASSESSMENT_OR_PAYMENT: {
 
                 Case.CourtStage.AWAITING_SERVICE,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.AWAITING_SERVICE: {
 
                 Case.CourtStage.SERVICE_IN_PROGRESS,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.SERVICE_IN_PROGRESS: {
 
                 Case.CourtStage.AWAITING_RESPONSE,
+
+                Case.CourtStage.AWAITING_SERVICE,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.AWAITING_RESPONSE: {
 
                 Case.CourtStage.PLEADINGS_OPEN,
+
+                Case.CourtStage.JUDGMENT_DELIVERED,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.PLEADINGS_OPEN: {
 
                 Case.CourtStage.PLEADINGS_CLOSED,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.PLEADINGS_CLOSED: {
 
                 Case.CourtStage.CASE_MANAGEMENT,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.CASE_MANAGEMENT: {
 
                 Case.CourtStage.PRE_TRIAL,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.PRE_TRIAL: {
 
                 Case.CourtStage.AWAITING_HEARING,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.AWAITING_HEARING: {
 
                 Case.CourtStage.HEARING_IN_PROGRESS,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.HEARING_IN_PROGRESS: {
 
                 Case.CourtStage.SUBMISSIONS,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.SUBMISSIONS: {
 
                 Case.CourtStage.JUDGMENT_RESERVED,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.JUDGMENT_RESERVED: {
 
                 Case.CourtStage.JUDGMENT_DELIVERED,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
@@ -254,12 +298,16 @@ class CaseLifecycleService:
                 Case.CourtStage.DECREE_EXTRACTION,
 
                 Case.CourtStage.APPEAL_OR_REVIEW,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
             Case.CourtStage.DECREE_EXTRACTION: {
 
                 Case.CourtStage.EXECUTION,
+
+                Case.CourtStage.CONCLUDED,
             },
 
 
@@ -698,6 +746,7 @@ class CaseLifecycleService:
                     Case.CourtStage.JUDGMENT_DELIVERED,
                     Case.CourtStage.CONCLUDED,
                 }
+                or case.court_stage in cls.EARLY_CONCLUSION_STAGES
                 or case.matter_status
                 == Case.MatterStatus.SETTLEMENT_IN_PROGRESS
             )
@@ -796,6 +845,22 @@ class CaseLifecycleService:
 
 
 
+        if dimension == CaseLifecycleTransition.Dimension.COURT_STAGE and to_state == Case.CourtStage.CONCLUDED:
+            if case.court_stage in cls.EARLY_CONCLUSION_STAGES:
+                return case.outcome_status in cls.EARLY_CONCLUSION_OUTCOMES
+            if case.court_stage == Case.CourtStage.DECREE_EXTRACTION:
+                return case.enforcement_status in {Case.EnforcementStatus.SATISFIED, Case.EnforcementStatus.CLOSED}
+            if case.court_stage == Case.CourtStage.JUDGMENT_DELIVERED:
+                return case.outcome_status != Case.OutcomeStatus.PENDING
+        if (
+            dimension == CaseLifecycleTransition.Dimension.COURT_STAGE
+            and to_state == Case.CourtStage.JUDGMENT_DELIVERED
+            and case.court_stage == Case.CourtStage.AWAITING_RESPONSE
+        ):
+            # Order 10: judgment in default only after a request for judgment is filed.
+            from apps.cases.models import CaseFiling
+
+            return case.filings.filter(filing_type=CaseFiling.FilingType.REQUEST_FOR_JUDGMENT).exists()
         if (
             dimension
             == CaseLifecycleTransition.Dimension.COURT_STAGE
@@ -1504,6 +1569,16 @@ class CaseLifecycleService:
                 )
             )
         )
+        if dimension == CaseLifecycleTransition.Dimension.COURT_STAGE:
+            proceeding = getattr(case, "court_proceeding", None)
+            if proceeding is not None and proceeding.court_stage != to_state:
+                proceeding.court_stage = to_state
+                proceeding.save(update_fields=["court_stage", "updated_at"])
+            if to_state == Case.CourtStage.FILED:
+                from apps.cases.services.filing_register_service import FilingRegisterService
+
+                FilingRegisterService.record_originating_filing(case=case, actor=actor)
+
                 # ======================================================
         # CREATE TRANSITION RECORD
         # ======================================================
@@ -1588,6 +1663,11 @@ class CaseLifecycleService:
                 reason=reason,
                 data=metadata,
             )
+
+        if dimension == CaseLifecycleTransition.Dimension.COURT_STAGE:
+            from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
+
+            ProceedingsWorkflowService._resync_next_action(case, actor=actor)
 
         # ======================================================
         # NOTIFY CLIENT OF LIFECYCLE TRANSITION

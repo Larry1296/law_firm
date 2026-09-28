@@ -1,6 +1,7 @@
 from django.utils import timezone
 
 from apps.common.choices import EmploymentStatus
+from apps.subscriptions.services import SubscriptionService
 
 
 class AdminLawyerStatusService:
@@ -10,6 +11,7 @@ class AdminLawyerStatusService:
 
     @staticmethod
     def activate_lawyer(*, lawyer, updated_by):
+        SubscriptionService.check_staff_seat(lawyer)
         lawyer.is_active = True
         lawyer.employment_status = EmploymentStatus.ACTIVE
         lawyer.date_terminated = None
@@ -28,6 +30,8 @@ class AdminLawyerStatusService:
 
     @staticmethod
     def change_status(*, lawyer, employment_status, updated_by, termination_reason=None):
+        if employment_status == EmploymentStatus.ACTIVE:
+            SubscriptionService.check_staff_seat(lawyer)
         lawyer.employment_status = employment_status
 
         if employment_status == EmploymentStatus.TERMINATED:

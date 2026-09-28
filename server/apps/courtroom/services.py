@@ -1,3 +1,4 @@
+import hashlib
 from datetime import timedelta
 from urllib.parse import urlparse
 
@@ -10,6 +11,8 @@ from django.utils import timezone
 from apps.cases.models import Case, CaseEvent
 from apps.common.choices import UserRole
 from apps.courtroom.models import CourtroomAttendanceLog, CourtroomLaunchGrant, CourtroomProvider, CourtroomSession, CourtroomStatusHistory
+from apps.notifications.models import Notification
+from apps.notifications.services import NotificationService
 
 
 class CourtroomService:
@@ -93,10 +96,124 @@ class CourtroomService:
                 client_access_enabled=True,
                 client_attendance_requirement__in=[CourtroomSession.ClientAttendance.REQUIRED, CourtroomSession.ClientAttendance.OPTIONAL],
                 event__status__in=[CaseEvent.EventStatus.SCHEDULED, CaseEvent.EventStatus.CONFIRMED, CaseEvent.EventStatus.IN_PROGRESS],
-                client_access_from__lte=now,
                 client_access_until__gte=now,
             )
         return queryset
+
+    @staticmethod
+    def client_can_join(session, now=None):
+        now = now or timezone.now()
+        return bool(
+            session.client_access_enabled
+            and session.client_access_from
+            and session.client_access_until
+            and session.client_access_from <= now <= session.client_access_until
+        )
+
+    CLIENT_ACCESS_REQUIREMENTS = {
+        CourtroomSession.ClientAttendance.REQUIRED,
+        CourtroomSession.ClientAttendance.OPTIONAL,
+    }
+    CLIENT_ACCESS_FIELDS = {"client_access_enabled", "client_access_from", "client_access_until"}
+
+    @classmethod
+    def can_manage_session(cls, user, event):
+        """The firm administrator or the matter's assigned advocate may attach or change a court link."""
+        firm = cls.firm_for_user(user)
+        if not firm or event.case.firm_id != firm.id:
+            return False
+        if user.role == UserRole.ADMIN:
+            return True
+        lawyer = getattr(user, "lawyer_profile", None)
+        return lawyer is not None and lawyer.is_active and event.case.assigned_lawyer_id == lawyer.id
+
+    @classmethod
+    def apply_client_access_defaults(cls, session, *, explicit_fields, creating):
+        """Open client access around the sitting unless someone set it explicitly."""
+        event = session.event
+        if (
+            creating
+            and "client_attendance_requirement" not in explicit_fields
+            and session.client_attendance_requirement == CourtroomSession.ClientAttendance.TO_BE_CONFIRMED
+            and event.is_client_visible
+        ):
+            session.client_attendance_requirement = CourtroomSession.ClientAttendance.OPTIONAL
+
+        if session.client_attendance_requirement not in cls.CLIENT_ACCESS_REQUIREMENTS or not event.is_client_visible:
+            session.client_access_enabled = False
+        elif not cls.CLIENT_ACCESS_FIELDS & explicit_fields and not (
+            session.client_access_enabled and session.client_access_from and session.client_access_until
+        ):
+            session.client_access_enabled = True
+            session.client_access_from = event.starts_at - timedelta(minutes=session.join_window_minutes_before)
+            session.client_access_until = (event.ends_at or event.starts_at) + timedelta(minutes=session.join_window_minutes_after)
+        session.save(update_fields=["client_attendance_requirement", "client_access_enabled", "client_access_from", "client_access_until", "updated_at"])
+
+    @classmethod
+    @transaction.atomic
+    def save_session(cls, serializer, *, user):
+        instance = serializer.instance
+        creating = instance is None
+        data = serializer.validated_data
+        explicit_fields = set(data)
+        previous_url = "" if creating else instance.join_url
+        extra = {}
+        if creating:
+            event = data["event"]
+            extra.update(created_by=user, responsible_advocate=data.get("responsible_advocate") or event.case.assigned_lawyer)
+        url_changed = data.get("join_url", previous_url) != previous_url
+        if data.get("link_verified") and (creating or url_changed or not instance.link_verified):
+            extra.update(link_verified_by=user, link_verified_at=timezone.now())
+        elif url_changed and not creating and "link_verified" not in data:
+            # A replaced link has not been verified just because the old one was.
+            extra.update(link_verified=False, link_verified_by=None, link_verified_at=None)
+
+        session = serializer.save(**extra)
+        cls.apply_client_access_defaults(session, explicit_fields=explicit_fields, creating=creating)
+        cls.sync_event_link(session)
+        if session.join_url != previous_url:
+            cls.notify_session_published(session, actor=user, updated=not creating)
+        return session
+
+    @classmethod
+    def notify_session_published(cls, session, *, actor=None, updated=False):
+        from apps.events.services import EventService
+
+        event, case = session.event, session.event.case
+        when = timezone.localtime(event.starts_at).strftime("%d %b %Y %H:%M")
+        court = event.court_station or event.court or "court"
+        link_key = hashlib.sha256(session.join_url.encode()).hexdigest()[:12]
+        verb = "updated" if updated else "ready"
+        notifications = []
+        for recipient in EventService.participant_users(event):
+            if actor is not None and recipient.id == actor.id:
+                continue
+            if hasattr(recipient, "client_profile"):
+                if not session.client_access_enabled:
+                    continue
+                opens = timezone.localtime(session.client_access_from).strftime("%H:%M")
+                message = (
+                    f"{event.title} is on {when} at {court}. Log in to your dashboard to join. "
+                    f"The Join button opens at {opens}."
+                )
+                action_url = f"/client/cases/{case.id}"
+            else:
+                message = f"{event.title} is on {when} at {court}. The virtual court link is attached to the matter."
+                action_url = "/lawyer/courtroom" if hasattr(recipient, "lawyer_profile") else EventService.action_url_for(recipient, event)
+            notification = NotificationService.create(
+                firm=case.firm,
+                recipient=recipient,
+                actor=actor,
+                case=case,
+                notification_type=Notification.NotificationType.COURTROOM_LINK,
+                title=f"Virtual court link {verb}: {case.case_number}",
+                message=message,
+                action_url=action_url,
+                event_key=f"COURTROOM_SESSION_LINK:{session.id}:{link_key}:{recipient.id}",
+            )
+            if notification is not None:
+                notifications.append(notification)
+        return notifications
 
     @classmethod
     def can_operate(cls, user, session):
@@ -143,6 +260,9 @@ class CourtroomService:
     @classmethod
     def issue_launch_grant(cls, user, session_id):
         session = cls.get_scoped_session(user, session_id)
+        if hasattr(user, "client_profile") and not cls.client_can_join(session):
+            opens = timezone.localtime(session.client_access_from).strftime("%d %b %Y %H:%M")
+            raise PermissionError(f"Joining opens at {opens}.")
         cls.detect_provider(session.join_url, session.provider)
         grant = CourtroomLaunchGrant.objects.create(session=session, user=user, expires_at=timezone.now() + timedelta(minutes=2))
         cls.log_action(session=session, user=user, action=CourtroomAttendanceLog.AttendanceStatus.JOIN_REQUESTED)
@@ -151,7 +271,7 @@ class CourtroomService:
     @classmethod
     @transaction.atomic
     def consume_launch_grant(cls, user, grant_id):
-        grant = CourtroomLaunchGrant.objects.select_for_update().select_related("session", "session__provider").filter(id=grant_id, user=user).first()
+        grant = CourtroomLaunchGrant.objects.select_for_update(of=("self",)).select_related("session", "session__provider").filter(id=grant_id, user=user).first()
         if not grant or grant.consumed_at or grant.expires_at < timezone.now():
             raise PermissionError("This launch token is invalid, expired or already used.")
         cls.get_scoped_session(user, grant.session_id)

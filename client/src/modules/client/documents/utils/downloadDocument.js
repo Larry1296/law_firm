@@ -2,7 +2,9 @@ import axiosInstance from '@/core/api/axios';
 
 export default async function downloadDocument(document) {
   if (!document?.file_url) return;
-  const response = await axiosInstance.get(document.file_url, { responseType: 'blob' });
+  // The API returns site-absolute paths (/api/documents/...); the client's base URL already ends in /api.
+  const path = document.file_url.replace(/^\/api(?=\/)/, '');
+  const response = await axiosInstance.get(path, { responseType: 'blob' });
   const url = URL.createObjectURL(response.data);
   const link = window.document.createElement('a');
   link.href = url;

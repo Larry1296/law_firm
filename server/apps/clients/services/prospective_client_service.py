@@ -83,7 +83,10 @@ class ProspectiveClientService:
     def invite(*, user, client_id):
         from apps.clients.services.admin.client_admin_create_service import ClientAdminCreateService
         from apps.authentication.services.auth_service import AuthService
+        from apps.subscriptions.catalog import Feature
+        from apps.subscriptions.services import SubscriptionService
         firm = prospective_firm(user)
+        SubscriptionService.require_feature(firm, Feature.CLIENT_PORTAL)
         try:
             client = Client.objects.select_for_update().get(id=client_id, firm=firm, is_active=True, lifecycle_status='PROSPECTIVE')
         except Client.DoesNotExist as exc:
@@ -112,5 +115,5 @@ class ProspectiveClientService:
         client.save(update_fields=['portal_status'])
         AuditService.record(firm=firm, user=user, action='PROSPECTIVE_PORTAL_INVITED', obj=client,
                             new={'portal_status': 'INVITED'})
-        AuthService.request_password_reset(email, fail_silently=False)
+        AuthService.request_password_reset(email, fail_silently=False, invitation_firm=firm)
         return client

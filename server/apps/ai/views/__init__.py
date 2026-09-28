@@ -1,6 +1,6 @@
-from .knowledge_base_view import KnowledgeBaseAskView, KnowledgeBaseCategoryListView
+from .knowledge_base_view import KnowledgeBaseAskView, KnowledgeBaseCategoryListView, PlatformLegalAssistantView
 from .lawyer_case_assessment_view import LawyerCaseAssessmentView, LawyerCasePriorityListView, LawyerFindingFeedbackView
 from .admin_matter_intelligence_view import AdminMatterAssessmentCreateView, AdminMatterIntelligenceDetailView, AdminMatterIntelligenceListView
 from .admin_public_knowledge_view import AdminPublicKnowledgeActionView, AdminPublicKnowledgeDetailView, AdminPublicKnowledgeListView
 
-__all__ = ["KnowledgeBaseAskView", "KnowledgeBaseCategoryListView", "LawyerCaseAssessmentView", "LawyerCasePriorityListView", "LawyerFindingFeedbackView", "AdminMatterAssessmentCreateView", "AdminMatterIntelligenceDetailView", "AdminMatterIntelligenceListView", "AdminPublicKnowledgeActionView", "AdminPublicKnowledgeDetailView", "AdminPublicKnowledgeListView"]
+__all__ = ["KnowledgeBaseAskView", "PlatformLegalAssistantView", "KnowledgeBaseCategoryListView", "LawyerCaseAssessmentView", "LawyerCasePriorityListView", "LawyerFindingFeedbackView", "AdminMatterAssessmentCreateView", "AdminMatterIntelligenceDetailView", "AdminMatterIntelligenceListView", "AdminPublicKnowledgeActionView", "AdminPublicKnowledgeDetailView", "AdminPublicKnowledgeListView"]

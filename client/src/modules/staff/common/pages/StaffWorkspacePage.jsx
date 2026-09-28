@@ -47,6 +47,15 @@ export default function StaffWorkspacePage({
                     {item.status || 'Ready'}
                   </p>
                   <h3 className='mt-2 font-semibold text-lg'>{item.title}</h3>
+                  {item.subtitle && (
+                    <p className='mt-1 text-sm text-[color:var(--text-muted)]'>{item.subtitle}</p>
+                  )}
+                  {item.due_at && (
+                    <p className={`mt-2 text-sm font-medium ${item.overdue ? 'text-red-700 dark:text-red-300' : ''}`}>
+                      {item.overdue ? 'Overdue — was due ' : 'Due '}
+                      {new Date(item.due_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  )}
                 </div>
 
                 {Icon && (

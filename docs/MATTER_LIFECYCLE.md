@@ -53,6 +53,10 @@ Deadline records cover limitation, court, filing, service, response, hearing, me
 
 Attendance notes record participants, direction, channel, advice, instructions, written confirmation, follow-up responsibility, linked documents and confidentiality. Amendments require a reason and preserve previous/new values.
 
+The filing register records each paper issued, filed or served outside the system: demand letter, summons, affidavit of service, memorandum of appearance, defence, reply, submissions, request for judgment, decree, bill and certificate of costs, and warrant. The plaint is recorded by moving the court stage to Filed, which requires the filing date, court number, station and registry, and also writes the plaint to the register and the court-proceeding record. Deadlines follow from recorded dates, not assumed ones: the chosen 7, 14 or 21-day demand period, appearance 15 days from service, and defence 14 days from appearance (Order 7 rule 1). For debt recovery the next action runs Issue demand letter → Await demand response → Filing. Once filed it runs Serve summons → appearance and defence due dates, then prompts an advocate review of default judgment (Order 10) when they pass. Default judgment requires a registered request for judgment. A suit may be concluded early once a settlement, consent, withdrawal, striking out, dismissal or abatement is recorded. Registering a judgment opens the appeal window as a deadline: 30 days to the High Court from a magistrates', Small Claims or Kadhi court (section 79G, Civil Procedure Act); 14 days for a notice of appeal from the High Court, ELC or ELRC to the Court of Appeal (Rule 77(2), Court of Appeal Rules, 2022), from the Court of Appeal to the Supreme Court (Rule 36, Supreme Court Rules, 2020), and for criminal appeals (section 349, Criminal Procedure Code). A notice or memorandum of appeal closes the window; a notice of appeal to the Court of Appeal then sets the record of appeal due in 60 days (Rule 84). Tribunal and other forums are left to the advocate because their periods are set by the governing statute.
+
+Anyone assigned to the matter (the advocate, the matter secretary or a secretary assigned to that advocate) may request a document from the client. The request opens immediately and the client is notified. The client portal shows an upload control only while a request for one of the client's matters is waiting for them. The secretary verifies each upload and records where the physical copy is held; the advocate accepts it or returns it with a reason. A replacement is stored as a new document, so the rejected copy stays on record. Evidence and transaction papers are filed to the matter, never the KYC drawer.
+
 Original documents use numbered physical receipts and custody movements. External release requires a pending request, an independent advocate approval, recipient identity evidence and an acknowledgement. The release clears the outstanding-original flag only after recording an immutable `RELEASE` custody movement; closure therefore cannot be bypassed by editing a document-return status.
 
 ## Closing, archive, retention and destruction
@@ -70,9 +74,9 @@ Closing outputs are immutable, versioned register entries and PDF files. Support
 | Conflict / acceptance / engagement / KYC | Explicit grant | No | Owner |
 | Legal assessment and workstream | Explicit grant | No | Owner |
 | Create/submit invoice | No | `MANAGE_INVOICES` | Owner |
-| Approve invoice | No | `APPROVE_INVOICES`, not maker | Owner |
+| Approve invoice | No | `APPROVE_INVOICES`, not maker | Owner, not maker |
 | Client-money receipt/payment request | No | Explicit grant | Owner |
-| Approve client-money payment | No | `APPROVE_CLIENT_MONEY_PAYMENTS`, not maker | Owner |
+| Approve client-money payment / client-to-office transfer | No | `APPROVE_CLIENT_MONEY_PAYMENTS`, not maker | Owner, not maker (an advocate signs client-account withdrawals) |
 | Reconcile / finance closure approval | No | `RECONCILE_ACCOUNTS` | Owner |
 | Request/approve closure, reopen, archive | Explicit grant | Finance approval only | Owner |
 | Retention, hold and destruction | Explicit grant | No | Owner |
@@ -88,6 +92,7 @@ Migrations preserve existing matters, references, documents and history. They cr
 ## Endpoint summary
 
 - Proposed-matter compliance and engagement: `/api/admin/clients/{client}/conflict-checks/{proposal}/...`
+- Filing register: `/api/cases/{matter}/filings/`
 - Matter opening and operations: `/api/cases/open/`, `/api/cases/{matter}/legal-assessments/`, `workstream/`, `workstream/current-stage/complete/`, `deadlines/`, `/api/cases/deadlines/{deadline}/resolve/`
 - Finance: `/api/finance/invoices/`, `credit-notes/`, `tax-configurations/`, `accounts/`, `time-entries/`, `disbursements/`, `office-money/receipts/`, `client-money/receipts/`, `client-money/retainers/`, `clients/{client}/unallocated-funds/`, `client-money/payments/`, `client-money/transfers/`, `transactions/{transaction}/reverse/`, `reconciliations/`
 - Communications: `/api/communications/matters/{matter}/records/`

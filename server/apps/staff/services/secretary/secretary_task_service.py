@@ -1,10 +1,10 @@
-from apps.staff.models import SecretaryPermission
+from apps.cases.services.my_work_service import MyWorkService
+
+
 class SecretaryTaskService:
     @staticmethod
     def list_tasks(user):
-        secretary = getattr(user, 'secretary_profile', None)
-        if secretary is None:
-            raise ValueError('Only secretaries can access this endpoint.')
-        if not secretary.has_permission(SecretaryPermission.MANAGE_TASKS):
-            raise PermissionError('Admin permission is required to manage tasks.')
-        return []
+        """A secretary always sees their own work; MANAGE_TASKS governs managing others' tasks."""
+        if getattr(user, "secretary_profile", None) is None:
+            raise ValueError("Only secretaries can access this endpoint.")
+        return MyWorkService.items(user)

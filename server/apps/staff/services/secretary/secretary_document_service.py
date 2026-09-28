@@ -43,6 +43,19 @@ class SecretaryDocumentService:
             ),
             "name": item.full_legal_name,
         } for item in representatives]
+        # A preliminary representative recorded at intake may physically hand over the
+        # very papers (resolution, ID) that later verify their authority. Recording who
+        # delivered a document is a fact of receipt, not a grant of authority.
+        unverified = client.representatives.exclude(pk__in=representatives.values("pk")).order_by("-is_primary", "full_legal_name")
+        options += [{
+            "value": f"REP:{item.pk}",
+            "label": (
+                f"{item.full_legal_name}"
+                f"{f' — {item.role_title}' if item.role_title else ''}"
+                " — authority not yet verified"
+            ),
+            "name": item.full_legal_name,
+        } for item in unverified]
         if options:
             return options
 
@@ -167,16 +180,7 @@ class SecretaryDocumentService:
             case = cases.select_related("client__user", "firm").get(id=data.get("case_id"))
         except Exception as exc:
             raise ValidationError({"case_id": "Select an accessible matter for this client."}) from exc
-        title = (data.get("title") or "").strip()
-        if not title:
-            raise ValidationError({"title": "Describe the document required from the client."})
-        item = DocumentRequest.objects.create(
-            firm=case.firm, client=case.client, case=case, requested_by=user,
-            title=title, document_type=data.get("document_type") or "OTHER",
-            instructions=(data.get("instructions") or "").strip(),
-            due_date=data.get("due_date") or None,
-            status=DocumentRequest.Status.AWAITING_SECRETARY_DISPATCH,
-        )
+        item = DocumentWorkflowService.create_request(user=user, case=case, data=data)
         return DocumentWorkflowService.serialize_request(item)
 
     @staticmethod
@@ -385,6 +389,7 @@ class SecretaryDocumentService:
             ClientDocument.Subtype.PROOF_OF_ADDRESS, ClientDocument.Subtype.INCORPORATION,
             ClientDocument.Subtype.CR12, ClientDocument.Subtype.BUSINESS_REGISTRATION,
             ClientDocument.Subtype.TRUST_DEED, ClientDocument.Subtype.AUTHORITY_TO_INSTRUCT,
+            ClientDocument.Subtype.ENGAGEMENT_LETTER,
         }
         matter_subtypes = {
             ClientDocument.Subtype.SALE_AGREEMENT, ClientDocument.Subtype.CONTRACT,

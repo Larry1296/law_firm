@@ -6,6 +6,13 @@ const courtroomService = {
     return data;
   },
 
+  async getCourtDates(caseId) {
+    const { data } = caseId
+      ? await axiosInstance.get(`/events/cases/${caseId}/`)
+      : await axiosInstance.get('/events/', { params: { scope: 'upcoming' } });
+    return data?.events || [];
+  },
+
   async createCaseEvent(caseId, payload) {
     const { data } = await axiosInstance.post('/events/', { ...payload, case_id: caseId });
     return data;

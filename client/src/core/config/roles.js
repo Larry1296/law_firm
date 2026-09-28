@@ -1,4 +1,5 @@
 export const ROLES = {
+  PLATFORM_ADMIN: "PLATFORM_ADMIN",
   ADMIN: "ADMIN",
   CLIENT: "CLIENT",
 

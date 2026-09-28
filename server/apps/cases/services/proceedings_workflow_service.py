@@ -32,13 +32,14 @@ class ProceedingsWorkflowService:
         CourtEventType.PRELIMINARY_OBJECTION: [
             CourtEventType.RULING, CourtEventType.HEARING, CourtEventType.FURTHER_MENTION
         ],
+        # Where both sides close at the sitting, the court often fixes judgment directly.
         CourtEventType.HEARING: [
-            CourtEventType.FURTHER_HEARING, CourtEventType.SUBMISSIONS, CourtEventType.RULING
+            CourtEventType.FURTHER_HEARING, CourtEventType.SUBMISSIONS, CourtEventType.RULING, CourtEventType.JUDGMENT
         ],
         CourtEventType.FURTHER_HEARING: [
-            CourtEventType.FURTHER_HEARING, CourtEventType.DEFENCE_HEARING, CourtEventType.SUBMISSIONS
+            CourtEventType.FURTHER_HEARING, CourtEventType.DEFENCE_HEARING, CourtEventType.SUBMISSIONS, CourtEventType.JUDGMENT
         ],
-        CourtEventType.DEFENCE_HEARING: [CourtEventType.FURTHER_HEARING, CourtEventType.SUBMISSIONS],
+        CourtEventType.DEFENCE_HEARING: [CourtEventType.FURTHER_HEARING, CourtEventType.SUBMISSIONS, CourtEventType.JUDGMENT],
         CourtEventType.SUBMISSIONS: [CourtEventType.JUDGMENT, CourtEventType.RULING],
         CourtEventType.RULING: [
             CourtEventType.HEARING, CourtEventType.REVIEW, CourtEventType.APPEAL, CourtEventType.CLOSURE
@@ -244,12 +245,17 @@ class ProceedingsWorkflowService:
             return {"event_type": event_type, "track": track, "label": label}
         if case.lifecycle_stage == InternalCaseLifecycleStage.CLOSED:
             return None
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
         if case.court_stage in {Case.CourtStage.NOT_FILED, Case.CourtStage.READY_FOR_FILING}:
             return {
                 "event_type": CourtEventType.FILING,
                 "track": CaseEvent.Track.TRIAL,
-                "label": CourtEventType.FILING.label,
+                "label": FilingRegisterService.pre_filing_recommendation(case) or CourtEventType.FILING.label,
             }
+        service_step = FilingRegisterService.service_recommendation(case)
+        if service_step:
+            return {"event_type": CourtEventType.SERVICE, "track": CaseEvent.Track.TRIAL, "label": service_step}
         return {
             "event_type": CourtEventType.DIRECTIONS,
             "track": CaseEvent.Track.TRIAL,

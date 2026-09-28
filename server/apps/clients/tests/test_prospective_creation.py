@@ -52,7 +52,7 @@ class ProspectiveCreationTests(TestCase):
     def accept(self, client):
         lawyer, _ = Lawyer.objects.get_or_create(user=self.admin, defaults=dict(law_firm=self.firm, staff_number='GATE-A', admission_number='GATE-A', date_hired=date(2026, 1, 1)))
         return ClientMatterConflictCheck.objects.create(client=client, firm=self.firm, responsible_lawyer=lawyer,
-            reference_number=f'GATE-{client.id}', proposed_matter_title='Advice', proposed_instructions='Advice',
+            reference_number=f'GATE-{client.id.hex[:12]}', proposed_matter_title='Advice', proposed_instructions='Advice',
             status='CLEARED', acceptance_decision='ACCEPTED')
 
     def create(self, kind='INDIVIDUAL', access='ASSISTED'):

@@ -1,5 +1,7 @@
+import json
 from datetime import datetime, time
 
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.core.files.base import ContentFile
 from django.db.models import Sum
@@ -14,6 +16,8 @@ from apps.documents.models import MatterDocumentReference
 from apps.cases.services.case_service import CaseService
 from apps.common.choices import UserRole
 from apps.staff.models import AccountantPermission, LawyerPermission
+from apps.subscriptions.catalog import Limit
+from apps.subscriptions.services import SubscriptionService
 
 
 def _pdf_bytes(title, body):
@@ -193,6 +197,8 @@ class MatterClosureService:
         link = MatterDocumentReference(case=matter, document=document, purpose=MatterDocumentReference.Purpose.CORRESPONDENCE, referenced_by=user)
         link.full_clean()
         link.save()
+        # Amounts and dates become exact strings so the immutable snapshot can be stored as JSON.
+        snapshot = json.loads(json.dumps(snapshot, cls=DjangoJSONEncoder))
         generated = GeneratedClosingDocument.objects.create(
             firm=firm, matter=matter, closure=closure, document_type=document_type, version=version,
             client_document=document, content_snapshot=snapshot, generated_by=user,
@@ -264,6 +270,7 @@ class MatterClosureService:
         closure = MatterClosure.objects.select_for_update().select_related("matter").get(id=closure_id, firm=firm, status=MatterClosure.Status.CLOSED)
         if hasattr(closure.matter, "archive"):
             raise ValidationError({"matter": "An archived matter must first undergo an authorised post-archive process."})
+        SubscriptionService.check_limit(firm, Limit.ACTIVE_MATTERS)
         closure.status = MatterClosure.Status.REOPENED
         closure.reopening_reason = reason
         closure.reopened_by = user

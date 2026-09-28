@@ -2,7 +2,7 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from apps.ai.models import AIAssessmentAudit, AICaseAssessment, AIAssessmentRecommendation, AIEventImpact, LegalProvision
+from apps.ai.models import AIAssessmentAudit, AICaseAssessment, AIAssessmentRecommendation, AIEventImpact, LegalProvision, LegalSourceDocument
 from apps.ai.services.document_analysis_service import DocumentAnalysisService
 from apps.cases.models import Case
 from apps.cases.services import CaseService
@@ -214,7 +214,10 @@ class CaseAssessmentService:
             quality_status=MatterOutcome.Quality.VERIFIED,
         ).exclude(case_id=case.id).count()
         comparable_data = {"sample_size": comparable_count, "selection_criteria": ["Same firm", "Same practice area", "Reliably recorded completed outcome"], "outcomes": [], "limitations": ["Sample is too small for outcome distribution."] if comparable_count < 5 else ["Internal records may be incomplete or historically biased."], "anonymized": True}
-        provisions = LegalProvision.objects.filter(is_published=True, document__is_published=True)
+        provisions = LegalProvision.objects.filter(
+            is_published=True, document__is_published=True,
+            document__source_type=LegalSourceDocument.SourceType.CONSTITUTION,
+        )
         if case.case_type == Case.CaseType.CRIMINAL:
             provisions = provisions.filter(article_number__in=["49", "50"])
         elif case.case_type == Case.CaseType.CONSTITUTIONAL:

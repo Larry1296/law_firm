@@ -21,4 +21,8 @@ class AcceptanceGatedJWTAuthentication(JWTAuthentication):
             if request.resolver_match and getattr(getattr(request.resolver_match.func, "view_class", None), "__module__", "").startswith("apps.authentication."):
                 return result
             raise PermissionDenied("Conflict clearance and firm acceptance are required for portal access.")
+        if result:
+            from apps.subscriptions.enforcement import enforce_subscription
+
+            enforce_subscription(request, result[0])
         return result

@@ -17,6 +17,7 @@ import {
   Bell,
   // INTERNAL AI TEMPORARILY PAUSED: Brain, Search,
   Gavel,
+  Scale,
   // INTERNAL AI TEMPORARILY PAUSED: BookOpen,
   CheckCircle,
   User,
@@ -50,6 +51,13 @@ const links = [
     name: 'Courtroom',
     path: '/lawyer/courtroom',
     icon: Gavel,
+    section: 'Cases',
+  },
+
+  {
+    name: 'Court Preparation',
+    path: '/lawyer/court-preparation',
+    icon: Scale,
     section: 'Cases',
   },
 

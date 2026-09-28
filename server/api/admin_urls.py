@@ -1,7 +1,12 @@
 from django.urls import include, path
+
+from apps.documents.views.admin_document_register_view import AdminDocumentRegisterView
+from apps.reports.views.firm_report_view import FirmReportView
 from apps.ai.views import AdminMatterAssessmentCreateView, AdminMatterIntelligenceDetailView, AdminMatterIntelligenceListView, AdminPublicKnowledgeActionView, AdminPublicKnowledgeDetailView, AdminPublicKnowledgeListView
 
 urlpatterns = [
+    path("reports/", FirmReportView.as_view(), name="admin-firm-report"),
+    path("documents/", AdminDocumentRegisterView.as_view(), name="admin-document-register"),
     path("public-knowledge/", AdminPublicKnowledgeListView.as_view(), name="admin-public-knowledge"),
     path("public-knowledge/<uuid:item_id>/", AdminPublicKnowledgeDetailView.as_view(), name="admin-public-knowledge-detail"),
     path("public-knowledge/<uuid:item_id>/<str:action>/", AdminPublicKnowledgeActionView.as_view(), name="admin-public-knowledge-action"),

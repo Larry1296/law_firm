@@ -1,6 +1,6 @@
 from pathlib import Path
 from datetime import timedelta
-from decouple import config
+from decouple import Csv, config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -69,9 +69,11 @@ LOCAL_APPS = [
     "apps.courtroom",
     "apps.ai",
     "apps.billing",
+    "apps.subscriptions",
     "apps.reports",
     "apps.audit_logs",
     "apps.portal",
+    "apps.platform_admin",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -256,8 +258,22 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.common.exceptions.custom_exception_handler",
     "DEFAULT_THROTTLE_RATES": {
         "knowledge_base_ask": config("KNOWLEDGE_BASE_RATE_LIMIT", default="10/hour"),
+        "firm_signup": config("FIRM_SIGNUP_RATE_LIMIT", default="5/hour"),
+        "account_recovery": config("ACCOUNT_RECOVERY_RATE_LIMIT", default="5/hour"),
+        "firm_onboarding_request": config("FIRM_ONBOARDING_REQUEST_RATE_LIMIT", default="5/hour"),
     },
 }
+
+# ==========================================================
+# SAAS SUBSCRIPTIONS
+# ==========================================================
+
+# Off by default: firms are onboarded by the platform until self-service sign-up is switched on.
+ALLOW_PUBLIC_FIRM_SIGNUP = config("ALLOW_PUBLIC_FIRM_SIGNUP", default=False, cast=bool)
+SUBSCRIPTION_TRIAL_PLAN = config("SUBSCRIPTION_TRIAL_PLAN", default="PRO")
+SUBSCRIPTION_TRIAL_DAYS = config("SUBSCRIPTION_TRIAL_DAYS", default=14, cast=int)
+SUBSCRIPTION_VAT_RATE = config("SUBSCRIPTION_VAT_RATE", default="16.00")
+SUBSCRIPTION_MPESA_PAYBILL = config("SUBSCRIPTION_MPESA_PAYBILL", default="")
 
 OPENAI_API_KEY = config("OPENAI_API_KEY", default="")
 OPENAI_MODEL = config("OPENAI_MODEL", default="", cast=str)
@@ -268,11 +284,14 @@ AI_EXTERNAL_RESEARCH_ENABLED = config("AI_EXTERNAL_RESEARCH_ENABLED", default=Fa
 AI_CASE_ASSESSMENT_RETENTION_DAYS = config("AI_CASE_ASSESSMENT_RETENTION_DAYS", default=365, cast=int)
 AI_AUTOMATIC_REASSESSMENT_ENABLED = config("AI_AUTOMATIC_REASSESSMENT_ENABLED", default=False, cast=bool)
 AI_KNOWLEDGE_INDEX_MODE = config("AI_KNOWLEDGE_INDEX_MODE", default="database")
+# Sends minimised, de-identified matter facts to the configured OpenAI model to tailor court preparation briefs.
+AI_PREPARATION_LLM_ENABLED = config("AI_PREPARATION_LLM_ENABLED", default=False, cast=bool)
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:5173,http://127.0.0.1:5173",
+    cast=Csv(),
+)
 
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@sheriamaster.local")

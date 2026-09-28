@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import update_last_login
 from django.contrib.auth.tokens import default_token_generator
 from django.conf import settings
 from django.core.mail import send_mail
@@ -14,6 +15,10 @@ from apps.common.choices import UserRole
 from apps.firm.models import LawFirm
 from apps.firm.models import LawFirmMember
 from apps.users.models import User
+
+FIRM_SUSPENDED_MESSAGE = (
+    "Your firm's account has been suspended. Please contact the platform administrator."
+)
 
 
 class AuthService:
@@ -59,6 +64,7 @@ class AuthService:
                 "portal_access_allowed": portal_access_allowed(user),
             }
 
+        firm_payload = AuthService.firm_payload(firm)
         return {
             "user": {
                 "id": user.id,
@@ -67,16 +73,31 @@ class AuthService:
                 "role": user.role,
                 "firm_role": firm_role,
                 "is_firm_owner": is_firm_owner,
+                "is_platform_admin": user.role == UserRole.PLATFORM_ADMIN,
                 "must_change_password": must_change_password,
                 "client": client_payload,
+                "firm": firm_payload,
             },
-            "firm": {
-                "id": firm.id if firm else None,
-                "name": firm.name if firm else None,
-            },
+            "firm": firm_payload,
             "firm_role": firm_role,
             "is_firm_owner": is_firm_owner,
         }
+
+    @staticmethod
+    def firm_payload(firm):
+        """What every signed-in member needs to brand their dashboard with their firm."""
+        if firm is None:
+            return {"id": None, "name": None, "logo_url": None}
+        logo_url = None
+        if firm.logo:
+            logo_url = f"/firm-logo/{firm.id}/?v={int(firm.updated_at.timestamp())}"
+        return {"id": firm.id, "name": firm.name, "logo_url": logo_url}
+
+    @staticmethod
+    def user_firm(user):
+        from apps.subscriptions.services import firm_for_user
+
+        return firm_for_user(user)
 
     @staticmethod
     def login_user(email: str, password: str):
@@ -88,10 +109,15 @@ class AuthService:
         if not user:
             return None, "Invalid credentials"
 
+        firm = AuthService.user_firm(user)
+        if firm is not None and not firm.is_active:
+            return None, FIRM_SUSPENDED_MESSAGE
+
         if user.role == UserRole.ADMIN and user.must_change_password:
             user.must_change_password = False
             user.save(update_fields=["must_change_password", "updated_at"])
 
+        update_last_login(None, user)
         refresh = RefreshToken.for_user(user)
         session_payload = AuthService.build_session_payload(user)
 
@@ -110,10 +136,13 @@ class AuthService:
 
     @staticmethod
     @transaction.atomic
-    def register_client(validated_data):
-        firm = LawFirm.objects.filter(is_active=True).order_by("created_at").first()
-        if firm is None:
-            return None, "No active law firm is available for registration."
+    def register_client(validated_data, *, firm):
+        """Self-registration for the firm resolved from the public site, never a guessed firm."""
+        if firm is None or not firm.is_active:
+            return None, "Registration is not available on this site."
+        settings_ = getattr(firm, "settings", None)
+        if settings_ is None or not settings_.allow_client_registration:
+            return None, "This firm does not accept online client registration."
 
         first_name, last_name = AuthService._split_name(validated_data["full_name"])
         user = User.objects.create_user(
@@ -151,6 +180,30 @@ class AuthService:
         }, None
     
     @staticmethod
+    @transaction.atomic
+    def register_firm(validated_data):
+        """Self-service SaaS onboarding: firm, managing partner and a trial subscription."""
+        from apps.platform_admin.services.firm_onboarding_service import FirmOnboardingService
+        from apps.subscriptions.services import SubscriptionService
+
+        admin_data = validated_data["admin"]
+        firm = FirmOnboardingService.create_firm(
+            firm=validated_data["firm"],
+            owner=admin_data,
+            password=admin_data["password"],
+        )
+        if validated_data.get("plan_code"):
+            SubscriptionService.start_trial(firm, validated_data["plan_code"])
+
+        owner = firm.owner
+        refresh = RefreshToken.for_user(owner)
+        return {
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            **AuthService.build_session_payload(owner),
+        }
+
+    @staticmethod
     def change_password(
         *,
         user,
@@ -186,25 +239,41 @@ class AuthService:
             return False, "Invalid refresh token"
 
     @staticmethod
-    def request_password_reset(email: str, *, fail_silently=True):
+    def password_setup_link(user):
+        """A one-time link to set a password; it stops working once the password changes."""
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+        reset_path = f"/reset-password?uid={uid}&token={token}"
+        return uid, token, f"{frontend_url}{reset_path}" if frontend_url else reset_path
+
+    @staticmethod
+    def request_password_reset(email: str, *, fail_silently=True, invitation_firm=None):
         user = User.objects.filter(email__iexact=email, is_active=True).first()
 
         if user is None:
             return None
 
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
-        frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
-        reset_path = f"/reset-password?uid={uid}&token={token}"
-        reset_url = f"{frontend_url}{reset_path}" if frontend_url else reset_path
+        uid, token, reset_url = AuthService.password_setup_link(user)
 
-        send_mail(
-            subject="Reset your Sheria Master password",
-            message=(
+        if invitation_firm is not None:
+            subject = f"{invitation_firm.name} has invited you to your client portal"
+            message = (
+                f"{invitation_firm.name} has opened a secure client portal for you. Use it to follow your matter, "
+                "receive court dates, join virtual court sessions and upload documents the firm asks for.\n\n"
+                f"Set your password using this link:\n\n{reset_url}\n\n"
+                "The link expires. If it has expired, ask the firm to send a new invitation."
+            )
+        else:
+            subject = "Reset your Sheria Master password"
+            message = (
                 "Use this link to reset your password:\n\n"
                 f"{reset_url}\n\n"
                 "If you did not request this, you can ignore this message."
-            ),
+            )
+        send_mail(
+            subject=subject,
+            message=message,
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
             recipient_list=[user.email],
             fail_silently=fail_silently,
@@ -215,6 +284,28 @@ class AuthService:
             "token": token,
             "reset_url": reset_url,
         }
+
+    @staticmethod
+    def phone_variants(phone_number):
+        """0712 345 678, 712345678 and +254712345678 are the same Kenyan number."""
+        digits = "".join(character for character in phone_number if character.isdigit())
+        if not digits:
+            return set()
+        local = digits[3:] if digits.startswith("254") else digits.lstrip("0")
+        return {phone_number.strip(), digits, f"0{local}", f"254{local}", f"+254{local}"}
+
+    @staticmethod
+    def request_account_recovery(*, national_id="", phone_number=""):
+        """Email a reset link to the account matching every identifier given."""
+        users = User.objects.filter(is_active=True)
+        if national_id:
+            users = users.filter(national_id_number__iexact=national_id)
+        if phone_number:
+            users = users.filter(phone_number__in=AuthService.phone_variants(phone_number))
+        user = users.first() if users.count() == 1 else None
+        if user is None:
+            return None
+        return AuthService.request_password_reset(user.email)
 
     @staticmethod
     def reset_password(*, uid: str, token: str, new_password: str):

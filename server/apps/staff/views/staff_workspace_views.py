@@ -97,7 +97,7 @@ class StaffWorkspaceItemsView(StaffWorkspaceBaseView):
 
     def get(self, request):
         try:
-            items = StaffWorkspaceService.placeholder_items(
+            items = StaffWorkspaceService.items(
                 request.user,
                 self.profile_attr,
                 self.role_label,
@@ -105,5 +105,6 @@ class StaffWorkspaceItemsView(StaffWorkspaceBaseView):
             )
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
-        serializer = StaffWorkspaceItemSerializer(items, many=True)
-        return Response({self.response_key: serializer.data}, status=status.HTTP_200_OK)
+        if self.item_type == "notification":
+            items = StaffWorkspaceItemSerializer(items, many=True).data
+        return Response({self.response_key: items}, status=status.HTTP_200_OK)

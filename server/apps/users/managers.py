@@ -89,6 +89,29 @@ class UserManager(BaseUserManager):
             **extra_fields,
         )
 
+    def create_platform_admin(
+        self,
+        email,
+        password=None,
+        **extra_fields,
+    ):
+        """
+        Creates a platform administrator: the operator of the SaaS platform.
+
+        Platform administrators onboard law firms, manage plans and monitor
+        usage. They belong to no firm and cannot open firm records.
+        """
+
+        extra_fields.setdefault("role", UserRole.PLATFORM_ADMIN)
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("must_change_password", False)
+
+        return self.create_user(
+            email=email,
+            password=password,
+            **extra_fields,
+        )
+
     def create_staff(
         self,
         email,

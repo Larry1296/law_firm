@@ -1,4 +1,9 @@
-from apps.cases.models import Case
+from datetime import timedelta
+
+from django.utils import timezone
+
+from apps.cases.models import Case, CaseEvent, MatterDeadline
+from apps.cases.services.my_work_service import MyWorkService
 from apps.clients.models import ClientDocument
 from apps.documents.models import DocumentRequest
 from apps.notifications.services import NotificationService
@@ -15,7 +20,14 @@ class LawyerDashboardService:
         cases = Case.objects.filter(firm=lawyer.law_firm, assigned_lawyer=lawyer)
         active_cases = cases.filter(is_active=True)
         client_count = cases.values("client_id").distinct().count()
-        courtroom_cases = active_cases.exclude(court_name="").count()
+        now = timezone.now()
+        upcoming_events = CaseEvent.objects.filter(
+            case__in=active_cases, starts_at__gte=now,
+        ).exclude(status__in=["COMPLETED", "ADJOURNED", "VACATED", "TAKEN_OUT", "MISSED"]).order_by("starts_at")
+        open_deadlines = MatterDeadline.objects.filter(
+            matter__in=active_cases, status=MatterDeadline.Status.OPEN,
+        ).order_by("due_at")
+        work = MyWorkService.items(user)
         document_count = ClientDocument.objects.filter(
             client__cases__assigned_lawyer=lawyer,
             client__cases__is_active=True,
@@ -30,8 +42,8 @@ class LawyerDashboardService:
                 DocumentRequest.Status.REPLACEMENT_REQUIRED,
             ],
         ).count()
-        next_hearing = active_cases.filter(next_court_date__isnull=False).order_by("next_court_date").values_list("next_court_date", flat=True).first()
-        next_deadline = active_cases.filter(internal_deadline__isnull=False).order_by("internal_deadline").values_list("internal_deadline", flat=True).first()
+        next_hearing = upcoming_events.values_list("starts_at", flat=True).first()
+        next_deadline = open_deadlines.values_list("due_at", flat=True).first()
         return {
             "lawyer": {
                 "id": str(lawyer.id),
@@ -42,10 +54,11 @@ class LawyerDashboardService:
             "summary": {
                 "total_cases": cases.count(),
                 "active_cases": active_cases.count(),
-                "closed_cases": cases.filter(status=Case.Status.CLOSED).count(),
+                "closed_cases": cases.filter(matter_status__in=[Case.MatterStatus.CLOSED, Case.MatterStatus.ARCHIVED]).count(),
                 "clients": client_count,
-                "hearings": courtroom_cases,
-                "tasks_due": active_cases.filter(status=Case.Status.PENDING).count(),
+                "hearings": upcoming_events.filter(starts_at__lte=now + timedelta(days=30)).count(),
+                "tasks_due": len(work),
+                "overdue_items": sum(1 for item in work if item["overdue"]),
                 "documents": document_count,
                 "pending_document_requests": pending_document_requests,
                 "notifications": NotificationService.unread_count(user),
@@ -56,12 +69,5 @@ class LawyerDashboardService:
                 "next_deadline": next_deadline,
             },
             "recent_notifications": recent_notifications,
-            "recent_activity": recent_notifications
-            or [
-                {
-                    "id": "activity-001",
-                    "title": "Lawyer dashboard ready",
-                    "description": "Your legal workspace is active.",
-                }
-            ],
+            "recent_activity": recent_notifications,
         }

@@ -9,6 +9,8 @@ from apps.staff.services.admin.secretaries.admin_secretary_number_service import
 from apps.staff.services.admin.secretaries.admin_secretary_permission_service import (
     AdminSecretaryPermissionService,
 )
+from apps.subscriptions.catalog import Limit
+from apps.subscriptions.services import SubscriptionService
 from apps.users.services.auth_service import AuthService
 
 
@@ -16,6 +18,7 @@ class AdminSecretaryCreateService:
     @staticmethod
     @transaction.atomic
     def create_secretary(*, law_firm, validated_data, created_by):
+        SubscriptionService.check_limit(law_firm, Limit.SUPPORT_STAFF)
         assigned_lawyers = validated_data.pop("assigned_lawyer_ids", [])
         permission_codes = validated_data.pop("permission_codes", [])
 

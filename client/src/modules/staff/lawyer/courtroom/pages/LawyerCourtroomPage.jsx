@@ -3,6 +3,7 @@ import { MonitorUp, RefreshCw } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import CourtroomLauncher from '@/modules/courtroom/components/CourtroomLauncher';
+import CourtroomLinkForm from '@/modules/courtroom/components/CourtroomLinkForm';
 import { useCourtroomSessions } from '@/modules/courtroom/hooks/useCourtroom';
 
 export default function LawyerCourtroomPage() {
@@ -33,6 +34,8 @@ export default function LawyerCourtroomPage() {
           </button>
         </div>
       </Card>
+
+      <CourtroomLinkForm />
 
       {isLoading && (
         <p className='text-sm text-slate-500 dark:text-slate-300'>Loading courtroom sessions...</p>

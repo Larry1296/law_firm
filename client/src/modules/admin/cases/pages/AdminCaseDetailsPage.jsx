@@ -34,6 +34,7 @@ const MATTER_SECTION_LINKS = [
   ['matter-history', 'History'],
 ];
 import { COURT_LEVELS, COURT_TYPES } from '@/modules/cases/shared/create/caseCreateOptions';
+import CourtProgressPanel from '@/modules/cases/shared/CourtProgressPanel';
 
 const PRIORITIES = [
   { value: 'LOW', label: 'Low' },
@@ -1723,6 +1724,7 @@ const AdminCaseDetailsPage = () => {
       </div>
 
       <CaseProcedurePanels caseData={caseData} />
+      <CourtProgressPanel caseData={caseData} />
 
             {/* =========================================================
                 CREATE NEXT CASE EVENT (chained from previous event)

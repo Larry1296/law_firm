@@ -3,6 +3,7 @@ class UserRole:
     STAFF = "STAFF"
     OFFICIAL_CLIENT = "OFFICIAL_CLIENT"
     PROSPECT = "PROSPECT"
+    PLATFORM_ADMIN = "PLATFORM_ADMIN"
 
 
 USER_ROLE_CHOICES = [
@@ -10,6 +11,7 @@ USER_ROLE_CHOICES = [
     (UserRole.STAFF, "Staff"),
     (UserRole.OFFICIAL_CLIENT, "Official Client"),
     (UserRole.PROSPECT, "Prospect"),
+    (UserRole.PLATFORM_ADMIN, "Platform administrator"),
 ]
 
 

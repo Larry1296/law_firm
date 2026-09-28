@@ -1,14 +1,9 @@
 import {
   X,
   LayoutDashboard,
-  Calendar,
   FileText,
-  MessageSquare,
   Bell,
   User,
-  ClipboardList,
-  LifeBuoy,
-  Briefcase,
   ShieldCheck,
 } from 'lucide-react';
 
@@ -32,37 +27,14 @@ const links = [
         name: 'Dashboard',
         path: '/portal/dashboard',
         icon: <LayoutDashboard size={18} />,
-        end: true,
       },
       {
-        name: 'Consultations',
-        path: '/portal/consultations',
-        icon: <Calendar size={18} />,
-      },
-      {
-        name: 'Legal Requests',
-        path: '/portal/intake',
-        icon: <ClipboardList size={18} />,
-      },
-    ],
-  },
-
-  {
-    section: 'Onboarding',
-    items: [
-      {
-        name: 'Become a Client',
-        path: '/portal/become-client',
-        icon: <Briefcase size={18} />,
-      },
-      {
-        name: 'Membership Status',
+        name: 'My Instructions',
         path: '/portal/membership-status',
         icon: <ShieldCheck size={18} />,
       },
     ],
   },
-
   {
     section: 'Documents',
     items: [
@@ -73,28 +45,16 @@ const links = [
       },
     ],
   },
-
   {
     section: 'Communication',
     items: [
-      {
-        name: 'Messages',
-        path: '/portal/messages',
-        icon: <MessageSquare size={18} />,
-      },
       {
         name: 'Notifications',
         path: '/portal/notifications',
         icon: <Bell size={18} />,
       },
-      {
-        name: 'Support',
-        path: '/portal/support',
-        icon: <LifeBuoy size={18} />,
-      },
     ],
   },
-
   {
     section: 'Account',
     items: [

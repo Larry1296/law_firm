@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.urls import path, include
 
+from apps.firm.views.public.firm_logo_view import FirmLogoView
+
 urlpatterns = [
     path("admin/", admin.site.urls),
 
@@ -12,6 +14,9 @@ urlpatterns = [
     path("api/notifications/", include("apps.notifications.urls")),
     path("api/documents/", include("apps.documents.urls")),
     path("api/finance/", include("apps.billing.urls")),
+    path("api/subscription/", include("apps.subscriptions.urls")),
+    path("api/platform/", include("apps.platform_admin.urls")),
+    path("api/firm-logo/<uuid:firm_id>/", FirmLogoView.as_view(), name="firm-logo"),
     path("api/audit-logs/", include("apps.audit_logs.urls")),
     path("api/", include("apps.ai.urls")),
 

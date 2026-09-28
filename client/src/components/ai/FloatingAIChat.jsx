@@ -2,8 +2,14 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { ExternalLink, Maximize2, MessageCircle, Minimize2, RefreshCw, Send, X } from 'lucide-react';
 
 import Button3D from '@/components/ui/Button3D';
-import { askKnowledgeBase, getKnowledgeBaseCategories } from './knowledgeBaseService';
+import {
+  askKnowledgeBase,
+  askLegalAssistant,
+  getKnowledgeBaseCategories,
+  getLegalAssistantSuggestions,
+} from './knowledgeBaseService';
 import SafeMarkdown from './SafeMarkdown';
+import { OPEN_ASSISTANT_EVENT } from './assistantEvents';
 
 const SECTION_COPY = {
   home: {
@@ -29,37 +35,56 @@ const SECTION_COPY = {
   },
 };
 
+const PLATFORM_COPY = {
+  launcher: 'Ask about Kenyan law',
+  title: 'Kenyan law assistant',
+  subtitle: 'General information on the law of Kenya, from official sources',
+  welcome: 'Ask me a question about the law of Kenya: your rights, court processes, employment, land, family and more. I answer from official sources and show them. This is general information, not legal advice.',
+  placeholder: 'Ask about the law of Kenya…',
+};
+
+const HISTORY_MESSAGE_LIMIT = 1500;
+
 const GENERIC_SUGGESTIONS = [
+  'What are the steps in a court case?',
+  'How do I become a client?',
   'What legal services does the firm provide?',
   'What does access to justice mean in Kenya?',
   'What principles apply to personal data in Kenya?',
 ];
 
-function welcomeMessage(section) {
-  return { role: 'assistant', content: SECTION_COPY[section]?.welcome ?? SECTION_COPY.home.welcome, sources: [] };
+function welcomeMessage(section, platform = false) {
+  const content = platform ? PLATFORM_COPY.welcome : SECTION_COPY[section]?.welcome ?? SECTION_COPY.home.welcome;
+  return { role: 'assistant', content, sources: [] };
 }
 
 function errorMessage(error) {
   if (error?.code === 'ECONNABORTED') return 'The request timed out. Please try again.';
   if (error?.response?.status === 429) return 'Too many questions have been sent from this connection. Please try again later.';
   if (error?.response?.status >= 500) return 'The assistant is temporarily unavailable. Please try again later or contact the firm.';
+  if (error?.response?.status === 404) return 'The assistant is not set up for this website yet. Please contact the firm directly.';
   return error?.response?.data?.message || 'I could not connect to the assistant. Check your connection and try again.';
 }
 
 export default function FloatingAIChat({
   activeSection = 'home',
+  mode = 'firm',
   title,
-  subtitle = 'Answers from approved public information',
+  subtitle,
   suggestions: suggestedQuestions,
   launcherLabel,
 }) {
+  const platform = mode === 'platform';
   const safeSection = Object.hasOwn(SECTION_COPY, activeSection) ? activeSection : 'home';
-  const resolvedTitle = title ?? SECTION_COPY[safeSection].title ?? SECTION_COPY[safeSection].launcher;
-  const resolvedLauncherLabel = launcherLabel ?? SECTION_COPY[safeSection].launcher;
+  const resolvedTitle = title ?? (platform ? PLATFORM_COPY.title : SECTION_COPY[safeSection].title ?? SECTION_COPY[safeSection].launcher);
+  const resolvedSubtitle = subtitle ?? (platform ? PLATFORM_COPY.subtitle : 'Answers from approved public information');
+  const resolvedLauncherLabel = launcherLabel ?? (platform ? PLATFORM_COPY.launcher : SECTION_COPY[safeSection].launcher);
+  const loadSuggestions = platform ? getLegalAssistantSuggestions : getKnowledgeBaseCategories;
+  const ask = platform ? askLegalAssistant : askKnowledgeBase;
   const titleId = useId();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
-  const [messages, setMessages] = useState([welcomeMessage('home')]);
+  const [messages, setMessages] = useState(() => [welcomeMessage('home', platform)]);
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [maximized, setMaximized] = useState(false);
@@ -76,12 +101,18 @@ export default function FloatingAIChat({
       return undefined;
     }
     const controller = new AbortController();
-    getKnowledgeBaseCategories(safeSection, controller.signal)
+    loadSuggestions(safeSection, controller.signal)
       .then((items) => setSuggestions(items.filter(Boolean).slice(0, 4)))
       .catch(() => setSuggestions(GENERIC_SUGGESTIONS));
     textareaRef.current?.focus();
     return () => controller.abort();
-  }, [open, safeSection, suggestedQuestions]);
+  }, [open, safeSection, suggestedQuestions, loadSuggestions]);
+
+  useEffect(() => {
+    const openAssistant = () => setOpen(true);
+    window.addEventListener(OPEN_ASSISTANT_EVENT, openAssistant);
+    return () => window.removeEventListener(OPEN_ASSISTANT_EVENT, openAssistant);
+  }, []);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -136,7 +167,7 @@ export default function FloatingAIChat({
     setLoading(false);
     setMaximized(false);
     setDraft('');
-    setMessages([welcomeMessage(safeSection)]);
+    setMessages([welcomeMessage(safeSection, platform)]);
     requestAnimationFrame(() => {
       resizeInput();
       textareaRef.current?.focus();
@@ -149,14 +180,15 @@ export default function FloatingAIChat({
     const prior = messages
       .filter((item) => !item.error)
       .slice(-10)
-      .map(({ role, content }) => ({ role, content }));
+      // The server accepts at most 1,500 characters per earlier message; the start carries the context.
+      .map(({ role, content }) => ({ role, content: String(content).slice(0, HISTORY_MESSAGE_LIMIT) }));
     setMessages((items) => [...items, { role: 'user', content: question }]);
     setDraft('');
     setLoading(true);
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const result = await askKnowledgeBase(question, prior, safeSection, controller.signal);
+      const result = await ask(question, prior, safeSection, controller.signal);
       if (controller.signal.aborted) return;
       setMessages((items) => [...items, {
         role: 'assistant', content: result.answer, sources: result.sources ?? [], needsLawyer: result.needs_lawyer,
@@ -192,7 +224,7 @@ export default function FloatingAIChat({
           <header className='flex shrink-0 items-start justify-between gap-2 border-b border-border-light px-3 py-3 dark:border-border-dark sm:gap-3 sm:px-4'>
             <div className='min-w-0 flex-1'>
               <h2 id={titleId} className='truncate text-sm font-bold text-text-primary-light dark:text-text-primary-dark sm:whitespace-normal'>{resolvedTitle}</h2>
-              {subtitle && <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>{subtitle}</p>}
+              {resolvedSubtitle && <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>{resolvedSubtitle}</p>}
             </div>
             <div className='flex shrink-0 gap-1'>
               <button type='button' onClick={() => setMaximized((value) => !value)} aria-label={maximized ? 'Minimize assistant' : 'Maximize assistant'} className='hidden rounded-md p-2 text-text-muted-light hover:bg-background-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:text-text-muted-dark dark:hover:bg-background-dark lg:inline-flex'>{maximized ? <Minimize2 size={17} /> : <Maximize2 size={17} />}</button>
@@ -218,7 +250,8 @@ export default function FloatingAIChat({
                     ))}
                   </div>
                 )}
-                {item.needsLawyer && <a href='#contact' onClick={close} className='mt-3 inline-flex rounded-md bg-success px-3 py-2 text-xs font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'>Speak to an advocate</a>}
+                {item.needsLawyer && platform && <p className='mt-3 text-xs font-semibold'>For advice on your own situation, speak to a qualified advocate.</p>}
+                {item.needsLawyer && !platform && <a href='#contact' onClick={close} className='mt-3 inline-flex rounded-md bg-success px-3 py-2 text-xs font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'>Speak to an advocate</a>}
               </article>
             ))}
             {messages.length === 1 && <div aria-label='Suggested questions' className='flex flex-wrap gap-2'>{(suggestions.length ? suggestions : GENERIC_SUGGESTIONS).map((suggestion) => <button key={suggestion} type='button' onClick={() => sendQuestion(suggestion)} className='rounded-full border border-border-light px-3 py-2 text-left text-xs text-text-primary-light hover:bg-background-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:border-border-dark dark:text-text-primary-dark dark:hover:bg-background-dark'>{suggestion}</button>)}</div>}
@@ -229,14 +262,14 @@ export default function FloatingAIChat({
             <p className='mb-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300'>Do not submit confidential, privileged, or highly sensitive information.</p>
             <div className='flex items-end gap-2'>
               <label htmlFor={`${titleId}-input`} className='sr-only'>Ask a question</label>
-              <textarea id={`${titleId}-input`} ref={textareaRef} rows={1} maxLength={1200} value={draft} onChange={(event) => { setDraft(event.target.value); resizeInput(); }} onKeyDown={handleKeyDown} disabled={loading} placeholder='Ask about the firm or a legal topic…' className='max-h-[120px] min-h-10 flex-1 resize-none rounded-lg border border-border-light bg-background-light px-3 py-2 text-sm text-text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark' />
+              <textarea id={`${titleId}-input`} ref={textareaRef} rows={1} maxLength={1200} value={draft} onChange={(event) => { setDraft(event.target.value); resizeInput(); }} onKeyDown={handleKeyDown} disabled={loading} placeholder={platform ? PLATFORM_COPY.placeholder : 'Ask about the firm or a legal topic…'} className='max-h-[120px] min-h-10 flex-1 resize-none rounded-lg border border-border-light bg-background-light px-3 py-2 text-sm text-text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark' />
               <button type='button' onClick={() => sendQuestion()} disabled={!draft.trim() || loading} aria-label='Send question' className='rounded-lg bg-success p-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'><Send size={18} /></button>
             </div>
           </div>
         </section>
       )}
 
-      <Button3D type='button' variant='aiGlow' size='md' onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} aria-haspopup='dialog' aria-label={open ? 'Close firm legal assistant' : `Open assistant: ${resolvedLauncherLabel.replace('this Firm', 'Firm')}`} className='floating-ai-trigger max-w-full font-extrabold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2'>
+      <Button3D type='button' variant='aiGlow' size='md' onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} aria-haspopup='dialog' aria-label={open ? (platform ? 'Close Kenyan law assistant' : 'Close firm legal assistant') : `Open assistant: ${resolvedLauncherLabel.replace('this Firm', 'Firm')}`} className='floating-ai-trigger max-w-full font-extrabold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2'>
         <span className='flex items-center gap-2 transition-opacity duration-150 motion-reduce:transition-none'>{open ? <X size={18} /> : <MessageCircle size={18} />}{open ? 'Close' : resolvedLauncherLabel}</span>
       </Button3D>
     </div>

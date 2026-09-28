@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.cases.models import Case
@@ -45,6 +46,29 @@ class DocumentWorkflowService:
         return document
 
     @staticmethod
+    def register_matter_document(*, client, case, user, title, document_type, description=""):
+        """Evidence and transaction papers belong to the matter file, not the client's KYC drawer."""
+        document = ClientDocument.objects.create(
+            client=client, firm=client.firm,
+            document_type=document_type,
+            title=title,
+            description=description,
+            file="",
+            uploaded_by=None,
+            is_confidential=True,
+            physical_copy_retained=False,
+            physical_storage_location=f"MATTER FILE / {case.case_number}",
+            classification=ClientDocument.Classification.MATTER_SPECIFIC,
+            category=ClientDocument.Category.MATTER_EVIDENCE,
+        )
+        MatterDocumentReference.objects.get_or_create(
+            case=case,
+            document=document,
+            defaults={"purpose": MatterDocumentReference.Purpose.EVIDENCE, "referenced_by": user},
+        )
+        return document
+
+    @staticmethod
     def case_secretaries(case):
         filters = Q(pk__in=[])
         if case.assigned_secretary_id:
@@ -72,6 +96,66 @@ class DocumentWorkflowService:
                 action_url=f"/secretary/cases/{request.case_id}?section=documents",
                 event_key=f"document-request-secretary-dispatch:{request.id}:{request.status}:{request.updated_at.isoformat()}",
             )
+
+    MATTER_DOCUMENT_TYPES = {"CONTRACT", "FINANCIAL", "EVIDENCE", "LEGAL", "COURT_ORDER"}
+    CLIENT_UPLOADABLE = {"OPEN", "REPLACEMENT_REQUIRED"}
+
+    @staticmethod
+    def create_request(*, user, case, data):
+        """Anyone assigned to the matter may ask the client for a document; the client is told at once."""
+        title = (data.get("title") or "").strip()
+        if not title:
+            raise ValidationError({"title": "Describe the document required from the client."})
+        document_type = data.get("document_type") or "OTHER"
+        if document_type not in DocumentWorkflowService.ALLOWED_TYPES:
+            raise ValidationError({"document_type": "Select a valid document type."})
+        due_date = data.get("due_date") or None
+        if isinstance(due_date, str):
+            due_date = parse_date(due_date)
+            if due_date is None:
+                raise ValidationError({"due_date": "Use the date format YYYY-MM-DD."})
+        item = DocumentRequest.objects.create(
+            firm=case.firm, client=case.client, case=case, requested_by=user, title=title,
+            document_type=document_type,
+            instructions=(data.get("instructions") or "").strip(), due_date=due_date,
+            status=DocumentRequest.Status.OPEN, dispatched_by=user, dispatched_at=timezone.now(),
+        )
+        DocumentWorkflowService.notify_client_of_request(item, user)
+        # The matter secretary will verify the upload, so they are told the request went out.
+        for secretary in DocumentWorkflowService.case_secretaries(case):
+            if secretary.user_id == user.id:
+                continue
+            NotificationService.create(
+                firm=case.firm, recipient=secretary.user, actor=user, case=case,
+                title="Document requested from client",
+                message=f'"{item.title}" was requested from {case.client.full_name} for {case.case_number}.',
+                action_url=f"/secretary/cases/{case.id}?section=documents",
+                event_key=f"document-request-secretary-info:{item.id}:{secretary.id}",
+            )
+        return item
+
+    @staticmethod
+    def notify_client_of_request(item, actor, *, replacement=False, reason=""):
+        client_user = item.client.user
+        if not client_user or not client_user.is_active:
+            return
+        due = f" by {item.due_date:%d %B %Y}" if item.due_date else ""
+        if replacement:
+            title = "Please upload a replacement document"
+            message = f'"{item.title}" for {item.case.case_number} needs to be replaced{due}.'
+            if reason:
+                message += f" Reason: {reason}"
+        else:
+            title = "Document requested"
+            message = f'Please upload "{item.title}" for {item.case.case_number}{due}.'
+            if item.instructions:
+                message += f" {item.instructions}"
+        NotificationService.create(
+            firm=item.firm, recipient=client_user, actor=actor, case=item.case,
+            title=title, message=message,
+            action_url=f"/client/documents?request={item.id}",
+            event_key=f"document-request-client:{item.id}:{item.status}:{item.updated_at.isoformat()}",
+        )
 
     @staticmethod
     def _validate_file(upload):
@@ -138,19 +222,32 @@ class DocumentWorkflowService:
                 raise ValidationError({"request_id": "Document request was not found."}) from exc
             if request.status in {DocumentRequest.Status.ACCEPTED, DocumentRequest.Status.CANCELLED}:
                 raise ValidationError({"request_id": "This document request is already closed."})
+            if getattr(user, "client_profile", None) and request.status not in DocumentWorkflowService.CLIENT_UPLOADABLE:
+                raise ValidationError({"request_id": "This request is not waiting for an upload from you."})
             case = request.case
             document_type = request.document_type
 
-        document = request.fulfilled_document if request and request.fulfilled_document_id else None
+        # A replacement is a new document; the rejected copy stays on record.
+        reuse = request and request.fulfilled_document_id and request.status != DocumentRequest.Status.REPLACEMENT_REQUIRED
+        document = request.fulfilled_document if reuse else None
+        if document is None and case and document_type in DocumentWorkflowService.MATTER_DOCUMENT_TYPES:
+            document = DocumentWorkflowService.register_matter_document(
+                client=client, case=case, user=user,
+                title=(data.get("title") or (request.title if request else "") or upload.name).strip(),
+                document_type=document_type,
+                description=(data.get("description") or "").strip(),
+            )
         if document is None:
             document = DocumentWorkflowService.register_in_kyc_drawer(
                 client=client,
                 case=case,
                 user=user,
-                title=(data.get("title") or upload.name).strip(),
+                title=(data.get("title") or (request.title if request else "") or upload.name).strip(),
                 document_type=document_type,
                 description=(data.get("description") or "").strip(),
             )
+        if getattr(user, "client_profile", None):
+            document.is_client_visible = True
         document.document_type = document_type
         document.title = (data.get("title") or document.title or upload.name).strip()
         document.description = (data.get("description") or document.description or "").strip()
@@ -282,6 +379,7 @@ class DocumentWorkflowService:
             "case_title": item.case.title, "client_id": str(item.client_id),
             "client_name": item.client.full_name,
             "fulfilled_document_id": str(item.fulfilled_document_id) if item.fulfilled_document_id else None,
+            "review_notes": item.fulfilled_document.review_notes if item.fulfilled_document_id else "",
             "drawer_reference": item.client.kyc_drawer_reference,
             "physical_storage_location": item.fulfilled_document.physical_storage_location if item.fulfilled_document_id else f"KYC DRAWER / {item.client.kyc_drawer_reference}",
             "digital_copy_available": bool(item.fulfilled_document.file) if item.fulfilled_document_id else False,

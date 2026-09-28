@@ -54,6 +54,7 @@ class ClientDocument(TimestampedModel):
         BUSINESS_REGISTRATION = "BUSINESS_REGISTRATION", "Partnership / Business Registration"
         TRUST_DEED = "TRUST_DEED", "Trust Deed"
         AUTHORITY_TO_INSTRUCT = "AUTHORITY_TO_INSTRUCT", "Authority / Resolution to Instruct Advocates"
+        ENGAGEMENT_LETTER = "ENGAGEMENT_LETTER", "Engagement letter / retainer agreement"
         TITLE_DEED = "TITLE_DEED", "Title Deed"
         OFFICIAL_SEARCH = "OFFICIAL_SEARCH", "Official Search"
         SALE_AGREEMENT = "SALE_AGREEMENT", "Sale Agreement"
@@ -241,7 +242,12 @@ class ClientDocument(TimestampedModel):
             raise ValidationError({"expected_return_date": "Record the expected return date."})
         if self.page_count < 1:
             raise ValidationError({"page_count": "Page count must be at least one."})
-        if self.reference and self.client_id and self.client.kyc_drawer_reference:
+        if (
+            self.reference
+            and self.classification == self.Classification.CLIENT_KYC
+            and self.client_id
+            and self.client.kyc_drawer_reference
+        ):
             if not self.reference.startswith(f"{self.client.kyc_drawer_reference}/D"):
                 raise ValidationError({"reference": "The physical reference must belong to the client's KYC file."})
         matter_subtypes = {

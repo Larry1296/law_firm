@@ -4,7 +4,6 @@ import {
   CalendarDays,
   ChevronDown,
   FileText,
-  LifeBuoy,
   MessageSquareText,
   ReceiptText,
   Settings,
@@ -16,6 +15,7 @@ import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
 import CourtroomTodayPanel from '@/modules/courtroom/components/CourtroomTodayPanel';
+import ClientCourtPreparationPanel from '@/modules/preparation/components/ClientCourtPreparationPanel';
 import { getFirstName } from '@/core/utils/personName';
 import useClientDashboard from '@/modules/client/dashboard/hooks/useClientDashboard';
 import { useNavigate } from 'react-router-dom';
@@ -55,6 +55,7 @@ const clientTiles = [
     icon: ReceiptText,
     variant: 'billing',
     size: 'wide',
+    path: '/client/billing',
   },
   {
     key: 'messages',
@@ -84,14 +85,6 @@ const clientTiles = [
     path: '/client/notifications',
   },
   {
-    key: 'support',
-    title: 'Support',
-    subtitle: 'Get help whenever you need it',
-    icon: LifeBuoy,
-    variant: 'settings',
-    size: 'wide',
-  },
-  {
     key: 'profile',
     title: 'Profile',
     subtitle: 'Preferences, contacts, and firm details',
@@ -114,6 +107,7 @@ export default function ClientDashboardPage() {
   const tileValue = (tile) => {
     if (tile.key === 'cases') return summary.active_cases ?? 0;
     if (tile.key === 'hearings') return summary.upcoming_hearings ?? 0;
+    if (tile.key === 'billing') return 'Statement';
     if (tile.key === 'documents') return summary.documents ?? 0;
     if (tile.key === 'notifications') return summary.unread_notifications ?? 0;
     if (tile.key === 'firm') return firm.name || 'Firm';
@@ -129,7 +123,9 @@ export default function ClientDashboardPage() {
       return `${summary.unread_notifications ?? 0} unread`;
     }
     if (tile.key === 'messages') return 'Open a case to message the firm';
-    if (!tile.path) return 'Coming soon';
+    if (tile.key === 'hearings' && summary.next_court_date) {
+      return `Next: ${new Date(summary.next_court_date.starts_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })} · ${summary.next_court_date.case_number}`;
+    }
     return 'Open workspace';
   };
 
@@ -302,6 +298,7 @@ export default function ClientDashboardPage() {
         emptyMessage='No courtroom link is available for your matters today.'
         className='mx-3 mb-4 mt-3 sm:mx-4 lg:mx-6 lg:mt-0'
       />
+      <ClientCourtPreparationPanel className='mx-3 mb-4 sm:mx-4 lg:mx-6' />
     </>
   );
 }

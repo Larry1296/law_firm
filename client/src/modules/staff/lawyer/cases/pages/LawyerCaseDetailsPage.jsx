@@ -29,6 +29,7 @@ import CaseCourtroomPanel from '@/modules/courtroom/components/CaseCourtroomPane
 import LawyerDocumentsPage from '@/modules/staff/lawyer/documents/pages/LawyerDocumentsPage';
 import PhysicalMatterFileCard from '@/modules/cases/shared/PhysicalMatterFileCard';
 import PageSectionNav from '@/components/ui/PageSectionNav';
+import CourtProgressPanel from '@/modules/cases/shared/CourtProgressPanel';
 
 const CASE_STATUS_OPTIONS = [
   { value: 'PENDING', label: 'Pending Review' },
@@ -598,10 +599,13 @@ export default function LawyerCaseDetailsPage() {
 
       <div id='lawyer-proceedings' className='scroll-mt-28 space-y-6'>
         <CaseProcedurePanels caseData={caseData} />
+        <CourtProgressPanel caseData={caseData} />
         <CaseCourtroomPanel
           caseId={id}
           title='Case Courtroom'
           emptyMessage='No courtroom session has been attached to this assigned case yet.'
+          audience='staff'
+          canManageLinks
         />
       </div>
 

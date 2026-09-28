@@ -3,6 +3,7 @@ import { useState, useContext } from 'react';
 import AdminSidebar from '@/layouts/admin/AdminSidebar';
 import AdminTopbar from '@/layouts/admin/AdminTopbar';
 import Footer from '@/components/shared/Footer';
+import SubscriptionBanner from '@/components/shared/SubscriptionBanner';
 import ThemeContext from '@/core/store/ThemeContext';
 
 export default function AdminLayout() {
@@ -40,6 +41,7 @@ export default function AdminLayout() {
       {/* MAIN COLUMN */}
       <div className='flex flex-col flex-1 min-w-0 min-h-screen'>
         <AdminTopbar onMenuClick={() => setSidebarOpen(true)} />
+        <SubscriptionBanner />
 
         {/* SCROLLABLE CONTENT */}
         <main

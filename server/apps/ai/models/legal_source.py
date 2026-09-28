@@ -40,6 +40,7 @@ class LegalProvision(TimestampedModel):
         PREAMBLE = "preamble", "Preamble"
         ARTICLE = "article", "Article"
         SCHEDULE = "schedule", "Schedule"
+        SECTION = "section", "Section"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     document = models.ForeignKey(LegalSourceDocument, on_delete=models.CASCADE, related_name="provisions")
@@ -63,3 +64,11 @@ class LegalProvision(TimestampedModel):
 
     def __str__(self):
         return f"{self.document.title}: {self.stable_key}"
+
+    @property
+    def citation(self):
+        """How the provision is cited: "Article 31 — Privacy" or "Section 25 — Principles of data protection"."""
+        if not self.article_number:
+            return self.heading
+        unit = "Section" if self.unit_type == self.UnitType.SECTION else "Article"
+        return f"{unit} {self.article_number} — {self.heading}"

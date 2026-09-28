@@ -4,6 +4,7 @@ import courtroomService from '@/modules/courtroom/services/courtroomService';
 
 export const courtroomKeys = {
   today: ['courtroom', 'today'],
+  courtDates: (caseId) => ['courtroom', 'court-dates', caseId || 'upcoming'],
   providers: ['courtroom', 'providers'],
   sessions: (params = {}) => ['courtroom', 'sessions', params],
   attendance: (sessionId) => ['courtroom', 'sessions', sessionId, 'attendance'],
@@ -16,6 +17,12 @@ export const useTodayCourtroomEvents = () =>
   useQuery({
     queryKey: courtroomKeys.today,
     queryFn: courtroomService.getTodayCourtroomEvents,
+  });
+
+export const useCourtDates = (caseId) =>
+  useQuery({
+    queryKey: courtroomKeys.courtDates(caseId),
+    queryFn: () => courtroomService.getCourtDates(caseId),
   });
 
 export const useCreateCaseEvent = () => {

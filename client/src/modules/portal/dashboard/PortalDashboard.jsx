@@ -1,9 +1,6 @@
 import {
   Bell,
-  Briefcase,
-  CalendarDays,
   FileText,
-  MessageSquare,
   ShieldCheck,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -16,18 +13,18 @@ import useClientDashboard from '@/modules/client/dashboard/hooks/useClientDashbo
 
 const portalTiles = [
   {
-    key: 'consultations',
-    title: 'Book Consultation',
-    subtitle: 'Schedule legal consultations with the firm',
-    icon: CalendarDays,
-    variant: 'calendar',
+    key: 'membership',
+    title: 'My Instructions',
+    subtitle: 'Conflict check, acceptance, identity checks and engagement letter',
+    icon: ShieldCheck,
+    variant: 'compliance',
     size: 'large',
-    path: '/portal/consultations',
+    path: '/portal/membership-status',
   },
   {
     key: 'documents',
     title: 'My Documents',
-    subtitle: 'Review physical KYC drawer records and requirements',
+    subtitle: 'Identity and KYC originals the firm holds for you',
     icon: FileText,
     variant: 'documents',
     size: 'wide',
@@ -36,47 +33,11 @@ const portalTiles = [
   {
     key: 'notifications',
     title: 'Notifications',
-    subtitle: 'Stay informed about updates and actions',
+    subtitle: 'Updates from the firm about your instructions',
     icon: Bell,
     variant: 'notifications',
     size: 'wide',
     path: '/portal/notifications',
-  },
-  {
-    key: 'messages',
-    title: 'Messages',
-    subtitle: 'Securely communicate with the legal team',
-    icon: MessageSquare,
-    variant: 'messages',
-    size: 'wide',
-    path: '/portal/messages',
-  },
-  {
-    key: 'requests',
-    title: 'Legal Requests',
-    subtitle: 'Submit and track your legal service requests',
-    icon: Briefcase,
-    variant: 'cases',
-    size: 'wide',
-    path: '/portal/intake/status',
-  },
-  {
-    key: 'physical-documents',
-    title: 'KYC Document Requirements',
-    subtitle: 'Track physical documents requested by the firm',
-    icon: FileText,
-    variant: 'documents',
-    size: 'wide',
-    path: '/portal/documents',
-  },
-  {
-    key: 'membership',
-    title: 'Membership Status',
-    subtitle: 'Track onboarding, verification, and approvals',
-    icon: ShieldCheck,
-    variant: 'compliance',
-    size: 'wide',
-    path: '/portal/membership-status',
   },
 ];
 
@@ -101,12 +62,12 @@ export default function PortalDashboard() {
       <DashboardHero
         badge='Client Portal'
         title={`Welcome${firstName ? `, ${firstName}` : ''}`}
-        description='Manage consultations, track physical KYC document requirements, follow onboarding progress, and communicate securely with the legal team.'
+        description='Follow your instructions through the conflict check, acceptance, identity checks and engagement letter until your matter is opened.'
         statusTitle={client.is_verified ? 'Verified' : 'Pending Review'}
         statusDescription={
           isFetching
             ? 'Refreshing your portal dashboard.'
-            : 'Your onboarding and legal requests are tracked here.'
+            : 'Your instructions and onboarding progress are tracked here.'
         }
       />
 

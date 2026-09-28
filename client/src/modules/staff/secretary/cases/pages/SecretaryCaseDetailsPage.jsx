@@ -8,6 +8,7 @@ import useSecretaryCaseDetails from '../hooks/useSecretaryCaseDetails';
 import SecretaryDocuments from '../../documents/pages/SecretaryDocuments';
 import SecretaryCaseCommunication from '../../communication/components/SecretaryCaseCommunication';
 import PhysicalMatterFileCard from '@/modules/cases/shared/PhysicalMatterFileCard';
+import CourtProgressPanel from '@/modules/cases/shared/CourtProgressPanel';
 
 export default function SecretaryCaseDetailsPage() {
   const { id } = useParams();
@@ -35,6 +36,7 @@ export default function SecretaryCaseDetailsPage() {
       </div>
     </Card>
     <PhysicalMatterFileCard physicalFile={caseData.physical_matter_file} caseId={id} canManage />
+    <CourtProgressPanel caseData={{ ...caseData, id }} showStage={false} />
     {client.access_type === 'PORTAL_ENABLED' && client.portal_access_exists && (
       <SecretaryCaseCommunication
         caseId={id}

@@ -4,11 +4,14 @@ import Card from '@/components/ui/Card';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { useCourtroomSessions } from '@/modules/courtroom/hooks/useCourtroom';
 import CourtroomLauncher from '@/modules/courtroom/components/CourtroomLauncher';
+import CourtroomLinkForm from '@/modules/courtroom/components/CourtroomLinkForm';
 
 export default function CaseCourtroomPanel({
   caseId,
   title = 'Courtroom',
   emptyMessage = 'No courtroom session has been attached to this case yet.',
+  audience = 'client',
+  canManageLinks = false,
 }) {
   const { data: sessions = [], isLoading, refetch } = useCourtroomSessions({ case_id: caseId });
 
@@ -46,7 +49,7 @@ export default function CaseCourtroomPanel({
       <div className='space-y-4'>
         {sessions.map((session) => (
           <div key={session.id} className='space-y-3'>
-            <CourtroomLauncher session={session} client />
+            <CourtroomLauncher session={session} client={audience === 'client'} />
             <div className='grid gap-2 text-sm text-slate-500 dark:text-slate-300 md:grid-cols-3'>
               <p><strong className='text-slate-700 dark:text-slate-100'>When:</strong> {session.event_summary?.starts_at ? formatDateTime(session.event_summary.starts_at) : 'Not set'}</p>
               <p><strong className='text-slate-700 dark:text-slate-100'>Court:</strong> {session.event_summary?.court_station || 'Not set'}</p>
@@ -55,6 +58,12 @@ export default function CaseCourtroomPanel({
           </div>
         ))}
       </div>
+
+      {canManageLinks && (
+        <div className='mt-5'>
+          <CourtroomLinkForm caseId={caseId} />
+        </div>
+      )}
     </Card>
   );
 }

@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { saveAuthSession } from '@/core/utils/authStorage';
 import { useNavigate, Link } from 'react-router-dom';
 import { flushSync } from 'react-dom';
-import { motion } from 'framer-motion';
 import { ShieldCheck, Lock, ArrowLeft } from 'lucide-react';
 
 import authService from '@/modules/auth/service/authService';
@@ -17,6 +16,7 @@ import Swal from '@/core/utils/themedSwal';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { persistThemeForUser } from '@/core/utils/themeIdentity';
 import { getClientDashboardPath, getEffectiveRole } from '@/core/utils/effectiveRole';
+import AuthShowcase from '@/modules/auth/components/AuthShowcase';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -32,6 +32,10 @@ export default function Login() {
 
   const navigateByRole = (sessionUser) => {
     const effectiveRole = getEffectiveRole(sessionUser, sessionUser.firm_role);
+
+    if (effectiveRole === 'PLATFORM_ADMIN') {
+      return navigate('/platform/overview', { replace: true });
+    }
 
     if (effectiveRole === 'ADMIN') {
       return navigate('/admin/dashboard', { replace: true });
@@ -55,6 +59,7 @@ export default function Login() {
   };
 
   const getDashboardThemeRole = (sessionUser) => {
+    if (sessionUser.role === 'PLATFORM_ADMIN') return 'platform';
     if (sessionUser.role === 'ADMIN') return 'admin';
     if (['OFFICIAL_CLIENT', 'PROSPECT'].includes(sessionUser.role)) {
       return 'client';
@@ -238,22 +243,7 @@ export default function Login() {
 
   return (
     <div className='flex-1 flex flex-col lg:flex-row min-h-screen'>
-      {/* LEFT PANEL */}
-      <div className='hidden lg:flex lg:w-1/2 bg-[color:var(--brand-primary)] dark:bg-blue-950 relative flex-col items-center justify-center px-10 py-10 overflow-hidden'>
-        <motion.div
-          animate={{ scale: [1, 1.2, 1], x: [0, 40, 0], y: [0, -30, 0] }}
-          transition={{ duration: 8, repeat: Infinity }}
-          className='absolute w-96 h-96 bg-blue-500/40 rounded-full blur-3xl'
-        />
-
-        <div className='relative text-center text-white max-w-md my-auto'>
-          <ShieldCheck size={90} className='mx-auto mb-6' />
-          <h1 className='text-4xl font-bold mb-4'>Secure Legal Access</h1>
-          <p className='text-blue-100'>
-            Login to manage cases, documents, and communication securely.
-          </p>
-        </div>
-      </div>
+      <AuthShowcase icon={ShieldCheck} title='Your firm, one sign-in away' text='Firm owners, advocates, staff and clients all sign in here and land in their own firm’s workspace.' />
 
       {/* RIGHT PANEL */}
       <div className='w-full lg:w-1/2 flex flex-col items-center justify-center px-6 pt-40 pb-10 bg-gray-50 dark:bg-[#0b1220]'>
@@ -330,6 +320,13 @@ export default function Login() {
                   : 'Login'}
             </Button3D>
 
+            <p className='text-center text-sm text-gray-700 dark:text-gray-300'>
+              New law firm?{' '}
+              <Link to='/register-firm' className='font-semibold text-blue-700 hover:underline dark:text-blue-300'>
+                Register your firm
+              </Link>
+            </p>
+
             {/* ERROR */}
             {error && (
               <p className='text-red-500 dark:text-red-300 text-center text-sm'>
@@ -338,7 +335,7 @@ export default function Login() {
             )}
 
             <p className='text-sm text-center mt-6 text-gray-600 dark:text-gray-300'>
-              Accounts are created and managed by the firm. Contact the firm if you need access.
+              One sign-in for every firm on Sheria Master: use the email your firm registered for you and you will open your own firm&apos;s dashboard. Staff and client accounts are created by the firm.
             </p>
           </form>
         </Card>
