@@ -82,10 +82,7 @@ const FIRM = {
   subscription: {
     plan: BASIC, status: 'TRIALING', effective_status: 'TRIALING', billing_cycle: 'MONTHLY',
     trial_ends_at: '2026-10-12T08:00:00Z', current_period_end: null, grace_period_days: 7, notes: '',
-    usage: { advocates: 1, support_staff: 0, active_matters: 0, branches: 1 },
   },
-  counts: { members: 1, clients: 0, matters: 0, branches: 1, members_by_role: { LAWYER: 1 } },
-  members: [{ user_id: 'u1', full_name: 'Grace Achieng', email: 'grace@am.test', role: 'LAWYER', role_label: 'Lawyer', is_active: true, last_login: null }],
   invoices: [],
   activity: [{ id: 'a1', action_label: 'Firm registered', summary: 'Registered Achieng & Mwangi Advocates.', actor: 'Ops', created_at: '2026-09-01T08:00:00Z' }],
 };
@@ -129,7 +126,7 @@ describe('platform console', () => {
         by_plan: [{ plan: 'Pro', count: 2 }, { plan: 'Basic', count: 1 }],
         monthly_recurring_revenue: '12500.00',
       },
-      users: { total: 20, active: 19, signed_in_last_30_days: 10, by_role: [{ role: 'ADMIN', label: 'Admin', count: 3 }] },
+      owners: { total: 3, active: 3, signed_in_last_30_days: 2 },
       new_firms_by_month: [{ month: '2026-09', label: 'Sep 2026', count: 1 }],
       pending_payments: 2,
       new_onboarding_requests: 1,
@@ -239,7 +236,8 @@ describe('platform console', () => {
     expect(await screen.findByRole('heading', { name: 'Achieng & Mwangi Advocates' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Suspend firm/ })).toBeInTheDocument();
     expect(screen.getByText('Has not signed in yet')).toBeInTheDocument();
-    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    expect(screen.queryByText('1 / 3')).not.toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: 'Firm staff' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Update subscription' })).toBeDisabled();
   });
 

@@ -3,6 +3,7 @@ import { useContext, useState } from 'react';
 
 import Footer from '@/components/shared/Footer';
 import ThemeContext from '@/core/store/ThemeContext';
+import DashboardAssistant from '@/components/ai/DashboardAssistant';
 import StaffSidebar from '@/layouts/staff/common/StaffSidebar';
 import StaffTopbar from '@/layouts/staff/common/StaffTopbar';
 
@@ -52,7 +53,7 @@ export default function StaffRoleLayout({ config }) {
             msOverflowStyle: 'none',
           }}
         >
-          <div className='flex-1 min-w-0 w-full p-0'>
+          <div className={`flex-1 min-w-0 w-full ${config.contentClassName || 'p-0'}`}>
             <Outlet />
           </div>
 
@@ -67,6 +68,7 @@ export default function StaffRoleLayout({ config }) {
           }
         `}
       </style>
+      {config.assistant && <DashboardAssistant kind={config.assistant} />}
     </div>
   );
 }

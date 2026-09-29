@@ -4,6 +4,7 @@ import ClientSidebar from "@/layouts/portal/ClientSidebar";
 import ClientTopbar from "@/layouts/portal/ClientTopbar";
 import Footer from "@/components/shared/Footer";
 import ThemeContext from "@/core/store/ThemeContext";
+import DashboardAssistant from "@/components/ai/DashboardAssistant";
 
 export default function ClientLayout() {
   const { theme } = useContext(ThemeContext);
@@ -71,6 +72,7 @@ export default function ClientLayout() {
           }
         `}
       </style>
+      <DashboardAssistant kind='client' />
     </div>
   );
 }

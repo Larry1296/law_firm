@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import FloatingAIChat from './FloatingAIChat';
@@ -194,5 +195,36 @@ describe('FloatingAIChat', () => {
     expect(getKnowledgeBaseCategories).not.toHaveBeenCalled();
     expect(await screen.findByText(/speak to a qualified advocate/i)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Speak to an advocate' })).not.toBeInTheDocument();
+  });
+
+  it('offers the Register your firm page when asked how to put a firm on the platform', async () => {
+    getLegalAssistantSuggestions.mockResolvedValue(['How do I register my firm?']);
+    askLegalAssistant.mockResolvedValue({
+      answer: 'To put your law firm on Sheria Master, choose **Register your firm** at the top of this page.',
+      sources: [], needs_lawyer: false, disclaimer: '', intent: 'out_of_scope',
+      action: { label: 'Register your firm', path: '/register-firm' },
+    });
+    const user = userEvent.setup();
+    render(<MemoryRouter><FloatingAIChat mode='platform' /></MemoryRouter>);
+
+    openLegalAssistant();
+    await user.click(await screen.findByRole('button', { name: 'How do I register my firm?' }));
+
+    expect(await screen.findByRole('link', { name: 'Register your firm' })).toHaveAttribute('href', '/register-firm');
+    expect(screen.queryByText('Sources')).not.toBeInTheDocument();
+  });
+
+  it('ignores an action that points outside the app', async () => {
+    getLegalAssistantSuggestions.mockResolvedValue(['Question']);
+    askLegalAssistant.mockResolvedValue({ ...groundedResponse, action: { label: 'Elsewhere', path: '//evil.test/x' } });
+    const user = userEvent.setup();
+    render(<MemoryRouter><FloatingAIChat mode='platform' /></MemoryRouter>);
+
+    openLegalAssistant();
+    await user.click(await screen.findByRole('button', { name: 'Question' }));
+
+    await waitFor(() => expect(askLegalAssistant).toHaveBeenCalled());
+    expect(await screen.findByText(/Article 48 addresses access to justice/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Elsewhere' })).not.toBeInTheDocument();
   });
 });

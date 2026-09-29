@@ -18,8 +18,10 @@ from .legal_source import LegalProvision, LegalSourceDocument
 from .ai_document_analysis import AIDocumentAnalysis
 
 from .court_preparation import CourtPreparationBrief
+from .assistant_usage import AssistantUsage
 
 __all__ = [
+    "AssistantUsage",
     "KnowledgeBaseArticle",
     "KnowledgeBaseCategory",
     "KnowledgeBaseQuestionLog",

@@ -34,10 +34,12 @@ export default function StaffTopbar({ config, onMenuClick }) {
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
-        <NotificationBellDropdown
-          className={hoverEffect}
-          fallbackPath={`${config.basePath}/notifications`}
-        />
+        {config.showNotifications !== false && (
+          <NotificationBellDropdown
+            className={hoverEffect}
+            fallbackPath={`${config.basePath}/notifications`}
+          />
+        )}
       </div>
     </header>
   );

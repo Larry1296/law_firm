@@ -44,8 +44,6 @@ class PlatformMonitoringService:
             "subscription_status": SubscriptionService.effective_status(subscription),
             "trial_ends_at": subscription.trial_ends_at,
             "current_period_end": subscription.current_period_end,
-            "member_count": getattr(firm, "member_count", None),
-            "client_count": getattr(firm, "client_count", None),
             "created_at": firm.created_at,
         }
 
@@ -78,8 +76,7 @@ class PlatformMonitoringService:
                 "count": monthly.get(month.strftime("%Y-%m"), 0),
             })
 
-        users = User.objects.all()
-        role_counts = dict(users.values_list("role").annotate(count=Count("id")))
+        owners = User.objects.filter(owned_firm__isnull=False)
         trials_ending = sorted(
             (
                 cls.firm_row(firm, subscriptions[firm.id]) for firm in firms
@@ -103,14 +100,11 @@ class PlatformMonitoringService:
                 "by_plan": [{"plan": name, "count": count} for name, count in plan_counts.most_common()],
                 "monthly_recurring_revenue": str(mrr),
             },
-            "users": {
-                "total": users.count(),
-                "active": users.filter(is_active=True).count(),
-                "signed_in_last_30_days": users.filter(last_login__gte=now - timedelta(days=30)).count(),
-                "by_role": [
-                    {"role": value, "label": label, "count": role_counts.get(value, 0)}
-                    for value, label in UserRole.choices
-                ],
+            # Firm owners are the only firm people the platform sees.
+            "owners": {
+                "total": owners.count(),
+                "active": owners.filter(is_active=True).count(),
+                "signed_in_last_30_days": owners.filter(last_login__gte=now - timedelta(days=30)).count(),
             },
             "new_firms_by_month": new_firms_by_month,
             "pending_payments": SubscriptionInvoice.objects.filter(
@@ -137,10 +131,7 @@ class PlatformMonitoringService:
 
     @staticmethod
     def firms_queryset(*, search="", plan="", status="", active=""):
-        queryset = LawFirm.objects.select_related("owner", "subscription__plan").annotate(
-            member_count=Count("members", filter=Q(members__is_active=True), distinct=True),
-            client_count=Count("clients", distinct=True),
-        ).order_by("-created_at")
+        queryset = LawFirm.objects.select_related("owner", "subscription__plan").order_by("-created_at")
         if search:
             queryset = queryset.filter(
                 Q(name__icontains=search) | Q(registration_number__icontains=search)
@@ -160,52 +151,43 @@ class PlatformMonitoringService:
         return firms
 
     @staticmethod
-    def user_firm(user):
-        owned = getattr(user, "owned_firm", None)
-        if owned is not None:
-            return owned
-        memberships = [item for item in user.firm_memberships.all() if item.is_active]
-        if memberships:
-            return memberships[0].firm
-        client = getattr(user, "client_profile", None)
-        return client.firm if client is not None else None
+    def visible_users():
+        """Firm owners and platform administrators; a firm's staff and clients stay private to the firm."""
+        return User.objects.select_related("owned_firm").filter(
+            Q(owned_firm__isnull=False) | Q(role=UserRole.PLATFORM_ADMIN),
+        )
 
-    @classmethod
-    def user_row(cls, user):
-        firm = cls.user_firm(user)
-        membership = next((item for item in user.firm_memberships.all() if item.is_active), None)
+    @staticmethod
+    def user_row(user):
+        firm = getattr(user, "owned_firm", None)
         return {
             "id": user.id,
             "full_name": user.full_name,
             "email": user.email,
             "phone_number": user.phone_number,
             "role": user.role,
-            "role_label": user.get_role_display(),
-            "firm_role": membership.role if membership else None,
-            "is_firm_owner": getattr(user, "owned_firm", None) is not None,
+            "role_label": "Firm owner" if firm else user.get_role_display(),
+            "is_firm_owner": firm is not None,
             "firm": {"id": firm.id, "name": firm.name} if firm else None,
             "is_active": user.is_active,
             "last_login": user.last_login,
             "created_at": user.created_at,
         }
 
-    @staticmethod
-    def users_queryset(*, search="", role="", firm="", active=""):
-        queryset = User.objects.select_related("owned_firm", "client_profile__firm").prefetch_related(
-            "firm_memberships__firm",
-        ).order_by("-created_at")
+    @classmethod
+    def users_queryset(cls, *, search="", role="", firm="", active=""):
+        queryset = cls.visible_users().order_by("-created_at")
         if search:
             queryset = queryset.filter(
                 Q(email__icontains=search) | Q(first_name__icontains=search)
                 | Q(last_name__icontains=search) | Q(phone_number__icontains=search)
             )
-        if role:
-            queryset = queryset.filter(role=role)
+        if role == "FIRM_OWNER":
+            queryset = queryset.filter(owned_firm__isnull=False)
+        elif role == UserRole.PLATFORM_ADMIN:
+            queryset = queryset.filter(role=UserRole.PLATFORM_ADMIN)
         if firm:
-            queryset = queryset.filter(
-                Q(owned_firm__id=firm) | Q(firm_memberships__firm_id=firm, firm_memberships__is_active=True)
-                | Q(client_profile__firm_id=firm)
-            ).distinct()
+            queryset = queryset.filter(owned_firm__id=firm)
         if active in {"true", "false"}:
             queryset = queryset.filter(is_active=active == "true")
         return queryset

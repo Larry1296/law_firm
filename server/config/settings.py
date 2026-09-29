@@ -261,6 +261,7 @@ REST_FRAMEWORK = {
         "firm_signup": config("FIRM_SIGNUP_RATE_LIMIT", default="5/hour"),
         "account_recovery": config("ACCOUNT_RECOVERY_RATE_LIMIT", default="5/hour"),
         "firm_onboarding_request": config("FIRM_ONBOARDING_REQUEST_RATE_LIMIT", default="5/hour"),
+        "dashboard_assistant": config("DASHBOARD_ASSISTANT_RATE_LIMIT", default="60/hour"),
     },
 }
 
@@ -275,8 +276,16 @@ SUBSCRIPTION_TRIAL_DAYS = config("SUBSCRIPTION_TRIAL_DAYS", default=14, cast=int
 SUBSCRIPTION_VAT_RATE = config("SUBSCRIPTION_VAT_RATE", default="16.00")
 SUBSCRIPTION_MPESA_PAYBILL = config("SUBSCRIPTION_MPESA_PAYBILL", default="")
 
+# The model behind every assistant: Claude first, OpenAI when Claude fails.
+# AI_PROVIDER="openai" tries OpenAI first instead.
+AI_PROVIDER = config("AI_PROVIDER", default="auto")
+AI_FALLBACK_ENABLED = config("AI_FALLBACK_ENABLED", default=True, cast=bool)
+# Seconds per provider; with a fallback a question can take up to twice this.
+AI_REQUEST_TIMEOUT = config("AI_REQUEST_TIMEOUT", default=20, cast=int)
+ANTHROPIC_API_KEY = config("ANTHROPIC_API_KEY", default="")
+ANTHROPIC_MODEL = config("ANTHROPIC_MODEL", default="claude-sonnet-5-5")
 OPENAI_API_KEY = config("OPENAI_API_KEY", default="")
-OPENAI_MODEL = config("OPENAI_MODEL", default="", cast=str)
+OPENAI_MODEL = config("OPENAI_MODEL", default="gpt-5.4-mini")
 KNOWLEDGE_BASE_MAX_CONTEXT_ITEMS = config("KNOWLEDGE_BASE_MAX_CONTEXT_ITEMS", default=4, cast=int)
 KNOWLEDGE_BASE_MIN_RELEVANCE = config("KNOWLEDGE_BASE_MIN_RELEVANCE", default=0.15, cast=float)
 KNOWLEDGE_BASE_REQUEST_TIMEOUT = config("KNOWLEDGE_BASE_REQUEST_TIMEOUT", default=20, cast=int)
@@ -284,7 +293,7 @@ AI_EXTERNAL_RESEARCH_ENABLED = config("AI_EXTERNAL_RESEARCH_ENABLED", default=Fa
 AI_CASE_ASSESSMENT_RETENTION_DAYS = config("AI_CASE_ASSESSMENT_RETENTION_DAYS", default=365, cast=int)
 AI_AUTOMATIC_REASSESSMENT_ENABLED = config("AI_AUTOMATIC_REASSESSMENT_ENABLED", default=False, cast=bool)
 AI_KNOWLEDGE_INDEX_MODE = config("AI_KNOWLEDGE_INDEX_MODE", default="database")
-# Sends minimised, de-identified matter facts to the configured OpenAI model to tailor court preparation briefs.
+# Sends minimised, de-identified matter facts to the configured AI model to tailor court preparation briefs.
 AI_PREPARATION_LLM_ENABLED = config("AI_PREPARATION_LLM_ENABLED", default=False, cast=bool)
 
 CORS_ALLOWED_ORIGINS = config(

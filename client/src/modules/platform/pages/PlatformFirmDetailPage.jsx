@@ -7,9 +7,7 @@ import Swal from '@/core/utils/themedSwal';
 import { apiAssetUrl } from '@/core/utils/apiAssetUrl';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import {
-  LIMIT_LABELS,
   formatKes,
-  formatLimit,
   formatSubscriptionDate,
 } from '@/modules/admin/subscription/utils/subscriptionFormatting';
 import platformService from '@/modules/platform/services/platformService';
@@ -162,27 +160,6 @@ function SubscriptionPanel({ firm, meta, onSaved }) {
         {' '}{formatKes(subscription.billing_cycle === 'ANNUAL' ? subscription.plan.annual_price : subscription.plan.monthly_price)} / {subscription.billing_cycle === 'ANNUAL' ? 'year' : 'month'} excl. VAT
       </p>
 
-      <h3 className='mt-5 text-xs font-semibold uppercase tracking-wide text-text-muted-light dark:text-text-muted-dark'>Usage</h3>
-      <ul className='mt-2 space-y-3'>
-        {Object.entries(subscription.usage).map(([key, used]) => {
-          const limit = subscription.plan.limits[key];
-          const share = limit ? Math.min(used / limit, 1) : 0;
-          return (
-            <li key={key}>
-              <div className='flex justify-between text-sm'>
-                <span>{LIMIT_LABELS[key]}</span>
-                <span className='tabular-nums'>{used} / {formatLimit(limit)}</span>
-              </div>
-              {limit !== null && limit !== undefined && (
-                <div className='mt-1 h-1.5 overflow-hidden rounded-full bg-background-light dark:bg-background-dark' aria-hidden='true'>
-                  <div className={`h-full rounded-full ${share >= 1 ? 'bg-warning' : 'bg-[#1d6fa8] dark:bg-[#3f8fd0]'}`} style={{ width: `${share * 100}%` }} />
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-
       <form onSubmit={(event) => { event.preventDefault(); save.mutate(); }} className='mt-6 grid gap-4 border-t border-border-light pt-5 dark:border-border-dark sm:grid-cols-2'>
         <Field label='Plan'>
           <select value={draft.plan_code} onChange={set('plan_code')} className={inputClass}>
@@ -315,25 +292,11 @@ export default function PlatformFirmDetailPage() {
 
       {actionError && <div className='mb-4'><ErrorNotice>{actionError}</ErrorNotice></div>}
 
-      <div className='mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
-        {[
-          ['Staff', firm.counts.members],
-          ['Clients', firm.counts.clients],
-          ['Matters', firm.counts.matters],
-          ['Branches', firm.counts.branches],
-        ].map(([label, value]) => (
-          <div key={label} className='rounded-2xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
-            <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>{label}</p>
-            <p className='mt-1 text-2xl font-bold tabular-nums'>{value}</p>
-          </div>
-        ))}
-      </div>
-
       <div className='grid gap-6 xl:grid-cols-5'>
         <div className='space-y-6 xl:col-span-3'>
           <ProfilePanel firm={firm} meta={meta.data} onSaved={refresh} />
 
-          <Panel title='Firm owner' description='The firm administrator. Only they can add staff and change firm settings.'>
+          <Panel title='Firm owner' description='The firm administrator and the only person at the firm the platform deals with. The firm’s staff, clients and matters stay private to the firm.'>
             <dl className='grid gap-x-6 sm:grid-cols-2'>
               <Detail label='Name'>{firm.owner.full_name}{firm.owner.job_title ? ` · ${firm.owner.job_title}` : ''}</Detail>
               <Detail label='Signs in with'>{firm.owner.email}</Detail>
@@ -361,21 +324,6 @@ export default function PlatformFirmDetailPage() {
           <SubscriptionPanel key={JSON.stringify(firm.subscription)} firm={firm} meta={meta.data} onSaved={refresh} />
         </div>
       </div>
-
-      <Panel title='People' description='Staff accounts at the firm. Manage individual accounts from Users.' className='mt-6' bodyClassName='p-0'>
-        {firm.members.length ? (
-          <Table caption='Firm staff' columns={['Name', 'Role', 'Status', 'Last signed in']}>
-            {firm.members.map((member) => (
-              <tr key={member.user_id} className='text-sm'>
-                <td className={cellClass}>{member.full_name}<p className='text-xs text-text-muted-light dark:text-text-muted-dark'>{member.email}</p></td>
-                <td className={cellClass}>{member.role_label}</td>
-                <td className={cellClass}>{member.is_active ? <StatusBadge status='ACTIVE' /> : <StatusBadge status='CANCELLED' label='Inactive' />}</td>
-                <td className={`${cellClass} whitespace-nowrap`}>{member.last_login ? formatDateTime(member.last_login) : 'Never'}</td>
-              </tr>
-            ))}
-          </Table>
-        ) : <EmptyState>No staff yet.</EmptyState>}
-      </Panel>
 
       <div className='mt-6 grid gap-6 xl:grid-cols-2'>
         <Panel title='Subscription invoices' bodyClassName='p-0'>

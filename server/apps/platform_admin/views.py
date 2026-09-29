@@ -102,16 +102,19 @@ class MetaView(PlatformView):
 # ---------------------------------------------------------------------------
 
 def firm_detail_payload(firm):
-    from apps.cases.models import Case
-
+    """
+    The firm's account as the platform sees it: its registration details, its
+    owner and its subscription. Nothing about the people working in the firm
+    (staff, clients, matters or head-counts) is ever sent to the platform.
+    """
     subscription = SubscriptionService.get(firm)
     owner = firm.owner
     lawyer = getattr(owner, "lawyer_profile", None)
     setting = getattr(firm, "settings", None)
     head_office = firm.branches.filter(is_head_office=True).first()
-    members = firm.members.select_related("user").order_by("role", "user__first_name")
-    role_counts = dict(members.filter(is_active=True).values_list("role").annotate(count=Count("id")))
     invoices = SubscriptionInvoice.objects.filter(firm=firm).select_related("plan")[:12]
+    summary = SubscriptionService.summary(firm)
+    summary.pop("usage", None)
 
     return {
         "id": firm.id,
@@ -157,30 +160,11 @@ def firm_detail_payload(firm):
             "allow_client_registration": setting.allow_client_registration,
         } if setting else None,
         "subscription": {
-            **SubscriptionService.summary(firm),
+            **summary,
             "status": subscription.status,
             "grace_period_days": subscription.grace_period_days,
             "notes": subscription.notes,
         },
-        "counts": {
-            "members_by_role": role_counts,
-            "members": sum(role_counts.values()),
-            "clients": firm.clients.count(),
-            "matters": Case.objects.filter(firm=firm).count(),
-            "branches": firm.branches.filter(is_active=True).count(),
-        },
-        "members": [
-            {
-                "user_id": member.user_id,
-                "full_name": member.user.full_name,
-                "email": member.user.email,
-                "role": member.role,
-                "role_label": member.get_role_display(),
-                "is_active": member.is_active and member.user.is_active,
-                "last_login": member.user.last_login,
-            }
-            for member in members[:100]
-        ],
         "invoices": SubscriptionInvoiceSerializer(invoices, many=True).data,
         "activity": [
             {
@@ -263,9 +247,11 @@ class FirmSubscriptionView(PlatformView):
         changes = []
         if "plan_code" in data and data["plan_code"] != subscription.plan.code:
             plan = Plan.objects.get(code=data["plan_code"])
-            problems = SubscriptionService.overages(firm, plan)
-            if problems:
-                raise ValidationError({"plan_code": ["The firm is over this plan's limits."] + problems})
+            # The firm's usage figures stay private; its owner sees them on their own dashboard.
+            if SubscriptionService.overages(firm, plan):
+                raise ValidationError({"plan_code": [
+                    f"The firm uses more than {plan.name} allows. Its owner must reduce usage before the plan can change.",
+                ]})
             changes.append(f"plan {subscription.plan.name} → {plan.name}")
             subscription.plan = plan
         for field in ("billing_cycle", "status", "trial_ends_at", "current_period_end", "grace_period_days", "notes"):
@@ -370,17 +356,14 @@ class UserListView(PlatformView):
 
 class UserStatusView(PlatformView):
     def patch(self, request, user_id):
-        user = get_object_or_404(
-            User.objects.select_related("owned_firm", "client_profile__firm").prefetch_related("firm_memberships__firm"),
-            id=user_id,
-        )
+        user = get_object_or_404(PlatformMonitoringService.visible_users(), id=user_id)
         if user.pk == request.user.pk:
             raise ValidationError({"detail": "You cannot deactivate your own account."})
         serializer = UserStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user.is_active = serializer.validated_data["is_active"]
         user.save(update_fields=["is_active", "updated_at"])
-        firm = PlatformMonitoringService.user_firm(user)
+        firm = getattr(user, "owned_firm", None)
         action = Action.USER_ACTIVATED if user.is_active else Action.USER_DEACTIVATED
         verb = "Activated" if user.is_active else "Deactivated"
         PlatformActivity.record(request.user, action, f"{verb} {user.full_name} ({user.email}).", firm=firm)

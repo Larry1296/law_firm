@@ -5,6 +5,7 @@ import AdminTopbar from '@/layouts/admin/AdminTopbar';
 import Footer from '@/components/shared/Footer';
 import SubscriptionBanner from '@/components/shared/SubscriptionBanner';
 import ThemeContext from '@/core/store/ThemeContext';
+import DashboardAssistant from '@/components/ai/DashboardAssistant';
 
 export default function AdminLayout() {
   const { theme } = useContext(ThemeContext);
@@ -73,6 +74,7 @@ export default function AdminLayout() {
           }
         `}
       </style>
+      <DashboardAssistant kind='firm' />
     </div>
   );
 }

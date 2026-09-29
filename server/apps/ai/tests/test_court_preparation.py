@@ -134,7 +134,7 @@ class CourtPreparationTests(TestCase):
         self.assertEqual(cleaned["anticipated_questions"][0]["from"], "Court")
         self.assertNotIn("ignore", cleaned)
 
-    @override_settings(AI_PREPARATION_LLM_ENABLED=True, OPENAI_API_KEY="test", OPENAI_MODEL="test-model")
+    @override_settings(AI_PREPARATION_LLM_ENABLED=True, AI_PROVIDER="openai", OPENAI_API_KEY="test", OPENAI_MODEL="test-model")
     def test_enabled_tailoring_is_stored_and_a_provider_failure_falls_back_to_structured_guidance(self):
         tailored = {"focus": "Prove delivery.", "anticipated_questions": [], "risks": [], "label": "AI draft"}
         with patch.object(CourtPreparationLLM, "tailor", return_value=tailored):

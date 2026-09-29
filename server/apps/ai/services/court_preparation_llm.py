@@ -1,10 +1,9 @@
 import json
 
-from django.conf import settings
+from apps.ai.services.llm_provider import AIProviderUnavailable, complete_json, configured_provider
 
-
-class PreparationProviderUnavailable(Exception):
-    pass
+# Any provider failure; the brief then keeps its structured guidance only.
+PreparationProviderUnavailable = AIProviderUnavailable
 
 
 INSTRUCTIONS = """You help a Kenyan advocate prepare for one upcoming court sitting.
@@ -21,28 +20,14 @@ class CourtPreparationLLM:
     MAX_RISKS = 4
 
     def __init__(self):
-        if not settings.OPENAI_API_KEY or not settings.OPENAI_MODEL:
+        self.choice = configured_provider()
+        if self.choice is None:
             raise PreparationProviderUnavailable("AI service is not configured")
 
     def tailor(self, context):
-        try:
-            from openai import OpenAI
-        except ImportError as exc:
-            raise PreparationProviderUnavailable("AI provider package is unavailable") from exc
-        try:
-            client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=settings.KNOWLEDGE_BASE_REQUEST_TIMEOUT)
-            response = client.responses.create(
-                model=settings.OPENAI_MODEL,
-                instructions=INSTRUCTIONS,
-                input=f"STRUCTURED FACTS:\n{json.dumps(context, indent=2)}",
-                max_output_tokens=900,
-                text={"format": {"type": "json_object"}},
-            )
-            payload = json.loads(response.output_text)
-        except PreparationProviderUnavailable:
-            raise
-        except Exception as exc:
-            raise PreparationProviderUnavailable("AI provider request failed") from exc
+        payload, self.choice = complete_json(
+            INSTRUCTIONS, f"STRUCTURED FACTS:\n{json.dumps(context, indent=2)}", max_tokens=900,
+        )
         return self.validate(payload)
 
     @classmethod

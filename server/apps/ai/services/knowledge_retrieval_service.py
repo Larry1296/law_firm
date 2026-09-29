@@ -12,10 +12,17 @@ from apps.ai.services.public_knowledge_service import PublicKnowledgeEligibility
 
 
 TOKEN_RE = re.compile(r"[a-zA-ZÀ-ž0-9']{2,}")
+# Everyday words carry no legal meaning. Left in, rare ones such as "my" or
+# "do" outweigh the real subject and pull in unrelated provisions (oaths, elections).
 STOP_WORDS = {
-    "about", "after", "also", "and", "are", "can", "does", "for", "from",
-    "have", "how", "kenya", "kenyan", "law", "legal", "the", "this", "what",
-    "when", "where", "which", "with", "would", "your",
+    "about", "after", "also", "am", "an", "and", "any", "are", "as", "at", "be", "been", "being",
+    "but", "by", "can", "could", "did", "do", "does", "doing", "done", "for", "from", "get", "gets",
+    "getting", "go", "going", "got", "had", "has", "have", "he", "her", "him", "his", "how", "if", "in",
+    "into", "is", "it", "its", "just", "kenya", "kenyan", "know", "law", "legal", "like", "many", "me", "mine",
+    "much", "must", "my", "need", "of", "on", "or", "our", "ours", "please", "she", "should", "so", "some", "tell",
+    "say", "says", "than", "that", "the", "their", "them", "then", "there", "these", "they", "this", "those", "to",
+    "up", "us", "want", "was", "we", "were", "what", "when", "where", "which", "who", "why", "will",
+    "with", "would", "you", "your", "yours",
 }
 
 
@@ -74,6 +81,8 @@ class ProvisionIndex:
     HEADING_WEIGHT = 3
     # A question that restates most of a section heading is almost always asking about that section.
     HEADING_MATCH_BONUS = 0.5
+    # A provision must cover this share of what was asked, rare words counting more.
+    MIN_COVERAGE = 0.5
     _cache = {"key": None, "index": None}
 
     def __init__(self, provisions):
@@ -123,11 +132,23 @@ class ProvisionIndex:
         terms = [term for term in self.query_terms(question) if term in self.idf]
         if not terms:
             return []
+        # Each word asked, with the stems that count as finding it (its synonyms included).
+        # A word no provision uses weighs as much as the strongest word the library does know.
+        asked = {}
+        for word in TOKEN_RE.findall(question.lower()):
+            if word not in STOP_WORDS:
+                asked[stem(word)] = {stem(word), *(stem(synonym) for synonym in QUERY_EXPANSIONS.get(word, ()))}
+        unseen_idf = max(self.idf[term] for term in terms)
+        asked_weight = sum(self.idf.get(word, unseen_idf) for word in asked)
         # Score as a share of the best achievable score, so it is comparable with article relevance (0..1).
         ceiling = sum(self.idf[term] * (self.K1 + 1) for term in terms)
         query = set(terms)
         results = []
         for provision, (counts, length), heading in zip(self.provisions, self.documents, self.headings):
+            # "Register my firm as an advocate" is not answered by a register of employees.
+            covered = sum(self.idf.get(word, unseen_idf) for word, forms in asked.items() if forms & counts.keys())
+            if covered < self.MIN_COVERAGE * asked_weight:
+                continue
             score = 0.0
             for term in terms:
                 frequency = counts.get(term, 0)

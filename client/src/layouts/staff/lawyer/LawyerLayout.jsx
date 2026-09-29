@@ -4,6 +4,7 @@ import LawyerSidebar from "@/layouts/staff/lawyer/LawyerSidebar";
 import LawyerTopbar from "@/layouts/staff/lawyer/LawyerTopbar";
 import Footer from "@/components/shared/Footer";
 import ThemeContext from "@/core/store/ThemeContext";
+import DashboardAssistant from "@/components/ai/DashboardAssistant";
 
 export default function LawyerLayout() {
   const { theme } = useContext(ThemeContext);
@@ -71,6 +72,7 @@ export default function LawyerLayout() {
           }
         `}
       </style>
+      <DashboardAssistant kind='advocate' />
     </div>
   );
 }

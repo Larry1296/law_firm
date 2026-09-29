@@ -91,8 +91,9 @@ class CourtPreparationService:
             from apps.ai.services.court_preparation_llm import CourtPreparationLLM, PreparationProviderUnavailable
 
             try:
-                tailored = CourtPreparationLLM().tailor(cls.minimised_context(event, checks))
-                provider, model = "openai", settings.OPENAI_MODEL
+                llm = CourtPreparationLLM()
+                tailored = llm.tailor(cls.minimised_context(event, checks))
+                provider, model = llm.choice.name, llm.choice.model
             except PreparationProviderUnavailable:
                 tailored = {}
         readiness = round(100 * sum(item["passed"] for item in checks) / len(checks)) if checks else 100

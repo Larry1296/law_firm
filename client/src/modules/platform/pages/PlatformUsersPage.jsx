@@ -19,15 +19,10 @@ import {
 import { cellClass, formatDateTime, inputClass } from '@/modules/platform/components/styles';
 
 const ROLE_OPTIONS = [
-  ['', 'All roles'],
-  ['ADMIN', 'Firm administrators'],
-  ['STAFF', 'Firm staff'],
-  ['OFFICIAL_CLIENT', 'Clients'],
-  ['PROSPECT', 'Prospective clients'],
+  ['', 'Everyone'],
+  ['FIRM_OWNER', 'Firm owners'],
   ['PLATFORM_ADMIN', 'Platform administrators'],
 ];
-
-const FIRM_ROLE_LABELS = { LAWYER: 'Advocate', SECRETARY: 'Secretary', ACCOUNTANT: 'Accountant', HR: 'HR', IT: 'IT' };
 
 export default function PlatformUsersPage() {
   const { user: me } = useContext(AuthContext);
@@ -60,7 +55,7 @@ export default function PlatformUsersPage() {
 
   return (
     <>
-      <PageHeader title='Users' description='Everyone who can sign in: firm owners, staff, clients and platform administrators. A deactivated user cannot sign in.' />
+      <PageHeader title='Users' description='Firm owners and platform administrators. A firm’s staff and clients are managed by its owner and are not shown here. A deactivated user cannot sign in.' />
       {actionError && <div className='mb-4'><ErrorNotice>{actionError}</ErrorNotice></div>}
 
       <Panel bodyClassName='p-0'>
@@ -100,8 +95,7 @@ export default function PlatformUsersPage() {
                   <p className='text-xs text-text-muted-light dark:text-text-muted-dark'>{row.email}</p>
                 </td>
                 <td className={cellClass}>
-                  {row.is_firm_owner ? 'Firm owner' : row.role_label}
-                  {row.firm_role && !row.is_firm_owner && <p className='text-xs text-text-muted-light dark:text-text-muted-dark'>{FIRM_ROLE_LABELS[row.firm_role] || row.firm_role}</p>}
+                  {row.role_label}
                 </td>
                 <td className={cellClass}>
                   {row.firm ? <Link to={`/platform/firms/${row.firm.id}`} className='hover:underline'>{row.firm.name}</Link> : '—'}

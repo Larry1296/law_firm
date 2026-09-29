@@ -1,10 +1,7 @@
-import json
+from apps.ai.services.llm_provider import AIProviderUnavailable, complete_json, configured_provider
 
-from django.conf import settings
-
-
-class KnowledgeProviderUnavailable(Exception):
-    pass
+# Kept as its own name for callers; any provider failure is this error.
+KnowledgeProviderUnavailable = AIProviderUnavailable
 
 
 SYSTEM_INSTRUCTION = """You are the Kenyan Legal Information Assistant for a law firm's public website.
@@ -21,20 +18,15 @@ Distinguish general information from legal advice. Recommend a qualified advocat
 Return JSON only with keys answer (string) and needs_lawyer (boolean)."""
 
 
-class OpenAIKnowledgeProvider:
+class KnowledgeAnswerProvider:
+    """Answers a public question from retrieved passages with the configured AI model."""
+
     def __init__(self):
-        if not settings.OPENAI_API_KEY or not settings.OPENAI_MODEL:
+        if configured_provider() is None:
             raise KnowledgeProviderUnavailable("AI service is not configured")
+        self.model = None
 
     def generate(self, question, history, retrieved, instructions=SYSTEM_INSTRUCTION):
-        try:
-            from openai import OpenAI
-        except ImportError as exc:
-            raise KnowledgeProviderUnavailable("AI provider package is unavailable") from exc
-        client = OpenAI(
-            api_key=settings.OPENAI_API_KEY,
-            timeout=settings.KNOWLEDGE_BASE_REQUEST_TIMEOUT,
-        )
         blocks = []
         for index, item in enumerate(retrieved, start=1):
             if hasattr(item, "article"):
@@ -48,18 +40,13 @@ class OpenAIKnowledgeProvider:
         conversation = "\n".join(
             f"{message['role'].upper()}: {message['content']}" for message in history
         )
-        response = client.responses.create(
-            model=settings.OPENAI_MODEL,
-            instructions=instructions,
-            input=f"PRIOR CONVERSATION:\n{conversation or '(none)'}\n\nVISITOR QUESTION:\n{question}\n\n{context}",
-            max_output_tokens=600,
-            text={"format": {"type": "json_object"}},
+        payload, choice = complete_json(
+            instructions,
+            f"PRIOR CONVERSATION:\n{conversation or '(none)'}\n\nVISITOR QUESTION:\n{question}\n\n{context}",
+            max_tokens=700,
         )
-        try:
-            payload = json.loads(response.output_text)
-            answer = str(payload["answer"]).strip()
-            if not answer:
-                raise ValueError
-            return answer, bool(payload.get("needs_lawyer", False))
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            raise KnowledgeProviderUnavailable("AI provider returned an invalid response") from exc
+        self.model = choice.model
+        answer = str(payload.get("answer", "")).strip()
+        if not answer:
+            raise KnowledgeProviderUnavailable("AI provider returned an invalid response")
+        return answer, bool(payload.get("needs_lawyer", False))

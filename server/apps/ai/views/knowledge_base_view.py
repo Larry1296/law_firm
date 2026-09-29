@@ -10,7 +10,7 @@ from apps.ai.serializers import KnowledgeBaseAskSerializer
 from apps.ai.services.knowledge_llm_service import (
     PLATFORM_INSTRUCTION,
     KnowledgeProviderUnavailable,
-    OpenAIKnowledgeProvider,
+    KnowledgeAnswerProvider,
 )
 from apps.ai.services.knowledge_retrieval_service import KnowledgeRetrievalService
 from apps.ai.services.public_firm_resolver import PublicFirmResolver
@@ -171,11 +171,10 @@ class KnowledgeBaseAskView(APIView):
             needs_lawyer = True
         else:
             try:
-                answer, needs_lawyer = OpenAIKnowledgeProvider().generate(
-                    question, history, retrieved
-                )
+                provider = KnowledgeAnswerProvider()
+                answer, needs_lawyer = provider.generate(question, history, retrieved)
                 log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
-                log.model = settings.OPENAI_MODEL
+                log.model = provider.model or ""
             except KnowledgeProviderUnavailable:
                 answer = _verified_extract_answer(retrieved)
                 needs_lawyer = True
@@ -212,6 +211,24 @@ PLATFORM_SIGN_IN_ANSWER = (
     "To sign in, choose **Login** at the top of this page and use the email address your firm registered "
     "for you. You will be taken to your own firm's dashboard. I can also answer questions about the law of Kenya."
 )
+# Questions about putting a firm on Sheria Master itself, not about the law.
+PLATFORM_REGISTER_FIRM_PHRASES = (
+    "register my firm", "register our firm", "register a firm", "register the firm", "register your firm",
+    "register my law firm", "register our law firm", "register a law firm",
+    "sign up my firm", "sign up our firm", "signup my firm", "add my firm", "list my firm", "onboard my firm",
+    "join sheria", "join the platform", "use sheria master", "subscribe my firm",
+)
+PLATFORM_REGISTER_FIRM_ANSWER = (
+    "To put your law firm on Sheria Master, choose **Register your firm** at the top of this page. "
+    "Enter your firm's details and your own details as the firm's owner (the managing advocate). {next_step} "
+    "Once the firm is set up you sign in as its owner and add your advocates, staff and clients yourself.\n\n"
+    "If you meant registering a law practice under Kenyan law, that is done with the Law Society of Kenya, "
+    "and I don't yet have verified material on it. An advocate or the Law Society can guide you."
+)
+PLATFORM_REGISTER_FIRM_NEXT_STEP = {
+    True: "Your firm's workspace is created straight away and starts on a free trial.",
+    False: "The platform team then contacts you to confirm the details and set up your firm's workspace.",
+}
 # Questions plainly about a particular firm. Words that are also legal topics
 # (advocates, fees, consultation, complaints) are left to legal retrieval.
 PLATFORM_OUT_OF_SCOPE_INTENTS = {"services", "overview", "contact", "location", "hours", "owner", "getting_started", "careers"}
@@ -270,6 +287,13 @@ class PlatformLegalAssistantView(APIView):
         if intent == "portal":
             log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
             return respond(PLATFORM_SIGN_IN_ANSWER, response_intent="out_of_scope")
+        if any(phrase in " ".join(question.lower().split()) for phrase in PLATFORM_REGISTER_FIRM_PHRASES):
+            log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
+            next_step = PLATFORM_REGISTER_FIRM_NEXT_STEP[bool(settings.ALLOW_PUBLIC_FIRM_SIGNUP)]
+            return respond(
+                PLATFORM_REGISTER_FIRM_ANSWER.format(next_step=next_step),
+                response_intent="out_of_scope", action={"label": "Register your firm", "path": "/register-firm"},
+            )
         if intent in PLATFORM_OUT_OF_SCOPE_INTENTS or any(term in question.lower() for term in PROMPT_INJECTION_TERMS):
             log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
             return respond(PLATFORM_SCOPE_ANSWER, response_intent="out_of_scope")
@@ -284,11 +308,10 @@ class PlatformLegalAssistantView(APIView):
         if not retrieved:
             return respond(PLATFORM_NO_SOURCE_ANSWER, response_intent="out_of_scope")
         try:
-            answer, needs_lawyer = OpenAIKnowledgeProvider().generate(
-                question, history, retrieved, instructions=PLATFORM_INSTRUCTION,
-            )
+            provider = KnowledgeAnswerProvider()
+            answer, needs_lawyer = provider.generate(question, history, retrieved, instructions=PLATFORM_INSTRUCTION)
             log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
-            log.model = settings.OPENAI_MODEL
+            log.model = provider.model or ""
         except KnowledgeProviderUnavailable:
             answer, needs_lawyer = _verified_extract_answer(retrieved), True
             log.status = KnowledgeBaseQuestionLog.Status.PROVIDER_UNAVAILABLE

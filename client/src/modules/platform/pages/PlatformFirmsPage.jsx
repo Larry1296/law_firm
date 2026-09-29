@@ -89,7 +89,7 @@ export default function PlatformFirmsPage() {
         ) : rows.length === 0 ? (
           <EmptyState>No firms match these filters.</EmptyState>
         ) : (
-          <Table caption='Law firms' columns={['Firm', 'Owner', 'Plan', 'Subscription', 'Access', 'People', 'Registered']}>
+          <Table caption='Law firms' columns={['Firm', 'Owner', 'Plan', 'Subscription', 'Access', 'Registered']}>
             {rows.map((firm) => (
               <tr
                 key={firm.id}
@@ -107,10 +107,6 @@ export default function PlatformFirmsPage() {
                 <td className={cellClass}>{firm.plan_name}</td>
                 <td className={cellClass}><StatusBadge status={firm.subscription_status} /></td>
                 <td className={cellClass}><FirmAccessBadge isActive={firm.is_active} /></td>
-                <td className={`${cellClass} tabular-nums`}>
-                  {firm.member_count} staff
-                  <p className='text-xs text-text-muted-light dark:text-text-muted-dark'>{firm.client_count} clients</p>
-                </td>
                 <td className={`${cellClass} whitespace-nowrap`}>{formatSubscriptionDate(firm.created_at)}</td>
               </tr>
             ))}

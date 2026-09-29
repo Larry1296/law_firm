@@ -228,7 +228,6 @@ class FirmManagementTests(PlatformTestCase):
         detail = self.api.get(f"/api/platform/firms/{self.firm_id}/")
         self.assertEqual(detail.status_code, 200)
         self.assertEqual(detail.data["owner"]["admission_number"], "P.105/4521/12")
-        self.assertEqual(detail.data["counts"]["members"], 1)
 
         listing = self.api.get("/api/platform/firms/", {"search": "achieng"})
         self.assertEqual(listing.data["count"], 1)
@@ -256,6 +255,42 @@ class FirmManagementTests(PlatformTestCase):
         users = self.api.get("/api/platform/users/", {"firm": self.firm_id})
         self.assertEqual(users.data["count"], 1)
         self.assertEqual(users.data["results"][0]["firm"]["name"], "Achieng & Mwangi Advocates")
+
+    def add_staff_member(self):
+        from apps.firm.models import LawFirmMember
+
+        staff = User.objects.create_staff(
+            email="clerk@achiengmwangi.test", password=PASSWORD, first_name="Juma",
+            last_name="Clerk", phone_number="+254720000099", national_id_number="27000099",
+        )
+        LawFirmMember.objects.create(firm_id=self.firm_id, user=staff, role=FirmRole.SECRETARY, is_active=True)
+        return staff
+
+    def test_the_platform_sees_the_firm_owner_but_never_the_firm_workers(self):
+        staff = self.add_staff_member()
+
+        detail = self.api.get(f"/api/platform/firms/{self.firm_id}/").data
+        self.assertEqual(detail["owner"]["email"], "grace@achiengmwangi.test")
+        for private in ("members", "counts"):
+            self.assertNotIn(private, detail)
+        self.assertNotIn("usage", detail["subscription"])
+        self.assertNotIn("clerk@achiengmwangi.test", str(detail))
+
+        row = self.api.get("/api/platform/firms/").data["results"][0]
+        self.assertNotIn("member_count", row)
+        self.assertNotIn("client_count", row)
+
+        overview = self.api.get("/api/platform/overview/").data
+        self.assertNotIn("users", overview)
+        self.assertEqual(overview["owners"]["total"], 1)
+
+        emails = {item["email"] for item in self.api.get("/api/platform/users/").data["results"]}
+        self.assertEqual(emails, {"grace@achiengmwangi.test", "ops@sheriamaster.test"})
+        self.assertEqual(self.api.get("/api/platform/users/", {"search": "clerk"}).data["count"], 0)
+
+        response = self.api.patch(f"/api/platform/users/{staff.id}/", {"is_active": False}, format="json")
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(User.objects.get(id=staff.id).is_active)
 
 
 class PlanManagementTests(PlatformTestCase):
@@ -327,8 +362,24 @@ class PlatformLegalAssistantTests(TestCase):
         retrieved = [RetrievedProvision(provision=mock.MagicMock(), score=0.9, passage="Every person has the right to privacy.")]
         with mock.patch.object(KnowledgeRetrievalService, "retrieve_law", return_value=retrieved), \
                 mock.patch("apps.ai.views.knowledge_base_view._source", return_value={}), \
-                mock.patch("apps.ai.views.knowledge_base_view.OpenAIKnowledgeProvider") as provider:
+                mock.patch("apps.ai.views.knowledge_base_view.KnowledgeAnswerProvider") as provider:
             provider.return_value.generate.return_value = ("Article 31 protects privacy [Source 1].", False)
+            provider.return_value.model = "claude-sonnet-5-5"
             response = self.ask("Is privacy protected in Kenya?")
         self.assertEqual(response.data["intent"], "legal")
         self.assertEqual(provider.return_value.generate.call_args.kwargs["instructions"], PLATFORM_INSTRUCTION)
+
+    def test_registering_a_firm_points_to_the_register_page_not_the_law(self):
+        with mock.patch("apps.ai.views.knowledge_base_view.KnowledgeRetrievalService.retrieve_law") as retrieve:
+            response = self.ask("how do i get to register my firm as an advocate")
+        retrieve.assert_not_called()
+        self.assertEqual(response.data["intent"], "out_of_scope")
+        self.assertIn("Register your firm", response.data["answer"])
+        self.assertIn("platform team then contacts you", response.data["answer"])
+        self.assertEqual(response.data["action"], {"label": "Register your firm", "path": "/register-firm"})
+        self.assertEqual(response.data["sources"], [])
+
+    def test_register_answer_matches_self_service_sign_up(self):
+        with self.settings(ALLOW_PUBLIC_FIRM_SIGNUP=True):
+            response = self.ask("Can I sign up my firm?")
+        self.assertIn("free trial", response.data["answer"])

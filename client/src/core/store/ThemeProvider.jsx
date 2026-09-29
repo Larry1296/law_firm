@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import ThemeContext from '@/core/store/ThemeContext';
 import {
   clearLegacyThemeKeys,
+  clearThemeChoice,
   getSystemTheme,
   getThemeStorageKey,
   readThemeChoice,
@@ -48,10 +49,15 @@ const ThemeProvider = ({ children, user, role }) => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
+  // Choosing the device's own theme drops the saved choice, so the app goes
+  // back to following the device instead of pinning that theme.
   const setTheme = (next) => {
     const value = typeof next === 'function' ? next(theme) : next;
-    setChoice({ key: storageKey, theme: value });
-    if (remembersChoice) saveThemeChoice(storageKey, value);
+    const followsSystem = value === systemTheme;
+    setChoice({ key: storageKey, theme: followsSystem ? null : value });
+    if (!remembersChoice) return;
+    if (followsSystem) clearThemeChoice(storageKey);
+    else saveThemeChoice(storageKey, value);
   };
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');

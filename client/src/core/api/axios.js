@@ -7,6 +7,12 @@ import {
   getStoredAuth,
 } from '@/core/utils/authStorage';
 import { attachApiErrorMessage } from '@/core/utils/errorMessages';
+import {
+  isIdle,
+  isSessionLocked,
+  lockIfExpiredAndIdle,
+  lockSession,
+} from '@/core/auth/sessionLock';
 
 /* =========================================================
    BASE INSTANCE
@@ -31,6 +37,14 @@ const tokenNeedsRefresh = (token) => {
   } catch {
     return true;
   }
+};
+
+// A locked screen sends nothing until the user unlocks it with their password.
+const sessionLockedError = () => {
+  const error = new Error('Your session is locked. Enter your password to continue.');
+  error.isSessionLocked = true;
+  error.userMessage = error.message;
+  return error;
 };
 
 const refreshAccessToken = async () => {
@@ -82,7 +96,12 @@ axiosInstance.interceptors.request.use(
       config.url?.includes('/login') ||
       config.url?.includes('/token/refresh');
 
-    if (token && !isAuthEndpoint && tokenNeedsRefresh(token)) {
+    if (token && !isAuthEndpoint && (isSessionLocked() || lockIfExpiredAndIdle(token))) {
+      return Promise.reject(sessionLockedError());
+    }
+
+    // An idle user's token is not renewed; it runs out and the screen locks.
+    if (token && !isAuthEndpoint && tokenNeedsRefresh(token) && !isIdle()) {
       try {
         token = await refreshAccessToken();
       } catch (error) {
@@ -152,6 +171,11 @@ axiosInstance.interceptors.response.use(
     if (status !== 401 || isAuthEndpoint) {
       attachApiErrorMessage(error);
       return Promise.reject(error);
+    }
+
+    if (isSessionLocked() || isIdle()) {
+      lockSession();
+      return Promise.reject(sessionLockedError());
     }
 
     // prevent infinite loop

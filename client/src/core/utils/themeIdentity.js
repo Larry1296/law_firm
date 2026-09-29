@@ -74,6 +74,14 @@ export const saveThemeChoice = (storageKey, theme) => {
   }
 };
 
+export const clearThemeChoice = (storageKey) => {
+  try {
+    localStorage.removeItem(storageKey);
+  } catch {
+    // Ignore storage failures so theme switching never breaks navigation.
+  }
+};
+
 /*
   Earlier versions saved whatever theme was showing on every visit, which
   pinned users to it instead of their device setting. Those values were never

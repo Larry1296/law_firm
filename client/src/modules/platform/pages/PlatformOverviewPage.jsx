@@ -90,14 +90,14 @@ export default function PlatformOverviewPage() {
   if (isLoading) return <p role='status' className='text-sm text-text-muted-light dark:text-text-muted-dark'>Loading the platform overview…</p>;
   if (error) return <ErrorNotice error={error} />;
 
-  const { firms, subscriptions, users } = data;
-  const signedInShare = users.total ? Math.round((users.signed_in_last_30_days / users.total) * 100) : 0;
+  const { firms, subscriptions, owners } = data;
+  const signedInShare = owners.total ? Math.round((owners.signed_in_last_30_days / owners.total) * 100) : 0;
 
   return (
     <>
       <PageHeader
         title='Platform overview'
-        description='Every law firm on the platform, their subscriptions and how their people are using it.'
+        description='Every law firm on the platform, their subscriptions and their owners.'
         actions={<Link to='/platform/firms/register'><Button>Register a firm</Button></Link>}
       />
 
@@ -121,8 +121,8 @@ export default function PlatformOverviewPage() {
       <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
         <StatTile label='Law firms' value={firms.total} hint={`${firms.new_this_month} new this month · ${firms.suspended} suspended`} icon={Building2} />
         <StatTile label='Monthly recurring revenue' value={formatKes(subscriptions.monthly_recurring_revenue)} hint='Active and grace-period subscriptions, excluding VAT' icon={TrendingUp} />
-        <StatTile label='Users' value={users.total} hint={`${users.active} active accounts`} icon={Users} />
-        <StatTile label='Signed in, last 30 days' value={users.signed_in_last_30_days} hint={`${signedInShare}% of all users`} icon={Users} />
+        <StatTile label='Firm owners' value={owners.total} hint={`${owners.active} active accounts`} icon={Users} />
+        <StatTile label='Owners signed in, last 30 days' value={owners.signed_in_last_30_days} hint={`${signedInShare}% of firm owners`} icon={Users} />
       </div>
 
       <div className='mt-6 grid gap-6 xl:grid-cols-3'>
@@ -148,7 +148,7 @@ export default function PlatformOverviewPage() {
         </div>
       </div>
 
-      <div className='mt-6 grid gap-6 xl:grid-cols-3'>
+      <div className='mt-6 grid gap-6 xl:grid-cols-2'>
         <Panel title='Recently registered' bodyClassName='p-0'>
           {data.recent_firms.length ? (
             <ul className='divide-y divide-border-light dark:divide-border-dark'>
@@ -180,10 +180,6 @@ export default function PlatformOverviewPage() {
               ))}
             </ul>
           ) : <EmptyState>No trials end this week.</EmptyState>}
-        </Panel>
-
-        <Panel title='Users by role'>
-          <CountList rows={users.by_role.map((row) => ({ key: row.role, label: row.label, count: row.count }))} />
         </Panel>
       </div>
 

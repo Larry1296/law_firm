@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ExternalLink, Maximize2, MessageCircle, Minimize2, RefreshCw, Send, X } from 'lucide-react';
 
 import Button3D from '@/components/ui/Button3D';
@@ -63,7 +64,7 @@ function errorMessage(error) {
   if (error?.response?.status === 429) return 'Too many questions have been sent from this connection. Please try again later.';
   if (error?.response?.status >= 500) return 'The assistant is temporarily unavailable. Please try again later or contact the firm.';
   if (error?.response?.status === 404) return 'The assistant is not set up for this website yet. Please contact the firm directly.';
-  return error?.response?.data?.message || 'I could not connect to the assistant. Check your connection and try again.';
+  return error?.response?.data?.message || error?.response?.data?.detail || 'I could not connect to the assistant. Check your connection and try again.';
 }
 
 export default function FloatingAIChat({
@@ -73,6 +74,12 @@ export default function FloatingAIChat({
   subtitle,
   suggestions: suggestedQuestions,
   launcherLabel,
+  // A dashboard assistant supplies its own copy and question handler.
+  welcome,
+  ask: askOverride,
+  placeholder,
+  footnote = 'Do not submit confidential, privileged, or highly sensitive information.',
+  loadingLabel = 'Checking verified sources…',
 }) {
   const platform = mode === 'platform';
   const safeSection = Object.hasOwn(SECTION_COPY, activeSection) ? activeSection : 'home';
@@ -80,11 +87,12 @@ export default function FloatingAIChat({
   const resolvedSubtitle = subtitle ?? (platform ? PLATFORM_COPY.subtitle : 'Answers from approved public information');
   const resolvedLauncherLabel = launcherLabel ?? (platform ? PLATFORM_COPY.launcher : SECTION_COPY[safeSection].launcher);
   const loadSuggestions = platform ? getLegalAssistantSuggestions : getKnowledgeBaseCategories;
-  const ask = platform ? askLegalAssistant : askKnowledgeBase;
+  const ask = askOverride ?? (platform ? askLegalAssistant : askKnowledgeBase);
+  const firstMessage = (section) => (welcome ? { role: 'assistant', content: welcome, sources: [] } : welcomeMessage(section, platform));
   const titleId = useId();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
-  const [messages, setMessages] = useState(() => [welcomeMessage('home', platform)]);
+  const [messages, setMessages] = useState(() => [firstMessage('home')]);
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [maximized, setMaximized] = useState(false);
@@ -179,7 +187,7 @@ export default function FloatingAIChat({
     setLoading(false);
     setMaximized(false);
     setDraft('');
-    setMessages([welcomeMessage(safeSection, platform)]);
+    setMessages([firstMessage(safeSection)]);
     requestAnimationFrame(() => {
       resizeInput();
       textareaRef.current?.focus();
@@ -205,6 +213,8 @@ export default function FloatingAIChat({
       setMessages((items) => [...items, {
         role: 'assistant', content: result.answer, sources: result.sources ?? [], needsLawyer: result.needs_lawyer,
         disclaimer: result.disclaimer,
+        // Only a page inside this app, never an outside link.
+        action: /^\/(?!\/)/.test(result.action?.path || '') ? result.action : null,
       }]);
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -262,26 +272,27 @@ export default function FloatingAIChat({
                     ))}
                   </div>
                 )}
+                {item.action && <Link to={item.action.path} onClick={close} className='mt-3 inline-flex rounded-md bg-brand-primary px-3 py-2 text-xs font-bold text-white hover:bg-[#0e2c47] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:bg-sky-600 dark:hover:bg-sky-500'>{item.action.label}</Link>}
                 {item.needsLawyer && platform && <p className='mt-3 text-xs font-semibold'>For advice on your own situation, speak to a qualified advocate.</p>}
                 {item.needsLawyer && !platform && <a href='#contact' onClick={close} className='mt-3 inline-flex rounded-md bg-success px-3 py-2 text-xs font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'>Speak to an advocate</a>}
               </article>
             ))}
             {messages.length === 1 && <div aria-label='Suggested questions' className='flex flex-wrap gap-2'>{(suggestions.length ? suggestions : GENERIC_SUGGESTIONS).map((suggestion) => <button key={suggestion} type='button' onClick={() => sendQuestion(suggestion)} className='rounded-full border border-border-light px-3 py-2 text-left text-xs text-text-primary-light hover:bg-background-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:border-border-dark dark:text-text-primary-dark dark:hover:bg-background-dark'>{suggestion}</button>)}</div>}
-            {loading && <div role='status' className='mr-20 rounded-2xl bg-background-light p-3 text-sm text-text-muted-light dark:bg-background-dark dark:text-text-muted-dark'>Checking verified sources…</div>}
+            {loading && <div role='status' className='mr-20 rounded-2xl bg-background-light p-3 text-sm text-text-muted-light dark:bg-background-dark dark:text-text-muted-dark'>{loadingLabel}</div>}
           </div>
 
           <div className='shrink-0 border-t border-border-light p-3 dark:border-border-dark'>
-            <p className='mb-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300'>Do not submit confidential, privileged, or highly sensitive information.</p>
+            {footnote && <p className='mb-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300'>{footnote}</p>}
             <div className='flex items-end gap-2'>
               <label htmlFor={`${titleId}-input`} className='sr-only'>Ask a question</label>
-              <textarea id={`${titleId}-input`} ref={textareaRef} rows={1} maxLength={1200} value={draft} onChange={(event) => { setDraft(event.target.value); resizeInput(); }} onKeyDown={handleKeyDown} disabled={loading} placeholder={platform ? PLATFORM_COPY.placeholder : 'Ask about the firm or a legal topic…'} className='max-h-[120px] min-h-10 flex-1 resize-none rounded-lg border border-border-light bg-background-light px-3 py-2 text-sm text-text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark' />
+              <textarea id={`${titleId}-input`} ref={textareaRef} rows={1} maxLength={1200} value={draft} onChange={(event) => { setDraft(event.target.value); resizeInput(); }} onKeyDown={handleKeyDown} disabled={loading} placeholder={placeholder ?? (platform ? PLATFORM_COPY.placeholder : 'Ask about the firm or a legal topic…')} className='max-h-[120px] min-h-10 flex-1 resize-none rounded-lg border border-border-light bg-background-light px-3 py-2 text-sm text-text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark' />
               <button type='button' onClick={() => sendQuestion()} disabled={!draft.trim() || loading} aria-label='Send question' className='rounded-lg bg-success p-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'><Send size={18} /></button>
             </div>
           </div>
         </section>
       )}
 
-      <Button3D type='button' variant='aiGlow' size='md' onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} aria-haspopup='dialog' aria-label={open ? (platform ? 'Close Kenyan law assistant' : 'Close firm legal assistant') : `Open assistant: ${resolvedLauncherLabel.replace('this Firm', 'Firm')}`} className='floating-ai-trigger max-w-full font-extrabold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2'>
+      <Button3D type='button' variant='aiGlow' size='md' onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} aria-haspopup='dialog' aria-label={open ? (askOverride ? `Close ${resolvedTitle}` : platform ? 'Close Kenyan law assistant' : 'Close firm legal assistant') : `Open assistant: ${resolvedLauncherLabel.replace('this Firm', 'Firm')}`} className='floating-ai-trigger max-w-full font-extrabold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2'>
         <span className='flex items-center gap-2 transition-opacity duration-150 motion-reduce:transition-none'>{open ? <X size={18} /> : <MessageCircle size={18} />}{open ? 'Close' : resolvedLauncherLabel}</span>
       </Button3D>
     </div>

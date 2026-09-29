@@ -66,6 +66,20 @@ describe('ThemeProvider', () => {
     expect(screen.getByRole('button')).toHaveTextContent('dark');
   });
 
+  it('goes back to following the device when toggled to the device theme', async () => {
+    mockSystemTheme(false);
+    render(<ThemeProvider role='admin' user={user}><Probe /></ThemeProvider>);
+    await userEvent.click(screen.getByRole('button'));
+    expect(Object.keys(localStorage)).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole('button'));
+    expect(screen.getByRole('button')).toHaveTextContent('light');
+    expect(Object.keys(localStorage)).toEqual([]);
+
+    switchSystemTheme(true);
+    expect(screen.getByRole('button')).toHaveTextContent('dark');
+  });
+
   it('keeps a toggle on public pages for the visit only', async () => {
     mockSystemTheme(false);
     const { unmount } = render(<ThemeProvider role='public'><Probe /></ThemeProvider>);
