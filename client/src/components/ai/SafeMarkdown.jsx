@@ -16,47 +16,53 @@ function InlineMarkdown({ text }) {
 }
 
 export default function SafeMarkdown({ content }) {
-  const lines = String(content ?? '').split('\n');
+  const lines = String(content ?? '').replace(/\r\n?/g, '\n').split('\n');
   const blocks = [];
-  let paragraph = [];
-  let list = [];
+  let list = null;
 
-  const flushParagraph = () => {
-    if (paragraph.length) blocks.push({ type: 'paragraph', lines: paragraph });
-    paragraph = [];
-  };
   const flushList = () => {
-    if (list.length) blocks.push({ type: 'list', lines: list });
-    list = [];
+    if (list) blocks.push(list);
+    list = null;
   };
 
   lines.forEach((line) => {
-    const bullet = line.match(/^\s*[-*]\s+(.+)$/);
-    if (bullet) {
-      flushParagraph();
-      list.push(bullet[1]);
+    const bullet = line.match(/^\s*[-*\u2022]\s+(.+)$/);
+    const numbered = line.match(/^\s*\d+[.)]\s+(.+)$/);
+    const heading = line.match(/^\s*#{1,6}\s+(.+)$/);
+    const item = bullet || numbered;
+    if (item) {
+      const type = bullet ? 'ul' : 'ol';
+      if (list?.type !== type) {
+        flushList();
+        list = { type, lines: [] };
+      }
+      list.lines.push(item[1]);
     } else if (!line.trim()) {
-      flushParagraph();
       flushList();
     } else {
       flushList();
-      paragraph.push(line);
+      // Each line of prose is its own paragraph, so replies never render as one dense block.
+      blocks.push({ type: heading ? 'heading' : 'paragraph', text: (heading ? heading[1] : line).trim() });
     }
   });
-  flushParagraph();
   flushList();
 
   return (
-    <div className='space-y-3 break-words'>
-      {blocks.map((block, index) => block.type === 'list' ? (
-        <ul key={`list-${index}`} className='list-disc space-y-1 pl-5 marker:text-text-muted-light dark:marker:text-text-muted-dark'>
-          {block.lines.map((line, itemIndex) => <li key={`${line}-${itemIndex}`}><InlineMarkdown text={line} /></li>)}
-        </ul>
-      ) : (
-        <p key={`paragraph-${index}`}>
-          {block.lines.map((line, lineIndex) => <Fragment key={`${line}-${lineIndex}`}>{lineIndex > 0 && <br />}<InlineMarkdown text={line} /></Fragment>)}
-        </p>
-      ))}
+    <div className='space-y-4 break-words leading-7'>
+      {blocks.map((block, index) => {
+        if (block.type === 'ul' || block.type === 'ol') {
+          const List = block.type;
+          return (
+            <List key={`list-${index}`} className={`${block.type === 'ul' ? 'list-disc' : 'list-decimal'} space-y-2 pl-5 marker:text-text-muted-light dark:marker:text-text-muted-dark`}>
+              {block.lines.map((line, itemIndex) => <li key={`${line}-${itemIndex}`} className='pl-1'><InlineMarkdown text={line} /></li>)}
+            </List>
+          );
+        }
+        if (block.type === 'heading') {
+          return <p key={`heading-${index}`} className='pt-1 font-semibold'><InlineMarkdown text={block.text.replace(/^\*\*(.+)\*\*$/, '$1')} /></p>;
+        }
+        return <p key={`paragraph-${index}`}><InlineMarkdown text={block.text} /></p>;
+      })}
     </div>
   );
 }

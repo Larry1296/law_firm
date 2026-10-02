@@ -255,13 +255,13 @@ export default function FloatingAIChat({
             </div>
           </header>
 
-          <div ref={messagesRef} aria-live='polite' aria-busy={loading} className='min-h-0 flex-1 space-y-4 overflow-y-auto p-4'>
+          <div ref={messagesRef} aria-live='polite' aria-busy={loading} className='min-h-0 flex-1 space-y-5 overflow-y-auto p-4'>
             {messages.map((item, index) => (
-              <article key={`${item.role}-${index}`} ref={index === latestQuestionIndex ? latestQuestionRef : undefined} className={item.role === 'user' ? 'ml-10 rounded-2xl rounded-br-sm bg-brand-primary p-3 text-sm text-white' : `mr-5 rounded-2xl rounded-bl-sm border p-3 text-sm ${item.error ? 'border-red-300 bg-red-50 text-red-800' : 'border-border-light bg-background-light text-text-primary-light dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark'}`}>
+              <article key={`${item.role}-${index}`} ref={index === latestQuestionIndex ? latestQuestionRef : undefined} className={item.role === 'user' ? 'ml-10 rounded-2xl rounded-br-sm bg-brand-primary px-4 py-3 text-sm text-white' : `mr-3 rounded-2xl rounded-bl-sm border px-4 py-3.5 text-sm ${item.error ? 'border-red-300 bg-red-50 text-red-800' : 'border-border-light bg-background-light text-text-primary-light dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark'}`}>
                 <SafeMarkdown content={item.content} />
-                {item.disclaimer && <p className='mt-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100'>{item.disclaimer}</p>}
+                {item.disclaimer && <p className='mt-4 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100'>{item.disclaimer}</p>}
                 {item.sources?.length > 0 && (
-                  <div className='mt-3 space-y-2 border-t border-border-light pt-2 dark:border-border-dark'>
+                  <div className='mt-4 space-y-2 border-t border-border-light pt-3 dark:border-border-dark'>
                     <p className='text-xs font-bold'>Sources</p>
                     {item.sources.map((source) => (
                       <div key={`${source.title}-${source.source_reference}`} className='rounded-lg border border-border-light p-2 text-xs dark:border-border-dark'>
