@@ -2,6 +2,7 @@ import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useEffect, useState } from 'react';
 import { intakePrivacyService as service } from '../services/intakePrivacyService';
 import { creationError } from '@/modules/clients/shared/prospectiveClientService';
+import FirmLogoField from '@/modules/admin/firm/components/FirmLogoField';
 
 const emptyDraft = { policy_version: '', notice_text: '', lawful_basis: '', effective_date: '' };
 const control = 'w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-3 text-[color:var(--text-primary)]';
@@ -35,7 +36,11 @@ export default function AdminSettingsPage() {
     <span>{label} *</span><input className={control} type={type} required maxLength={name === 'policy_version' ? 50 : undefined} value={draft[name]} onChange={e => setDraft({ ...draft, [name]: e.target.value })} />
   </label>;
   return <main className='mx-auto max-w-4xl space-y-6 p-4 text-[color:var(--text-primary)] md:p-8'>
-    <header><h1 className='text-2xl font-bold'>Intake Privacy Configuration</h1>
+    <h1 className='text-2xl font-bold'>Settings</h1>
+    <section className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5'>
+      <FirmLogoField />
+    </section>
+    <header><h2 className='text-xl font-bold'>Intake privacy notice</h2>
       <p>Manage the privacy notice used when creating prospective clients. Activated versions are preserved; changes require a new version.</p></header>
     {error && <p role='alert' className='rounded-lg bg-red-50 p-3 text-red-800'>{error}</p>}
     {message && <p role='status' className='rounded-lg bg-green-50 p-3 text-green-900'>{message}</p>}

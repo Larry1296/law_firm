@@ -4,6 +4,8 @@ import '@testing-library/jest-dom/vitest';
 import AdminSettingsPage from './AdminSettingsPage';
 import { intakePrivacyService as service } from '../services/intakePrivacyService';
 
+// The logo section has its own tests (FirmLogoField.test.jsx).
+vi.mock('@/modules/admin/firm/components/FirmLogoField', () => ({ default: () => null }));
 vi.mock('../services/intakePrivacyService', () => ({ intakePrivacyService: { list: vi.fn(), create: vi.fn(), activate: vi.fn(), retire: vi.fn() } }));
 const bases = [{ value: 'LEGITIMATE_INTERESTS', label: 'Legitimate interests' }];
 const config = { id: 1, policy_version: 'v1', notice_text: 'Our notice', lawful_basis: 'LEGITIMATE_INTERESTS', lawful_basis_label: 'Legitimate interests', effective_date: '2026-01-01', status: 'DRAFT' };

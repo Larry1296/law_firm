@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 
 import adminFirmService from '@/modules/admin/firm/services/adminFirmService';
-import FirmLogoField from '@/modules/admin/firm/components/FirmLogoField';
 
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
@@ -789,8 +788,6 @@ export default function AdminFirmPage() {
             size='compact'
           />
         </div>
-
-        <FirmLogoField />
 
         <FieldRow
           label='Firm Name'

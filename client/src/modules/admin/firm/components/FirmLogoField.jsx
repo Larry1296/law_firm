@@ -59,13 +59,13 @@ export default function FirmLogoField() {
   };
 
   return (
-    <div className='mb-6 flex flex-col gap-5 border-b border-[color:var(--border)] pb-6 sm:flex-row sm:items-center'>
+    <div className='flex flex-col gap-5 sm:flex-row sm:items-center'>
       <div className='w-24 shrink-0'>
         <Brand size='h-24 w-24' showText={false} />
       </div>
       <div className='space-y-3'>
         <div>
-          <p className='font-semibold'>Firm logo</p>
+          <h2 className='text-xl font-bold'>Firm logo</h2>
           <p className='text-sm text-[color:var(--text-muted)]'>
             Any shape works. It is trimmed and squared automatically, so it fits every place it appears at the same size.
             PNG, JPG, WebP or GIF, up to 2 MB.
