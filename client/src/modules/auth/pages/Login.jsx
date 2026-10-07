@@ -180,6 +180,17 @@ export default function Login() {
         is_firm_owner: isFirmOwner ?? user.is_firm_owner ?? false,
       };
 
+      // A firm administrator with no firm (such as a Django createsuperuser
+      // account) would open a dashboard whose every request is refused and be
+      // sent straight back here, so stop and say why instead.
+      if (sessionUser.role === 'ADMIN' && !(data.firm?.id || user.firm?.id)) {
+        throw new Error(
+          'This account is a firm administrator but is not attached to a law firm. '
+          + 'Sign in with a platform administrator account to open the platform console, '
+          + 'or register a firm with this account as its owner.',
+        );
+      }
+
       /* =====================================================
          AUTH CONTEXT UPDATE + STORAGE
       ===================================================== */
