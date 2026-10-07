@@ -1,6 +1,7 @@
 import io
 import shutil
 import tempfile
+from unittest import mock
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -86,3 +87,69 @@ class LawFirmLogoSaveTests(TestCase):
             self.assertTrue(firm.logo.name.endswith(".png"))
             with firm.logo.open("rb") as stored:
                 self.assertEqual(Image.open(stored).size, (LOGO_SIZE, LOGO_SIZE))
+
+
+class OwnerLogoUploadTests(TestCase):
+    """The firm owner changes the logo from the Firm page; any shape comes out the same square size."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+
+        self.media = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media, ignore_errors=True)
+        media = override_settings(MEDIA_ROOT=self.media)
+        media.enable()
+        self.addCleanup(media.disable)
+        self.owner = User.objects.create_user(
+            email="owner-logo@example.com", password="strong-pass123", first_name="Logo", last_name="Owner",
+            phone_number="+254700100098", national_id_number="700100098", role=UserRole.ADMIN,
+        )
+        self.firm = LawFirm.objects.create(name="Owner Logo Firm", registration_number="LOGO-002", owner=self.owner)
+        self.api = APIClient()
+        self.api.force_authenticate(self.owner)
+
+    def upload(self, content, name="logo.png", content_type="image/png"):
+        return self.api.post("/api/admin/firm/logo/", {"logo": SimpleUploadedFile(name, content, content_type)}, format="multipart")
+
+    def test_any_shape_is_stored_as_the_same_square(self):
+        for size in ((1200, 300), (200, 900), (64, 64)):
+            response = self.upload(png(Image.new("RGBA", size, "navy")).read())
+            self.assertEqual(response.status_code, 200, response.data)
+            self.assertTrue(response.data["firm"]["logo_url"].startswith(f"/firm-logo/{self.firm.id}/"))
+            self.firm.refresh_from_db()
+            with self.firm.logo.open("rb") as stored:
+                self.assertEqual(Image.open(stored).size, (LOGO_SIZE, LOGO_SIZE), size)
+
+    def test_rejects_files_that_are_not_images(self):
+        response = self.upload(b"not an image", name="logo.png")
+        self.assertEqual(response.status_code, 400)
+        self.firm.refresh_from_db()
+        self.assertFalse(self.firm.logo)
+
+    def test_rejects_logos_over_2_mb(self):
+        from apps.firm.serializers import logo_serializer
+
+        with mock.patch.object(logo_serializer, "MAX_LOGO_BYTES", 100):
+            response = self.upload(png(Image.new("RGBA", (400, 400), "navy")).read())
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("2 MB", str(response.data))
+
+    def test_owner_can_remove_the_logo(self):
+        self.upload(png(Image.new("RGBA", (300, 300), "navy")).read())
+        response = self.api.delete("/api/admin/firm/logo/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data["firm"]["logo_url"])
+
+    def test_the_profile_update_cannot_set_the_logo(self):
+        content = png(Image.new("RGBA", (300, 300), "navy")).read()
+        self.api.patch("/api/admin/firm/", {"logo": SimpleUploadedFile("logo.png", content, "image/png")}, format="multipart")
+        self.firm.refresh_from_db()
+        self.assertFalse(self.firm.logo)
+
+    def test_staff_cannot_change_the_logo(self):
+        staff = User.objects.create_user(
+            email="staff-logo@example.com", password="strong-pass123", first_name="Staff", last_name="Member",
+            phone_number="+254700100097", national_id_number="700100097", role=UserRole.STAFF,
+        )
+        self.api.force_authenticate(staff)
+        self.assertEqual(self.upload(png(Image.new("RGBA", (300, 300), "navy")).read()).status_code, 403)

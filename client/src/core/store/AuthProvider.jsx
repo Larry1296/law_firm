@@ -75,6 +75,16 @@ const AuthProvider = ({ children }) => {
     unlockSession();
   };
 
+  /** Updates the signed-in user's firm branding (such as a new logo) everywhere at once. */
+  const updateFirm = useCallback((firm) => {
+    setUser((current) => {
+      if (!current) return current;
+      const next = { ...current, firm: { ...current.firm, ...firm } };
+      getAuthStorage().setItem('user', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const clearSessionAndRedirect = useCallback(() => {
     unlockSession();
     setUser(null);
@@ -317,6 +327,7 @@ const AuthProvider = ({ children }) => {
 
     login,
     logout,
+    updateFirm,
 
     isAuthenticated: !!accessToken,
     isLocked: showLock,

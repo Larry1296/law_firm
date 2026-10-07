@@ -23,14 +23,16 @@ export default function Brand({
 }) {
   const auth = useContext(AuthContext);
   const firm = auth?.user?.firm;
-  const [logoFailed, setLogoFailed] = useState(false);
+  // Remember which logo failed, so a newly uploaded one is still tried.
+  const [failedLogo, setFailedLogo] = useState(null);
 
   if (firm?.name) {
-    const firmLogo = firm.logo_url && !logoFailed ? apiAssetUrl(firm.logo_url) : null;
+    const logoUrl = firm.logo_url ? apiAssetUrl(firm.logo_url) : null;
+    const firmLogo = logoUrl !== failedLogo ? logoUrl : null;
     return (
       <div className='flex w-full flex-col items-center justify-center text-center'>
         {firmLogo ? (
-          <img src={firmLogo} alt={`${firm.name} logo`} onError={() => setLogoFailed(true)} className={`${size} aspect-square shrink-0 rounded-2xl bg-[color:var(--surface)] object-cover ring-1 ring-[color:var(--border)]`} />
+          <img src={firmLogo} alt={`${firm.name} logo`} onError={() => setFailedLogo(firmLogo)} className={`${size} aspect-square shrink-0 rounded-2xl bg-[color:var(--surface)] object-cover ring-1 ring-[color:var(--border)]`} />
         ) : (
           <span aria-hidden='true' className={`${size} flex items-center justify-center rounded-2xl bg-brand-accent text-3xl font-extrabold text-[#1a1203]`}>
             {initials(firm.name) || firm.name[0]}

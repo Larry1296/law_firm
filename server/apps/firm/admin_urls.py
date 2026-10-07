@@ -6,6 +6,7 @@ from apps.firm.views.admin.admin_department_detail_view import AdminDepartmentDe
 from apps.firm.views.admin.admin_department_list_view import AdminDepartmentListView
 from apps.firm.views.admin.admin_delegation_view import AdminDelegationView
 from apps.firm.views.admin.admin_firm_settings_view import AdminFirmSettingsView
+from apps.firm.views.admin.admin_firm_logo_view import AdminFirmLogoView
 from apps.firm.views.admin.admin_firm_view import AdminFirmDetailView
 from apps.firm.views.admin.admin_it_report_view import AdminITReportView
 from apps.firm.views.admin.admin_owner_lawyer_profile_view import AdminOwnerLawyerProfileView
@@ -22,5 +23,6 @@ urlpatterns = [
     path("it-report/", AdminITReportView.as_view(), name="admin-firm-it-report"),
     path("owner-lawyer-profile/", AdminOwnerLawyerProfileView.as_view(), name="admin-owner-lawyer-profile"),
     path("settings/", AdminFirmSettingsView.as_view(), name="admin-firm-settings"),
+    path("logo/", AdminFirmLogoView.as_view(), name="admin-firm-logo"),
     path("", AdminFirmDetailView.as_view(), name="admin-firm-detail"),
 ]

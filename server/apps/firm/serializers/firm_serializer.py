@@ -63,6 +63,8 @@ class LawFirmSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "registration_number",
+            # Uploaded through the logo endpoint, which validates and normalizes it.
+            "logo",
             # Suspension is decided by the platform administrator.
             "is_active",
             "owner_email",

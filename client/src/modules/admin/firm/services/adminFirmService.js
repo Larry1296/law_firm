@@ -11,6 +11,19 @@ const adminFirmService = {
     return data;
   },
 
+  // The server trims, squares and resizes any logo, so it fits every logo slot the same way.
+  async uploadLogo(file) {
+    const form = new FormData();
+    form.append('logo', file);
+    const { data } = await axiosInstance.post('/admin/firm/logo/', form);
+    return data.firm;
+  },
+
+  async removeLogo() {
+    const { data } = await axiosInstance.delete('/admin/firm/logo/');
+    return data.firm;
+  },
+
   async registerOwnerLawyerProfile(payload) {
     const { data } = await axiosInstance.post(
       '/admin/firm/owner-lawyer-profile/',

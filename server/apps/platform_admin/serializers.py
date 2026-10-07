@@ -161,15 +161,6 @@ class SubscriptionUpdateSerializer(serializers.Serializer):
         return value
 
 
-class LogoSerializer(serializers.Serializer):
-    logo = serializers.ImageField()
-
-    def validate_logo(self, value):
-        if value.size > 2 * 1024 * 1024:
-            raise serializers.ValidationError("The logo must be 2 MB or smaller.")
-        return value
-
-
 # ---------------------------------------------------------------------------
 # Plans
 # ---------------------------------------------------------------------------

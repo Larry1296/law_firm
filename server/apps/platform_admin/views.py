@@ -12,13 +12,13 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.firm.models import LawFirm
+from apps.firm.serializers.logo_serializer import LogoSerializer
 from apps.platform_admin.models import FirmOnboardingRequest, PlatformActivity
 from apps.platform_admin.permissions import IsPlatformAdmin
 from apps.platform_admin.reference_data import KENYAN_COUNTIES, PRACTICE_AREA_SUGGESTIONS
 from apps.platform_admin.serializers import (
     FirmProfileUpdateSerializer,
     FirmStatusSerializer,
-    LogoSerializer,
     OnboardingRequestCreateSerializer,
     OnboardingRequestSerializer,
     PlanSerializer,
