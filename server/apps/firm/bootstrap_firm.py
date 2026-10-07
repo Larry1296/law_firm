@@ -8,7 +8,7 @@ from apps.firm.models import (
     FirmSetting,
 )
 from apps.staff.models.lawyer import Lawyer, LawyerPermission
-from apps.common.choices import FirmRole
+from apps.common.choices import FirmRole, UserRole
 from apps.staff.services.admin.lawyers.admin_lawyer_permission_service import (
     AdminLawyerPermissionService,
 )
@@ -57,7 +57,12 @@ def run():
     except User.DoesNotExist:
         raise Exception(
             f"Owner user '{owner_email}' does not exist. "
-            "Create superuser first before running bootstrap."
+            "Create that user first before running bootstrap."
+        )
+    if owner.role == UserRole.PLATFORM_ADMIN:
+        raise Exception(
+            f"'{owner_email}' is the platform administrator, who belongs to no firm. "
+            "Register the firm from the platform console instead."
         )
 
     # -----------------------------------------------------

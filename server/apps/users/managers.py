@@ -42,17 +42,17 @@ class UserManager(BaseUserManager):
         **extra_fields,
     ):
         """
-        Django superuser.
+        Django superuser: the platform administrator who runs Sheria Master.
 
-        Used only to bootstrap the system.
-        The superuser becomes a firm owner later through
-        LawFirmService.create_firm().
+        `createsuperuser` bootstraps the platform, not a firm. The platform
+        administrator registers each firm from the console, and the owner
+        entered there becomes that firm's administrator.
         """
 
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
-        extra_fields.setdefault("role", UserRole.ADMIN)
+        extra_fields.setdefault("role", UserRole.PLATFORM_ADMIN)
         extra_fields.setdefault("must_change_password", False)
 
         if extra_fields.get("is_staff") is not True:
