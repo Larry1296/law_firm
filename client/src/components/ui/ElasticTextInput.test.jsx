@@ -65,7 +65,8 @@ describe('ElasticTextInput', () => {
 
     const field = screen.getByLabelText('Scope confirmation');
     setScrollHeight(144);
-    await user.type(field, 'The firm accepts instructions from Daniel Mutua Mwangi to pursue recovery of KES 750,000 allegedly owed by Apex Skyline Developers Limited for completed renovation and construction work.');
+    await user.click(field);
+    await user.paste('The firm accepts instructions from Daniel Mutua Mwangi to pursue recovery of KES 750,000 allegedly owed by Apex Skyline Developers Limited for completed renovation and construction work.');
 
     expect(field.style.height).toBe('144px');
   });
@@ -101,6 +102,6 @@ describe('ElasticTextInput', () => {
   it('does not show an internal vertical scrollbar', () => {
     render(<ControlledElasticTextInput />);
 
-    expect(screen.getByLabelText('Scope confirmation')).toHaveClass('overflow-y-hidden');
+    expect(screen.getByLabelText('Scope confirmation').style.overflowY).toBe('hidden');
   });
 });

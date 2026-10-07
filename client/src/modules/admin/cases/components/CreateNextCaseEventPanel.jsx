@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import React, { useState, useMemo } from 'react';
 import Swal from '@/core/utils/themedSwal';
 import Button3D from '@/components/ui/Button3D';
@@ -382,10 +383,10 @@ export default function CreateNextCaseEventPanel({
           <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
             Description / Agenda
           </label>
-          <textarea
+          <AutoGrowTextarea
             value={draft.description}
             onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-            className={`${fieldClass} min-h-[80px]`}
+            className={fieldClass}
             placeholder="Directions on pleadings, witness statements, and compliance status..."
           />
         </div>

@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -89,7 +90,7 @@ function ProfilePanel({ firm, meta, onSaved }) {
             </select>
           </Field>
           <Field label='About the firm' className='sm:col-span-2'>
-            <textarea rows={3} value={draft.description} onChange={set('description')} className={inputClass} />
+            <AutoGrowTextarea value={draft.description} onChange={set('description')} className={inputClass} />
           </Field>
           {save.error && <div className='sm:col-span-2'><ErrorNotice error={save.error} /></div>}
           <div className='flex gap-2 sm:col-span-2'>
@@ -187,7 +188,7 @@ function SubscriptionPanel({ firm, meta, onSaved }) {
           </Field>
         )}
         <Field label='Internal notes' className='sm:col-span-2'>
-          <textarea rows={2} value={draft.notes} onChange={set('notes')} className={inputClass} />
+          <AutoGrowTextarea value={draft.notes} onChange={set('notes')} className={inputClass} />
         </Field>
         {save.error && <div className='sm:col-span-2'><ErrorNotice error={save.error} /></div>}
         <div className='sm:col-span-2'>

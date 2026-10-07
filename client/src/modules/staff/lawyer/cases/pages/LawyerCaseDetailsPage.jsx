@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 // INTERNAL AI TEMPORARILY PAUSED: import useNavigate when restoring the AI analysis action.
@@ -801,7 +802,7 @@ export default function LawyerCaseDetailsPage() {
           </div>
 
           <div className='mt-4 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center'>
-            <textarea
+            <AutoGrowTextarea
               value={nextEvent.description}
               onChange={(event) =>
                 setNextEvent((current) => ({
@@ -810,7 +811,6 @@ export default function LawyerCaseDetailsPage() {
                 }))
               }
               placeholder='Optional event notes'
-              rows={3}
               className='form-control w-full'
             />
 

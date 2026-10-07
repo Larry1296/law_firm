@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Maximize2, MessageCircle, Minimize2, RefreshCw, Send, X } from 'lucide-react';
@@ -166,13 +167,6 @@ export default function FloatingAIChat({
 
   const latestQuestionIndex = messages.findLastIndex((item) => item.role === 'user');
 
-  const resizeInput = () => {
-    const input = textareaRef.current;
-    if (!input) return;
-    input.style.height = 'auto';
-    input.style.height = `${Math.min(input.scrollHeight, 120)}px`;
-  };
-
   const close = () => {
     abortRef.current?.abort();
     abortRef.current = null;
@@ -188,10 +182,7 @@ export default function FloatingAIChat({
     setMaximized(false);
     setDraft('');
     setMessages([firstMessage(safeSection)]);
-    requestAnimationFrame(() => {
-      resizeInput();
-      textareaRef.current?.focus();
-    });
+    requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
   const sendQuestion = async (value = draft) => {
@@ -285,7 +276,7 @@ export default function FloatingAIChat({
             {footnote && <p className='mb-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300'>{footnote}</p>}
             <div className='flex items-end gap-2'>
               <label htmlFor={`${titleId}-input`} className='sr-only'>Ask a question</label>
-              <textarea id={`${titleId}-input`} ref={textareaRef} rows={1} maxLength={1200} value={draft} onChange={(event) => { setDraft(event.target.value); resizeInput(); }} onKeyDown={handleKeyDown} disabled={loading} placeholder={placeholder ?? (platform ? PLATFORM_COPY.placeholder : 'Ask about the firm or a legal topic…')} className='max-h-[120px] min-h-10 flex-1 resize-none rounded-lg border border-border-light bg-background-light px-3 py-2 text-sm text-text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark' />
+              <AutoGrowTextarea maxRows={5} id={`${titleId}-input`} ref={textareaRef} maxLength={1200} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleKeyDown} disabled={loading} placeholder={placeholder ?? (platform ? PLATFORM_COPY.placeholder : 'Ask about the firm or a legal topic…')} className='min-h-10 flex-1 rounded-lg border border-border-light bg-background-light px-3 py-2 text-sm text-text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark' />
               <button type='button' onClick={() => sendQuestion()} disabled={!draft.trim() || loading} aria-label='Send question' className='rounded-lg bg-success p-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'><Send size={18} /></button>
             </div>
           </div>

@@ -1,11 +1,12 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { lazy, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Building2, CheckCircle2 } from 'lucide-react';
 
 import { KENYAN_COUNTIES } from '@/core/constants/kenyanCounties';
-import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import BackButton from '@/components/ui/BackButton';
+import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { formatKes } from '@/modules/admin/subscription/utils/subscriptionFormatting';
 import platformService from '@/modules/platform/services/platformService';
 import subscriptionService from '@/modules/subscription/services/subscriptionService';
@@ -85,7 +86,7 @@ function OnboardingRequestForm({ plans }) {
         </select>
       </Field>
       <Field label='Anything we should know?' error={errors.message} className='sm:col-span-2'>
-        <textarea rows={3} maxLength={2000} value={form.message} onChange={set('message')} className={inputClass} placeholder='For example, how many offices you have or when you would like to start.' />
+        <AutoGrowTextarea maxLength={2000} value={form.message} onChange={set('message')} className={inputClass} placeholder='For example, how many offices you have or when you would like to start.' />
       </Field>
       {submit.error && (
         <p role='alert' className='rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/40 dark:bg-red-950/60 dark:text-red-100 sm:col-span-2'>

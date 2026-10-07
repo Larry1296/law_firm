@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useEffect, useState } from 'react';
 import { intakePrivacyService as service } from '../services/intakePrivacyService';
 import { creationError } from '@/modules/clients/shared/prospectiveClientService';
@@ -48,7 +49,7 @@ export default function AdminSettingsPage() {
           <label className='block space-y-1'><span>Lawful basis *</span><select required className={control} value={draft.lawful_basis} onChange={e => setDraft({ ...draft, lawful_basis: e.target.value })}>
             <option value=''>Select…</option>{data.lawful_bases.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select></label>
-          <label className='block space-y-1'><span>Privacy notice text *</span><textarea required rows={7} className={control} value={draft.notice_text} onChange={e => setDraft({ ...draft, notice_text: e.target.value })} /></label>
+          <label className='block space-y-1'><span>Privacy notice text *</span><AutoGrowTextarea required className={control} value={draft.notice_text} onChange={e => setDraft({ ...draft, notice_text: e.target.value })} /></label>
           <button className='rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-50' type='submit'>Create draft</button>
         </fieldset>
       </form>

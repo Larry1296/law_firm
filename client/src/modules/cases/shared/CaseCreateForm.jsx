@@ -662,7 +662,6 @@ export default function CaseCreateForm({
               value={formData.description}
               onChange={handleChange}
               error={errors.description}
-              minRows={3}
             />
           </Section>
         )}

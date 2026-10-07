@@ -102,7 +102,6 @@ const ElasticTextArea = ({ label, value, onChange, placeholder = '', error, clas
     placeholder={placeholder}
     error={error}
     required={required}
-    minRows={1}
     alwaysShowLabel
     wrapperClassName={`mb-0 ${className}`}
   />

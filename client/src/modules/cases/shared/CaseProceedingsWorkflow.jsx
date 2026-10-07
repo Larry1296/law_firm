@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useEffect, useMemo, useState } from 'react';
 
 import axiosInstance from '@/core/api/axios';
@@ -126,10 +127,10 @@ export default function CaseProceedingsWorkflow({ caseData }) {
             }}>
               {['PROCEEDED', 'ADJOURNED', 'PART_HEARD', 'DIRECTIONS_ISSUED', 'DATE_ISSUED', 'RULING_DELIVERED', 'JUDGMENT_DELIVERED', 'SETTLED', 'WITHDRAWN', 'DISMISSED', 'DID_NOT_PROCEED', 'OTHER'].map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
             </select>
-            <textarea required className='form-control md:col-span-2' placeholder='Outcome' value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })} />
+            <AutoGrowTextarea required className='form-control md:col-span-2' placeholder='Outcome' value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })} />
             <input className='form-control' placeholder='Appearances, comma-separated' value={form.attendance} onChange={(e) => setForm({ ...form, attendance: e.target.value })} />
             <input className='form-control' placeholder='Court orders and directions' value={form.orders_directions} onChange={(e) => setForm({ ...form, orders_directions: e.target.value })} />
-            {form.outcome_code === 'ADJOURNED' && <textarea required className='form-control md:col-span-2' placeholder='Adjournment reason (carried into the re-listed event)' value={form.adjournment_reason} onChange={(e) => setForm({ ...form, adjournment_reason: e.target.value })} />}
+            {form.outcome_code === 'ADJOURNED' && <AutoGrowTextarea required className='form-control md:col-span-2' placeholder='Adjournment reason (carried into the re-listed event)' value={form.adjournment_reason} onChange={(e) => setForm({ ...form, adjournment_reason: e.target.value })} />}
             <select className='form-control' value={form.next_event_type} onChange={(e) => {
               const selected = options.find((option) => option.value === e.target.value);
               setForm({
@@ -145,7 +146,7 @@ export default function CaseProceedingsWorkflow({ caseData }) {
               {options.map((option) => <option key={option.value} value={option.value}>{option.recommended ? 'Recommended: ' : ''}{option.label}</option>)}
             </select>
             <input type='datetime-local' className='form-control' value={form.next_date} onChange={(e) => setForm({ ...form, next_date: e.target.value })} />
-            {form.next_event_type === 'OTHER_COURT_DIRECTED' && <textarea required className='form-control md:col-span-2' placeholder='Details of the exceptional court direction' value={form.court_direction_details} onChange={(e) => setForm({ ...form, court_direction_details: e.target.value })} />}
+            {form.next_event_type === 'OTHER_COURT_DIRECTED' && <AutoGrowTextarea required className='form-control md:col-span-2' placeholder='Details of the exceptional court direction' value={form.court_direction_details} onChange={(e) => setForm({ ...form, court_direction_details: e.target.value })} />}
           </div>
           {message && <p className='mt-3 text-sm'>{message}</p>}
           <button disabled={saving} className='mt-3 rounded-lg bg-primary px-4 py-2 text-white disabled:opacity-60'>{saving ? 'Saving…' : 'Save proceeding'}</button>

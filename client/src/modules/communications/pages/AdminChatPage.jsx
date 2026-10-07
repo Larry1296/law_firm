@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquarePlus, Megaphone } from 'lucide-react';
@@ -159,10 +160,9 @@ export default function AdminChatPage() {
               placeholder='Subject e.g. Court filing update'
             />
 
-            <textarea
+            <AutoGrowTextarea
               value={form.message}
               onChange={(event) => updateForm('message', event.target.value)}
-              rows={4}
               placeholder='Optional opening message...'
               autoComplete='on'
               autoCorrect='on'

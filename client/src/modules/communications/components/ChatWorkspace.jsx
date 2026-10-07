@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, CheckCheck, Forward, MessageCircle, Send, Users } from 'lucide-react';
 
@@ -349,12 +350,11 @@ export default function ChatWorkspace({
                 )}
 
                 <div className='flex flex-col gap-3 md:flex-row'>
-                  <textarea
+                  <AutoGrowTextarea maxRows={8}
                     value={body}
                     onChange={(event) => setBody(event.target.value)}
                     onKeyDown={handleComposerKeyDown}
                     disabled={!canReply || isSending}
-                    rows={2}
                     placeholder={
                       canReply
                         ? 'Type your message...'
@@ -364,7 +364,7 @@ export default function ChatWorkspace({
                     autoCorrect='on'
                     autoCapitalize='sentences'
                     spellCheck
-                    className='min-h-[52px] flex-1 resize-none rounded-2xl border border-border-light bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-slate-900 dark:text-white'
+                    className='flex-1 resize-none rounded-2xl border border-border-light bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-border-dark dark:bg-slate-900 dark:text-white'
                   />
 
                   <Button3D

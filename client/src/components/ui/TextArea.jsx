@@ -1,9 +1,10 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
+
 export default function Textarea({
   label,
   value,
   onChange,
   placeholder,
-  rows = 4,
   autoComplete = 'on',
   autoCorrect = 'on',
   autoCapitalize = 'sentences',
@@ -18,11 +19,10 @@ export default function Textarea({
         </label>
       )}
 
-      <textarea
+      <AutoGrowTextarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        rows={rows}
         autoComplete={autoComplete}
         autoCorrect={autoCorrect}
         autoCapitalize={autoCapitalize}

@@ -82,7 +82,7 @@ export default function MatterTasksCard({
             <ReadOnlyField label='Assigned to' value={assignedLawyerName || 'No advocate assigned'} />
             <TextInput label='Due date' name='task_due_date' type='date' value={draft.due_date} onChange={(event) => setDraft((current) => ({ ...current, due_date: event.target.value }))} required />
             <SelectInput label='Priority' name='task_priority' value={draft.priority} onChange={(event) => setDraft((current) => ({ ...current, priority: event.target.value }))} options={PRIORITIES} placeholder={null} required />
-            <TextArea label='Description' name='task_description' value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder='Describe the work and the checks to complete.' rows={5} spellCheck required className='md:col-span-2' />
+            <TextArea label='Description' name='task_description' value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder='Describe the work and the checks to complete.' spellCheck required className='md:col-span-2' />
           </FormGrid>
           <label className='flex cursor-pointer items-start gap-3 rounded-lg border border-border-light bg-surface-light p-3 dark:border-border-dark dark:bg-surface-dark'>
             <input type='checkbox' checked={draft.is_client_visible} onChange={(event) => setDraft((current) => ({ ...current, is_client_visible: event.target.checked }))} className='mt-0.5 h-4 w-4 rounded border-border-light text-brand-primary focus:ring-brand-primary/30 dark:border-border-dark' />

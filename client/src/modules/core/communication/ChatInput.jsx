@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 // src/modules/core/communication/ChatInput.jsx
 
 import { useState } from "react";
@@ -27,13 +28,12 @@ const ChatInput = ({
 
   return (
     <div className="flex items-center gap-2 p-3 border-t bg-white">
-      <textarea
+      <AutoGrowTextarea maxRows={6}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        rows={1}
         autoComplete="on"
         autoCorrect="on"
         autoCapitalize="sentences"

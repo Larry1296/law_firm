@@ -1,4 +1,6 @@
-import { useId, useLayoutEffect, useRef } from 'react';
+import { useId } from 'react';
+
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 
 const supportsWritingAssist = true;
 
@@ -11,7 +13,8 @@ export default function ElasticTextInput({
   error,
   disabled = false,
   className = '',
-  minRows = 1,
+  minRows: _minRows,
+  maxRows,
   // Labels always sit above the control; accepted so older callers don't leak it to the DOM.
   alwaysShowLabel: _alwaysShowLabel,
   wrapperClassName = '',
@@ -27,15 +30,6 @@ export default function ElasticTextInput({
 }) {
   const generatedId = useId();
   const inputId = name || generatedId;
-  const textareaRef = useRef(null);
-
-  useLayoutEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    textarea.style.height = 'auto';
-    textarea.style.height = `${textarea.scrollHeight}px`;
-  }, [value]);
 
   return (
     <div data-form-field className={`form-label w-full ${className} ${wrapperClassName}`}>
@@ -45,15 +39,14 @@ export default function ElasticTextInput({
         </label>
       )}
 
-      <textarea
-        ref={textareaRef}
+      <AutoGrowTextarea
         id={inputId}
         name={name}
         value={value ?? ''}
         onChange={onChange}
         placeholder={placeholder}
         disabled={disabled}
-        rows={minRows}
+        maxRows={maxRows}
         required={required}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${inputId}-error` : undefined}
@@ -64,7 +57,7 @@ export default function ElasticTextInput({
         autoCapitalize={autoCapitalize ?? (supportsWritingAssist ? 'sentences' : 'none')}
         spellCheck={spellCheck ?? supportsWritingAssist}
         {...props}
-        className={`form-control floating-input-field min-h-[44px] resize-none overflow-y-hidden ${textareaClassName}`}
+        className={`form-control floating-input-field min-h-[44px] ${textareaClassName}`}
       />
 
       {error && <p id={`${inputId}-error`} className='form-error'>{error}</p>}

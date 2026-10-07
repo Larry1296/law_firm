@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -377,7 +378,7 @@ export default function PlatformRegisterFirmPage() {
                 </span>
               </Field>
               <Field label='About the firm' hint='A short description shown on the firm’s profile.' className='md:col-span-2'>
-                <textarea rows={3} value={form.firm.description} onChange={set('firm', 'description')} className={inputClass} />
+                <AutoGrowTextarea value={form.firm.description} onChange={set('firm', 'description')} className={inputClass} />
               </Field>
             </div>
           )}

@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useMemo, useState } from 'react';
 import { Megaphone, Send, Users } from 'lucide-react';
 
@@ -137,10 +138,9 @@ export default function AdminAnnouncementsPage() {
               placeholder='Announcement title'
             />
 
-            <textarea
+            <AutoGrowTextarea
               value={form.body}
               onChange={(event) => updateField('body', event.target.value)}
-              rows={5}
               placeholder='Write announcement message...'
               autoComplete='on'
               autoCorrect='on'

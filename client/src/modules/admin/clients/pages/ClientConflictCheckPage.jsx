@@ -158,7 +158,6 @@ function TextArea({ label, value, onChange, required = false, disabled = false, 
       required={required}
       disabled={disabled}
       error={error}
-      minRows={1}
       alwaysShowLabel
       wrapperClassName='mb-0'
     />
