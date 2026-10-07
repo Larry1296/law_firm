@@ -180,14 +180,14 @@ describe('FloatingAIChat', () => {
     expect(screen.getByRole('link', { name: /speak to an advocate/i })).toBeInTheDocument();
   });
 
-  it('answers only about Kenyan law on the platform homepage, never from a firm', async () => {
+  it('answers platform and legal questions on the platform homepage, never from a firm', async () => {
     getLegalAssistantSuggestions.mockResolvedValue(['What are my rights if I am arrested?']);
     askLegalAssistant.mockResolvedValue({ ...groundedResponse, needs_lawyer: true });
     const user = userEvent.setup();
     render(<FloatingAIChat mode='platform' />);
 
     openLegalAssistant();
-    expect(await screen.findByRole('dialog', { name: 'Kenyan law assistant' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Sheria Master assistant' })).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'What are my rights if I am arrested?' }));
 
     await waitFor(() => expect(askLegalAssistant).toHaveBeenCalled());

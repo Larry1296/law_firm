@@ -275,6 +275,9 @@ SUBSCRIPTION_TRIAL_PLAN = config("SUBSCRIPTION_TRIAL_PLAN", default="PRO")
 SUBSCRIPTION_TRIAL_DAYS = config("SUBSCRIPTION_TRIAL_DAYS", default=14, cast=int)
 SUBSCRIPTION_VAT_RATE = config("SUBSCRIPTION_VAT_RATE", default="16.00")
 SUBSCRIPTION_MPESA_PAYBILL = config("SUBSCRIPTION_MPESA_PAYBILL", default="")
+# Shown by the homepage assistant when visitors ask how to reach the platform team.
+PLATFORM_SUPPORT_EMAIL = config("PLATFORM_SUPPORT_EMAIL", default="")
+PLATFORM_SUPPORT_PHONE = config("PLATFORM_SUPPORT_PHONE", default="")
 
 # The model behind every assistant: Claude first, OpenAI when Claude fails.
 # AI_PROVIDER="openai" tries OpenAI first instead.

@@ -37,11 +37,11 @@ const SECTION_COPY = {
 };
 
 const PLATFORM_COPY = {
-  launcher: 'Ask about Kenyan law',
-  title: 'Kenyan law assistant',
-  subtitle: 'General information on the law of Kenya, from official sources',
-  welcome: 'Ask me a question about the law of Kenya: your rights, court processes, employment, land, family and more. I answer from official sources and show them. This is general information, not legal advice.',
-  placeholder: 'Ask about the law of Kenya…',
+  launcher: 'Hi! How can I help you?',
+  title: 'Sheria Master assistant',
+  subtitle: 'Ask about Sheria Master or a legal question',
+  welcome: 'Hi! Ask me anything about Sheria Master (what it does, plans and pricing, getting started, signing in) or a general legal question about your rights, court processes, employment, land, family and more. Legal answers are general information, not legal advice.',
+  placeholder: 'Ask a question…',
 };
 
 const HISTORY_MESSAGE_LIMIT = 1500;
@@ -50,8 +50,8 @@ const GENERIC_SUGGESTIONS = [
   'What are the steps in a court case?',
   'How do I become a client?',
   'What legal services does the firm provide?',
-  'What does access to justice mean in Kenya?',
-  'What principles apply to personal data in Kenya?',
+  'What does access to justice mean?',
+  'What principles apply to personal data?',
 ];
 
 function welcomeMessage(section, platform = false) {
@@ -292,7 +292,7 @@ export default function FloatingAIChat({
         </section>
       )}
 
-      <Button3D type='button' variant='aiGlow' size='md' onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} aria-haspopup='dialog' aria-label={open ? (askOverride ? `Close ${resolvedTitle}` : platform ? 'Close Kenyan law assistant' : 'Close firm legal assistant') : `Open assistant: ${resolvedLauncherLabel.replace('this Firm', 'Firm')}`} className='floating-ai-trigger max-w-full font-extrabold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2'>
+      <Button3D type='button' variant='aiGlow' size='md' onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} aria-haspopup='dialog' aria-label={open ? (askOverride ? `Close ${resolvedTitle}` : platform ? 'Close Sheria Master assistant' : 'Close firm legal assistant') : `Open assistant: ${resolvedLauncherLabel.replace('this Firm', 'Firm')}`} className='floating-ai-trigger max-w-full font-extrabold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2'>
         <span className='flex items-center gap-2 transition-opacity duration-150 motion-reduce:transition-none'>{open ? <X size={18} /> : <MessageCircle size={18} />}{open ? 'Close' : resolvedLauncherLabel}</span>
       </Button3D>
     </div>

@@ -9,7 +9,7 @@ const LINKS = [
   { id: 'features', label: 'Features' },
   { id: 'how-it-works', label: 'How it works' },
   { id: 'plans', label: 'Plans' },
-  { id: 'legal-assistant', label: 'Legal assistant' },
+  { id: 'legal-assistant', label: 'Ask a question' },
 ];
 
 const AUTH_PATHS = ['/login', '/forgot-password', '/reset-password', '/recover-account'];

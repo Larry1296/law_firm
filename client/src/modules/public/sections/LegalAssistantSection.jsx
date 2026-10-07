@@ -3,8 +3,8 @@ import { BookOpen, MessageCircle } from 'lucide-react';
 import { openLegalAssistant } from '@/components/ai/assistantEvents';
 
 const EXAMPLES = [
+  'How do I get started with Sheria Master?',
   'What are my rights if I am arrested?',
-  'How much notice must an employer give?',
   'What are the steps in a court case?',
 ];
 
@@ -14,11 +14,11 @@ export default function LegalAssistantSection() {
       <div className='mx-auto grid max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:px-8'>
         <div>
           <p className='text-sm font-semibold uppercase tracking-wider text-brand-accent'>Free for everyone</p>
-          <h2 className='mt-2 text-3xl font-bold tracking-tight sm:text-4xl'>Questions about Kenyan law?</h2>
+          <h2 className='mt-2 text-3xl font-bold tracking-tight sm:text-4xl'>Have a question? Just ask</h2>
           <p className='mt-4 leading-relaxed text-slate-300'>
-            Our assistant answers general questions about the law of Kenya from official sources, such as the
-            Constitution and Acts of Parliament published by Kenya Law, and shows you the provisions it relied on.
-            It is general information, not legal advice.
+            Our assistant answers questions about Sheria Master (plans, getting started, signing in, security) and
+            general legal questions, drawing on official sources such as the Constitution and Acts of Parliament and
+            showing you the provisions it relied on. Legal answers are general information, not legal advice.
           </p>
           <button
             type='button'

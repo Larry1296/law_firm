@@ -16,6 +16,7 @@ from apps.ai.services.knowledge_retrieval_service import KnowledgeRetrievalServi
 from apps.ai.services.public_firm_resolver import PublicFirmResolver
 from apps.ai.services.court_process_guide_service import CourtProcessGuideService
 from apps.ai.services.public_firm_answer_service import PublicFirmAnswerService
+from apps.ai.services.platform_guide_service import INJECTION_ANSWER, PlatformGuideService
 from apps.ai.services.public_knowledge_service import PublicKnowledgeEligibility
 from apps.ai.throttles import KnowledgeBaseAnonThrottle
 
@@ -199,50 +200,21 @@ class KnowledgeBaseAskView(APIView):
         })
 
 
-PLATFORM_SCOPE_ANSWER = (
-    "I can only answer questions about the law of Kenya. For questions about a particular law firm, "
-    "please contact that firm directly."
+PLATFORM_FALLBACK_ANSWER = (
+    "I'm not able to answer that one right now. I can help with questions about Sheria Master (what it does, "
+    "plans and pricing, getting started and signing in) and with general legal questions such as your rights, "
+    "court processes, employment, land and family matters. Try rephrasing, or choose one of the suggestions."
 )
-PLATFORM_NO_SOURCE_ANSWER = (
-    "I can only answer questions about the law of Kenya, and I do not have enough verified Kenyan legal "
-    "material to answer that reliably. Please rephrase your question or speak to an advocate."
-)
-PLATFORM_SIGN_IN_ANSWER = (
-    "To sign in, choose **Login** at the top of this page and use the email address your firm registered "
-    "for you. You will be taken to your own firm's dashboard. I can also answer questions about the law of Kenya."
-)
-# Questions about putting a firm on Sheria Master itself, not about the law.
-PLATFORM_REGISTER_FIRM_PHRASES = (
-    "register my firm", "register our firm", "register a firm", "register the firm", "register your firm",
-    "register my law firm", "register our law firm", "register a law firm",
-    "sign up my firm", "sign up our firm", "signup my firm", "add my firm", "list my firm", "onboard my firm",
-    "join sheria", "join the platform", "use sheria master", "subscribe my firm",
-)
-PLATFORM_REGISTER_FIRM_ANSWER = (
-    "To put your law firm on Sheria Master, choose **Register your firm** at the top of this page. "
-    "Enter your firm's details and your own details as the firm's owner (the managing advocate). {next_step} "
-    "Once the firm is set up you sign in as its owner and add your advocates, staff and clients yourself.\n\n"
-    "If you meant registering a law practice under Kenyan law, that is done with the Law Society of Kenya, "
-    "and I don't yet have verified material on it. An advocate or the Law Society can guide you."
-)
-PLATFORM_REGISTER_FIRM_NEXT_STEP = {
-    True: "Your firm's workspace is created straight away and starts on a free trial.",
-    False: "The platform team then contacts you to confirm the details and set up your firm's workspace.",
-}
-# Questions plainly about a particular firm. Words that are also legal topics
-# (advocates, fees, consultation, complaints) are left to legal retrieval.
-PLATFORM_OUT_OF_SCOPE_INTENTS = {"services", "overview", "contact", "location", "hours", "owner", "getting_started", "careers"}
-PROMPT_INJECTION_TERMS = ("hidden system prompt", "ignore your instructions", "act as the administrator")
 PLATFORM_SUGGESTIONS = [
-    "What are my rights if I am arrested in Kenya?",
+    "How do I get started with Sheria Master?",
+    "How much does Sheria Master cost?",
     "What are the steps in a court case?",
-    "How much notice must an employer give before termination?",
-    "What does the Constitution say about the right to privacy?",
+    "What are my rights if I am arrested?",
 ]
 
 
 class PlatformLegalAssistantView(APIView):
-    """The platform homepage assistant: general information on the law of Kenya only.
+    """The platform homepage assistant: questions about Sheria Master and general legal questions.
 
     It serves no firm, so it never answers from a firm's profile and never logs
     a question against one.
@@ -263,16 +235,17 @@ class PlatformLegalAssistantView(APIView):
         serializer.is_valid(raise_exception=True)
         question = serializer.validated_data["question"]
         history = serializer.validated_data["history"]
-        intent = PublicFirmAnswerService.classify(question)
         log = KnowledgeBaseQuestionLog(
             firm=None, question=question, status=KnowledgeBaseQuestionLog.Status.NO_SOURCE,
             request_fingerprint=_fingerprint(request), user_agent_family=request.META.get("HTTP_USER_AGENT", "")[:80],
         )
 
-        def respond(answer, *, retrieved=(), needs_lawyer=False, response_intent=intent, **extra):
+        def respond(answer, *, retrieved=(), needs_lawyer=False, response_intent="legal", action=None, **extra):
             log.answer = answer
             log.retrieval_score = max((item.score for item in retrieved), default=0)
             log.save()
+            if action:
+                extra["action"] = action
             return Response({
                 "answer": answer,
                 "sources": [_source(item) for item in retrieved],
@@ -284,19 +257,14 @@ class PlatformLegalAssistantView(APIView):
                 **extra,
             })
 
-        if intent == "portal":
+        if PlatformGuideService.is_prompt_injection(question):
             log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
-            return respond(PLATFORM_SIGN_IN_ANSWER, response_intent="out_of_scope")
-        if any(phrase in " ".join(question.lower().split()) for phrase in PLATFORM_REGISTER_FIRM_PHRASES):
+            return respond(INJECTION_ANSWER, response_intent="platform")
+        topic = PlatformGuideService.topic(question)
+        if topic is not None:
+            answer, action = PlatformGuideService.answer(topic)
             log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
-            next_step = PLATFORM_REGISTER_FIRM_NEXT_STEP[bool(settings.ALLOW_PUBLIC_FIRM_SIGNUP)]
-            return respond(
-                PLATFORM_REGISTER_FIRM_ANSWER.format(next_step=next_step),
-                response_intent="out_of_scope", action={"label": "Register your firm", "path": "/register-firm"},
-            )
-        if intent in PLATFORM_OUT_OF_SCOPE_INTENTS or any(term in question.lower() for term in PROMPT_INJECTION_TERMS):
-            log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
-            return respond(PLATFORM_SCOPE_ANSWER, response_intent="out_of_scope")
+            return respond(answer, response_intent="platform", action=action, topic=topic)
 
         guide = CourtProcessGuideService.answer(question, history, None)
         if guide is not None:
@@ -304,20 +272,26 @@ class PlatformLegalAssistantView(APIView):
             log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
             return respond(answer, response_intent="court_process", step=step_number)
 
+        # Anything else goes to the AI with the platform facts and whatever law
+        # matched, so it can answer platform, legal and general questions alike.
         retrieved = KnowledgeRetrievalService.retrieve_law(question)
-        if not retrieved:
-            return respond(PLATFORM_NO_SOURCE_ANSWER, response_intent="out_of_scope")
         try:
             provider = KnowledgeAnswerProvider()
-            answer, needs_lawyer = provider.generate(question, history, retrieved, instructions=PLATFORM_INSTRUCTION)
+            answer, needs_lawyer = provider.generate(
+                question, history, retrieved, instructions=PLATFORM_INSTRUCTION,
+                platform_facts=PlatformGuideService.facts(),
+            )
             log.status = KnowledgeBaseQuestionLog.Status.ANSWERED
             log.model = provider.model or ""
         except KnowledgeProviderUnavailable:
-            answer, needs_lawyer = _verified_extract_answer(retrieved), True
+            answer, needs_lawyer = (_verified_extract_answer(retrieved), True) if retrieved else (PLATFORM_FALLBACK_ANSWER, False)
             log.status = KnowledgeBaseQuestionLog.Status.PROVIDER_UNAVAILABLE
-            logger.warning("Platform legal assistant provider unavailable")
+            logger.warning("Platform assistant provider unavailable")
         except Exception:
-            answer, needs_lawyer = _verified_extract_answer(retrieved), True
+            answer, needs_lawyer = (_verified_extract_answer(retrieved), True) if retrieved else (PLATFORM_FALLBACK_ANSWER, False)
             log.status = KnowledgeBaseQuestionLog.Status.ERROR
-            logger.exception("Platform legal assistant provider request failed")
-        return respond(answer, retrieved=retrieved, needs_lawyer=needs_lawyer)
+            logger.exception("Platform assistant provider request failed")
+        return respond(
+            answer, retrieved=retrieved, needs_lawyer=needs_lawyer,
+            response_intent="legal" if retrieved else "platform",
+        )

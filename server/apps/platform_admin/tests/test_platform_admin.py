@@ -3,11 +3,13 @@ from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
 from django.core import mail
+from django.core.cache import cache
 from django.core.management import call_command
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.ai.services.knowledge_llm_service import KnowledgeProviderUnavailable
 from apps.common.choices import FirmRole, UserRole
 from apps.firm.models import Branch, LawFirm, PracticeArea
 from apps.platform_admin.models import FirmOnboardingRequest, PlatformActivity
@@ -338,24 +340,45 @@ class OnboardingRequestTests(PlatformTestCase):
 
 
 class PlatformLegalAssistantTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
     def ask(self, question):
         return APIClient().post("/api/legal-assistant/", {"question": question}, format="json")
 
-    def test_questions_about_a_firm_are_out_of_scope(self):
-        response = self.ask("What are your opening hours?")
+    def test_getting_started_is_answered_about_the_platform(self):
+        with mock.patch("apps.ai.views.knowledge_base_view.KnowledgeRetrievalService.retrieve_law") as retrieve:
+            response = self.ask("how do i get started in sheria master")
+        retrieve.assert_not_called()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["intent"], "out_of_scope")
-        self.assertIn("law of Kenya", response.data["answer"])
+        self.assertEqual(response.data["intent"], "platform")
+        self.assertIn("Register your firm", response.data["answer"])
+        self.assertNotIn("Kenya", response.data["answer"])
+        self.assertEqual(response.data["action"], {"label": "Register your firm", "path": "/register-firm"})
 
-    def test_sign_in_questions_point_to_login(self):
+    def test_pricing_comes_from_the_live_plans(self):
+        Plan.objects.update_or_create(code="BASIC", defaults={"name": "Basic", "monthly_price": 2500, "annual_price": 25000, "is_active": True, "is_public": True})
+        response = self.ask("How much does Sheria Master cost?")
+        self.assertEqual(response.data["topic"], "pricing")
+        self.assertIn("KES 2,500 a month", response.data["answer"])
+
+    def test_no_answer_is_a_kenya_only_refusal(self):
+        for question in ("What are your opening hours?", "Is my data safe?", "Can I use it on my phone?", "Who are you?"):
+            with mock.patch("apps.ai.views.knowledge_base_view.KnowledgeAnswerProvider", side_effect=KnowledgeProviderUnavailable):
+                response = self.ask(question)
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn("Kenya", response.data["answer"], question)
+
+    def test_sign_in_questions_point_to_sign_in(self):
         response = self.ask("How do I log in?")
-        self.assertIn("Login", response.data["answer"])
+        self.assertIn("Sign in", response.data["answer"])
+        self.assertEqual(response.data["action"]["path"], "/login")
 
     def test_court_process_questions_are_answered_without_a_firm(self):
         response = self.ask("What are the steps in a court case?")
         self.assertEqual(response.data["intent"], "court_process")
 
-    def test_legal_questions_use_the_law_only_instructions(self):
+    def test_other_questions_go_to_the_ai_with_platform_facts(self):
         from apps.ai.services.knowledge_llm_service import PLATFORM_INSTRUCTION
         from apps.ai.services.knowledge_retrieval_service import KnowledgeRetrievalService, RetrievedProvision
 
@@ -365,17 +388,29 @@ class PlatformLegalAssistantTests(TestCase):
                 mock.patch("apps.ai.views.knowledge_base_view.KnowledgeAnswerProvider") as provider:
             provider.return_value.generate.return_value = ("Article 31 protects privacy [Source 1].", False)
             provider.return_value.model = "claude-sonnet-5-5"
-            response = self.ask("Is privacy protected in Kenya?")
+            response = self.ask("Is privacy protected?")
         self.assertEqual(response.data["intent"], "legal")
-        self.assertEqual(provider.return_value.generate.call_args.kwargs["instructions"], PLATFORM_INSTRUCTION)
+        kwargs = provider.return_value.generate.call_args.kwargs
+        self.assertEqual(kwargs["instructions"], PLATFORM_INSTRUCTION)
+        self.assertIn("Sheria Master is practice management software", kwargs["platform_facts"])
+
+    def test_unmatched_questions_still_reach_the_ai_without_legal_passages(self):
+        with mock.patch("apps.ai.views.knowledge_base_view.KnowledgeRetrievalService.retrieve_law", return_value=[]), \
+                mock.patch("apps.ai.views.knowledge_base_view.KnowledgeAnswerProvider") as provider:
+            provider.return_value.generate.return_value = ("Yes, you can export your records.", False)
+            provider.return_value.model = "claude-sonnet-5-5"
+            response = self.ask("Can I import records from my old system?")
+        provider.return_value.generate.assert_called_once()
+        self.assertEqual(response.data["intent"], "platform")
+        self.assertEqual(response.data["disclaimer"], "")
 
     def test_registering_a_firm_points_to_the_register_page_not_the_law(self):
         with mock.patch("apps.ai.views.knowledge_base_view.KnowledgeRetrievalService.retrieve_law") as retrieve:
             response = self.ask("how do i get to register my firm as an advocate")
         retrieve.assert_not_called()
-        self.assertEqual(response.data["intent"], "out_of_scope")
+        self.assertEqual(response.data["intent"], "platform")
         self.assertIn("Register your firm", response.data["answer"])
-        self.assertIn("platform team then contacts you", response.data["answer"])
+        self.assertIn("platform team contacts you", response.data["answer"])
         self.assertEqual(response.data["action"], {"label": "Register your firm", "path": "/register-firm"})
         self.assertEqual(response.data["sources"], [])
 

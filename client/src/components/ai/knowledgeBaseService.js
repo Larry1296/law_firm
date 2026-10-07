@@ -20,7 +20,7 @@ export async function askKnowledgeBase(question, history, section, signal) {
   return data;
 }
 
-// The platform homepage assistant: the law of Kenya only, never a particular firm.
+// The platform homepage assistant: Sheria Master itself and general legal questions, never a particular firm.
 export async function getLegalAssistantSuggestions(_section, signal) {
   const { data } = await axiosInstance.get('/legal-assistant/', { signal, timeout: 10000 });
   return data.suggestions ?? [];
