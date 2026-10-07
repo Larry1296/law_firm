@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch
 from django.utils import timezone
 
 from apps.ai.assistants.base import DashboardAssistant, Unavailable, text, when
@@ -9,10 +9,13 @@ from apps.ai.services.court_preparation_playbooks import KIND_BY_EVENT_TYPE
 from apps.ai.services.court_preparation_service import CourtPreparationService
 from apps.ai.services.knowledge_retrieval_service import KnowledgeRetrievalService
 from apps.billing.models import Invoice
+from apps.clients.models import Client
 from apps.cases.models import Case, CaseEvent, MatterDeadline
 from apps.common.choices import UserRole
 from apps.firm.models import LawFirmMember
 from apps.staff.models import LawyerPermission
+from apps.subscriptions.catalog import Limit
+from apps.subscriptions.services import SubscriptionService
 
 OPEN_EVENT_STATUSES = [CaseEvent.EventStatus.SCHEDULED, CaseEvent.EventStatus.CONFIRMED]
 OPEN_TASK_STATUSES = ["PENDING", "IN_PROGRESS", "BLOCKED", "OVERDUE"]
@@ -24,6 +27,8 @@ MAX_MATTERS = 40
 STAFF_RULES = """
 Working style:
 - Be a sharp, practical colleague. Lead with what needs attention soonest: sittings in the next few days, preparation gaps, overdue tasks and deadlines.
+- When the question is general ("what's on?", "brief me"), remind the user of the nearest sittings and deadlines unprompted, with the first preparation steps for each.
+- When asked to analyse matters, work across all of them in RECORDS: group by urgency, flag missing next actions, approaching limitation dates, stalled matters (no sitting coming up and no recent activity) and preparation gaps.
 - For an upcoming sitting, use its readiness and outstanding checks in RECORDS to suggest concrete preparation steps (papers to file or serve, bundles, witnesses, authorities to confirm, client briefing, virtual link).
 - When drafting (a checklist, a client update, a short note), base it only on RECORDS and mark anything that must be confirmed from the file.
 - Remind the user to verify facts and authorities against the file where it matters. Your output is a draft for a qualified advocate, not legal advice."""
@@ -44,6 +49,12 @@ def matter_view(case, now, *, briefs, with_billing):
         "matter_number": case.case_number,
         "title": case.title,
         "client": case.client.full_name,
+        "summary": text(case.description, 500) or None,
+        "claim_amount": str(case.claim_amount) if case.claim_amount else None,
+        "other_parties": [
+            {"name": party.name, "role": party.get_party_role_display(), "advocate_on_record": party.advocate_on_record or None}
+            for party in case.parties.all() if not party.is_our_client
+        ][:6],
         "practice_area": case.get_practice_area_display() or None,
         "status": case.get_matter_status_display(),
         "court_stage": case.get_court_stage_display() or None,
@@ -94,7 +105,7 @@ def matter_view(case, now, *, briefs, with_billing):
 
 def load_matters(queryset, now):
     queryset = queryset.select_related("client", "assigned_lawyer__user").prefetch_related(
-        "events", "tasks",
+        "events", "tasks", "parties",
         Prefetch("deadlines", queryset=MatterDeadline.objects.filter(status="OPEN").order_by("due_at"), to_attr="deadlines_for_assistant"),
         Prefetch("invoices", queryset=Invoice.objects.filter(status__in=UNPAID_INVOICE_STATUSES), to_attr="unpaid_invoices_for_assistant"),
     )
@@ -106,6 +117,20 @@ def load_matters(queryset, now):
 
     cases.sort(key=urgency)
     return cases
+
+
+def clients_view(cases):
+    """The clients behind these matters, with how to reach them."""
+    clients = {}
+    for case in cases:
+        client = case.client
+        entry = clients.setdefault(client.id, {
+            "name": client.full_name, "type": client.get_client_type_display(),
+            "phone": client.phone_number or None, "email": client.email or None,
+            "uses_client_portal": bool(client.user_id), "matters": [],
+        })
+        entry["matters"].append(case.case_number)
+    return list(clients.values())
 
 
 def current_briefs(cases):
@@ -164,7 +189,24 @@ You see only the matters assigned to this advocate (in RECORDS) and only the inf
 Boundaries:
 - If asked about a matter, client or colleague not in RECORDS, say it is not assigned to them or not available to them, without guessing whether it exists.
 - If asked for billing and "view_billing" is false, say their account does not include billing access. If asked about the law and no SOURCES are given, say they need the legal research permission or should check the law directly.
-- Never reveal other staff members' work, the firm's finances or firm-wide figures.""" + STAFF_RULES
+- Never reveal other staff members' work, the firm's finances or firm-wide figures.
+- You know the clients of these matters (my_clients in RECORDS). Help the advocate prepare client updates and calls, but never share one client's matters with another.""" + STAFF_RULES
+
+    app_guide = {
+        "dashboard": "Dashboard (/lawyer/dashboard): today's sittings, tasks and alerts.",
+        "matters": "Cases (/lawyer/cases): your assigned matters. Open one for its events, tasks, documents, parties, notes and filings.",
+        "calendar": "Calendar (/lawyer/calendar): your sittings and meetings. Scheduling a sitting needs the Schedule Hearings permission.",
+        "courtroom": "Courtroom (/lawyer/courtroom): today's cause list and recording what happened at a sitting (orders, next date).",
+        "court_preparation": "Court Preparation (/lawyer/court-preparation): the readiness checklist and preparation brief for each upcoming sitting.",
+        "tasks": "Tasks (/lawyer/tasks): your open and overdue tasks.",
+        "approvals": "Approvals (/lawyer/approvals): items waiting for your approval.",
+        "documents": "Documents (/lawyer/documents): matter documents; mark one client-visible to share it with the client.",
+        "staff_chat": "Staff Chat (/lawyer/chat): messages with colleagues.",
+        "ai_matters": "My AI Matters (/lawyer/ai): an AI case analysis of a single matter.",
+        "research": "Research AI (/lawyer/research-ai), Legal Research (/lawyer/research) and Authorities (/lawyer/authorities): Kenyan law, with the Use Legal Research permission.",
+        "profile": "Profile (/lawyer/profile) and Security (/lawyer/security): your details, password and sign-in security.",
+        "permissions": "Your firm owner grants permissions. Ask them if a page or action is not available to you.",
+    }
 
     def lawyer(self, user):
         return getattr(user, "lawyer_profile", None)
@@ -195,6 +237,7 @@ Boundaries:
             "assigned_active_matters": len(cases),
             "matters_shown": min(len(cases), MAX_MATTERS),
             "matters": [matter_view(case, now, briefs=briefs, with_billing=with_billing) for case in cases[:MAX_MATTERS]],
+            "my_clients": clients_view(cases[:MAX_MATTERS]),
         }
 
     def sources(self, user, question):
@@ -208,6 +251,7 @@ Boundaries:
             "Am I ready for my next sitting?",
             "Which of my tasks are overdue?",
             "Draft an update for the client on my next hearing",
+            "Analyse all my matters and tell me what is at risk",
         ]
 
     def records_answer(self, records):
@@ -226,7 +270,26 @@ class FirmOwnerAssistant(DashboardAssistant):
     )
     instructions = """You are the oversight assistant for the OWNER of a Kenyan law firm, inside the firm administration dashboard.
 You see the firm's active matters, workload by advocate, and billing totals in RECORDS. Help the owner spot risks early: sittings with preparation gaps, overdue work, approaching limitation dates and deadlines, unassigned matters, overloaded advocates and unpaid fee notes, and suggest who should act.
+You also see the firm's Sheria Master subscription (plan, status, limits and usage) and its client numbers, so you can answer questions about the account and warn when a limit or renewal is near.
 Boundaries: only this firm's RECORDS. Never discuss other firms or the Sheria Master platform's internal matters.""" + STAFF_RULES
+
+    app_guide = {
+        "dashboard": "Dashboard (/admin/dashboard): the firm at a glance.",
+        "clients": "Clients (/admin/clients): onboard clients, run due diligence, and give or remove client portal access.",
+        "matters": "Cases (/admin/cases): every matter. Open one to assign or change the responsible advocate.",
+        "courtroom_and_calendar": "Courtroom (/admin/courtroom) and Calendar (/admin/calendar): the firm's sittings and outcomes.",
+        "ai": "AI Matter Intelligence (/admin/ai/matters), AI Overview (/admin/ai) and AI Recommendations (/admin/ai/recommendations): AI analysis across the firm's matters.",
+        "documents": "Documents (/admin/documents): the firm's documents.",
+        "billing": "Billing (/admin/billing): fee notes, payments and client accounts.",
+        "staff": "Staff (/admin/staff): add advocates and support staff, and grant permissions such as Use AI Tools, View Billing and Use Legal Research. Each seat counts against the plan.",
+        "staff_chat": "Staff Chat (/admin/communication): firm messaging.",
+        "reports": "Reports (/admin/reports) and IT Report (/admin/it-report): firm performance and system health.",
+        "firm_profile": "Firm (/admin/firm): firm details, branches and practice areas.",
+        "subscription": "Subscription (/admin/subscription): your Sheria Master plan, limits, renewal and paying by M-Pesa.",
+        "public_chatbot": "Chatbot Knowledge (/admin/public-knowledge): what the public assistant on your firm's website may say. Items go through review, approval and publication.",
+        "compliance": "Compliance (/admin/compliance): due diligence and regulatory records.",
+        "settings": "Settings (/admin/settings) and Profile (/admin/profile).",
+    }
 
     def check_access(self, user):
         if user.role != UserRole.ADMIN or getattr(user, "owned_firm", None) is None:
@@ -250,8 +313,31 @@ Boundaries: only this firm's RECORDS. Never discuss other firms or the Sheria Ma
                 if event.starts_at and event.status in OPEN_EVENT_STATUSES and now <= event.starts_at <= now + timedelta(days=14)
             )
         unpaid = Invoice.objects.filter(firm=firm, status__in=UNPAID_INVOICE_STATUSES)
+        subscription = SubscriptionService.get(firm)
+        usage = SubscriptionService.usage(firm)
+        clients = Client.objects.filter(firm=firm, soft_deleted_at__isnull=True)
         return {
             "firm": firm.name,
+            "subscription": {
+                "plan": subscription.plan.name,
+                "status": SubscriptionService.effective_status(subscription),
+                "billing_cycle": subscription.get_billing_cycle_display(),
+                "trial_ends": when(subscription.trial_ends_at),
+                "paid_until": when(subscription.current_period_end),
+                "usage_against_limits": {
+                    Limit.LABELS[resource]: {"used": used, "limit": SubscriptionService.limit_for(subscription.plan, resource) or "unlimited"}
+                    for resource, used in usage.items()
+                },
+            },
+            "clients": {
+                "total": clients.count(),
+                "by_status": {
+                    Client.LifecycleStatus(status).label: count
+                    for status, count in clients.values_list("lifecycle_status").annotate(count=Count("id")).order_by()
+                    if status in Client.LifecycleStatus.values
+                },
+                "using_client_portal": clients.filter(user__isnull=False).count(),
+            },
             "active_matters": len(cases),
             "matters_shown": min(len(cases), MAX_MATTERS),
             "team": [
@@ -273,6 +359,7 @@ Boundaries: only this firm's RECORDS. Never discuss other firms or the Sheria Ma
             "Which sittings are not fully prepared?",
             "How is work spread across the advocates?",
             "Which fee notes are overdue?",
+            "How close are we to our plan limits?",
         ]
 
     def records_answer(self, records):

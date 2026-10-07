@@ -82,6 +82,19 @@ class ProviderSelectionTests(TestCase):
                 complete_json("rules", "question")
             openai.assert_not_called()
 
+    @override_settings(**CLAUDE_AND_OPENAI)
+    def test_a_plain_text_reply_is_used_only_when_the_caller_accepts_prose(self):
+        with patch("apps.ai.services.llm_provider._anthropic_text", return_value="Your hearing is on **Friday**."), \
+                patch("apps.ai.services.llm_provider._openai_text", return_value='{"answer": "From OpenAI"}') as openai:
+            payload, choice = complete_json("rules", "question", prose_key="answer")
+            self.assertEqual((payload, choice.name), ({"answer": "Your hearing is on **Friday**."}, "anthropic"))
+            openai.assert_not_called()
+            # Without prose_key, or when the JSON was cut off, it is a failure and OpenAI takes over.
+            self.assertEqual(complete_json("rules", "question")[1].name, "openai")
+        with patch("apps.ai.services.llm_provider._anthropic_text", return_value='{"answer": "Your hearing is'), \
+                patch("apps.ai.services.llm_provider._openai_text", return_value='{"answer": "From OpenAI"}'):
+            self.assertEqual(complete_json("rules", "question", prose_key="answer")[1].name, "openai")
+
     def test_json_is_read_even_inside_a_code_fence(self):
         self.assertEqual(_parse_json('```json\n{"answer": "Hi"}\n```'), {"answer": "Hi"})
         self.assertEqual(_parse_json('Sure: {"answer": "Hi"}'), {"answer": "Hi"})
@@ -145,7 +158,7 @@ class DashboardAssistantTests(TestCase):
         """Ask with a stand-in model and return (response, the prompt the model was sent)."""
         sent = {}
 
-        def fake_model(instructions, prompt, max_tokens):
+        def fake_model(instructions, prompt, max_tokens, **options):
             sent["instructions"], sent["prompt"] = instructions, prompt
             return {"answer": "A helpful answer."}, ProviderChoice("anthropic", "claude-sonnet-5-5")
 
@@ -164,6 +177,7 @@ class DashboardAssistantTests(TestCase):
         self.assertIn("Your hearing is on track.", prompt)
         self.assertIn("Send the signed supply contract", prompt)
         self.assertIn("how_to_prepare", prompt)
+        self.assertIn("/client/calendar", prompt)
         for private in ("Kamau Holdings", "MAT-AS-002", "Internal strategy meeting", "settle below 2M", "Colleague"):
             self.assertNotIn(private, prompt)
 
@@ -183,6 +197,10 @@ class DashboardAssistantTests(TestCase):
         self.assertNotIn("Kamau Holdings", prompt)
         self.assertIn('"view_billing": false', prompt)
         self.assertNotIn("unpaid_fee_notes", prompt)
+        # Their own clients, to brief and contact them; never another advocate's.
+        self.assertIn("my_clients", prompt)
+        self.assertIn("Wanjiru Traders Ltd", prompt)
+        self.assertIn("/lawyer/court-preparation", prompt)
 
     def test_advocate_assistant_needs_the_ai_tools_permission(self):
         self.api.force_authenticate(self.colleague_user)
@@ -206,19 +224,24 @@ class DashboardAssistantTests(TestCase):
         self.assertIn("MAT-AS-001", prompt)
         self.assertIn("MAT-AS-002", prompt)
         self.assertIn("workload_by_advocate", prompt)
+        self.assertIn("usage_against_limits", prompt)
+        self.assertIn('"total": 2', prompt)
+        self.assertIn("/admin/subscription", prompt)
         self.api.force_authenticate(self.advocate_user)
         self.assertFalse(self.api.get("/api/assistant/firm/").data["available"])
 
     # ------------------------------------------------------------------ platform
-    def test_platform_assistant_is_never_given_a_particular_firm(self):
+    def test_platform_assistant_sees_firm_accounts_but_never_their_staff_clients_or_matters(self):
         response, prompt = self.ask(self.platform_user, "platform", "How is Assist Firm Advocates doing?")
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn("platform_totals", prompt)
         self.assertIn("CONSOLE_GUIDE", prompt)
-        for private in ("owner@assist.test", "Wanjiru", "MAT-AS-001", "Owner Test"):
+        # The firm's account, as the Law firms console shows it.
+        self.assertGreater(prompt.count("Assist Firm Advocates"), 1)
+        self.assertIn("owner@assist.test", prompt)
+        self.assertIn("subscription_status", prompt)
+        for private in ("Wanjiru", "Kamau", "MAT-AS-001", "advocate@assist.test", "colleague@assist.test", "Debtor Ltd"):
             self.assertNotIn(private, prompt)
-        # The firm's name appears only because the administrator typed it in the question.
-        self.assertEqual(prompt.count("Assist Firm Advocates"), 1)
         self.api.force_authenticate(self.owner)
         self.assertFalse(self.api.get("/api/assistant/platform/").data["available"])
 

@@ -53,11 +53,12 @@ cd server
 venv/bin/pip install -r requirements.txt
 venv/bin/python manage.py migrate
 venv/bin/python manage.py import_kenyan_constitution
+venv/bin/python manage.py import_kenyan_statute all
 # Optional scheduled retention cleanup:
 venv/bin/python manage.py purge_ai_assessments
 ```
 
-The importer is checksum-based and idempotent. It rejects `:Zone.Identifier`, incomplete extraction, and imports with fewer than 200 credible Articles. Re-running updates changed units, leaves unchanged units intact, and unpublishes units no longer present in the source.
+Until these imports run, the legal assistant has no Kenyan legal material and answers every legal question with "I do not have enough verified Kenyan legal material". The importer is checksum-based and idempotent. It rejects `:Zone.Identifier`, incomplete extraction, and imports with fewer than 200 credible Articles. Re-running updates changed units, leaves unchanged units intact, and unpublishes units no longer present in the source.
 
 ### Lawyer AI Case Analysis
 

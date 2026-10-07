@@ -21,8 +21,8 @@ const COPY = {
   },
   platform: {
     launcher: 'Ask the platform assistant',
-    placeholder: 'Ask about platform figures or how to do a task…',
-    footnote: 'Platform-wide figures only. Open a firm from Law firms for its details.',
+    placeholder: 'Ask about a firm, platform figures or how to do a task…',
+    footnote: 'Firm accounts and subscriptions only. Firms’ staff, clients and matters stay private.',
   },
 };
 

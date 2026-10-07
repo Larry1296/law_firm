@@ -45,7 +45,8 @@ class KnowledgeAnswerProvider:
         payload, choice = complete_json(
             instructions,
             f"PRIOR CONVERSATION:\n{conversation or '(none)'}\n\nVISITOR QUESTION:\n{question}\n\n{context}",
-            max_tokens=700,
+            max_tokens=1500,
+            prose_key="answer",
         )
         self.model = choice.model
         answer = str(payload.get("answer", "")).strip()

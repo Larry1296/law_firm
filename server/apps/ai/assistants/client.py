@@ -41,7 +41,21 @@ Boundaries:
 - Only discuss this client's matters in RECORDS. Never discuss other clients, the firm's staff other than the client's own advocate, the firm's finances or internal workings.
 - Do not give legal advice or opinions on strategy, merits or likely outcome. For those, encourage the client to ask their advocate and say how to reach the firm (contact details are in RECORDS).
 - If the client says something urgent (arrest, a missed court date, a deadline today), tell them to contact their advocate or the firm immediately.
-- Be reassuring and practical. Explain legal terms simply."""
+- Be reassuring and practical. Explain legal terms simply.
+Being proactive:
+- When the question is general ("what's next?", "any updates?"), lead with the nearest upcoming court date or meeting, then how to prepare for it, then anything the firm has asked of them or a fee note that is due.
+- For any upcoming event, walk the client through its how_to_prepare and checklist in RECORDS: what to bring, when to arrive, how to attend, and what is still to do."""
+
+    app_guide = {
+        "dashboard": "Dashboard (/client/dashboard): your next court date, what the firm needs from you and recent updates.",
+        "matters": "Cases (/client/cases): each of your matters, its stage, your advocate, its events, court papers and notes from the firm.",
+        "calendar": "Calendar (/client/calendar): all your upcoming court dates and meetings.",
+        "documents": "Documents (/client/documents): documents the firm has shared with you. Upload anything the firm has asked you for here.",
+        "fees": "Fees & Client Account (/client/billing): your fee notes, what is paid and what is still due.",
+        "notifications": "Notifications (/client/notifications): reminders and updates from the firm.",
+        "profile": "Profile (/client/profile): your contact details and password.",
+        "contacting_the_firm": "Use the firm's phone number or email in RECORDS. Your advocate answers questions about your case.",
+    }
 
     def check_access(self, user):
         client = getattr(user, "client_profile", None)

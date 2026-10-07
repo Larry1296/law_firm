@@ -99,15 +99,27 @@ def _openai_text(choice, instructions, prompt, max_tokens):
     return response.output_text
 
 
-def complete_json(instructions, prompt, *, max_tokens=800):
-    """Ask Claude, falling back to OpenAI on any failure; returns (payload dict, ProviderChoice)."""
+def complete_json(instructions, prompt, *, max_tokens=800, prose_key=None):
+    """Ask Claude, falling back to OpenAI on any failure; returns (payload dict, ProviderChoice).
+
+    With prose_key, a reply written as plain text instead of JSON is still used,
+    as {prose_key: text}. A reply that starts as JSON but does not parse (cut
+    off) is still a failure.
+    """
     order = provider_order()
     if not order:
         raise AIProviderUnavailable("No AI service is configured.")
     for choice in order:
         call = _anthropic_text if choice.name == "anthropic" else _openai_text
         try:
-            return _parse_json(call(choice, instructions, prompt, max_tokens)), choice
+            text = call(choice, instructions, prompt, max_tokens)
+            try:
+                return _parse_json(text), choice
+            except AIProviderUnavailable:
+                prose = (text or "").strip()
+                if not prose_key or not prose or prose.startswith(("{", "```")):
+                    raise
+                return {prose_key: prose}, choice
         except Exception as exc:
             # The exception type only: messages from SDKs can echo request details.
             logger.warning("AI request to %s (%s) failed: %s", choice.name, choice.model, type(exc).__name__)

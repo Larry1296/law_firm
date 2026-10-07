@@ -23,6 +23,7 @@ Rules that always apply:
 - Write in plain, warm, concise English (Kiswahili if the user writes in Kiswahili). Give dates as, for example, "Tuesday 6 October 2026 at 9:00 am".
 - Format for easy reading: write in full, complete sentences grouped into short paragraphs of two to three sentences on one idea each, with a blank line between paragraphs. Open with a one-sentence direct answer. Use a bullet or numbered list only for steps or several parallel items, with a blank line before and after it. Use **bold** sparingly for key terms. No headings, tables or one-word fragments.
 - TODAY is given below; work out "tomorrow", "next week" and similar from it.
+- For how to use Sheria Master itself (where to find something, how to do a task), answer from APP_GUIDE. Never describe a page, button or feature that is not in APP_GUIDE.
 Return JSON only: {"answer": "<markdown answer>"}"""
 
 
@@ -51,7 +52,10 @@ class DashboardAssistant:
     subtitle = ""
     welcome = ""
     instructions = ""
-    max_tokens = 900
+    # Where things are in this user's dashboard, so the assistant can guide them through the app.
+    app_guide = {}
+    # Generous: an answer cut off mid-way is unreadable JSON and falls back to the records summary.
+    max_tokens = 2000
 
     # ------------------------------------------------------------ per audience
     def check_access(self, user):
@@ -103,6 +107,7 @@ class DashboardAssistant:
         return (
             f"TODAY: {when(timezone.localdate())}\n\n"
             f"RECORDS:\n{json.dumps(records, indent=1, default=str)}\n\n"
+            f"APP_GUIDE:\n{json.dumps(self.app_guide, indent=1)}\n\n"
             f"SOURCES:\n{source_text}\n\n"
             f"PRIOR CONVERSATION:\n{conversation}\n\n"
             f"QUESTION:\n{question}"
@@ -118,6 +123,7 @@ class DashboardAssistant:
                 self.instructions + "\n" + SHARED_RULES,
                 self.prompt(user, question, history, records, sources),
                 max_tokens=self.max_tokens,
+                prose_key="answer",
             )
             reply = str(payload.get("answer", "")).strip()
             if not reply:
