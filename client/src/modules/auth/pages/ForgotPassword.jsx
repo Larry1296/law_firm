@@ -32,7 +32,6 @@ export default function ForgotPassword() {
       title='Forgot password'
       lead='Enter your email and we will send you a link to set a new password.'
       backTo='/login'
-      backLabel='Back to sign in'
       error={error}
       onSubmit={handleSubmit}
     >

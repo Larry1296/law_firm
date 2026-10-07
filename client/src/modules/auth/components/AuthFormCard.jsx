@@ -1,11 +1,10 @@
-import { ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
+import BackButton from '@/components/ui/BackButton';
 import AuthShowcase from '@/modules/auth/components/AuthShowcase';
 
 /**
  * The card every sign-in, sign-up and password page uses. With `showcase`
  * ({ icon, title, text }) the courtroom carousel fills the left half on desktop.
+ * Back returns to the previous page, or to `backTo` when the page was opened directly.
  */
 export default function AuthFormCard({
   eyebrow = 'Sheria Master',
@@ -21,9 +20,7 @@ export default function AuthFormCard({
 }) {
   const card = (
     <form onSubmit={onSubmit} className={`form-card ${wide ? '' : 'form-card--narrow'}`}>
-      <Link to={backTo} className='auth-back'>
-        <ArrowLeft size={16} aria-hidden='true' /> {backLabel}
-      </Link>
+      <BackButton fallback={backTo} label={backLabel} />
       <span className='form-eyebrow'>{eyebrow}</span>
       <h1 className='form-title'>{title}</h1>
       {lead && <p className='form-lead'>{lead}</p>}

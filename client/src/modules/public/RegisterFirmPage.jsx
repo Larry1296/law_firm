@@ -5,6 +5,7 @@ import { Building2, CheckCircle2 } from 'lucide-react';
 
 import { KENYAN_COUNTIES } from '@/core/constants/kenyanCounties';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
+import BackButton from '@/components/ui/BackButton';
 import { formatKes } from '@/modules/admin/subscription/utils/subscriptionFormatting';
 import platformService from '@/modules/platform/services/platformService';
 import subscriptionService from '@/modules/subscription/services/subscriptionService';
@@ -112,7 +113,8 @@ export default function RegisterFirmPage() {
     <div className='bg-background-light px-4 pb-16 pt-32 dark:bg-background-dark sm:px-6'>
       <div className='mx-auto grid max-w-6xl gap-10 lg:grid-cols-5'>
         <div className='lg:col-span-2'>
-          <span className='flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary dark:bg-sky-400/10 dark:text-sky-300'>
+          <BackButton fallback='/' />
+          <span className='mt-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary dark:bg-sky-400/10 dark:text-sky-300'>
             <Building2 size={24} aria-hidden='true' />
           </span>
           <h1 className='mt-5 text-3xl font-bold tracking-tight'>Register your firm</h1>

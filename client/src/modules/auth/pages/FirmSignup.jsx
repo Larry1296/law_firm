@@ -74,8 +74,7 @@ export default function FirmSignup() {
       wide
       title='Register your firm'
       lead='Start a 14-day free trial. No payment is needed until the trial ends; plans are paid by M-Pesa.'
-      backTo='/login'
-      backLabel='Back to sign in'
+      backTo='/'
       error={error}
       onSubmit={handleSubmit}
     >

@@ -51,7 +51,6 @@ export default function ResetPassword() {
       title='Set a new password'
       lead='Choose a strong password. You will sign in with it from now on.'
       backTo='/login'
-      backLabel='Back to sign in'
       error={localError || error}
       onSubmit={handleSubmit}
     >

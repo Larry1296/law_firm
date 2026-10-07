@@ -69,7 +69,6 @@ export default function RecoverAccount() {
       title='Recover your account'
       lead='Forgot which email you use? Enter your National ID or phone number and we will email a reset link to the address on your account.'
       backTo='/login'
-      backLabel='Back to sign in'
       error={localError || error}
       onSubmit={handleSubmit}
     >
