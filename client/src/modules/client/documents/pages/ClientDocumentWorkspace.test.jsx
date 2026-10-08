@@ -1,5 +1,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {cleanup, render, screen} from '@testing-library/react';
+import {cleanup, render, screen, waitFor} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {MemoryRouter} from 'react-router-dom';
@@ -7,7 +8,7 @@ import documentsService from '@/modules/client/documents/services/documentsServi
 import ClientDocumentWorkspace from './ClientDocumentWorkspace';
 
 vi.mock('@/modules/client/documents/services/documentsService', () => ({
-  default: {getDocuments: vi.fn(), uploadRequestedDocument: vi.fn()},
+  default: {getDocuments: vi.fn(), sendDeliveryNotice: vi.fn()},
 }));
 afterEach(cleanup);
 
@@ -32,12 +33,40 @@ describe('client document requests', () => {
     ['PENDING_SECRETARY', false],
     ['UPLOADED', false],
     ['ACCEPTED', false],
-  ])('%s shows an upload control: %s', async (status, canUpload) => {
+  ])('%s asks the client how the paper will reach the firm: %s', async (status, awaitsClient) => {
     await renderWith([request('1', status)]);
-    expect(Boolean(screen.queryByRole('button', {name: /upload/i}))).toBe(canUpload);
+    expect(Boolean(screen.queryByRole('button', {name: /tell the firm/i}))).toBe(awaitsClient);
   });
 
-  it('shows no upload control when nothing is requested', async () => {
+  it('never offers a file upload', async () => {
+    await renderWith([request('1', 'OPEN')]);
+    expect(document.querySelector('input[type=file]')).toBeNull();
+  });
+
+  it('sends how and when the paper is coming, with no file', async () => {
+    documentsService.sendDeliveryNotice.mockResolvedValue({document_id: 'd1'});
+    await renderWith([request('1', 'OPEN')]);
+    await userEvent.click(screen.getByLabelText('I will send it by courier'));
+    await userEvent.click(screen.getByRole('button', {name: /tell the firm/i}));
+    await waitFor(() => expect(documentsService.sendDeliveryNotice).toHaveBeenCalledWith('1', {delivery_method: 'COURIER', expected_delivery_date: null, note: ''}));
+    expect(await screen.findByText(/The firm will receive the paper/)).toBeInTheDocument();
+  });
+
+  it('shows held papers by reference and status, not by cabinet', async () => {
+    documentsService.getDocuments.mockResolvedValue({requests: [], cases: [], documents: [{
+      id: 'd1', title: 'Copy of national ID', document_type_label: 'Identification Document',
+      where: {reference: 'KYC-2026-039/D1', in_file: 'KYC-2026-039', status: 'filed'},
+    }]});
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter><ClientDocumentWorkspace /></MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText(/Reference KYC-2026-039\/D1 · in file KYC-2026-039/)).toBeInTheDocument();
+    expect(screen.getByText('Filed')).toBeInTheDocument();
+  });
+
+  it('shows nothing to answer when nothing is requested', async () => {
     documentsService.getDocuments.mockResolvedValue({requests: [], documents: [], cases: []});
     render(
       <QueryClientProvider client={new QueryClient()}>
@@ -45,7 +74,7 @@ describe('client document requests', () => {
       </QueryClientProvider>,
     );
     expect(await screen.findByText('Nothing has been requested from you.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: /upload/i})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name: /tell the firm/i})).not.toBeInTheDocument();
   });
 
   it('explains why a replacement is needed', async () => {

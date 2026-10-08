@@ -11,21 +11,6 @@ from apps.cases.services.matter_physical_file_service import MatterPhysicalFileS
 
 class LawyerDocumentService:
     @staticmethod
-    def upload(user, data):
-        cases = DocumentWorkflowService.accessible_cases_for_lawyer(user)
-        try:
-            case = cases.select_related("client").get(id=data.get("case_id"))
-        except Exception as exc:
-            raise ValidationError({"case_id": "Select one of your assigned matters."}) from exc
-        mutable_data = data.copy()
-        mutable_data["physical_copy_retained"] = True
-        mutable_data["physical_storage_location"] = (
-            mutable_data.get("physical_storage_location")
-            or f"KYC DRAWER / {str(case.client_id)[:8].upper()}"
-        )
-        return DocumentWorkflowService.upload(client=case.client, user=user, data=mutable_data)
-
-    @staticmethod
     def workspace(user, params):
         cases = DocumentWorkflowService.accessible_cases_for_lawyer(user)
         documents, requests = DocumentWorkflowService.staff_workspace(cases, params)

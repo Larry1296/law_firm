@@ -26,6 +26,11 @@ class MatterPhysicalFile(TimestampedModel):
     cabinet = models.CharField(max_length=100, blank=True, default="")
     shelf_or_drawer = models.CharField(max_length=100, blank=True, default="")
     location_detail = models.CharField(max_length=255, blank=True, default="")
+    # The drawer or shelf from the firm's records-room layout; the text fields above keep its readable path.
+    storage_location = models.ForeignKey(
+        "firm.StorageLocation", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="matter_files",
+    )
     assigned_by = models.ForeignKey("users.User", on_delete=models.PROTECT, null=True, blank=True, related_name="assigned_matter_physical_files")
     assigned_at = models.DateTimeField(null=True, blank=True)
     current_custodian = models.ForeignKey("users.User", on_delete=models.PROTECT, null=True, blank=True, related_name="custodied_matter_physical_files")
@@ -47,6 +52,8 @@ class MatterPhysicalFile(TimestampedModel):
 
     @property
     def location(self):
+        if self.storage_location_id:
+            return " / ".join(filter(None, [self.storage_location.path, self.location_detail]))
         return " / ".join(filter(None, [self.storage_zone, self.cabinet, self.shelf_or_drawer, self.location_detail]))
 
 

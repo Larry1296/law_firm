@@ -24,6 +24,22 @@ const adminFirmService = {
     return data.firm;
   },
 
+  // The records room: the firm's rooms, cabinets, safes, drawers and shelves, as labelled physically.
+  async getRecordsRoom() {
+    const { data } = await axiosInstance.get('/admin/firm/records-room/');
+    return data;
+  },
+
+  async createStorageLocation(payload) {
+    const { data } = await axiosInstance.post('/admin/firm/records-room/', payload);
+    return data;
+  },
+
+  async updateStorageLocation(id, payload) {
+    const { data } = await axiosInstance.patch(`/admin/firm/records-room/${id}/`, payload);
+    return data;
+  },
+
   async registerOwnerLawyerProfile(payload) {
     const { data } = await axiosInstance.post(
       '/admin/firm/owner-lawyer-profile/',

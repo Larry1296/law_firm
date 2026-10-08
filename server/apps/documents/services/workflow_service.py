@@ -9,13 +9,13 @@ from apps.clients.models import ClientDocument
 from apps.clients.models import ClientMatterConflictCheck
 from apps.common.choices import ConflictCheckStatus
 from apps.documents.models import DocumentRequest, MatterDocumentReference
+from apps.firm.services.records_room_service import RecordsRoomService
 from apps.notifications.services import NotificationService
 from apps.staff.models import Secretary
 
 
 class DocumentWorkflowService:
     ALLOWED_TYPES = {choice for choice, _ in ClientDocument._meta.get_field("document_type").choices}
-    MAX_FILE_SIZE = 25 * 1024 * 1024
 
     @staticmethod
     def register_in_kyc_drawer(*, client, case, user, title, document_type, description=""):
@@ -121,7 +121,7 @@ class DocumentWorkflowService:
             status=DocumentRequest.Status.OPEN, dispatched_by=user, dispatched_at=timezone.now(),
         )
         DocumentWorkflowService.notify_client_of_request(item, user)
-        # The matter secretary will verify the upload, so they are told the request went out.
+        # The matter secretary will receive and file the paper, so they are told the request went out.
         for secretary in DocumentWorkflowService.case_secretaries(case):
             if secretary.user_id == user.id:
                 continue
@@ -141,13 +141,13 @@ class DocumentWorkflowService:
             return
         due = f" by {item.due_date:%d %B %Y}" if item.due_date else ""
         if replacement:
-            title = "Please upload a replacement document"
+            title = "Please provide a replacement document"
             message = f'"{item.title}" for {item.case.case_number} needs to be replaced{due}.'
             if reason:
                 message += f" Reason: {reason}"
         else:
             title = "Document requested"
-            message = f'Please upload "{item.title}" for {item.case.case_number}{due}.'
+            message = f'Please provide "{item.title}" for {item.case.case_number}{due}. Tell us from your dashboard how you will deliver it.'
             if item.instructions:
                 message += f" {item.instructions}"
         NotificationService.create(
@@ -158,16 +158,6 @@ class DocumentWorkflowService:
         )
 
     @staticmethod
-    def _validate_file(upload):
-        if upload is None:
-            raise ValidationError({"file": "Choose a document to upload."})
-        if upload.size > DocumentWorkflowService.MAX_FILE_SIZE:
-            raise ValidationError({"file": "Documents must not exceed 25 MB."})
-        extension = upload.name.rsplit(".", 1)[-1].lower() if "." in upload.name else ""
-        if extension not in {"pdf", "doc", "docx", "xls", "xlsx", "jpg", "jpeg", "png", "txt"}:
-            raise ValidationError({"file": "Use PDF, Office document, image, or text file formats."})
-
-    @staticmethod
     def _case_for_client(client, case_id):
         if not case_id:
             return None
@@ -176,126 +166,81 @@ class DocumentWorkflowService:
         except Case.DoesNotExist as exc:
             raise ValidationError({"case_id": "This matter does not belong to the client."}) from exc
 
+    DELIVERY_METHODS = {
+        ClientDocument.ReceivedVia.IN_PERSON: "in person at the firm",
+        ClientDocument.ReceivedVia.COURIER: "by courier",
+        ClientDocument.ReceivedVia.OTHER: "another way",
+    }
+    NO_FILES = (
+        "Sheria Master does not keep document files. Bring or send the paper document to the firm; "
+        "it is filed and its reference is recorded here."
+    )
+
     @staticmethod
     @transaction.atomic
-    def upload(*, client, user, data):
-        upload = data.get("file")
-        DocumentWorkflowService._validate_file(upload)
-        document_type = data.get("document_type", "OTHER")
-        if document_type not in DocumentWorkflowService.ALLOWED_TYPES:
-            raise ValidationError({"document_type": "Select a valid document type."})
-        source_copy_type = data.get("source_copy_type") or ClientDocument.SourceCopyType.CLIENT_COPY
-        if source_copy_type not in ClientDocument.SourceCopyType.values:
-            raise ValidationError({"source_copy_type": "Select a valid source-copy type."})
-        physical_retained = str(data.get("physical_copy_retained", "")).lower() in {"true", "1", "yes", "on"}
-        physical_location = (data.get("physical_storage_location") or "").strip()
-        if physical_retained and not physical_location:
-            raise ValidationError({"physical_storage_location": "Record where the physical KYC document is held."})
-        case = DocumentWorkflowService._case_for_client(client, data.get("case_id"))
-        if case is None and document_type in {"CONTRACT", "EVIDENCE", "LEGAL", "FINANCIAL"}:
-            unresolved = ClientMatterConflictCheck.objects.filter(client=client, firm=client.firm).exclude(status=ConflictCheckStatus.CLEARED).first()
-            if unresolved:
-                exception_reason = str(data.get("urgent_exception_reason") or "").strip()
-                if not exception_reason:
-                    raise ValidationError({"file": "Sensitive documents cannot be uploaded before conflict clearance without an authorised urgent-exception reason."})
-                unresolved.pre_clearance_restricted = True
-                unresolved.urgent_exception_reason = exception_reason
-                unresolved.urgent_exception_received_by = user
-                unresolved.urgent_exception_received_at = timezone.now()
-                unresolved.restricted_note = "Urgent confidential document intake; restricted to authorised conflict-review staff."
-                unresolved.save(update_fields=["pre_clearance_restricted", "urgent_exception_reason", "urgent_exception_received_by", "urgent_exception_received_at", "restricted_note", "updated_at"])
-        received_via = data.get("received_via") or (
-            ClientDocument.ReceivedVia.CLIENT_PORTAL
-            if getattr(user, "client_profile", None)
-            else ClientDocument.ReceivedVia.IN_PERSON
-        )
-        if received_via not in ClientDocument.ReceivedVia.values:
-            raise ValidationError({"received_via": "Select how the document was received."})
-        request = None
-        request_id = data.get("request_id")
-        if request_id:
-            try:
-                request = DocumentRequest.objects.select_for_update().get(
-                    id=request_id, client=client, firm=client.firm
-                )
-            except DocumentRequest.DoesNotExist as exc:
-                raise ValidationError({"request_id": "Document request was not found."}) from exc
-            if request.status in {DocumentRequest.Status.ACCEPTED, DocumentRequest.Status.CANCELLED}:
-                raise ValidationError({"request_id": "This document request is already closed."})
-            if getattr(user, "client_profile", None) and request.status not in DocumentWorkflowService.CLIENT_UPLOADABLE:
-                raise ValidationError({"request_id": "This request is not waiting for an upload from you."})
-            case = request.case
-            document_type = request.document_type
+    def record_delivery_notice(*, client, user, data):
+        """The client tells the firm how and when a requested paper document is coming.
 
-        # A replacement is a new document; the rejected copy stays on record.
-        reuse = request and request.fulfilled_document_id and request.status != DocumentRequest.Status.REPLACEMENT_REQUIRED
-        document = request.fulfilled_document if reuse else None
-        if document is None and case and document_type in DocumentWorkflowService.MATTER_DOCUMENT_TYPES:
-            document = DocumentWorkflowService.register_matter_document(
-                client=client, case=case, user=user,
-                title=(data.get("title") or (request.title if request else "") or upload.name).strip(),
-                document_type=document_type,
-                description=(data.get("description") or "").strip(),
+        No file is taken. Staff receive the paper, file it and record its
+        reference and location (see SecretaryDocumentService.verify_client_upload).
+        """
+        if data.get("file"):
+            raise ValidationError({"file": DocumentWorkflowService.NO_FILES})
+        method = data.get("delivery_method") or ClientDocument.ReceivedVia.IN_PERSON
+        if method not in DocumentWorkflowService.DELIVERY_METHODS:
+            raise ValidationError({"delivery_method": "Choose how the document will reach the firm."})
+        expected = data.get("expected_delivery_date") or None
+        if isinstance(expected, str):
+            expected = parse_date(expected)
+            if expected is None:
+                raise ValidationError({"expected_delivery_date": "Use the date format YYYY-MM-DD."})
+        if expected and expected < timezone.localdate():
+            raise ValidationError({"expected_delivery_date": "Choose today or a later date."})
+        try:
+            request = DocumentRequest.objects.select_for_update(of=("self",)).select_related("case").get(
+                id=data.get("request_id"), client=client, firm=client.firm
             )
-        if document is None:
-            document = DocumentWorkflowService.register_in_kyc_drawer(
-                client=client,
-                case=case,
-                user=user,
-                title=(data.get("title") or (request.title if request else "") or upload.name).strip(),
-                document_type=document_type,
-                description=(data.get("description") or "").strip(),
-            )
-        if getattr(user, "client_profile", None):
-            document.is_client_visible = True
-        document.document_type = document_type
-        document.title = (data.get("title") or document.title or upload.name).strip()
-        document.description = (data.get("description") or document.description or "").strip()
-        document.file = upload
-        document.file_name = upload.name
-        document.mime_type = getattr(upload, "content_type", "") or "application/octet-stream"
+        except (DocumentRequest.DoesNotExist, ValueError, TypeError) as exc:
+            raise ValidationError({"request_id": "Document request was not found."}) from exc
+        if request.status not in DocumentWorkflowService.CLIENT_UPLOADABLE:
+            raise ValidationError({"request_id": "This request is not waiting for a document from you."})
+        case, document_type = request.case, request.document_type
+
+        # A replacement is a new record; the returned paper stays on record.
+        register = (
+            DocumentWorkflowService.register_matter_document
+            if document_type in DocumentWorkflowService.MATTER_DOCUMENT_TYPES
+            else DocumentWorkflowService.register_in_kyc_drawer
+        )
+        document = register(
+            client=client, case=case, user=user, title=request.title, document_type=document_type,
+            description=(data.get("note") or "").strip(),
+        )
+        when = f" on {expected:%d %B %Y}" if expected else ""
+        document.is_client_visible = True
+        document.received_via = method
+        document.source_copy_type = ClientDocument.SourceCopyType.CLIENT_COPY
+        document.custody_notes = f"Client will deliver it {DocumentWorkflowService.DELIVERY_METHODS[method]}{when}."
         document.uploaded_by = user
-        document.source_reference = (data.get("source_reference") or document.source_reference or "").strip()
-        document.source_copy_type = source_copy_type
-        document.physical_copy_retained = physical_retained
-        document.physical_storage_location = physical_location or document.physical_storage_location
-        document.custody_notes = (data.get("custody_notes") or document.custody_notes or "").strip()
-        document.received_via = received_via
-        document.save()
-        if case:
-            MatterDocumentReference.objects.get_or_create(
-                case=case,
-                document=document,
-                defaults={
-                    "purpose": data.get("purpose") or MatterDocumentReference.Purpose.CLIENT_INSTRUCTION,
-                    "notes": (data.get("reference_notes") or "").strip(),
-                    "referenced_by": user,
-                },
-            )
-        if request:
-            request.fulfilled_document = document
-            request.fulfilled_by = user
-            request.fulfilled_at = timezone.now()
-            if getattr(user, "secretary_profile", None):
-                request.status = DocumentRequest.Status.UPLOADED
-                request.secretary_verified_by = user
-                request.secretary_verified_at = timezone.now()
-                request.secretary_verification_notes = "Received and filed by secretary on the client's behalf."
-                request.save(update_fields=["fulfilled_document", "fulfilled_by", "fulfilled_at", "status", "secretary_verified_by", "secretary_verified_at", "secretary_verification_notes", "updated_at"])
-                DocumentWorkflowService._notify_lawyer_of_upload(request, user)
-            else:
-                request.status = DocumentRequest.Status.PENDING_SECRETARY
-                request.save(update_fields=["fulfilled_document", "fulfilled_by", "fulfilled_at", "status", "updated_at"])
-                DocumentWorkflowService._notify_secretary_of_client_upload(request, user)
+        document.save(update_fields=["is_client_visible", "received_via", "source_copy_type", "custody_notes", "uploaded_by", "updated_at"])
+
+        request.fulfilled_document = document
+        request.fulfilled_by = user
+        request.fulfilled_at = timezone.now()
+        request.status = DocumentRequest.Status.PENDING_SECRETARY
+        request.save(update_fields=["fulfilled_document", "fulfilled_by", "fulfilled_at", "status", "updated_at"])
+        DocumentWorkflowService._notify_secretary_of_client_upload(request, user, method=method, expected=expected)
         return document
 
     @staticmethod
-    def _notify_secretary_of_client_upload(request, actor):
+    def _notify_secretary_of_client_upload(request, actor, *, method=None, expected=None):
+        how = DocumentWorkflowService.DELIVERY_METHODS.get(method, "to the firm")
+        when = f" on {expected:%d %B %Y}" if expected else ""
         for secretary in DocumentWorkflowService.case_secretaries(request.case):
             NotificationService.create(
                 firm=request.firm, recipient=secretary.user, actor=actor, case=request.case,
-                title="Client document awaiting receipt verification",
-                message=f'{request.client.full_name} uploaded "{request.title}" for {request.case.case_number}.',
+                title="Client document on its way",
+                message=f'{request.client.full_name} will deliver "{request.title}" for {request.case.case_number} {how}{when}. Receive and file it when it arrives.',
                 action_url=f"/secretary/cases/{request.case_id}?section=documents",
                 event_key=f"document-request-secretary-review:{request.id}:{request.fulfilled_document_id}:{secretary.id}",
             )
@@ -317,9 +262,28 @@ class DocumentWorkflowService:
         )
 
     @staticmethod
+    def serialize_for_client(document):
+        """What a client sees: the reference and where their paper stands, not the cabinet position."""
+        return {
+            "id": str(document.id), "reference": document.reference or None, "title": document.title,
+            "document_type": document.document_type, "document_type_label": document.get_document_type_display(),
+            "description": document.description,
+            "review_status": document.review_status, "review_notes": document.review_notes,
+            "where": RecordsRoomService.where_is(document, include_position=False),
+            "received_at": document.received_at.isoformat() if document.received_at else None,
+            "return_required": document.return_required,
+            "expected_return_date": document.expected_return_date,
+            "uploaded_at": document.created_at.isoformat(),
+            "matters": [{"id": str(ref.case_id), "case_number": ref.case.case_number, "title": ref.case.title}
+                        for ref in document.matter_references.all()],
+        }
+
+    @staticmethod
     def serialize_document(document):
         references = list(document.matter_references.all())
         return {
+            "where": RecordsRoomService.where_is(document),
+            "held_in_id": str(document.held_in_id) if document.held_in_id else None,
             "id": str(document.id), "reference": document.reference, "title": document.title,
             "client_id": str(document.client_id), "client_name": document.client.full_name,
             "file_name": document.file_name,
@@ -371,8 +335,8 @@ class DocumentWorkflowService:
         }
 
     @staticmethod
-    def serialize_request(item):
-        return {
+    def serialize_request(item, *, for_client=False):
+        result = {
             "id": str(item.id), "title": item.title, "document_type": item.document_type,
             "instructions": item.instructions, "due_date": item.due_date, "status": item.status,
             "case_id": str(item.case_id), "case_number": item.case.case_number,
@@ -390,7 +354,14 @@ class DocumentWorkflowService:
             "dispatched_at": item.dispatched_at.isoformat() if item.dispatched_at else None,
             "dispatch_message": item.dispatch_message,
             "created_at": item.created_at.isoformat(),
+            "delivery_note": item.fulfilled_document.custody_notes if item.fulfilled_document_id else "",
+            "reference": item.fulfilled_document.reference if item.fulfilled_document_id else None,
         }
+        if for_client:
+            # The cabinet and drawer position is internal to the firm.
+            result.pop("physical_storage_location")
+            result["where"] = RecordsRoomService.where_is(item.fulfilled_document, include_position=False) if item.fulfilled_document_id else None
+        return result
 
     @staticmethod
     def documents_for_client(client, *, query="", case_id=None):

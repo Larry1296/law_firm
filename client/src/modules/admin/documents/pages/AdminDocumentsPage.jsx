@@ -11,7 +11,7 @@ import downloadDocument from '@/modules/client/documents/utils/downloadDocument'
 const REQUEST_STATUS = {
   AWAITING_SECRETARY_DISPATCH: 'Awaiting secretary dispatch',
   OPEN: 'Waiting for the client',
-  PENDING_SECRETARY: 'Uploaded — secretary verifying',
+  PENDING_SECRETARY: 'On its way — secretary to receive and file',
   UPLOADED: 'Verified — advocate to review',
   REPLACEMENT_REQUIRED: 'Replacement requested from client',
 };

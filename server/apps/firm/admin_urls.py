@@ -8,6 +8,7 @@ from apps.firm.views.admin.admin_delegation_view import AdminDelegationView
 from apps.firm.views.admin.admin_firm_settings_view import AdminFirmSettingsView
 from apps.firm.views.admin.admin_firm_logo_view import AdminFirmLogoView
 from apps.firm.views.admin.admin_firm_view import AdminFirmDetailView
+from apps.firm.views.admin.admin_records_room_view import AdminRecordsRoomDetailView, AdminRecordsRoomView
 from apps.firm.views.admin.admin_it_report_view import AdminITReportView
 from apps.firm.views.admin.admin_owner_lawyer_profile_view import AdminOwnerLawyerProfileView
 from apps.firm.views.admin.admin_staff_options_view import AdminStaffOptionsView
@@ -24,5 +25,7 @@ urlpatterns = [
     path("owner-lawyer-profile/", AdminOwnerLawyerProfileView.as_view(), name="admin-owner-lawyer-profile"),
     path("settings/", AdminFirmSettingsView.as_view(), name="admin-firm-settings"),
     path("logo/", AdminFirmLogoView.as_view(), name="admin-firm-logo"),
+    path("records-room/", AdminRecordsRoomView.as_view(), name="admin-records-room"),
+    path("records-room/<uuid:location_id>/", AdminRecordsRoomDetailView.as_view(), name="admin-records-room-detail"),
     path("", AdminFirmDetailView.as_view(), name="admin-firm-detail"),
 ]

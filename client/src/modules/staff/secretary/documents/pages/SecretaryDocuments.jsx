@@ -10,6 +10,7 @@ import Select3D from '@/components/ui/Select3D';
 import TableHeaderText from '@/components/ui/TableHeaderText';
 import Swal from '@/core/utils/themedSwal';
 import secretaryDocumentsService from '../services/secretaryDocumentsService';
+import DeliveriesExpected from '../components/DeliveriesExpected';
 
 const TYPES = [
   ['NATIONAL_ID', 'National ID', 'IDENTIFICATION', 'KYC_IDENTITY'],
@@ -39,12 +40,13 @@ export default function SecretaryDocuments({ caseId = '', compact = false }) {
   const [clientId, setClientId] = useState('');
   const [drawerReference, setDrawerReference] = useState('');
   const [cabinetLocation, setCabinetLocation] = useState('');
+  const [kycPlaceId, setKycPlaceId] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const [form, setForm] = useState(blankForm);
   const [receipt, setReceipt] = useState({ document_ids: [], received_from_contact: '' });
   const [issuedReceipt, setIssuedReceipt] = useState('');
-  const [matterFileDraft, setMatterFileDraft] = useState({ case_id: '', storage_zone: 'Active Matters', cabinet: '', shelf_or_drawer: '', location_detail: '', notes: '' });
+  const [matterFileDraft, setMatterFileDraft] = useState({ case_id: '', storage_location_id: '', storage_zone: 'Active Matters', cabinet: '', shelf_or_drawer: '', location_detail: '', notes: '' });
   const params = caseId ? { case_id: caseId } : (clientId ? { client_id: clientId } : {});
   const { data, isLoading } = useQuery({ queryKey: ['secretary-documents', caseId, clientId], queryFn: () => secretaryDocumentsService.getDocuments(params) });
   const selectedId = data?.selected_client_id || clientId;
@@ -76,10 +78,14 @@ export default function SecretaryDocuments({ caseId = '', compact = false }) {
   }, [receiptSelectionKey, unreceiptedDocuments]);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['secretary-documents'] });
-  const assign = useMutation({ mutationFn: () => secretaryDocumentsService.assignDrawer({ client_id: selectedId, kyc_drawer_reference: drawerReference, cabinet_location: cabinetLocation }), onSuccess: refresh });
+  // A blank number takes the next KYC number; the drawer comes from the firm's records-room layout.
+  const assign = useMutation({ mutationFn: () => secretaryDocumentsService.assignDrawer({ client_id: selectedId, kyc_drawer_reference: drawerReference, location_id: kycPlaceId || null, cabinet_location: cabinetLocation }), onSuccess: refresh });
+  const kycPlaces = data?.kyc_places || [];
+  const matterPlaces = data?.matter_places || [];
+  const deliveries = (data?.deliveries_expected || []).filter((item) => !caseId || String(item.case_id) === String(caseId));
   const assignMatterFile = useMutation({
     mutationFn: () => secretaryDocumentsService.assignMatterFile(matterFileDraft.case_id, matterFileDraft),
-    onSuccess: () => { setMatterFileDraft({ case_id: '', storage_zone: 'Active Matters', cabinet: '', shelf_or_drawer: '', location_detail: '', notes: '' }); refresh(); },
+    onSuccess: () => { setMatterFileDraft({ case_id: '', storage_location_id: '', storage_zone: 'Active Matters', cabinet: '', shelf_or_drawer: '', location_detail: '', notes: '' }); refresh(); },
   });
   const propose = useMutation({ mutationFn: () => secretaryDocumentsService.proposeReference(selectedId), onSuccess: ({ document_reference }) => setForm((v) => ({ ...v, document_reference })) });
   const register = useMutation({
@@ -137,24 +143,38 @@ export default function SecretaryDocuments({ caseId = '', compact = false }) {
 
   return <div className={compact ? 'space-y-4' : 'space-y-6 p-4 md:p-6'}>
     {!compact && <SectionHeading title='Physical client records' subtitle='Index exactly what is filed in each client’s physical KYC file.' />}
+    <DeliveriesExpected deliveries={deliveries} originalsPlaces={data?.originals_places || []} onDone={refresh} />
     {!compact && <FormSection title='Physical matter files awaiting preparation' description='Prepare, label and place the actual folder before confirming its storage assignment.'>
       <div className='space-y-3'>{physicalFileQueue.map((item) => <div key={item.case_id} className='rounded-xl border border-border-light p-4 dark:border-border-dark'><div className='flex flex-wrap items-start justify-between gap-3'><div><strong>{item.case_number} — {item.title}</strong><p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>{item.client_name} · Advocate: {item.responsible_advocate} · Priority: {item.priority}</p></div><Button3D size='sm' onClick={() => setMatterFileDraft((current) => ({ ...current, case_id: item.case_id }))}>Prepare and assign file</Button3D></div></div>)}</div>
       {!physicalFileQueue.length && <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>No physical matter files are awaiting preparation.</p>}
-      {matterFileDraft.case_id && <div className='mt-4 rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-4'><h3 className='font-semibold'>Assign physical matter file</h3><div className='mt-3 grid gap-4 md:grid-cols-2'><FloatingInput label='Storage zone' value={matterFileDraft.storage_zone} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, storage_zone: e.target.value })} required /><FloatingInput label='Cabinet' value={matterFileDraft.cabinet} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, cabinet: e.target.value })} placeholder='Cabinet B' required /><FloatingInput label='Shelf or drawer' value={matterFileDraft.shelf_or_drawer} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, shelf_or_drawer: e.target.value })} placeholder='Shelf 3' required /><FloatingInput label='Additional location detail' value={matterFileDraft.location_detail} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, location_detail: e.target.value })} /></div><p className='mt-2 rounded-lg bg-surface-light p-3 text-sm dark:bg-surface-dark'><strong>Location preview:</strong> {[matterFileDraft.storage_zone, matterFileDraft.cabinet, matterFileDraft.shelf_or_drawer, matterFileDraft.location_detail].filter(Boolean).join(' / ')}</p>{assignMatterFile.error && <p className='mt-2 text-error'>{message(assignMatterFile.error)}</p>}<div className='mt-3 flex justify-end gap-2'><Button3D variant='secondary' onClick={() => setMatterFileDraft((current) => ({ ...current, case_id: '' }))}>Cancel</Button3D><Button3D disabled={!matterFileDraft.storage_zone || !matterFileDraft.cabinet || !matterFileDraft.shelf_or_drawer || assignMatterFile.isPending} onClick={() => assignMatterFile.mutate()}>Confirm physical assignment</Button3D></div></div>}
+      {matterFileDraft.case_id && <div className='mt-4 rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-4'><h3 className='font-semibold'>Assign physical matter file</h3>{matterPlaces.length > 0 && <label className='mt-3 block text-sm font-semibold'>Drawer or shelf<select aria-label='Matter file drawer or shelf' className='form-control mt-1 w-full' value={matterFileDraft.storage_location_id} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, storage_location_id: e.target.value })}><option value=''>Type the location instead</option>{matterPlaces.map((place) => <option key={place.id} value={place.id}>{place.path}</option>)}</select></label>}{!matterFileDraft.storage_location_id && <div className='mt-3 grid gap-4 md:grid-cols-2'><FloatingInput label='Storage zone' value={matterFileDraft.storage_zone} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, storage_zone: e.target.value })} required /><FloatingInput label='Cabinet' value={matterFileDraft.cabinet} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, cabinet: e.target.value })} placeholder='Cabinet B' required /><FloatingInput label='Shelf or drawer' value={matterFileDraft.shelf_or_drawer} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, shelf_or_drawer: e.target.value })} placeholder='Shelf 3' required /><FloatingInput label='Additional location detail' value={matterFileDraft.location_detail} onChange={(e) => setMatterFileDraft({ ...matterFileDraft, location_detail: e.target.value })} /></div>}<p className='mt-2 rounded-lg bg-surface-light p-3 text-sm dark:bg-surface-dark'><strong>Location preview:</strong> {matterFileDraft.storage_location_id ? matterPlaces.find((place) => place.id === matterFileDraft.storage_location_id)?.path : [matterFileDraft.storage_zone, matterFileDraft.cabinet, matterFileDraft.shelf_or_drawer, matterFileDraft.location_detail].filter(Boolean).join(' / ')}</p>{assignMatterFile.error && <p className='mt-2 text-error'>{message(assignMatterFile.error)}</p>}<div className='mt-3 flex justify-end gap-2'><Button3D variant='secondary' onClick={() => setMatterFileDraft((current) => ({ ...current, case_id: '' }))}>Cancel</Button3D><Button3D disabled={!(matterFileDraft.storage_location_id || (matterFileDraft.storage_zone && matterFileDraft.cabinet && matterFileDraft.shelf_or_drawer)) || assignMatterFile.isPending} onClick={() => assignMatterFile.mutate()}>Confirm physical assignment</Button3D></div></div>}
     </FormSection>}
     {!compact && <FormSection title='1. Select client' description='Choose the client whose physical file you are handling.'>
       <Select3D label='Client' value={clientId} onChange={(e) => { setClientId(e.target.value); setShowForm(false); }} options={clients.map((item) => ({ value: item.id, label: item.name }))} placeholder='Select a client' wrapperClassName='mb-0' />
     </FormSection>}
     {!selectedId && <Card className='p-5'>Select a client to view the physical KYC file.</Card>}
     {selectedId && <>
-      <FormSection title='2. Physical KYC file' description='Record the exact reference on the physical folder and its separate cabinet location.'>
+      <FormSection title='2. Physical KYC file' description='Each client has one KYC folder, numbered and kept in a labelled drawer.'>
         {client?.kyc_drawer_reference ? <div className='grid gap-2 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm dark:border-emerald-800 dark:bg-emerald-950/30 md:grid-cols-3'>
           <p><strong>Client:</strong><br />{client.name}</p><p><strong>KYC file:</strong><br />{client.kyc_drawer_reference}</p><p><strong>Location:</strong><br />{client.kyc_cabinet_location || 'Not recorded'}</p>
         </div> : <div className='grid gap-4 md:grid-cols-2'>
-          <FloatingInput label='KYC file reference' value={drawerReference} onChange={(e) => setDrawerReference(e.target.value.toUpperCase())} placeholder='KYC-2026-0001' required />
-          <FloatingInput label='Cabinet location' value={cabinetLocation} onChange={(e) => setCabinetLocation(e.target.value)} placeholder='Cabinet A / Drawer 3' required />
+          <FloatingInput label='KYC file number' value={drawerReference} onChange={(e) => setDrawerReference(e.target.value.toUpperCase())} placeholder={data?.next_kyc_reference || 'KYC-2026-001'} />
+          {kycPlaces.length ? (
+            <label className='text-sm font-semibold'>Drawer or shelf
+              <select aria-label='Drawer or shelf' className='form-control mt-1 w-full' value={kycPlaceId} onChange={(e) => setKycPlaceId(e.target.value)} required>
+                <option value=''>Choose where the folder goes</option>
+                {kycPlaces.map((place) => <option key={place.id} value={place.id}>{place.path}</option>)}
+              </select>
+            </label>
+          ) : (
+            <FloatingInput label='Cabinet location' value={cabinetLocation} onChange={(e) => setCabinetLocation(e.target.value)} placeholder='Cabinet A / Drawer 3' required />
+          )}
+          <p className='text-sm text-[color:var(--text-secondary)] md:col-span-2'>
+            Leave the number blank to use the next one, <strong>{data?.next_kyc_reference}</strong>. Write it on the folder before filing.
+            {!kycPlaces.length && ' Your firm owner can lay out the records room in Settings so drawers can be picked from a list.'}
+          </p>
           {assign.error && <p className='text-error md:col-span-2'>{message(assign.error)}</p>}
-          <Button3D disabled={!drawerReference || !cabinetLocation || assign.isPending} onClick={() => assign.mutate()}>Assign physical file</Button3D>
+          <Button3D disabled={!(kycPlaceId || cabinetLocation) || assign.isPending} onClick={() => assign.mutate()}>Open KYC file</Button3D>
         </div>}
       </FormSection>
       <FormSection title='3. Physical KYC File Contents' description='An index of documents actually present in this physical file.'>

@@ -3,6 +3,7 @@ import re
 from rest_framework.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from apps.clients.models import Client
 from apps.clients.models import (
@@ -16,6 +17,8 @@ from apps.documents.models import (
 )
 from apps.communications.services import ChatService
 from apps.documents.services.workflow_service import DocumentWorkflowService
+from apps.firm.models import StorageLocation
+from apps.firm.services.records_room_service import RecordsRoomService, location_or_error
 from apps.cases.models import CaseAttachment, MatterPhysicalFile
 from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
 
@@ -116,21 +119,29 @@ class SecretaryDocumentService:
                     )
                 }
             )
+        # Left blank, the next number is generated (KYC-2026-040); a firm moving existing paper
+        # files across may type the number already written on the folder.
         reference = (data.get("kyc_drawer_reference") or "").strip().upper()
-        if not SecretaryDocumentService.DRAWER_REFERENCE_PATTERN.fullmatch(reference):
+        if not reference:
+            reference = RecordsRoomService.allocate_kyc_reference(secretary.law_firm)
+        elif not SecretaryDocumentService.DRAWER_REFERENCE_PATTERN.fullmatch(reference):
             raise ValidationError({"kyc_drawer_reference": "Use the physical drawer format KYC-2026-039."})
         if Client.objects.exclude(id=client.id).filter(firm=secretary.law_firm, kyc_drawer_reference=reference).exists():
             raise ValidationError({"kyc_drawer_reference": "This physical KYC drawer number is already assigned."})
-        cabinet_location = (data.get("cabinet_location") or "").strip()
+        place = location_or_error(secretary.law_firm, data.get("location_id"), purposes=[StorageLocation.Purpose.KYC])
+        cabinet_location = place.path if place else (data.get("cabinet_location") or "").strip()
+        if not cabinet_location:
+            raise ValidationError({"location_id": "Choose the drawer or shelf where this KYC file is kept."})
         reason = (data.get("reason") or "Initial physical KYC file assignment").strip()
         previous_reference = client.kyc_drawer_reference or ""
         previous_location = client.kyc_cabinet_location
         client.kyc_drawer_reference = reference
         client.kyc_cabinet_location = cabinet_location
+        client.kyc_location = place
         client.kyc_reference_assigned_by = user
         client.kyc_reference_assigned_at = timezone.now()
         try:
-            client.save(update_fields=["kyc_drawer_reference", "kyc_cabinet_location", "kyc_reference_assigned_by", "kyc_reference_assigned_at", "updated_at"])
+            client.save(update_fields=["kyc_drawer_reference", "kyc_cabinet_location", "kyc_location", "kyc_reference_assigned_by", "kyc_reference_assigned_at", "updated_at"])
         except IntegrityError as exc:
             raise ValidationError({"kyc_drawer_reference": "This physical KYC file reference is already assigned in this firm."}) from exc
         ClientKYCReferenceHistory.objects.create(
@@ -138,7 +149,10 @@ class SecretaryDocumentService:
             previous_cabinet_location=previous_location, new_cabinet_location=cabinet_location,
             reason=reason, changed_by=user,
         )
-        return {"client_id": str(client.id), "kyc_drawer_reference": reference, "cabinet_location": cabinet_location}
+        return {
+            "client_id": str(client.id), "kyc_drawer_reference": reference,
+            "cabinet_location": cabinet_location, "location_id": str(place.id) if place else None,
+        }
 
     @staticmethod
     def _next_document_reference(client):
@@ -217,26 +231,63 @@ class SecretaryDocumentService:
         return DocumentWorkflowService.serialize_request(item)
 
     @staticmethod
+    @transaction.atomic
     def verify_client_upload(user, request_id, data):
+        """The paper the client said they would deliver has arrived: check it and file it.
+
+        The system numbers it inside its file (KYC-2026-039/D4 or the matter's
+        <case number>/D002) and records who received it. An original kept outside
+        that file, such as a title deed in the safe, is placed with location_id.
+        """
+        from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
+
         cases = DocumentWorkflowService.accessible_cases_for_secretary(user)
         try:
-            item = DocumentRequest.objects.select_related(
+            item = DocumentRequest.objects.select_for_update(of=("self",)).select_related(
                 "fulfilled_document", "case__assigned_lawyer__user", "client", "secretary_verified_by"
             ).get(id=request_id, case__in=cases)
         except DocumentRequest.DoesNotExist as exc:
             raise ValidationError({"request_id": "The document request is not accessible."}) from exc
         if item.status != DocumentRequest.Status.PENDING_SECRETARY or not item.fulfilled_document_id:
-            raise ValidationError({"status": "Only a client upload awaiting secretary verification can be confirmed."})
+            raise ValidationError({"status": "Only a document the client is delivering can be received."})
         required_checks = ("correct_client", "readable_complete", "matter_link_confirmed")
         if not all(str(data.get(key, "")).lower() in {"true", "1", "yes", "on"} for key in required_checks):
-            raise ValidationError({"checks": "Confirm the client, readable/complete scan, and matter link."})
+            raise ValidationError({"checks": "Confirm the client, that the paper is complete and legible, and the matter link."})
         document = item.fulfilled_document
-        document.physical_copy_retained = str(data.get("physical_copy_retained", "")).lower() in {"true", "1", "yes", "on"}
-        document.physical_storage_location = (data.get("physical_storage_location") or "").strip()
-        document.custody_notes = (data.get("custody_notes") or "").strip()
-        if not document.physical_copy_retained or not document.physical_storage_location:
-            raise ValidationError({"physical_storage_location": "Confirm the official physical document and record its KYC drawer location."})
-        document.save(update_fields=["physical_copy_retained", "physical_storage_location", "custody_notes", "updated_at"])
+        client = item.client
+        source_copy_type = data.get("source_copy_type") or ClientDocument.SourceCopyType.CLIENT_COPY
+        if source_copy_type not in ClientDocument.SourceCopyType.values:
+            raise ValidationError({"source_copy_type": "Say whether this is an original, a certified copy or a copy."})
+        held_in = location_or_error(item.firm, data.get("location_id"))
+
+        if not document.reference:
+            if document.classification == ClientDocument.Classification.CLIENT_KYC:
+                if not client.kyc_drawer_reference:
+                    raise ValidationError({"kyc_drawer_reference": "Open the client's KYC file first, then receive the document into it."})
+                document.reference = SecretaryDocumentService._next_document_reference(client)
+            else:
+                document.reference = MatterPhysicalFileService.next_document_reference(item.case)
+        document.held_in = held_in
+        document.source_copy_type = source_copy_type
+        document.return_required = source_copy_type == ClientDocument.SourceCopyType.ORIGINAL and str(data.get("return_required", "")).lower() in {"true", "1", "yes", "on"}
+        if document.return_required:
+            document.expected_return_date = parse_date(str(data.get("expected_return_date") or "")) or None
+            if not document.expected_return_date:
+                raise ValidationError({"expected_return_date": "Record when the original is due back to the client."})
+        document.physical_copy_retained = True
+        document.received_at = timezone.now()
+        document.received_by = user
+        document.received_from = (data.get("received_from") or client.full_name).strip()
+        notes = (data.get("custody_notes") or "").strip()
+        document.custody_notes = " ".join(filter(None, [document.custody_notes, notes]))
+        document.save()
+        where = RecordsRoomService.where_is(document)
+        typed = (data.get("physical_storage_location") or "").strip()
+        document.physical_storage_location = " / ".join(filter(None, [where["location"] or typed, where["in_file"]]))
+        if not document.physical_storage_location:
+            raise ValidationError({"location_id": "Record where the paper is filed: open the client's KYC file or the matter file first."})
+        document.save(update_fields=["physical_storage_location", "updated_at"])
+
         item.status = DocumentRequest.Status.UPLOADED
         item.secretary_verified_by = user
         item.secretary_verified_at = timezone.now()
@@ -285,6 +336,17 @@ class SecretaryDocumentService:
             documents, requests = [], []
             scoped_cases = cases.none()
         return {
+            "next_kyc_reference": RecordsRoomService.preview_kyc_reference(secretary.law_firm),
+            "kyc_places": RecordsRoomService.filing_places(secretary.law_firm, [StorageLocation.Purpose.KYC]),
+            "originals_places": RecordsRoomService.filing_places(secretary.law_firm, [StorageLocation.Purpose.ORIGINALS]),
+            "matter_places": RecordsRoomService.filing_places(secretary.law_firm, [StorageLocation.Purpose.MATTER]),
+            # Papers clients have said they are bringing or sending, across this secretary's matters.
+            "deliveries_expected": [
+                DocumentWorkflowService.serialize_request(item)
+                for item in DocumentRequest.objects.filter(case__in=cases, status=DocumentRequest.Status.PENDING_SECRETARY)
+                .select_related("case", "client", "fulfilled_document", "secretary_verified_by", "dispatched_by")
+                .order_by("fulfilled_at")
+            ],
             "documents": [DocumentWorkflowService.serialize_document(item) for item in documents],
             "requests": [DocumentWorkflowService.serialize_request(item) for item in requests],
             "selected_client_id": client_id,
@@ -319,40 +381,6 @@ class SecretaryDocumentService:
                 else None
             ),
         }
-
-    @staticmethod
-    def upload(user, data):
-        secretary = getattr(user, "secretary_profile", None)
-        if not secretary or not secretary.is_active or not secretary.can_receive_documents:
-            raise ValidationError({"detail": "Only active secretaries can upload client documents."})
-        cases = DocumentWorkflowService.accessible_cases_for_secretary(user)
-        case_id = data.get("case_id")
-        client_id = data.get("client_id")
-        if not case_id and data.get("request_id"):
-            try:
-                request = DocumentRequest.objects.get(id=data["request_id"], firm=secretary.law_firm)
-                case_id = request.case_id
-                client_id = request.client_id
-            except DocumentRequest.DoesNotExist as exc:
-                raise ValidationError({"request_id": "Document request was not found."}) from exc
-        if case_id:
-            try:
-                case = cases.select_related("client").get(id=case_id)
-            except Exception as exc:
-                raise ValidationError({"case_id": "Select an accessible matter."}) from exc
-            if client_id and str(case.client_id) != str(client_id):
-                raise ValidationError({"case_id": "The selected matter does not belong to this client."})
-            client = case.client
-        else:
-            try:
-                client = Client.objects.get(id=client_id, firm=secretary.law_firm)
-            except (Client.DoesNotExist, ValueError, TypeError) as exc:
-                raise ValidationError({"client_id": "Select a client before uploading a document."}) from exc
-        mutable_data = data.copy()
-        mutable_data["physical_copy_retained"] = True
-        if not (mutable_data.get("physical_storage_location") or "").strip():
-            raise ValidationError({"physical_storage_location": "Record the official KYC drawer or physical client-file location."})
-        return DocumentWorkflowService.upload(client=client, user=user, data=mutable_data)
 
     @staticmethod
     @transaction.atomic

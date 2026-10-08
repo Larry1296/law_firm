@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.utils import timezone
 
 from apps.ai.assistants.base import DashboardAssistant, Unavailable, text, when
+from apps.ai.assistants.records_room import client_records_room_view
 from apps.ai.models import AssistantUsage
 from apps.ai.services.court_preparation_playbooks import KIND_BY_EVENT_TYPE
 from apps.ai.services.court_preparation_service import CourtPreparationService
@@ -44,13 +45,17 @@ Boundaries:
 - Be reassuring and practical. Explain legal terms simply.
 Being proactive:
 - When the question is general ("what's next?", "any updates?"), lead with the nearest upcoming court date or meeting, then how to prepare for it, then anything the firm has asked of them or a fee note that is due.
-- For any upcoming event, walk the client through its how_to_prepare and checklist in RECORDS: what to bring, when to arrive, how to attend, and what is still to do."""
+- For any upcoming event, walk the client through its how_to_prepare and checklist in RECORDS: what to bring, when to arrive, how to attend, and what is still to do.
+Your papers:
+- The firm keeps paper documents, not files, so there is nothing to upload. When the firm asks for a document, the client says in Documents how and when they will bring or send the paper; the firm files it on arrival and gives it a reference.
+- Answer "where is my ID?" or "did you get my documents?" from your_papers in RECORDS: the document's reference (for example KYC-2026-039/D1), the file it is in, and its status (awaiting delivery, filed, checked out, released). The firm does not share which cabinet or drawer holds it.
+- To get an original back, the client asks their advocate; the firm releases originals through its own controlled process."""
 
     app_guide = {
         "dashboard": "Dashboard (/client/dashboard): your next court date, what the firm needs from you and recent updates.",
         "matters": "Cases (/client/cases): each of your matters, its stage, your advocate, its events, court papers and notes from the firm.",
         "calendar": "Calendar (/client/calendar): all your upcoming court dates and meetings.",
-        "documents": "Documents (/client/documents): documents the firm has shared with you. Upload anything the firm has asked you for here.",
+        "documents": "Documents (/client/documents): documents the firm needs from you, and the papers it holds for you with their references. For each requested document, say how and when you will bring or send the paper; nothing is uploaded.",
         "fees": "Fees & Client Account (/client/billing): your fee notes, what is paid and what is still due.",
         "notifications": "Notifications (/client/notifications): reminders and updates from the firm.",
         "profile": "Profile (/client/profile): your contact details and password.",
@@ -132,6 +137,7 @@ Being proactive:
                  "due": when(invoice.due_date), "status": invoice.get_status_display()}
                 for invoice in invoices.order_by("-invoice_date")[:10]
             ],
+            "your_papers": client_records_room_view(client),
         }
 
     @staticmethod

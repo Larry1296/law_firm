@@ -78,6 +78,11 @@ class Client(models.Model):
         db_index=True,
     )
     kyc_cabinet_location = models.CharField(max_length=255, blank=True, default="")
+    # The drawer or shelf holding the physical KYC file; kyc_cabinet_location keeps its readable path.
+    kyc_location = models.ForeignKey(
+        "firm.StorageLocation", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="kyc_files",
+    )
     kyc_reference_assigned_by = models.ForeignKey(
         "users.User", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="assigned_client_kyc_references",
@@ -293,6 +298,18 @@ class Client(models.Model):
             self.previous_access_type = self.access_type
         self.previous_is_active = self.is_active
         self.soft_deleted_at = timezone.now()
+
+
+class KYCFileSequence(models.Model):
+    """Numbers each firm's KYC files per year: KYC-2026-001, KYC-2026-002 …"""
+
+    firm = models.ForeignKey("firm.LawFirm", on_delete=models.CASCADE, related_name="kyc_file_sequences")
+    year = models.PositiveIntegerField()
+    next_number = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        db_table = "client_kyc_file_sequences"
+        constraints = [models.UniqueConstraint(fields=["firm", "year"], name="unique_kyc_sequence_per_firm_year")]
 
 
 class ClientKYCReferenceHistory(models.Model):

@@ -13,6 +13,8 @@ from apps.cases.models import (
     MatterPhysicalFileMovement,
 )
 from apps.clients.models import ClientDocument, ClientDocumentRegisterRemoval
+from apps.firm.models import StorageLocation
+from apps.firm.services.records_room_service import RecordsRoomService, location_or_error
 from apps.staff.models import SecretaryPermission
 
 
@@ -77,6 +79,10 @@ class MatterPhysicalFileService:
             "shelf_or_drawer": physical_file.shelf_or_drawer,
             "location_detail": physical_file.location_detail,
             "location": physical_file.location,
+            "storage_location_id": str(physical_file.storage_location_id) if physical_file.storage_location_id else None,
+            # Where the file can go, from the firm's records-room layout.
+            "matter_places": RecordsRoomService.filing_places(physical_file.firm, [StorageLocation.Purpose.MATTER]),
+            "archive_places": RecordsRoomService.filing_places(physical_file.firm, [StorageLocation.Purpose.ARCHIVE]),
             "assigned_by": physical_file.assigned_by.full_name if physical_file.assigned_by_id else "",
             "assigned_at": physical_file.assigned_at,
             "current_custodian": physical_file.current_custodian.full_name if physical_file.current_custodian_id else physical_file.custody_label,
@@ -103,6 +109,25 @@ class MatterPhysicalFileService:
             } for item in physical_file.movements.select_related("issued_to", "returned_by", "recorded_by").all()]
         return result
 
+    @staticmethod
+    def _place(physical_file, data, purposes):
+        """Move the file to a place in the records room, or to typed-in fields for firms without a layout."""
+        place = location_or_error(physical_file.firm, data.get("storage_location_id"), purposes=purposes)
+        if place:
+            parts = place.path.split(" › ")
+            physical_file.storage_location = place
+            physical_file.storage_zone = parts[0]
+            physical_file.cabinet = " › ".join(parts[1:-1]) or parts[0]
+            physical_file.shelf_or_drawer = parts[-1]
+            if "location_detail" in data:
+                physical_file.location_detail = (data.get("location_detail") or "").strip()
+            return
+        typed = [field for field in ("storage_zone", "cabinet", "shelf_or_drawer", "location_detail") if field in data]
+        if typed:
+            physical_file.storage_location = None
+        for field in typed:
+            setattr(physical_file, field, (data.get(field) or "").strip())
+
     @classmethod
     @transaction.atomic
     def assign(cls, user, case, data):
@@ -110,16 +135,10 @@ class MatterPhysicalFileService:
         physical_file = MatterPhysicalFile.objects.select_for_update().get(matter=case, firm=case.firm)
         if physical_file.status not in {MatterPhysicalFile.Status.REQUESTED, MatterPhysicalFile.Status.AWAITING_PREPARATION}:
             raise ValidationError({"status": "This matter already has a confirmed physical file."})
-        storage_zone = (data.get("storage_zone") or "").strip()
-        cabinet = (data.get("cabinet") or "").strip()
-        shelf = (data.get("shelf_or_drawer") or "").strip()
-        if not storage_zone or not cabinet or not shelf:
-            raise ValidationError({"location": "Storage zone, cabinet and shelf/drawer are required."})
         previous_status, previous_location = physical_file.status, physical_file.location
-        physical_file.storage_zone = storage_zone
-        physical_file.cabinet = cabinet
-        physical_file.shelf_or_drawer = shelf
-        physical_file.location_detail = (data.get("location_detail") or "").strip()
+        cls._place(physical_file, {"location_detail": "", **data}, [StorageLocation.Purpose.MATTER])
+        if not physical_file.storage_zone or not physical_file.cabinet or not physical_file.shelf_or_drawer:
+            raise ValidationError({"location": "Choose where the file is kept from the records room, or give the storage zone, cabinet and shelf/drawer."})
         physical_file.notes = (data.get("notes") or "").strip()
         physical_file.status = MatterPhysicalFile.Status.ACTIVE
         physical_file.assigned_by = user
@@ -173,9 +192,7 @@ class MatterPhysicalFileService:
             physical_file.current_custodian = None
             physical_file.custody_label = "Records room"
         elif action == MatterPhysicalFileMovement.Action.RELOCATED:
-            for field in ("storage_zone", "cabinet", "shelf_or_drawer", "location_detail"):
-                if field in data:
-                    setattr(physical_file, field, (data.get(field) or "").strip())
+            cls._place(physical_file, data, [StorageLocation.Purpose.MATTER])
             if not physical_file.storage_zone or not physical_file.cabinet or not physical_file.shelf_or_drawer:
                 raise ValidationError({"location": "The new structured location is incomplete."})
         elif action == MatterPhysicalFileMovement.Action.MARKED_MISSING:
@@ -187,9 +204,7 @@ class MatterPhysicalFileService:
         elif action == MatterPhysicalFileMovement.Action.SENT_FOR_ARCHIVING:
             physical_file.status = MatterPhysicalFile.Status.CLOSURE_PENDING
         elif action == MatterPhysicalFileMovement.Action.ARCHIVED:
-            for field in ("storage_zone", "cabinet", "shelf_or_drawer", "location_detail"):
-                if field in data:
-                    setattr(physical_file, field, (data.get(field) or "").strip())
+            cls._place(physical_file, data, [StorageLocation.Purpose.ARCHIVE])
             physical_file.status = MatterPhysicalFile.Status.ARCHIVED
             physical_file.archived_at = timezone.now()
             physical_file.current_custodian = None

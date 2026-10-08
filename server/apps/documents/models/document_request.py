@@ -10,7 +10,7 @@ class DocumentRequest(TimestampedModel):
     class Status(models.TextChoices):
         AWAITING_SECRETARY_DISPATCH = "AWAITING_SECRETARY_DISPATCH", "Awaiting secretary dispatch"
         OPEN = "OPEN", "Required"
-        PENDING_SECRETARY = "PENDING_SECRETARY", "Uploaded - awaiting secretary verification"
+        PENDING_SECRETARY = "PENDING_SECRETARY", "On its way - awaiting receipt at the firm"
         UPLOADED = "UPLOADED", "Physical document received - awaiting advocate review"
         ACCEPTED = "ACCEPTED", "Accepted"
         REPLACEMENT_REQUIRED = "REPLACEMENT_REQUIRED", "Replacement required"

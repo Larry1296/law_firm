@@ -400,11 +400,11 @@ class EndToEndLitigationTests(TestCase):
         return matter.events.get(event_type="JUDGMENT")
 
     def step_document_request_round_trip(self, matter, client_user):
-        """Advocate asks; the client uploads from the portal; the secretary files the original; the advocate accepts."""
+        """Advocate asks; the client says how the paper is coming; the secretary receives and files it; the advocate accepts."""
         from apps.documents.models import DocumentRequest
         from apps.notifications.models import Notification
 
-        # Nothing is requested yet, so the client sees no upload option and the endpoint refuses uploads.
+        # Nothing is requested yet, so there is nothing to deliver, and files are never accepted.
         workspace = self.ok(self.as_user(client_user).get("/api/client/documents/", {"case_id": str(matter.id)}))
         self.assertEqual(workspace["requests"], [])
         refused = self.api.post("/api/client/documents/", {"file": SimpleUploadedFile("x.pdf", b"%PDF-1.4")}, format="multipart")
@@ -421,33 +421,45 @@ class EndToEndLitigationTests(TestCase):
 
         workspace = self.ok(self.as_user(client_user).get("/api/client/documents/", {"case_id": str(matter.id)}))
         self.assertEqual([item["id"] for item in workspace["requests"]], [request["id"]])
-        self.ok(self.api.post("/api/client/documents/", {
+        with_file = self.api.post("/api/client/documents/", {
             "request_id": request["id"], "file": SimpleUploadedFile("invoices.pdf", b"%PDF-1.4 invoices", content_type="application/pdf"),
-        }, format="multipart"), 201)
+        }, format="multipart")
+        self.assertEqual(with_file.status_code, 400)
+        self.assertIn("does not keep document files", str(with_file.data))
+        self.ok(self.api.post("/api/client/documents/", {
+            "request_id": request["id"], "delivery_method": "IN_PERSON",
+            "expected_delivery_date": (date.today() + timedelta(days=2)).isoformat(),
+        }, format="json"), 201)
         item = DocumentRequest.objects.get(id=request["id"])
         self.assertEqual(item.status, DocumentRequest.Status.PENDING_SECRETARY)
         self.assertEqual(item.fulfilled_document.classification, "MATTER_SPECIFIC")
 
-        # The client cannot upload twice while the secretary is checking.
-        again = self.api.post("/api/client/documents/", {
-            "request_id": request["id"], "file": SimpleUploadedFile("again.pdf", b"%PDF-1.4", content_type="application/pdf"),
-        }, format="multipart")
+        # The client cannot send a second notice while the paper is on its way.
+        again = self.api.post("/api/client/documents/", {"request_id": request["id"], "delivery_method": "COURIER"}, format="json")
         self.assertEqual(again.status_code, 400)
 
         self.ok(self.as_user(self.secretary_user).patch(f"/api/staff/secretary/documents/requests/{request['id']}/verify/", {
             "correct_client": True, "readable_complete": True, "matter_link_confirmed": True,
             "physical_copy_retained": True, "physical_storage_location": f"Matter file {matter.case_number} / Evidence",
         }, format="json"))
+        item.refresh_from_db()
+        filed = item.fulfilled_document
+        self.assertTrue(filed.reference.startswith(f"{matter.case_number}/D"))
+        self.assertFalse(filed.file)
+        self.assertTrue(filed.physical_copy_retained)
+        client_view = self.ok(self.as_user(client_user).get("/api/client/documents/", {"case_id": str(matter.id)}))
+        self.assertNotIn("physical_storage_location", client_view["requests"][0])
+        self.assertNotIn("location", client_view["requests"][0]["where"])
         returned = self.ok(self.as_user(self.advocate_user).patch(f"/api/staff/lawyer/documents/requests/{request['id']}/review/", {
             "decision": "REPLACEMENT_REQUIRED", "notes": "Delivery note for March is missing the site manager's signature.",
         }, format="json"))
         self.assertEqual(returned["status"], "REPLACEMENT_REQUIRED")
-        self.assertTrue(Notification.objects.filter(recipient=client_user, title="Please upload a replacement document").exists())
+        self.assertTrue(Notification.objects.filter(recipient=client_user, title="Please provide a replacement document").exists())
 
         first_copy = item.fulfilled_document_id
         self.ok(self.as_user(client_user).post("/api/client/documents/", {
-            "request_id": request["id"], "file": SimpleUploadedFile("invoices-v2.pdf", b"%PDF-1.4 signed", content_type="application/pdf"),
-        }, format="multipart"), 201)
+            "request_id": request["id"], "delivery_method": "COURIER",
+        }, format="json"), 201)
         item.refresh_from_db()
         self.assertNotEqual(item.fulfilled_document_id, first_copy)
         self.ok(self.as_user(self.secretary_user).patch(f"/api/staff/secretary/documents/requests/{request['id']}/verify/", {

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { intakePrivacyService as service } from '../services/intakePrivacyService';
 import { creationError } from '@/modules/clients/shared/prospectiveClientService';
 import FirmLogoField from '@/modules/admin/firm/components/FirmLogoField';
+import RecordsRoomSection from '@/modules/admin/firm/components/RecordsRoomSection';
 
 const emptyDraft = { policy_version: '', notice_text: '', lawful_basis: '', effective_date: '' };
 const control = 'w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-3 text-[color:var(--text-primary)]';
@@ -39,6 +40,9 @@ export default function AdminSettingsPage() {
     <h1 className='text-2xl font-bold'>Settings</h1>
     <section className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5'>
       <FirmLogoField />
+    </section>
+    <section className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5'>
+      <RecordsRoomSection />
     </section>
     <header><h2 className='text-xl font-bold'>Intake privacy notice</h2>
       <p>Manage the privacy notice used when creating prospective clients. Activated versions are preserved; changes require a new version.</p></header>

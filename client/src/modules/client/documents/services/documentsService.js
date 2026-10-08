@@ -8,11 +8,11 @@ const documentsService = {
     return data;
   },
 
-  async uploadRequestedDocument(requestId, file) {
-    const form = new FormData();
-    form.append('request_id', requestId);
-    form.append('file', file);
-    const { data } = await axiosInstance.post('/client/documents/', form);
+  // No file is sent: the firm keeps paper. The client says how the paper will reach the firm.
+  async sendDeliveryNotice(requestId, { delivery_method, expected_delivery_date, note }) {
+    const { data } = await axiosInstance.post('/client/documents/', {
+      request_id: requestId, delivery_method, expected_delivery_date, note,
+    });
     return data;
   },
 };

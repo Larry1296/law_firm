@@ -11,7 +11,7 @@ import { FormButton, ReadOnlyField, SelectInput, TextArea, TextInput } from '@/c
 const requestStatus = {
   AWAITING_SECRETARY_DISPATCH: 'Awaiting secretary dispatch',
   OPEN: 'Sent to client — awaiting upload',
-  PENDING_SECRETARY: 'Client uploaded — secretary checking file',
+  PENDING_SECRETARY: 'On its way — secretary to receive and file',
   UPLOADED: 'Secretary verified — advocate review required',
   ACCEPTED: 'Accepted into the matter file',
   REPLACEMENT_REQUIRED: 'Replacement required',

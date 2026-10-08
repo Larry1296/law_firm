@@ -4,6 +4,7 @@ from .branch import Branch
 from .department import Department
 from .practice_area import PracticeArea
 from .firm_setting import FirmSetting
+from .storage_location import StorageLocation
 
 __all__ = [
     "LawFirm",
@@ -12,4 +13,5 @@ __all__ = [
     "Department",
     "PracticeArea",
     "FirmSetting",
+    "StorageLocation",
 ]

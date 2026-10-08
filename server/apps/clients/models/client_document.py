@@ -185,6 +185,11 @@ class ClientDocument(TimestampedModel):
     )
     physical_copy_retained = models.BooleanField(default=False)
     physical_storage_location = models.CharField(max_length=255, blank=True, default="")
+    # Set only when the paper is kept outside its KYC or matter file, such as an original in the safe.
+    held_in = models.ForeignKey(
+        "firm.StorageLocation", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="held_client_documents",
+    )
     custody_notes = models.TextField(blank=True, default="")
     received_via = models.CharField(
         max_length=30, choices=ReceivedVia.choices, default=ReceivedVia.CLIENT_PORTAL

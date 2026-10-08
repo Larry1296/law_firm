@@ -1,4 +1,4 @@
-from .client import Client, ClientKYCReferenceHistory
+from .client import Client, ClientKYCReferenceHistory, KYCFileSequence
 
 from .individual_client import ClientDueDiligence, IndividualClient
 from .company_client import CompanyBeneficialOwner, CompanyClient, CompanyDirector
@@ -51,6 +51,7 @@ from .compliance_review import ClientComplianceHistory, ClientComplianceReview
 __all__ = [
     "Client",
     "ClientKYCReferenceHistory",
+    "KYCFileSequence",
 
     "IndividualClient",
     "ClientDueDiligence",

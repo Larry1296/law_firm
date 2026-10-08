@@ -4,6 +4,7 @@ from django.db.models import Count, Prefetch
 from django.utils import timezone
 
 from apps.ai.assistants.base import DashboardAssistant, Unavailable, text, when
+from apps.ai.assistants.records_room import RECORDS_ROOM_RULES, records_room_view
 from apps.ai.models import AssistantUsage, CourtPreparationBrief
 from apps.ai.services.court_preparation_playbooks import KIND_BY_EVENT_TYPE
 from apps.ai.services.court_preparation_service import CourtPreparationService
@@ -190,7 +191,7 @@ Boundaries:
 - If asked about a matter, client or colleague not in RECORDS, say it is not assigned to them or not available to them, without guessing whether it exists.
 - If asked for billing and "view_billing" is false, say their account does not include billing access. If asked about the law and no SOURCES are given, say they need the legal research permission or should check the law directly.
 - Never reveal other staff members' work, the firm's finances or firm-wide figures.
-- You know the clients of these matters (my_clients in RECORDS). Help the advocate prepare client updates and calls, but never share one client's matters with another.""" + STAFF_RULES
+- You know the clients of these matters (my_clients in RECORDS). Help the advocate prepare client updates and calls, but never share one client's matters with another.""" + STAFF_RULES + RECORDS_ROOM_RULES
 
     app_guide = {
         "dashboard": "Dashboard (/lawyer/dashboard): today's sittings, tasks and alerts.",
@@ -200,7 +201,7 @@ Boundaries:
         "court_preparation": "Court Preparation (/lawyer/court-preparation): the readiness checklist and preparation brief for each upcoming sitting.",
         "tasks": "Tasks (/lawyer/tasks): your open and overdue tasks.",
         "approvals": "Approvals (/lawyer/approvals): items waiting for your approval.",
-        "documents": "Documents (/lawyer/documents): matter documents; mark one client-visible to share it with the client.",
+        "documents": "Documents (/lawyer/documents): the paper register for your matters. Request a document from the client, review papers the secretary has received, and record firm documents into the matter file by reference. No files are uploaded; each paper is filed physically and its reference and location recorded.",
         "staff_chat": "Staff Chat (/lawyer/chat): messages with colleagues.",
         "ai_matters": "My AI Matters (/lawyer/ai): an AI case analysis of a single matter.",
         "research": "Research AI (/lawyer/research-ai), Legal Research (/lawyer/research) and Authorities (/lawyer/authorities): Kenyan law, with the Use Legal Research permission.",
@@ -238,6 +239,7 @@ Boundaries:
             "matters_shown": min(len(cases), MAX_MATTERS),
             "matters": [matter_view(case, now, briefs=briefs, with_billing=with_billing) for case in cases[:MAX_MATTERS]],
             "my_clients": clients_view(cases[:MAX_MATTERS]),
+            "records_room": records_room_view(cases[:MAX_MATTERS], {case.client for case in cases[:MAX_MATTERS]}),
         }
 
     def sources(self, user, question):
@@ -271,7 +273,7 @@ class FirmOwnerAssistant(DashboardAssistant):
     instructions = """You are the oversight assistant for the OWNER of a Kenyan law firm, inside the firm administration dashboard.
 You see the firm's active matters, workload by advocate, and billing totals in RECORDS. Help the owner spot risks early: sittings with preparation gaps, overdue work, approaching limitation dates and deadlines, unassigned matters, overloaded advocates and unpaid fee notes, and suggest who should act.
 You also see the firm's Sheria Master subscription (plan, status, limits and usage) and its client numbers, so you can answer questions about the account and warn when a limit or renewal is near.
-Boundaries: only this firm's RECORDS. Never discuss other firms or the Sheria Master platform's internal matters.""" + STAFF_RULES
+Boundaries: only this firm's RECORDS. Never discuss other firms or the Sheria Master platform's internal matters.""" + STAFF_RULES + RECORDS_ROOM_RULES
 
     app_guide = {
         "dashboard": "Dashboard (/admin/dashboard): the firm at a glance.",
@@ -279,7 +281,8 @@ Boundaries: only this firm's RECORDS. Never discuss other firms or the Sheria Ma
         "matters": "Cases (/admin/cases): every matter. Open one to assign or change the responsible advocate.",
         "courtroom_and_calendar": "Courtroom (/admin/courtroom) and Calendar (/admin/calendar): the firm's sittings and outcomes.",
         "ai": "AI Matter Intelligence (/admin/ai/matters), AI Overview (/admin/ai) and AI Recommendations (/admin/ai/recommendations): AI analysis across the firm's matters.",
-        "documents": "Documents (/admin/documents): the firm's documents.",
+        "documents": "Documents (/admin/documents): the firm's paper register. Documents are not uploaded; each is filed in a KYC or matter file and recorded by reference and location.",
+        "records_room": "Settings (/admin/settings): lay out the records room (rooms, cabinets, safes, drawers and shelves, labelled as on the real furniture). KYC and matter files are placed in its drawers and shelves.",
         "billing": "Billing (/admin/billing): fee notes, payments and client accounts.",
         "staff": "Staff (/admin/staff): add advocates and support staff, and grant permissions such as Use AI Tools, View Billing and Use Legal Research. Each seat counts against the plan.",
         "staff_chat": "Staff Chat (/admin/communication): firm messaging.",
@@ -351,11 +354,13 @@ Boundaries: only this firm's RECORDS. Never discuss other firms or the Sheria Ma
                 "outstanding_balance": str(sum((invoice.balance for invoice in unpaid), 0)),
             },
             "matters": [matter_view(case, now, briefs=briefs, with_billing=True) for case in cases[:MAX_MATTERS]],
+            "records_room": records_room_view(cases[:MAX_MATTERS], clients.order_by("-updated_at")[:MAX_MATTERS]),
         }
 
     def suggestions(self, user, records):
         return [
             "What needs my attention this week?",
+            "Where is a client's KYC file?",
             "Which sittings are not fully prepared?",
             "How is work spread across the advocates?",
             "Which fee notes are overdue?",

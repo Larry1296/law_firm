@@ -154,8 +154,8 @@ class FilingRegisterTests(TestCase):
         )
         self.api.force_authenticate(self.client_user)
         response = self.api.post("/api/client/documents/", {
-            "request_id": str(request.id), "file": SimpleUploadedFile("id.pdf", b"%PDF-1.4", content_type="application/pdf"),
-        }, format="multipart")
+            "request_id": str(request.id), "delivery_method": "IN_PERSON",
+        }, format="json")
         self.assertEqual(response.status_code, 400)
         request.refresh_from_db()
         self.assertEqual(request.status, DocumentRequest.Status.OPEN)
