@@ -607,7 +607,8 @@ input.floating-input-field:-webkit-autofill:active {
 @media (min-width: 1024px) {
   .auth-layout {
     min-height: 100vh;
-    overflow-x: hidden;
+    /* clip, not hidden: hidden would make this a scroll box and break the sticky showcase. */
+    overflow-x: clip;
   }
 
   .auth-layout .auth-main {
@@ -625,10 +626,12 @@ input.floating-input-field:-webkit-autofill:active {
     align-items: stretch !important;
   }
 
+  /* The showcase stays pinned to the viewport; only the form side scrolls. */
   .auth-layout .auth-main > div > div:first-child {
-    min-height: inherit;
-    height: auto !important;
-    align-self: stretch;
+    position: sticky;
+    top: 0;
+    height: 100vh !important;
+    align-self: flex-start;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
