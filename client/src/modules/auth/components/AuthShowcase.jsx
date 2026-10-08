@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Pause, Play } from 'lucide-react';
 
 import courtroom from '@/assets/images/court-room.png';
 import courtroomAppellate from '@/assets/images/court-room-appellate.png';
@@ -45,14 +44,12 @@ const SLIDES = [
 export default function AuthShowcase({ icon: Icon, title, text }) {
   const reduceMotion = useReducedMotion();
   const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const playing = !paused && !reduceMotion;
 
   useEffect(() => {
-    if (!playing) return undefined;
+    if (reduceMotion) return undefined;
     const timer = window.setTimeout(() => setActive((current) => (current + 1) % SLIDES.length), SLIDE_MS);
     return () => window.clearTimeout(timer);
-  }, [active, playing]);
+  }, [active, reduceMotion]);
 
   const slide = SLIDES[active];
 
@@ -101,7 +98,7 @@ export default function AuthShowcase({ icon: Icon, title, text }) {
         </motion.div>
 
         <div className='max-w-lg'>
-          <figure className='min-h-[9.5rem]' aria-live={playing ? 'off' : 'polite'}>
+          <figure className='min-h-[9.5rem]'>
             <AnimatePresence mode='wait' initial={false}>
               <motion.div
                 key={active}
@@ -116,44 +113,6 @@ export default function AuthShowcase({ icon: Icon, title, text }) {
               </motion.div>
             </AnimatePresence>
           </figure>
-
-          <div className='mt-8 flex items-center gap-4'>
-            <div className='flex flex-1 gap-2' role='group' aria-label='Choose a slide'>
-              {SLIDES.map((item, index) => (
-                <button
-                  key={item.source}
-                  type='button'
-                  onClick={() => setActive(index)}
-                  aria-label={`Show slide ${index + 1} of ${SLIDES.length}`}
-                  aria-current={index === active ? 'true' : undefined}
-                  className='group relative h-6 flex-1 focus:outline-none'
-                >
-                  <span className='absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-white/25 group-hover:bg-white/40 group-focus-visible:ring-2 group-focus-visible:ring-brand-accent'>
-                    {index < active && <span className='absolute inset-0 bg-white/80' />}
-                    {index === active && (
-                      <motion.span
-                        key={`${active}-${playing}`}
-                        className='absolute inset-y-0 left-0 bg-white'
-                        initial={{ width: playing ? '0%' : '100%' }}
-                        animate={{ width: '100%' }}
-                        transition={{ duration: playing ? SLIDE_MS / 1000 : 0, ease: 'linear' }}
-                      />
-                    )}
-                  </span>
-                </button>
-              ))}
-            </div>
-            {!reduceMotion && (
-              <button
-                type='button'
-                onClick={() => setPaused((value) => !value)}
-                aria-label={paused ? 'Play slideshow' : 'Pause slideshow'}
-                className='inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-white/10 backdrop-blur-md transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent'
-              >
-                {paused ? <Play size={15} aria-hidden='true' /> : <Pause size={15} aria-hidden='true' />}
-              </button>
-            )}
-          </div>
         </div>
       </div>
     </div>
