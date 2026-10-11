@@ -1,6 +1,5 @@
 import '@testing-library/jest-dom/vitest';
 import { act, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { ShieldCheck } from 'lucide-react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,15 +8,10 @@ import AuthShowcase from './AuthShowcase';
 describe('AuthShowcase', () => {
   afterEach(() => vi.useRealTimers());
 
-  it('can be paused and navigated by hand', async () => {
-    const user = userEvent.setup();
+  it('has no progress bar, dots or slideshow controls', () => {
     render(<AuthShowcase title='Sign in' />);
-
-    await user.click(screen.getByRole('button', { name: 'Pause slideshow' }));
-    expect(screen.getByRole('button', { name: 'Play slideshow' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Show slide 3 of 4' }));
-    expect(screen.getByRole('button', { name: 'Show slide 3 of 4' })).toHaveAttribute('aria-current', 'true');
-    expect(await screen.findByText(/irrespective of status/, undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
   // Fake timers go last: they leave framer-motion's frame clock stubbed for later tests in the file.

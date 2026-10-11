@@ -60,7 +60,6 @@ export default function useAuth() {
           text: successMessage,
           timer: 1500,
           showConfirmButton: false,
-          timerProgressBar: true,
         });
       }
 

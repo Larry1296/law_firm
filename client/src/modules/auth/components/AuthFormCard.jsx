@@ -3,7 +3,7 @@ import AuthShowcase from '@/modules/auth/components/AuthShowcase';
 
 /**
  * The card every sign-in, sign-up and password page uses. With `showcase`
- * ({ icon, title, text }) the courtroom carousel fills the left half on desktop.
+ * ({ icon, title, text }) the courtroom carousel fills the right half on desktop.
  * Back returns to the previous page, or to `backTo` when the page was opened directly.
  */
 export default function AuthFormCard({
@@ -31,10 +31,11 @@ export default function AuthFormCard({
 
   if (!showcase) return <div className='auth-page'>{card}</div>;
 
+  // The form comes first, so it is also first for keyboard and screen-reader users.
   return (
     <div className='flex min-h-screen w-full flex-1 flex-col lg:flex-row'>
+      <div className='auth-page auth-form-side lg:w-1/2'>{card}</div>
       <AuthShowcase {...showcase} />
-      <div className='auth-page lg:w-1/2'>{card}</div>
     </div>
   );
 }

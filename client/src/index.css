@@ -627,7 +627,7 @@ input.floating-input-field:-webkit-autofill:active {
   }
 
   /* The showcase stays pinned to the viewport; only the form side scrolls. */
-  .auth-layout .auth-main > div > div:first-child {
+  .auth-layout .auth-main .auth-showcase {
     position: sticky;
     top: 0;
     height: 100vh !important;
@@ -640,7 +640,7 @@ input.floating-input-field:-webkit-autofill:active {
     padding-bottom: 2.5rem !important;
   }
 
-  .auth-layout.auth-register .auth-main > div > div:last-child {
+  .auth-layout.auth-register .auth-main .auth-form-side {
     min-height: inherit;
     height: auto !important;
     overflow-y: visible;
@@ -650,7 +650,7 @@ input.floating-input-field:-webkit-autofill:active {
     padding-bottom: 2.5rem !important;
   }
 
-  .auth-layout.auth-compact .auth-main > div > div:last-child {
+  .auth-layout.auth-compact .auth-main .auth-form-side {
     min-height: inherit;
     height: auto !important;
     overflow-y: visible;

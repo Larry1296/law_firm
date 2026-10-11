@@ -37,9 +37,9 @@ const SLIDES = [
 ];
 
 /**
- * The image side of the auth pages: a slow, cross-fading carousel of
- * courtrooms, each paired with a line from the Constitution, behind the
- * page's own heading.
+ * The image side of the auth pages, on the right: a slow, cross-fading
+ * carousel of courtrooms, each paired with a line from the Constitution,
+ * with the page's own heading centred over it.
  */
 export default function AuthShowcase({ icon: Icon, title, text }) {
   const reduceMotion = useReducedMotion();
@@ -54,7 +54,7 @@ export default function AuthShowcase({ icon: Icon, title, text }) {
   const slide = SLIDES[active];
 
   return (
-    <div className='relative isolate hidden overflow-hidden bg-[#050b18] lg:flex lg:w-1/2 lg:flex-col'>
+    <div className='auth-showcase relative isolate hidden overflow-hidden bg-[#050b18] lg:flex lg:w-1/2 lg:flex-col'>
       {/* Images: cross-fade, with a slow pan and zoom while each is shown. */}
       <AnimatePresence initial={false}>
         <motion.div
@@ -69,7 +69,7 @@ export default function AuthShowcase({ icon: Icon, title, text }) {
             src={slide.image}
             alt=''
             aria-hidden='true'
-            className='h-full w-full object-cover'
+            className='h-full w-full object-cover object-center'
             initial={reduceMotion ? false : slide.pan.from}
             animate={reduceMotion ? { scale: 1.02 } : slide.pan.to}
             transition={{ duration: (SLIDE_MS + 1600) / 1000, ease: 'linear' }}
@@ -79,14 +79,14 @@ export default function AuthShowcase({ icon: Icon, title, text }) {
 
       {/* Legibility: navy wash, deeper at the bottom where the quotation sits. */}
       <div className='absolute inset-0 -z-10 bg-gradient-to-b from-[#050b18]/80 via-[#0b2140]/55 to-[#050b18]/95' />
-      <div className='absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,rgba(184,138,43,0.22),transparent_55%)]' />
+      <div className='absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,rgba(184,138,43,0.18),transparent_60%)]' />
 
-      <div className='flex flex-1 flex-col justify-between px-12 pb-10 pt-32 text-white xl:px-16'>
+      <div className='flex w-full flex-1 flex-col items-center justify-center gap-12 px-12 pb-10 pt-24 text-center text-white xl:px-16'>
         <motion.div
           initial={reduceMotion ? false : { opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
-          className='max-w-lg'
+          className='flex max-w-lg flex-col items-center'
         >
           {Icon && (
             <span className='mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md'>
@@ -98,7 +98,7 @@ export default function AuthShowcase({ icon: Icon, title, text }) {
         </motion.div>
 
         <div className='max-w-lg'>
-          <figure className='min-h-[9.5rem]'>
+          <figure className='flex min-h-[9.5rem] flex-col items-center'>
             <AnimatePresence mode='wait' initial={false}>
               <motion.div
                 key={active}
