@@ -20,6 +20,9 @@ describe('Intake Privacy Configuration settings', () => {
   it('creates a draft and displays its notice and history', async () => {
     render(<AdminSettingsPage />);
     await screen.findByText(/No active approved configuration/);
+    // The form opens only on request.
+    expect(screen.queryByLabelText(/Policy version/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'New privacy notice version' }));
     fireEvent.change(screen.getByLabelText(/Policy version/), { target: { value: 'v1' } });
     fireEvent.change(screen.getByLabelText(/Effective date/), { target: { value: '2026-01-01' } });
     fireEvent.change(screen.getByLabelText(/Lawful basis/), { target: { value: 'LEGITIMATE_INTERESTS' } });
@@ -30,7 +33,26 @@ describe('Intake Privacy Configuration settings', () => {
     await screen.findByText('v1 — DRAFT');
     expect(service.create).toHaveBeenCalledWith({ policy_version: 'v1', effective_date: '2026-01-01', lawful_basis: 'LEGITIMATE_INTERESTS', notice_text: 'Our notice' });
     expect(screen.getByText('Our notice')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Policy version/)).toHaveValue('');
+    // Created: the form closes and can be opened again for the next version.
+    expect(screen.queryByLabelText(/Policy version/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New privacy notice version' })).toBeInTheDocument();
+  });
+
+  it('keeps the form open with the entries when creating fails, and cancels cleanly', async () => {
+    service.create.mockRejectedValue({ response: { data: { detail: 'This version already exists for this firm.' } } });
+    render(<AdminSettingsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'New privacy notice version' }));
+    fireEvent.change(screen.getByLabelText(/Policy version/), { target: { value: 'v1' } });
+    fireEvent.change(screen.getByLabelText(/Effective date/), { target: { value: '2026-01-01' } });
+    fireEvent.change(screen.getByLabelText(/Lawful basis/), { target: { value: 'LEGITIMATE_INTERESTS' } });
+    fireEvent.change(screen.getByLabelText(/Privacy notice text/), { target: { value: 'Our notice' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create draft' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('already exists');
+    expect(screen.getByLabelText(/Policy version/)).toHaveValue('v1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByLabelText(/Policy version/)).not.toBeInTheDocument();
   });
 
   it('activates a replacement, preserves retired history, and retires the active version', async () => {

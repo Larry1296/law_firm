@@ -16,6 +16,7 @@ export default function AdminSettingsPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [creating, setCreating] = useState(false);
   useEffect(() => {
     let active = true;
     service.list().then(result => { if (active) setData(result); }).catch(e => { if (active) setError(creationError(e)); });
@@ -27,12 +28,17 @@ export default function AdminSettingsPage() {
       await operation();
       setData(await service.list());
       setMessage(success);
-    } catch (e) { setError(creationError(e)); }
+      return true;
+    } catch (e) { setError(creationError(e)); return false; }
     finally { setBusy(false); }
   };
-  const create = event => {
+  const openForm = () => { setDraft(emptyDraft); setError(''); setMessage(''); setCreating(true); };
+  const closeForm = () => { setDraft(emptyDraft); setError(''); setCreating(false); };
+  const create = async event => {
     event.preventDefault();
-    run(async () => { await service.create(draft); setDraft(emptyDraft); }, 'Draft version created. Review it below before approving and activating.');
+    const created = await run(() => service.create(draft), 'Draft version created. Review it below before approving and activating.');
+    // The form closes once the version exists; it stays open with the entries on an error.
+    if (created) { setDraft(emptyDraft); setCreating(false); }
   };
   const field = (name, label, type = 'text') => <label className='block space-y-1'>
     <span>{label} *</span><input className={control} type={type} required maxLength={name === 'policy_version' ? 50 : undefined} value={draft[name]} onChange={e => setDraft({ ...draft, [name]: e.target.value })} />
@@ -52,7 +58,8 @@ export default function AdminSettingsPage() {
     {!data && !error && <p>Loading privacy configurations…</p>}
     {data && <>
       {!data.results.some(config => config.status === 'ACTIVE') && <p className='rounded-lg bg-amber-50 p-3 text-amber-900'>No active approved configuration. Prospective-client creation is blocked until a version is approved and activated.</p>}
-      <form onSubmit={create} className='space-y-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5'>
+      {!creating && <button type='button' className='rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-50' disabled={busy} onClick={openForm}>New privacy notice version</button>}
+      {creating && <form onSubmit={create} className='space-y-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5'>
         <h2 className='text-xl font-semibold'>Create a new version</h2>
         <fieldset disabled={busy} className='space-y-4'>
           <div className='grid gap-4 sm:grid-cols-2'>{field('policy_version', 'Policy version')}{field('effective_date', 'Effective date', 'date')}</div>
@@ -60,9 +67,12 @@ export default function AdminSettingsPage() {
             <option value=''>Select…</option>{data.lawful_bases.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select></label>
           <label className='block space-y-1'><span>Privacy notice text *</span><AutoGrowTextarea required className={control} value={draft.notice_text} onChange={e => setDraft({ ...draft, notice_text: e.target.value })} /></label>
-          <button className='rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-50' type='submit'>Create draft</button>
+          <div className='flex flex-wrap gap-3'>
+            <button className='rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-50' type='submit'>{busy ? 'Creating…' : 'Create draft'}</button>
+            <button className='rounded-lg border border-[color:var(--border)] px-4 py-2 disabled:opacity-50' type='button' onClick={closeForm}>Cancel</button>
+          </div>
         </fieldset>
-      </form>
+      </form>}
       <section className='space-y-4'><h2 className='text-xl font-semibold'>Version history</h2>
         <p>Approval and activation happen together, on or after the effective date. Activating a replacement automatically retires the current version.</p>
         {!data.results.length && <p>No versions yet.</p>}

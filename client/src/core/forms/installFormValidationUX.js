@@ -113,7 +113,19 @@ export const installFormValidationUX = () => {
     if (!form) return;
     form.dataset.validationAttempted = 'true';
     form.__lastSubmitter = submitter;
-    setTimeout(() => renderSummary(form, submitter));
+    // Skipped when the submission went through and the form was reset meanwhile.
+    setTimeout(() => { if (form.dataset.validationAttempted) renderSummary(form, submitter); });
+  }, true);
+
+  // A form that passed validation is starting afresh: if it is cleared after a
+  // successful save, its now-empty required fields must not show as errors.
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.checkValidity()) return;
+    delete form.dataset.validationAttempted;
+    form.querySelector(`.${SUMMARY_CLASS}`)?.remove();
+    form.querySelectorAll(`.${FIELD_MESSAGE_CLASS}`).forEach((node) => node.remove());
+    form.querySelectorAll('.form-field-invalid').forEach((node) => node.classList.remove('form-field-invalid'));
   }, true);
 
   document.addEventListener('invalid', (event) => {
