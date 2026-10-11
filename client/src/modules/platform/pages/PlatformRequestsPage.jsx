@@ -38,6 +38,23 @@ function RequestCard({ item, onChanged }) {
           <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>
             {[item.county, item.advocates_count ? `${item.advocates_count} advocate${item.advocates_count === 1 ? '' : 's'}` : null, item.preferred_plan ? `prefers ${item.preferred_plan}` : null, `sent ${formatDateTime(item.created_at)}`].filter(Boolean).join(' · ')}
           </p>
+          {item.details?.firm && (
+            <dl className='mt-2 grid max-w-2xl gap-x-6 gap-y-1 text-sm sm:grid-cols-2'>
+              {[
+                ['BRS number', item.details.firm.registration_number],
+                ['KRA PIN', item.details.firm.kra_pin],
+                ['Office', [item.details.firm.physical_address, item.details.firm.town].filter(Boolean).join(', ')],
+                ['Managing partner', `${item.details.owner.first_name} ${item.details.owner.last_name}`],
+                ['Admission no.', item.details.owner.admission_number],
+                ['Practice areas', item.details.practice_areas.join(', ')],
+              ].map(([label, value]) => (
+                <div key={label} className='flex gap-2'>
+                  <dt className='shrink-0 text-text-muted-light dark:text-text-muted-dark'>{label}:</dt>
+                  <dd className='min-w-0 truncate font-medium' title={value}>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
           {item.message && <p className='mt-2 max-w-2xl whitespace-pre-line text-sm'>{item.message}</p>}
           {item.registered_firm && (
             <p className='mt-2 text-sm'>Registered as <Link to={`/platform/firms/${item.registered_firm}`} className='font-semibold underline'>{item.registered_firm_name}</Link></p>
@@ -45,7 +62,7 @@ function RequestCard({ item, onChanged }) {
         </div>
         {item.status !== 'REGISTERED' && (
           <div className='flex shrink-0 flex-wrap gap-2'>
-            <Link to={`/platform/firms/register?request=${item.id}`}><Button size='sm'>Register this firm</Button></Link>
+            <Link to={`/platform/firms/register?request=${item.id}`}><Button size='sm'>{item.details?.firm ? 'Review & register' : 'Register this firm'}</Button></Link>
             {item.status === 'NEW' && <Button size='sm' variant='secondary' onClick={() => update({ status: 'CONTACTED' })}>Mark contacted</Button>}
             {item.status !== 'DECLINED' && <Button size='sm' variant='secondary' onClick={() => update({ status: 'DECLINED' })}>Decline</Button>}
           </div>

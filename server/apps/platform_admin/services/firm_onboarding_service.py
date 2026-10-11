@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
@@ -141,6 +142,12 @@ class FirmOnboardingService:
 
         request_id = data.get("onboarding_request_id")
         if request_id:
+            onboarding_request = FirmOnboardingRequest.objects.filter(id=request_id).first()
+            if onboarding_request and onboarding_request.logo:
+                # A fresh upload, so LawFirm.save() squares and resizes it like any logo.
+                with onboarding_request.logo.open("rb") as source:
+                    firm.logo = SimpleUploadedFile(onboarding_request.logo.name.rsplit("/", 1)[-1], source.read())
+                firm.save()
             FirmOnboardingRequest.objects.filter(id=request_id).update(
                 status=FirmOnboardingRequest.Status.REGISTERED, registered_firm=firm,
                 updated_at=timezone.now(),

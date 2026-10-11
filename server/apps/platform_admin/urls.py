@@ -26,4 +26,5 @@ urlpatterns = [
     path("onboarding-requests/", views.OnboardingRequestListView.as_view(), name="platform-onboarding-requests"),
     path("onboarding-requests/submit/", views.PublicOnboardingRequestView.as_view(), name="platform-onboarding-request-submit"),
     path("onboarding-requests/<uuid:request_id>/", views.OnboardingRequestDetailView.as_view(), name="platform-onboarding-request-detail"),
+    path("onboarding-requests/<uuid:request_id>/logo/", views.OnboardingRequestLogoView.as_view(), name="platform-onboarding-request-logo"),
 ]

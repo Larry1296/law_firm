@@ -1,11 +1,14 @@
+import json
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -432,25 +435,48 @@ class InvoiceVoidView(PlatformView):
 # ---------------------------------------------------------------------------
 
 class PublicOnboardingRequestView(APIView):
-    """The homepage 'Register your firm' form while self-service sign-up is closed."""
+    """The homepage 'Register your firm' form while self-service sign-up is closed.
+
+    The firm sends its full registration, so the platform only has to check and confirm it.
+    A logo comes as multipart, with the rest of the request as JSON in `payload`.
+    """
 
     authentication_classes = []
     permission_classes = [AllowAny]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "firm_onboarding_request"
 
+    def get_throttles(self):
+        # Loading the form's choices is not a submission.
+        return [] if self.request.method == "GET" else super().get_throttles()
+
+    def get(self, request):
+        return Response({
+            "business_structures": [{"value": value, "label": label} for value, label in LawFirm.BusinessStructure.choices],
+            "counties": KENYAN_COUNTIES,
+            "practice_areas": PRACTICE_AREA_SUGGESTIONS,
+        })
+
     def post(self, request):
-        serializer = OnboardingRequestCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        data = request.data
+        if "payload" in data:
+            try:
+                data = {**json.loads(data["payload"]), "logo": request.FILES.get("logo")}
+            except (TypeError, ValueError):
+                raise ValidationError({"payload": "Send the request details as JSON."})
+        serializer = OnboardingRequestCreateSerializer(data=data)
+        if not serializer.is_valid():
+            raise ValidationError(dotted_errors(serializer.errors))
         item = serializer.save()
         NotificationService.notify_platform_admins(
             title=f"New registration request: {item.firm_name}",
-            message=f"{item.contact_name} ({item.phone_number}, {item.email}) asked to register {item.firm_name}.",
+            message=f"{item.contact_name} ({item.phone_number}, {item.email}) sent the full details to register {item.firm_name}.",
             action_url=f"/platform/requests?request={item.id}",
             event_key=f"FIRM_ONBOARDING_REQUEST:{item.id}",
         )
         return Response(
-            {"detail": "Thank you. The platform team will contact you to complete your firm's registration."},
+            {"detail": "Thank you. The platform team will check your details and register your firm."},
             status=status.HTTP_201_CREATED,
         )
 
@@ -462,6 +488,14 @@ class OnboardingRequestListView(PlatformView):
         if request_status:
             requests_ = requests_.filter(status=request_status)
         return Response(paginate(request, requests_, lambda item: OnboardingRequestSerializer(item).data))
+
+
+class OnboardingRequestLogoView(PlatformView):
+    def get(self, request, request_id):
+        item = get_object_or_404(FirmOnboardingRequest, id=request_id)
+        if not item.logo:
+            raise Http404("This request has no logo.")
+        return FileResponse(item.logo.open("rb"))
 
 
 class OnboardingRequestDetailView(PlatformView):

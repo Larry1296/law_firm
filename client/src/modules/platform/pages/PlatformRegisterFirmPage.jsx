@@ -210,21 +210,47 @@ export default function PlatformRegisterFirmPage() {
     enabled: Boolean(requestId),
   });
 
-  // Start from what the firm told us on the homepage, when registering from a request.
-  const prefilledFrom = useRef(null);
-  useEffect(() => {
-    const request = onboardingRequest.data;
-    if (!request || prefilledFrom.current === request.id) return;
-    prefilledFrom.current = request.id;
-    const [first, ...rest] = request.contact_name.trim().split(/\s+/);
-    // Prefill once from the fetched request.
-    setForm((current) => ({
-      ...current,
-      firm: { ...current.firm, name: request.firm_name, county: request.county || current.firm.county },
-      owner: { ...current.owner, first_name: first || '', last_name: rest.join(' '), email: request.email, phone_number: request.phone_number },
-      subscription: { ...current.subscription, plan_code: request.preferred_plan || current.subscription.plan_code },
-    }));
-  }, [onboardingRequest.data]);
+  // Start from what the firm sent from the homepage, when registering from a request.
+  // Done while rendering, once per request, as React advises for state that follows fetched data.
+  const [prefilledFrom, setPrefilledFrom] = useState(null);
+  const request = onboardingRequest.data;
+  if (request && prefilledFrom !== request.id) {
+    setPrefilledFrom(request.id);
+    const details = request.details || {};
+    const plan_code = request.preferred_plan || EMPTY.subscription.plan_code;
+    if (details.firm && details.owner) {
+      // A full request: everything is filled in, so open on the review to confirm it.
+      const settings = { ...EMPTY.settings, ...details.settings };
+      setForm({
+        ...EMPTY,
+        firm: { ...EMPTY.firm, ...details.firm },
+        owner: { ...EMPTY.owner, ...details.owner, job_title: details.owner.job_title || EMPTY.owner.job_title },
+        settings: { ...settings, opening_time: settings.opening_time.slice(0, 5), closing_time: settings.closing_time.slice(0, 5) },
+        practice_areas: details.practice_areas || [],
+        subscription: { ...EMPTY.subscription, plan_code },
+      });
+      setCompleted(new Set(STEPS.filter((item) => item.id !== 'review').map((item) => item.id)));
+      setStep('review');
+    } else {
+      // An older request held only the contact person.
+      const [first, ...rest] = request.contact_name.trim().split(/\s+/);
+      setForm((current) => ({
+        ...current,
+        firm: { ...current.firm, name: request.firm_name, county: request.county || current.firm.county },
+        owner: { ...current.owner, first_name: first || '', last_name: rest.join(' '), email: request.email, phone_number: request.phone_number },
+        subscription: { ...current.subscription, plan_code },
+      }));
+    }
+  }
+
+  // The logo the firm sent; registering from the request makes it the firm's logo unless another is chosen.
+  const requestLogo = useQuery({
+    queryKey: ['platform', 'onboarding-request', requestId, 'logo'],
+    queryFn: () => platformService.getOnboardingRequestLogo(requestId),
+    enabled: Boolean(requestId && onboardingRequest.data?.has_logo),
+  });
+  const requestLogoUrl = useMemo(() => (requestLogo.data ? URL.createObjectURL(requestLogo.data) : null), [requestLogo.data]);
+  useEffect(() => () => { if (requestLogoUrl) URL.revokeObjectURL(requestLogoUrl); }, [requestLogoUrl]);
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -331,7 +357,9 @@ export default function PlatformRegisterFirmPage() {
 
       {requestId && onboardingRequest.data && (
         <p className='mb-4 rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-700 dark:bg-sky-950/40 dark:text-sky-100'>
-          Registering from the request sent by {onboardingRequest.data.contact_name} of {onboardingRequest.data.firm_name}. Their details are filled in; complete the rest.
+          {onboardingRequest.data.details?.firm
+            ? <>Registering {onboardingRequest.data.firm_name} as {onboardingRequest.data.contact_name} sent it. Check the details against BRS, KRA and the Roll of Advocates, correct any step if needed, then create the firm.</>
+            : <>Registering from the request sent by {onboardingRequest.data.contact_name} of {onboardingRequest.data.firm_name}. Their details are filled in; complete the rest.</>}
         </p>
       )}
 
@@ -376,6 +404,12 @@ export default function PlatformRegisterFirmPage() {
                   </span>
                   {logo && <Button variant='ghost' size='sm' onClick={() => setLogo(null)} aria-label='Remove logo'><X size={14} /></Button>}
                 </span>
+                {!logo && requestLogoUrl && (
+                  <span className='mt-2 flex items-center gap-2 text-xs text-text-muted-light dark:text-text-muted-dark'>
+                    <img src={requestLogoUrl} alt='Logo sent with the request' className='h-10 w-10 rounded object-contain' />
+                    Sent with the request. Choose an image only to replace it.
+                  </span>
+                )}
               </Field>
               <Field label='About the firm' hint='A short description shown on the firm’s profile.' className='md:col-span-2'>
                 <AutoGrowTextarea value={form.firm.description} onChange={set('firm', 'description')} className={inputClass} />
@@ -579,7 +613,15 @@ export default function PlatformRegisterFirmPage() {
                   <ReviewRow label='Office' value={`${form.firm.physical_address}, ${form.firm.town}, ${form.firm.county}`} />
                   <ReviewRow label='Hours' value={`${form.settings.opening_time}–${form.settings.closing_time}${form.settings.work_on_saturday ? ', Saturdays too' : ''}`} />
                   <ReviewRow label='Practice areas' value={form.practice_areas.join(', ')} />
-                  <ReviewRow label='Logo' value={logo?.name} />
+                  <ReviewRow
+                    label='Logo'
+                    value={logo?.name || (requestLogoUrl && (
+                      <span className='flex items-center gap-2'>
+                        <img src={requestLogoUrl} alt='Logo sent with the request' className='h-10 w-10 rounded object-contain' />
+                        Sent with the request
+                      </span>
+                    ))}
+                  />
                 </dl>
               </div>
               <div>

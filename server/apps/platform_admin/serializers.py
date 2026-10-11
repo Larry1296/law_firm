@@ -6,6 +6,7 @@ from apps.authentication.serializers.register_firm_serializer import (
     FirmSerializer,
 )
 from apps.firm.models import LawFirm
+from apps.firm.serializers.logo_serializer import LogoSerializer
 from apps.platform_admin.models import FirmOnboardingRequest
 from apps.platform_admin.reference_data import KENYAN_COUNTIES
 from apps.platform_admin.services.firm_onboarding_service import OnboardingStart
@@ -200,36 +201,64 @@ class UserStatusSerializer(serializers.Serializer):
     is_active = serializers.BooleanField()
 
 
-class OnboardingRequestCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FirmOnboardingRequest
-        fields = [
-            "firm_name", "contact_name", "email", "phone_number", "county",
-            "advocates_count", "preferred_plan", "message",
-        ]
-        extra_kwargs = {"message": {"max_length": 2000}}
+class OnboardingRequestCreateSerializer(serializers.Serializer):
+    """Everything the platform needs to register the firm, so the request only has to be confirmed."""
 
-    def validate_county(self, value):
-        return _county(value)
+    firm = OnboardingFirmSerializer()
+    owner = OnboardingOwnerSerializer()
+    settings = FirmSettingsInputSerializer(required=False)
+    practice_areas = serializers.ListField(
+        child=serializers.CharField(max_length=255), allow_empty=False,
+        error_messages={"empty": "Add at least one practice area."},
+    )
+    preferred_plan = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    advocates_count = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    message = serializers.CharField(max_length=2000, required=False, allow_blank=True)
+    logo = serializers.ImageField(required=False, allow_null=True)
 
     def validate_preferred_plan(self, value):
         if value and not Plan.objects.filter(code=value, is_active=True, is_public=True).exists():
             raise serializers.ValidationError("Choose an available plan.")
         return value
 
+    def validate_logo(self, value):
+        return LogoSerializer().validate_logo(value) if value else value
+
+    def create(self, validated_data):
+        firm, owner = validated_data["firm"], validated_data["owner"]
+        details = self.to_representation({
+            key: validated_data[key] for key in ("firm", "owner", "settings", "practice_areas") if key in validated_data
+        })
+        return FirmOnboardingRequest.objects.create(
+            firm_name=firm["name"],
+            contact_name=f"{owner['first_name']} {owner['last_name']}".strip(),
+            email=owner["email"],
+            phone_number=owner["phone_number"],
+            county=firm.get("county", ""),
+            advocates_count=validated_data.get("advocates_count"),
+            preferred_plan=validated_data.get("preferred_plan", ""),
+            message=validated_data.get("message", ""),
+            details=details,
+            logo=validated_data.get("logo"),
+        )
+
 
 class OnboardingRequestSerializer(serializers.ModelSerializer):
     status_label = serializers.CharField(source="get_status_display", read_only=True)
     registered_firm_name = serializers.CharField(source="registered_firm.name", read_only=True, default=None)
+    has_logo = serializers.SerializerMethodField()
+
+    def get_has_logo(self, obj):
+        return bool(obj.logo)
 
     class Meta:
         model = FirmOnboardingRequest
         fields = [
             "id", "firm_name", "contact_name", "email", "phone_number", "county", "advocates_count",
-            "preferred_plan", "message", "status", "status_label", "internal_notes",
+            "preferred_plan", "message", "details", "has_logo", "status", "status_label", "internal_notes",
             "registered_firm", "registered_firm_name", "created_at",
         ]
         read_only_fields = [
             "id", "firm_name", "contact_name", "email", "phone_number", "county", "advocates_count",
-            "preferred_plan", "message", "registered_firm", "created_at",
+            "preferred_plan", "message", "details", "registered_firm", "created_at",
         ]

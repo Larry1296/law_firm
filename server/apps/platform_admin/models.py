@@ -27,6 +27,10 @@ class FirmOnboardingRequest(TimestampedModel):
     advocates_count = models.PositiveIntegerField(null=True, blank=True)
     preferred_plan = models.CharField(max_length=30, blank=True)
     message = models.TextField(blank=True)
+    # The full registration the firm sent (firm, owner, settings, practice areas),
+    # shaped like the platform's register-firm payload so it can be confirmed as sent.
+    details = models.JSONField(default=dict, blank=True)
+    logo = models.ImageField(upload_to="onboarding-requests/logos/", null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.NEW)
     internal_notes = models.TextField(blank=True)
     registered_firm = models.ForeignKey(

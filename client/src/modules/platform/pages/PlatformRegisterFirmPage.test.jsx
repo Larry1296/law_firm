@@ -9,7 +9,9 @@ import platformService from '@/modules/platform/services/platformService';
 import PlatformRegisterFirmPage from '@/modules/platform/pages/PlatformRegisterFirmPage';
 
 vi.mock('@/modules/platform/services/platformService', () => ({
-  default: { getMeta: vi.fn(), registerFirm: vi.fn(), getOnboardingRequest: vi.fn(), uploadLogo: vi.fn() },
+  default: {
+    getMeta: vi.fn(), registerFirm: vi.fn(), getOnboardingRequest: vi.fn(), getOnboardingRequestLogo: vi.fn(), uploadLogo: vi.fn(),
+  },
 }));
 
 const META = {
@@ -24,11 +26,11 @@ const META = {
 
 const SUMMARY = 'Owner.Email: An account with this email already exists.';
 
-function renderPage() {
+function renderPage(entry = '/platform/firms/register') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter><PlatformRegisterFirmPage /></MemoryRouter>
+      <MemoryRouter initialEntries={[entry]}><PlatformRegisterFirmPage /></MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -93,4 +95,42 @@ describe('PlatformRegisterFirmPage', () => {
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     expect(screen.queryByText(SUMMARY)).not.toBeInTheDocument();
   }, 20000); // Types through all six steps; slow when the whole suite runs in parallel.
+
+  it('opens a full request on the review, ready to confirm and register as sent', async () => {
+    vi.mocked(platformService.getOnboardingRequest).mockResolvedValue({
+      id: 'req-1', firm_name: 'Achieng & Mwangi Advocates', contact_name: 'Grace Achieng', email: 'grace@am.co.ke',
+      phone_number: '+254711111111', county: 'Nairobi', preferred_plan: 'PRO', has_logo: false,
+      details: {
+        firm: {
+          name: 'Achieng & Mwangi Advocates', business_structure: 'PARTNERSHIP', registration_number: 'BN-2026-0042',
+          kra_pin: 'P051234567X', email: 'info@am.co.ke', phone_number: '+254700000000', physical_address: 'Upper Hill',
+          county: 'Nairobi', town: 'Nairobi', description: '', website: '', postal_address: '',
+        },
+        owner: {
+          first_name: 'Grace', last_name: 'Achieng', email: 'grace@am.co.ke', phone_number: '+254711111111',
+          national_id_number: '12345678', admission_number: 'P.105/1234/15', job_title: '',
+        },
+        settings: { opening_time: '08:00:00', closing_time: '17:00:00', work_on_saturday: false },
+        practice_areas: ['Conveyancing'],
+      },
+    });
+    vi.mocked(platformService.registerFirm).mockResolvedValue({
+      firm: { id: 'f1', name: 'Achieng & Mwangi Advocates', owner: { full_name: 'Grace Achieng', email: 'grace@am.co.ke' } },
+      owner_invitation_url: '',
+    });
+    const user = userEvent.setup();
+    renderPage('/platform/firms/register?request=req-1');
+
+    expect(await screen.findByText('BN-2026-0042')).toBeInTheDocument();
+    expect(screen.getByText('P.105/1234/15')).toBeInTheDocument();
+    expect(screen.getByText('08:00–17:00')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Create firm and invite owner' }));
+
+    const [payload] = vi.mocked(platformService.registerFirm).mock.lastCall;
+    expect(payload.onboarding_request_id).toBe('req-1');
+    expect(payload.firm.kra_pin).toBe('P051234567X');
+    expect(payload.owner.job_title).toBe('Managing Partner');
+    expect(payload.settings.opening_time).toBe('08:00');
+    expect(payload.practice_areas).toEqual(['Conveyancing']);
+  });
 });

@@ -36,7 +36,18 @@ const platformService = {
   getOnboardingRequests: (params) => get('/platform/onboarding-requests/', params),
   getOnboardingRequest: (id) => get(`/platform/onboarding-requests/${id}/`),
   updateOnboardingRequest: (id, payload) => patch(`/platform/onboarding-requests/${id}/`, payload),
-  submitOnboardingRequest: (payload) => post('/platform/onboarding-requests/submit/', payload),
+  getOnboardingRequestLogo: async (id) => (
+    await axiosInstance.get(`/platform/onboarding-requests/${id}/logo/`, { responseType: 'blob' })
+  ).data,
+  getOnboardingRequestChoices: () => get('/platform/onboarding-requests/submit/'),
+  // A logo goes as multipart, with the rest of the request as JSON alongside it.
+  submitOnboardingRequest: (payload, logo) => {
+    if (!logo) return post('/platform/onboarding-requests/submit/', payload);
+    const form = new FormData();
+    form.append('payload', JSON.stringify(payload));
+    form.append('logo', logo);
+    return post('/platform/onboarding-requests/submit/', form);
+  },
 };
 
 export default platformService;

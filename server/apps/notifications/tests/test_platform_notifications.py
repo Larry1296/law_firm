@@ -36,8 +36,16 @@ class PlatformNotificationTests(TestCase):
 
     def test_registration_request_rings_the_platform_bell_only(self):
         response = APIClient().post("/api/platform/onboarding-requests/submit/", {
-            "firm_name": "Kamau Advocates", "contact_name": "Peter Kamau",
-            "email": "peter@kamau.test", "phone_number": "+254722000000",
+            "firm": {
+                "name": "Kamau Advocates", "registration_number": "BN-2026-0099", "kra_pin": "P051234568X",
+                "email": "info@kamau.test", "phone_number": "+254722000001", "physical_address": "Kenyatta Avenue",
+                "county": "Nakuru", "town": "Nakuru",
+            },
+            "owner": {
+                "first_name": "Peter", "last_name": "Kamau", "email": "peter@kamau.test",
+                "phone_number": "+254722000000", "national_id_number": "22000000", "admission_number": "P.105/77/11",
+            },
+            "practice_areas": ["Family law"],
         }, format="json")
         self.assertEqual(response.status_code, 201, response.data)
 

@@ -1,3 +1,5 @@
+import json
+import tempfile
 from io import StringIO
 from unittest import mock
 from urllib.parse import parse_qs, urlparse
@@ -5,7 +7,7 @@ from urllib.parse import parse_qs, urlparse
 from django.core import mail
 from django.core.cache import cache
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -325,16 +327,103 @@ class PlanManagementTests(PlatformTestCase):
         self.assertEqual(bad.status_code, 400)
 
 
+def request_payload(**overrides):
+    """What the homepage form sends: the whole registration except the plan start."""
+    payload = register_payload(**overrides)
+    payload.pop("subscription")
+    payload.pop("office")
+    payload["preferred_plan"] = "BASIC"
+    payload["advocates_count"] = 2
+    return payload
+
+
+def png_logo():
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from io import BytesIO
+    from PIL import Image
+
+    buffer = BytesIO()
+    Image.new("RGB", (40, 20), "navy").save(buffer, format="PNG")
+    return SimpleUploadedFile("achieng.png", buffer.getvalue(), content_type="image/png")
+
+
 class OnboardingRequestTests(PlatformTestCase):
-    def test_public_request_is_listed_for_the_platform_admin(self):
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+
+    def test_the_form_choices_are_public(self):
+        response = APIClient().get("/api/platform/onboarding-requests/submit/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Nairobi", response.data["counties"])
+        self.assertTrue(response.data["practice_areas"])
+        self.assertIn("LLP", [item["value"] for item in response.data["business_structures"]])
+
+    def test_a_request_must_carry_the_full_registration(self):
         response = APIClient().post("/api/platform/onboarding-requests/submit/", {
             "firm_name": "Kilonzo Advocates", "contact_name": "Peter Kilonzo", "email": "peter@kilonzo.test",
-            "phone_number": "+254733111222", "county": "Machakos", "advocates_count": 2, "preferred_plan": "BASIC",
+            "phone_number": "+254733111222",
         }, format="json")
+        self.assertEqual(response.status_code, 400)
+        payload = request_payload(firm={"kra_pin": "123"})
+        del payload["owner"]["admission_number"]
+        response = APIClient().post("/api/platform/onboarding-requests/submit/", payload, format="json")
+        self.assertEqual(response.status_code, 400)
+        errors = response.data["errors"]
+        self.assertIn("firm.kra_pin", errors)
+        self.assertIn("owner.admission_number", errors)
+        self.assertFalse(FirmOnboardingRequest.objects.exists())
+
+    def test_full_request_reaches_the_admin_prefilled_and_registers_as_sent(self):
+        response = APIClient().post("/api/platform/onboarding-requests/submit/", request_payload(), format="json")
         self.assertEqual(response.status_code, 201, response.data)
+
         listing = self.api.get("/api/platform/onboarding-requests/", {"status": "NEW"})
         self.assertEqual(listing.data["count"], 1)
-        request_id = listing.data["results"][0]["id"]
+        item = listing.data["results"][0]
+        self.assertEqual(item["contact_name"], "Grace Achieng")
+        self.assertEqual(item["details"]["firm"]["kra_pin"], "P051234567X")
+        self.assertEqual(item["details"]["owner"]["admission_number"], "P.105/4521/12")
+        self.assertEqual(item["details"]["settings"]["opening_time"], "08:00:00")
+        self.assertEqual(item["details"]["practice_areas"][0], "Conveyancing and real estate")
+
+        # The admin confirms what the firm sent, chooses how it starts, and registers.
+        details = item["details"]
+        registered = self.api.post("/api/platform/firms/", {
+            **details, "subscription": {"plan_code": "BASIC", "billing_cycle": "MONTHLY", "start": "TRIAL"},
+            "onboarding_request_id": item["id"],
+        }, format="json")
+        self.assertEqual(registered.status_code, 201, registered.data)
+        firm = LawFirm.objects.get(name="Achieng & Mwangi Advocates")
+        self.assertEqual(firm.kra_pin, "P051234567X")
+        self.assertEqual(firm.owner.email, "grace@achiengmwangi.test")
+        self.assertEqual(FirmOnboardingRequest.objects.get().status, FirmOnboardingRequest.Status.REGISTERED)
+
+    def test_logo_sent_with_the_request_becomes_the_firm_logo(self):
+        media = tempfile.TemporaryDirectory()
+        self.addCleanup(media.cleanup)
+        self.enterContext(override_settings(MEDIA_ROOT=media.name))
+        payload = request_payload()
+        response = APIClient().post(
+            "/api/platform/onboarding-requests/submit/",
+            {"payload": json.dumps(payload), "logo": png_logo()}, format="multipart",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        item = FirmOnboardingRequest.objects.get()
+        self.assertEqual(self.api.get(f"/api/platform/onboarding-requests/{item.id}/").data["has_logo"], True)
+        self.assertEqual(self.api.get(f"/api/platform/onboarding-requests/{item.id}/logo/").status_code, 200)
+        self.assertEqual(APIClient().get(f"/api/platform/onboarding-requests/{item.id}/logo/").status_code, 401)
+
+        registered = self.api.post("/api/platform/firms/", {
+            **item.details, "subscription": {"plan_code": "BASIC", "billing_cycle": "MONTHLY", "start": "TRIAL"},
+            "onboarding_request_id": str(item.id),
+        }, format="json")
+        self.assertEqual(registered.status_code, 201, registered.data)
+        self.assertTrue(LawFirm.objects.get(name="Achieng & Mwangi Advocates").logo)
+
+    def test_request_status_can_be_tracked(self):
+        APIClient().post("/api/platform/onboarding-requests/submit/", request_payload(), format="json")
+        request_id = self.api.get("/api/platform/onboarding-requests/").data["results"][0]["id"]
         updated = self.api.patch(f"/api/platform/onboarding-requests/{request_id}/", {"status": "CONTACTED"}, format="json")
         self.assertEqual(updated.data["status"], "CONTACTED")
 
