@@ -27,7 +27,23 @@ function Field({ label, required, error, children, className = '' }) {
   );
 }
 
-function OnboardingRequestForm({ plans }) {
+function RequestSent({ form }) {
+  return (
+    <div className='flex min-h-screen items-center justify-center bg-background-light px-4 pb-16 pt-28 dark:bg-background-dark sm:px-6'>
+      <div role='status' className='w-full max-w-lg rounded-3xl border border-border-light bg-surface-light p-8 text-center shadow-medium dark:border-border-dark dark:bg-surface-dark'>
+        <CheckCircle2 size={44} className='mx-auto text-success' aria-hidden='true' />
+        <h2 className='mt-4 text-xl font-bold'>Thank you, we have your request</h2>
+        <p className='mx-auto mt-2 max-w-md text-sm text-text-muted-light dark:text-text-muted-dark'>
+          The Sheria Master team will contact {form.contact_name.split(' ')[0] || 'you'} on {form.phone_number} or {form.email} to confirm your firm&apos;s
+          details and set up its workspace. The firm owner then receives a link to sign in.
+        </p>
+        <Link to='/' className='mt-6 inline-flex rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white dark:bg-sky-600'>Back to the homepage</Link>
+      </div>
+    </div>
+  );
+}
+
+function OnboardingRequestForm({ plans, onSent }) {
   const [searchParams] = useSearchParams();
   const [form, setForm] = useState({
     firm_name: '', contact_name: '', email: '', phone_number: '', county: '',
@@ -39,22 +55,13 @@ function OnboardingRequestForm({ plans }) {
       ...form,
       advocates_count: form.advocates_count === '' ? null : Number(form.advocates_count),
     }),
+    onSuccess: () => {
+      // The thank-you message is much shorter than the form; start it at the top of the page.
+      window.scrollTo({ top: 0 });
+      onSent(form);
+    },
   });
   const errors = submit.error?.response?.data?.errors || {};
-
-  if (submit.isSuccess) {
-    return (
-      <div className='py-6 text-center'>
-        <CheckCircle2 size={44} className='mx-auto text-success' aria-hidden='true' />
-        <h2 className='mt-4 text-xl font-bold'>Thank you, we have your request</h2>
-        <p className='mx-auto mt-2 max-w-md text-sm text-text-muted-light dark:text-text-muted-dark'>
-          The Sheria Master team will contact {form.contact_name.split(' ')[0] || 'you'} on {form.phone_number} or {form.email} to confirm your firm&apos;s
-          details and set up its workspace. The firm owner then receives a link to sign in.
-        </p>
-        <Link to='/' className='mt-6 inline-flex rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white dark:bg-sky-600'>Back to the homepage</Link>
-      </div>
-    );
-  }
 
   return (
     <form onSubmit={(event) => { event.preventDefault(); submit.mutate(); }} className='grid gap-5 sm:grid-cols-2'>
@@ -107,8 +114,10 @@ function OnboardingRequestForm({ plans }) {
 
 export default function RegisterFirmPage() {
   const plansQuery = useQuery({ queryKey: ['subscription', 'plans'], queryFn: subscriptionService.getPlans });
+  const [sent, setSent] = useState(null);
 
   if (plansQuery.data?.firm_signup_enabled) return <FirmSignup />;
+  if (sent) return <RequestSent form={sent} />;
 
   return (
     <div className='bg-background-light px-4 pb-16 pt-32 dark:bg-background-dark sm:px-6'>
@@ -141,7 +150,7 @@ export default function RegisterFirmPage() {
           </p>
         </div>
         <div className='rounded-3xl border border-border-light bg-surface-light p-6 shadow-medium dark:border-border-dark dark:bg-surface-dark sm:p-8 lg:col-span-3'>
-          <OnboardingRequestForm plans={plansQuery.data?.plans || []} />
+          <OnboardingRequestForm plans={plansQuery.data?.plans || []} onSent={setSent} />
         </div>
       </div>
     </div>
