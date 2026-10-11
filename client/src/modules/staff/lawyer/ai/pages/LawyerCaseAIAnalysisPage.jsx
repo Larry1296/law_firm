@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 
-import BackLink from '@/components/ui/BackLink';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { useGenerateLawyerCaseAnalysis, useLawyerCaseAnalysis } from '../hooks/useLawyerAI';
 
@@ -19,7 +18,6 @@ export default function LawyerCaseAIAnalysisPage() {
   const matter = assessment?.matter || data?.matter || {};
   const toggle = (value) => setSelected((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
   return <main className='space-y-5 p-4 md:p-6'>
-    <BackLink label='Back to AI case priorities' fallbackPath='/lawyer/ai' />
     <SectionHeading title={matter.title || data?.matter?.title || 'AI Case Analysis'} subtitle={matter.case_number || data?.matter?.case_number} size='compact' />
     <div className='rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950'>{data?.disclaimer}</div>
     <section className={panel}><div className='flex flex-wrap items-center justify-between gap-3'><div><h2 className='text-lg font-bold'>Matter header</h2><p>{matter.client} · {matter.practice_area} · {matter.court_stage}</p>{assessment && <p className='text-sm'>Last analyzed {new Date(assessment.analyzed_at).toLocaleString()} · Version {assessment.version}</p>}</div><button type='button' disabled={generate.isPending} onClick={() => generate.mutate(selected)} className='rounded-lg bg-success px-4 py-2 font-bold text-white disabled:opacity-50'>{generate.isPending ? 'Refreshing…' : assessment ? 'Refresh analysis' : 'Generate analysis'}</button></div>{assessment?.is_stale && <p className='mt-3 font-semibold text-amber-700'>New matter information requires reassessment.</p>}</section>

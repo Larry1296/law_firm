@@ -9,7 +9,6 @@ import adminBillingService from '@/modules/admin/billing/services/adminBillingSe
 import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
-import BackLink from '@/components/ui/BackLink';
 import Button3D from '@/components/ui/Button3D';
 import PageSectionNav from '@/components/ui/PageSectionNav';
 import TableHeaderText from '@/components/ui/TableHeaderText';
@@ -214,7 +213,6 @@ export default function AdminClientDetailsPage() {
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <BackLink label='Back to Clients' fallbackPath='/admin/clients' />
 
       <SectionHeading
         title={pageTitle}

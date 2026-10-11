@@ -5,7 +5,6 @@ import useAuth from '@/core/hooks/useAuth';
 
 import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
-import BackLink from '@/components/ui/BackLink';
 import Card from '@/components/ui/Card';
 import Select3D from '@/components/ui/Select3D';
 import ElasticTextInput from '@/components/ui/ElasticTextInput';
@@ -900,7 +899,6 @@ const AdminCaseDetailsPage = () => {
 
   return (
     <div className='mx-auto max-w-[1200px] space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <BackLink label='Back to Cases' fallbackPath='/admin/cases' />
 
       <SectionHeading
         title={pageTitle}

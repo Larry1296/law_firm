@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 
-import BackLink from '@/components/ui/BackLink';
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
 import TableHeaderText from '@/components/ui/TableHeaderText';
@@ -23,7 +22,6 @@ export default function AdminClientDocumentsPage() {
   if (error) return <div className='p-6 text-error'>The client document register could not be loaded.</div>;
 
   return <div className='space-y-6 p-4 md:p-6'>
-    <BackLink label='Back to client' fallbackPath={`/admin/clients/${id}`} />
     <SectionHeading title={`${client.full_name} — physical document register`} subtitle='Master client/KYC file, physical custody, proposed-matter and accepted-matter references' />
     <Card className='p-5'>
       <div className='grid gap-3 md:grid-cols-3'>

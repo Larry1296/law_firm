@@ -2,7 +2,7 @@ import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Copy, ImagePlus, KeyRound, Pause, Pencil, Play } from 'lucide-react';
+import { Copy, ImagePlus, KeyRound, Pause, Pencil, Play } from 'lucide-react';
 
 import Swal from '@/core/utils/themedSwal';
 import { apiAssetUrl } from '@/core/utils/apiAssetUrl';
@@ -262,10 +262,6 @@ export default function PlatformFirmDetailPage() {
 
   return (
     <>
-      <Link to='/platform/firms' className='mb-4 inline-flex items-center gap-1 text-sm text-text-muted-light hover:underline dark:text-text-muted-dark'>
-        <ArrowLeft size={14} /> Law firms
-      </Link>
-
       <div className='mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'>
         <div className='flex min-w-0 items-center gap-4'>
           <label className='group relative flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border border-border-light bg-surface-light dark:border-border-dark dark:bg-surface-dark' title='Upload logo'>

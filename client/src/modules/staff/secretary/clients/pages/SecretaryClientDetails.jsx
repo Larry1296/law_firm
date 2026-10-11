@@ -8,7 +8,6 @@ import secretaryClientsService from '@/modules/staff/secretary/clients/services/
 import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
-import BackLink from '@/components/ui/BackLink';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { enumLabel, titleCase } from '@/core/utils/textFormatter';
 
@@ -112,7 +111,6 @@ const SecretaryClientDetails = () => {
   return (
     <div className='space-y-6 p-4 md:p-6 text-[color:var(--text-primary)]'>
       <div>
-        <BackLink label='Back to Clients' fallbackPath='/secretary/clients' />
       </div>
 
       <SectionHeading title={pageTitle} subtitle='Client Details' />

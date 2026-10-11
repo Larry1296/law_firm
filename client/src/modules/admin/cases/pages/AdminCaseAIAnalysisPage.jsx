@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import axiosInstance from '@/core/api/axios';
-import BackLink from '@/components/ui/BackLink';
 import SectionHeading from '@/components/ui/SectionHeading';
 
 const panel = 'rounded-xl border border-border-light bg-surface-light p-5 dark:border-border-dark dark:bg-surface-dark';
@@ -15,7 +14,7 @@ export default function AdminCaseAIAnalysisPage() {
   if (query.isLoading) return <p role='status' className='p-8'>Loading matter intelligence workspace…</p>;
   if (query.error) return <div role='alert' className='m-6 rounded-xl bg-red-50 p-4 text-red-800'>{query.error.response?.status === 403 ? 'Firm-wide AI oversight permission is required.' : 'This matter is unavailable.'}</div>;
   const data = query.data; const a = data.assessment; const matter = a?.matter || data.matter;
-  return <main className='space-y-5 p-4 md:p-6'><BackLink label='Back to Firm AI Matter Intelligence' fallbackPath='/admin/ai/matters'/><SectionHeading title={matter.title} subtitle={`${matter.case_number || ''}${matter.official_case_number ? ` · ${matter.official_case_number}` : ''}`} size='compact'/><div role='note' className='rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950'>{data.disclaimer}</div>
+  return <main className='space-y-5 p-4 md:p-6'><SectionHeading title={matter.title} subtitle={`${matter.case_number || ''}${matter.official_case_number ? ` · ${matter.official_case_number}` : ''}`} size='compact'/><div role='note' className='rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950'>{data.disclaimer}</div>
     <section className={panel}><div className='flex flex-wrap justify-between gap-3'><div><h2 className='text-lg font-bold'>Matter header</h2><p>{matter.client} · {matter.assigned_advocate || 'Unassigned'} · {matter.practice_area} · {matter.court_stage}</p>{a && <p className='text-sm'>Assessment version {a.version} · {new Date(a.analyzed_at).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' })} · {a.is_stale ? 'Requires reassessment' : 'Current'}</p>}</div><button disabled={generate.isPending} onClick={() => generate.mutate()} className='rounded-lg bg-success px-4 py-2 font-bold text-white disabled:opacity-50'>{generate.isPending ? 'Assessing…' : a ? 'Reassess matter' : 'Generate assessment'}</button></div></section>
     <section className={panel}><h2 className='text-lg font-bold'>Explicit document selection</h2><p className='text-sm'>Only selected, authorized documents are analyzed. Confidential material remains confidential; presence does not prove authenticity.</p>{data.available_documents.map(doc => <label key={doc.id} className='mt-2 flex gap-2 text-sm'><input type='checkbox' checked={selected.includes(doc.id)} onChange={() => setSelected(v => v.includes(doc.id) ? v.filter(x => x !== doc.id) : [...v, doc.id])}/>{doc.title} · {doc.type}{doc.confidential ? ' · Confidential' : ''}</label>)}</section>
     {!a && <section className={panel}>No assessment exists. Deterministic preparedness and risk scoring remains available without an external AI provider.</section>}

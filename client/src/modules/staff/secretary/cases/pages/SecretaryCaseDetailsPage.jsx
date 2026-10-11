@@ -1,6 +1,5 @@
 import { useParams } from 'react-router-dom';
 
-import BackLink from '@/components/ui/BackLink';
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { formatDateTime } from '@/core/utils/dateFormatter';
@@ -19,7 +18,6 @@ export default function SecretaryCaseDetailsPage() {
   const lawyer = caseData.assigned_lawyer || {};
 
   return <div className='space-y-6 p-4 md:p-6'>
-    <BackLink label='Back to Cases' fallbackPath='/secretary/cases' />
     <SectionHeading title={caseData.title || caseData.case_number} subtitle='Secretarial coordination view — legal advice, strategy, evidence analysis and privileged notes are restricted.' />
     <Card className='p-5'>
       <h3 className='font-semibold'>Matter coordination</h3>

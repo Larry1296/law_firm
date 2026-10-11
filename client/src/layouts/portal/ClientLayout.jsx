@@ -5,6 +5,7 @@ import ClientTopbar from "@/layouts/portal/ClientTopbar";
 import Footer from "@/components/shared/Footer";
 import ThemeContext from "@/core/store/ThemeContext";
 import DashboardAssistant from "@/components/ai/DashboardAssistant";
+import PageBackBar from '@/components/navigation/PageBackBar';
 
 export default function ClientLayout() {
   const { theme } = useContext(ThemeContext);
@@ -56,7 +57,8 @@ export default function ClientLayout() {
           }}
         >
           {/* CONTENT */}
-          <div className="flex-1 min-w-0 w-full p-0">
+          <div className="flex-1 min-w-0 w-full p-0" data-page-content>
+            <PageBackBar />
             <Outlet />
           </div>
 

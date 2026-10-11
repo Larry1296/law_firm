@@ -6,6 +6,7 @@ import ThemeContext from '@/core/store/ThemeContext';
 import DashboardAssistant from '@/components/ai/DashboardAssistant';
 import StaffSidebar from '@/layouts/staff/common/StaffSidebar';
 import StaffTopbar from '@/layouts/staff/common/StaffTopbar';
+import PageBackBar from '@/components/navigation/PageBackBar';
 
 export default function StaffRoleLayout({ config }) {
   const { theme } = useContext(ThemeContext);
@@ -53,7 +54,9 @@ export default function StaffRoleLayout({ config }) {
             msOverflowStyle: 'none',
           }}
         >
-          <div className={`flex-1 min-w-0 w-full ${config.contentClassName || 'p-0'}`}>
+          <div className={`flex-1 min-w-0 w-full ${config.contentClassName || 'p-0'}`} data-page-content>
+            {/* A shell that pads its pages already lines the bar up with them. */}
+            <PageBackBar inset={!config.contentClassName} />
             <Outlet />
           </div>
 

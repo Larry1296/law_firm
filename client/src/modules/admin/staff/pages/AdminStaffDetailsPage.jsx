@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import staffService from '@/modules/admin/staff/services/adminStaffService';
 import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
-import BackLink from '@/components/ui/BackLink';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { Input3D } from '@/components/ui/Input3D';
 import Card from '@/components/ui/Card';
@@ -84,7 +83,6 @@ const SingleStaffDetailsPage = () => {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 16 }}>
-        <BackLink label='Back to Staff' fallbackPath='/admin/staff' />
       </div>
       <SectionHeading
         title={pageTitle}

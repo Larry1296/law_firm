@@ -6,7 +6,6 @@ import Swal from '@/core/utils/themedSwal';
 
 import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
-import BackLink from '@/components/ui/BackLink';
 import Card from '@/components/ui/Card';
 import Select3D from '@/components/ui/Select3D';
 import { formatDate, formatDateTime } from '@/core/utils/dateFormatter';
@@ -408,7 +407,6 @@ export default function LawyerCaseDetailsPage() {
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
       <div className='flex flex-wrap items-center justify-between gap-3'>
-        <BackLink label='Back to Cases' fallbackPath='/lawyer/cases' />
         {/* INTERNAL AI TEMPORARILY PAUSED
         <button type='button' onClick={() => navigate(`/lawyer/cases/${id}/ai-analysis`)} className='rounded-lg bg-success px-4 py-2 font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success'>Open AI Case Analysis</button>
         */}

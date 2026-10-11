@@ -3,7 +3,6 @@ import { Link, useParams } from 'react-router-dom';
 
 import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
-import BackLink from '@/components/ui/BackLink';
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
 import { formatDate, formatDateTime } from '@/core/utils/dateFormatter';
@@ -76,7 +75,6 @@ export default function ClientCaseDetailsPage() {
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <BackLink label='Back to Cases' fallbackPath='/client/cases' />
 
       <SectionHeading
         title={pageTitle}

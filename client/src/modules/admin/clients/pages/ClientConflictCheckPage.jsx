@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import BackLink from '@/components/ui/BackLink';
 import { FormButton as Button3D } from '@/components/forms';
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
@@ -415,7 +414,6 @@ export default function ClientConflictCheckPage() {
   if (isNew) {
     return (
       <div className='space-y-6 p-4 md:p-6'>
-        <BackLink label='Back to Client' fallbackPath={`${basePath}/clients/${clientId}`} />
         <SectionHeading title='Start Proposed Matter' subtitle='Record proposed instructions before conflict checking' />
         <Card className='p-6'>
           <form className='grid gap-5 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); createMutation.mutate(); }}>
@@ -498,7 +496,6 @@ export default function ClientConflictCheckPage() {
 
   return (
     <div className='space-y-6 p-4 md:p-6'>
-      <BackLink label='Back to Client' fallbackPath={`${basePath}/clients/${clientId}`} />
       <SectionHeading title={check.reference_number} subtitle={check.proposed_matter_title} />
       <PageSectionNav
         ariaLabel='Conflict workflow sections'
