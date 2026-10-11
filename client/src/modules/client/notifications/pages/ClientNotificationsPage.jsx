@@ -8,6 +8,7 @@ import Button3D from '@/components/ui/Button3D';
 import ResponsiveFilterTabs from '@/components/ui/ResponsiveFilterTabs';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { formatDateTime } from '@/core/utils/dateFormatter';
+import { resolveNotificationUrl } from '@/modules/notifications/utils/notificationLinks';
 
 export default function ClientNotificationsPage() {
   const queryClient = useQueryClient();
@@ -53,7 +54,7 @@ export default function ClientNotificationsPage() {
       await markRead.mutateAsync(notification.id);
     }
     if (notification.action_url) {
-      window.location.assign(notification.action_url);
+      window.location.assign(resolveNotificationUrl(notification.action_url, { pathname: window.location.pathname }));
     }
   };
 

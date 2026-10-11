@@ -7,6 +7,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.choices import UserRole
+from apps.notifications.models import Notification
+from apps.notifications.services import NotificationService
 from apps.subscriptions.catalog import INCLUDED_IN_EVERY_PLAN
 from apps.subscriptions.models import Plan, SubscriptionInvoice
 from apps.subscriptions.serializers import (
@@ -83,5 +85,12 @@ class SubscriptionPaymentView(APIView):
         serializer.is_valid(raise_exception=True)
         invoice = SubscriptionService.submit_payment(
             invoice=invoice, user=request.user, **serializer.validated_data,
+        )
+        NotificationService.notify_platform_admins(
+            title=f"Payment to confirm: {invoice.number}",
+            message=f"{firm.name} submitted M-Pesa code {invoice.mpesa_receipt} for KES {invoice.total}.",
+            action_url="/platform/payments?status=PAYMENT_SUBMITTED",
+            event_key=f"SUBSCRIPTION_PAYMENT_SUBMITTED:{invoice.id}",
+            notification_type=Notification.NotificationType.SUBSCRIPTION,
         )
         return Response(SubscriptionInvoiceSerializer(invoice).data)

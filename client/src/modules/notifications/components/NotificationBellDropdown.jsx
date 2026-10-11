@@ -1,17 +1,19 @@
 import { Bell, CheckCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import axiosInstance from '@/core/api/axios';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import useUnreadNotifications from '@/modules/notifications/hooks/useUnreadNotifications';
+import { resolveNotificationUrl } from '@/modules/notifications/utils/notificationLinks';
 
 export default function NotificationBellDropdown({
   className = '',
   fallbackPath = '/notifications',
 }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const queryClient = useQueryClient();
   const wrapperRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -42,6 +44,7 @@ export default function NotificationBellDropdown({
       queryClient.invalidateQueries({ queryKey: ['lawyer-notifications'] });
       queryClient.invalidateQueries({ queryKey: ['secretary-notifications'] });
       queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['platform-notifications'] });
     },
   });
 
@@ -55,13 +58,14 @@ export default function NotificationBellDropdown({
       queryClient.invalidateQueries({ queryKey: ['lawyer-notifications'] });
       queryClient.invalidateQueries({ queryKey: ['secretary-notifications'] });
       queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['platform-notifications'] });
     },
   });
 
   const openNotification = async (notification) => {
     await markRead.mutateAsync(notification.id);
     setOpen(false);
-    navigate(notification.action_url || fallbackPath);
+    navigate(resolveNotificationUrl(notification.action_url, { pathname, fallbackPath }));
   };
 
   return (

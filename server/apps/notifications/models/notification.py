@@ -16,12 +16,17 @@ class Notification(TimestampedModel):
         COURTROOM_LINK = "COURTROOM_LINK", "Courtroom Link"
         COURT_PREPARATION = "COURT_PREPARATION", "Court Preparation"
         CHAT_MESSAGE = "CHAT_MESSAGE", "Chat Message"
+        FIRM_ONBOARDING = "FIRM_ONBOARDING", "Firm Onboarding"
+        SUBSCRIPTION = "SUBSCRIPTION", "Subscription"
         GENERAL = "GENERAL", "General"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Empty for platform notices, such as a firm asking to be registered.
     firm = models.ForeignKey(
         "firm.LawFirm",
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="notifications",
     )
     recipient = models.ForeignKey(

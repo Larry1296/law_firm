@@ -255,6 +255,39 @@ class NotificationService:
         )
 
     @staticmethod
+    def notify_platform_admins(*, title, message, action_url, event_key,
+                               notification_type=Notification.NotificationType.FIRM_ONBOARDING):
+        from apps.users.models import User
+
+        admins = User.objects.filter(role=UserRole.PLATFORM_ADMIN, is_active=True)
+        return [
+            NotificationService.create(
+                firm=None,
+                recipient=admin,
+                notification_type=notification_type,
+                title=title,
+                message=message,
+                action_url=action_url,
+                event_key=f"{event_key}:{admin.id}",
+            )
+            for admin in admins
+        ]
+
+    @staticmethod
+    def notify_firm_owner(*, firm, title, message, action_url, event_key, actor=None,
+                          notification_type=Notification.NotificationType.SUBSCRIPTION):
+        return NotificationService.create(
+            firm=firm,
+            recipient=firm.owner,
+            actor=actor,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            action_url=action_url,
+            event_key=event_key,
+        )
+
+    @staticmethod
     def mark_read(user, notification_id):
         notification = Notification.objects.get(id=notification_id, recipient=user)
         notification.mark_read()

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCheck } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
@@ -9,9 +9,11 @@ import ResponsiveFilterTabs from '@/components/ui/ResponsiveFilterTabs';
 import SectionHeading from '@/components/ui/SectionHeading';
 import axiosInstance from '@/core/api/axios';
 import { formatDateTime } from '@/core/utils/dateFormatter';
+import { resolveNotificationUrl } from '@/modules/notifications/utils/notificationLinks';
 
 export default function AdminNotificationsCenterPage() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const queryClient = useQueryClient();
   const [view, setView] = useState('received');
 
@@ -49,7 +51,7 @@ export default function AdminNotificationsCenterPage() {
       await markRead.mutateAsync(notification.id);
     }
     if (notification.action_url) {
-      navigate(notification.action_url);
+      navigate(resolveNotificationUrl(notification.action_url, { pathname, fallbackPath: '/admin/communication/notifications' }));
     }
   };
 

@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, Briefcase, CheckCheck } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
 import axiosInstance from '@/core/api/axios';
+import { resolveNotificationUrl } from '@/modules/notifications/utils/notificationLinks';
 
 const formatDate = (value) => {
   if (!value) return '';
@@ -16,6 +17,7 @@ const formatDate = (value) => {
 
 export default function SecretaryNotificationsPage() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const queryClient = useQueryClient();
   const { data, isLoading, isError } = useQuery({
     queryKey: ['secretary-notifications'],
@@ -40,7 +42,7 @@ export default function SecretaryNotificationsPage() {
       await markRead.mutateAsync(notification.id);
     }
     if (notification.action_url) {
-      navigate(notification.action_url);
+      navigate(resolveNotificationUrl(notification.action_url, { pathname }));
     } else if (notification.case) {
       navigate(`/secretary/cases/${notification.case}`);
     }

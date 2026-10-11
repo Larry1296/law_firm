@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 
 from apps.firm.models import LawFirm
 from apps.firm.serializers.logo_serializer import LogoSerializer
+from apps.notifications.services import NotificationService
 from apps.platform_admin.models import FirmOnboardingRequest, PlatformActivity
 from apps.platform_admin.permissions import IsPlatformAdmin
 from apps.platform_admin.reference_data import KENYAN_COUNTIES, PRACTICE_AREA_SUGGESTIONS
@@ -396,6 +397,13 @@ class InvoiceConfirmView(PlatformView):
             f"Confirmed payment of {invoice.number} (KES {invoice.total}) for {invoice.firm.name}.",
             firm=invoice.firm,
         )
+        NotificationService.notify_firm_owner(
+            firm=invoice.firm, actor=request.user,
+            title=f"Payment confirmed: {invoice.number}",
+            message=f"Your M-Pesa payment of KES {invoice.total} was confirmed. Your {invoice.plan.name} plan is active.",
+            action_url="/admin/subscription",
+            event_key=f"SUBSCRIPTION_PAID:{invoice.id}",
+        )
         return Response(SubscriptionInvoiceSerializer(invoice).data)
 
 
@@ -408,6 +416,13 @@ class InvoiceVoidView(PlatformView):
         invoice.save(update_fields=["status", "updated_at"])
         PlatformActivity.record(
             request.user, Action.INVOICE_VOIDED, f"Voided {invoice.number} for {invoice.firm.name}.", firm=invoice.firm,
+        )
+        NotificationService.notify_firm_owner(
+            firm=invoice.firm, actor=request.user,
+            title=f"Invoice voided: {invoice.number}",
+            message=f"The platform team voided invoice {invoice.number}. Contact them if you have already paid it.",
+            action_url="/admin/subscription",
+            event_key=f"SUBSCRIPTION_VOIDED:{invoice.id}",
         )
         return Response(SubscriptionInvoiceSerializer(invoice).data)
 
@@ -427,7 +442,13 @@ class PublicOnboardingRequestView(APIView):
     def post(self, request):
         serializer = OnboardingRequestCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        item = serializer.save()
+        NotificationService.notify_platform_admins(
+            title=f"New registration request: {item.firm_name}",
+            message=f"{item.contact_name} ({item.phone_number}, {item.email}) asked to register {item.firm_name}.",
+            action_url=f"/platform/requests?request={item.id}",
+            event_key=f"FIRM_ONBOARDING_REQUEST:{item.id}",
+        )
         return Response(
             {"detail": "Thank you. The platform team will contact you to complete your firm's registration."},
             status=status.HTTP_201_CREATED,

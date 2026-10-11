@@ -34,6 +34,6 @@ describe('platform console layout', () => {
     expect(screen.getByText('Platform Operator')).toBeInTheDocument();
     expect(screen.getByText('Overview page')).toBeInTheDocument();
     expect(screen.getByRole('contentinfo')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Notifications' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
   });
 });

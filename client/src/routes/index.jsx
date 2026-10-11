@@ -631,6 +631,7 @@ const PlatformPlansPage = lazy(() => import('@/modules/platform/pages/PlatformPl
 const PlatformUsersPage = lazy(() => import('@/modules/platform/pages/PlatformUsersPage'));
 const PlatformPaymentsPage = lazy(() => import('@/modules/platform/pages/PlatformPaymentsPage'));
 const PlatformRequestsPage = lazy(() => import('@/modules/platform/pages/PlatformRequestsPage'));
+const PlatformNotificationsPage = lazy(() => import('@/modules/platform/pages/PlatformNotificationsPage'));
 
 /* =========================================================
   ROUTER
@@ -702,6 +703,7 @@ const AppRoutes = () => {
           <Route path='users' element={<PlatformUsersPage />} />
           <Route path='payments' element={<PlatformPaymentsPage />} />
           <Route path='requests' element={<PlatformRequestsPage />} />
+          <Route path='notifications' element={<PlatformNotificationsPage />} />
         </Route>
 
 

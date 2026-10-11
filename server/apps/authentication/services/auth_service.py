@@ -183,6 +183,7 @@ class AuthService:
     @transaction.atomic
     def register_firm(validated_data):
         """Self-service SaaS onboarding: firm, managing partner and a trial subscription."""
+        from apps.notifications.services import NotificationService
         from apps.platform_admin.services.firm_onboarding_service import FirmOnboardingService
         from apps.subscriptions.services import SubscriptionService
 
@@ -196,6 +197,12 @@ class AuthService:
             SubscriptionService.start_trial(firm, validated_data["plan_code"])
 
         owner = firm.owner
+        NotificationService.notify_platform_admins(
+            title=f"New firm signed up: {firm.name}",
+            message=f"{owner.full_name} registered {firm.name} and started a free trial.",
+            action_url=f"/platform/firms/{firm.id}",
+            event_key=f"FIRM_SIGNUP:{firm.id}",
+        )
         refresh = RefreshToken.for_user(owner)
         return {
             "access": str(refresh.access_token),
