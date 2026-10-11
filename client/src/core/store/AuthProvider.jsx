@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { jwtDecode } from 'jwt-decode';
 
 import SessionLockScreen from '@/core/auth/SessionLockScreen';
 import {
-  isIdle,
   isSessionLocked,
-  lockIfExpiredAndIdle,
-  recordActivity,
+  lockIfExpired,
+  lockSession,
   subscribeToSessionLock,
   unlockSession,
 } from '@/core/auth/sessionLock';
@@ -22,10 +21,8 @@ import {
   saveAuthSession,
 } from '@/core/utils/authStorage';
 
-const REFRESH_BEFORE_EXPIRY_MS = 60 * 1000;
 const SESSION_CHECK_INTERVAL_MS = 5 * 1000;
 const SESSION_SYNC_INTERVAL_MS = 30 * 1000;
-const ACTIVITY_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'];
 
 const getTokenExpiryMs = (token) => {
   if (!token) return null;
@@ -62,7 +59,6 @@ const AuthProvider = ({ children }) => {
   );
 
   const [locked, setLocked] = useState(isSessionLocked);
-  const refreshing = useRef(false);
 
   useEffect(() => subscribeToSessionLock(setLocked), []);
 
@@ -123,50 +119,6 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  const refreshSession = useCallback(async () => {
-    const stored = getStoredAuth();
-    const currentRefreshToken = stored.refreshToken;
-
-    if (!currentRefreshToken || isExpired(currentRefreshToken)) {
-      clearSessionAndRedirect();
-      return null;
-    }
-
-    if (refreshing.current) return null;
-    refreshing.current = true;
-
-    try {
-      const data = await authService.refreshToken({
-        refresh: currentRefreshToken,
-      });
-
-      const nextAccessToken = data.access;
-      const nextRefreshToken = data.refresh || currentRefreshToken;
-      const currentUser = stored.user || user;
-
-      if (!nextAccessToken) {
-        throw new Error('Missing refreshed access token');
-      }
-
-      const storage = getAuthStorage();
-      storage.setItem('accessToken', nextAccessToken);
-      storage.setItem('refreshToken', nextRefreshToken);
-      storage.setItem('user', JSON.stringify(currentUser || {}));
-
-      setAccessToken(nextAccessToken);
-      setRefreshToken(nextRefreshToken);
-      setUser(currentUser);
-
-      return nextAccessToken;
-    } catch (error) {
-      console.error('Session refresh failed:', error);
-      clearSessionAndRedirect();
-      return null;
-    } finally {
-      refreshing.current = false;
-    }
-  }, [clearSessionAndRedirect, user]);
-
   const syncSessionUser = useCallback(async () => {
     const stored = getStoredAuth();
 
@@ -201,31 +153,29 @@ const AuthProvider = ({ children }) => {
   }, [clearSessionAndRedirect]);
 
   /*
-    Every few seconds (and when the tab regains focus): an expired session is
-    signed out; an expired access token on an idle screen locks it; an active
-    user's token is renewed shortly before it runs out.
+    Every few seconds (and when the tab regains focus) the screen locks if the
+    access token, or the whole sign-in, has run out. Nothing is renewed behind
+    the user's back; their password unlocks the screen with a fresh session.
   */
   const checkSession = useCallback(() => {
     const stored = getStoredAuth();
+    if (!stored.accessToken || !stored.refreshToken) return;
 
-    if (!stored.accessToken || !stored.refreshToken || isSessionLocked()) {
+    if (isSessionLocked()) {
+      // Another tab unlocked this same account with the password: carry on here too.
+      // Only a fresh sign-in leaves both tokens valid; a lock always has one expired.
+      const renewed = !isExpired(stored.accessToken) && !isExpired(stored.refreshToken);
+      if (renewed && user && String(stored.user?.id) === String(user.id)) {
+        setAccessToken(stored.accessToken);
+        setRefreshToken(stored.refreshToken);
+        unlockSession();
+      }
       return;
     }
 
-    if (isExpired(stored.refreshToken)) {
-      clearSessionAndRedirect();
-      return;
-    }
-
-    if (lockIfExpiredAndIdle(stored.accessToken)) return;
-
-    const accessExpiryMs = getTokenExpiryMs(stored.accessToken);
-    const expiresSoon = !accessExpiryMs || accessExpiryMs - Date.now() <= REFRESH_BEFORE_EXPIRY_MS;
-
-    if (expiresSoon && !isIdle()) {
-      refreshSession();
-    }
-  }, [clearSessionAndRedirect, refreshSession]);
+    if (isExpired(stored.refreshToken)) lockSession();
+    else lockIfExpired(stored.accessToken);
+  }, [user]);
 
   useEffect(() => {
     if (!accessToken || !refreshToken) {
@@ -246,13 +196,6 @@ const AuthProvider = ({ children }) => {
       document.removeEventListener('visibilitychange', checkSession);
     };
   }, [accessToken, refreshToken, checkSession]);
-
-  useEffect(() => {
-    ACTIVITY_EVENTS.forEach((event) => window.addEventListener(event, recordActivity, { capture: true, passive: true }));
-    return () => {
-      ACTIVITY_EVENTS.forEach((event) => window.removeEventListener(event, recordActivity, { capture: true }));
-    };
-  }, []);
 
   // Behind the lock screen the page is hidden from keyboard and screen readers too.
   const showLock = locked && !!user && !!accessToken;

@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
 
 import {
   clearAuthSession,
@@ -8,9 +7,9 @@ import {
 } from '@/core/utils/authStorage';
 import { attachApiErrorMessage } from '@/core/utils/errorMessages';
 import {
-  isIdle,
   isSessionLocked,
-  lockIfExpiredAndIdle,
+  isTokenExpired,
+  lockIfExpired,
   lockSession,
 } from '@/core/auth/sessionLock';
 
@@ -26,19 +25,6 @@ const axiosInstance = axios.create({
   baseURL: cleanBaseURL,
 });
 
-const TOKEN_EXPIRY_SKEW_MS = 30 * 1000;
-let proactiveRefreshPromise = null;
-
-const tokenNeedsRefresh = (token) => {
-  if (!token) return false;
-  try {
-    const { exp } = jwtDecode(token);
-    return !exp || exp * 1000 <= Date.now() + TOKEN_EXPIRY_SKEW_MS;
-  } catch {
-    return true;
-  }
-};
-
 // A locked screen sends nothing until the user unlocks it with their password.
 const sessionLockedError = () => {
   const error = new Error('Your session is locked. Enter your password to continue.');
@@ -47,37 +33,13 @@ const sessionLockedError = () => {
   return error;
 };
 
-const refreshAccessToken = async () => {
-  if (proactiveRefreshPromise) return proactiveRefreshPromise;
-
-  proactiveRefreshPromise = (async () => {
-    const { refreshToken, user } = getStoredAuth();
-    if (!refreshToken) throw new Error('No refresh token');
-
-    const { data } = await axios.post(`${cleanBaseURL}/auth/token/refresh/`, {
-      refresh: refreshToken,
-    });
-    if (!data?.access) throw new Error('Token refresh returned no access token');
-
-    const storage = getAuthStorage();
-    storage.setItem('accessToken', data.access);
-    storage.setItem('refreshToken', data.refresh || refreshToken);
-    if (user) storage.setItem('user', JSON.stringify(user));
-    return data.access;
-  })().finally(() => {
-    proactiveRefreshPromise = null;
-  });
-
-  return proactiveRefreshPromise;
-};
-
 /* =========================================================
    REQUEST INTERCEPTOR
 ========================================================= */
 axiosInstance.interceptors.request.use(
   async (config) => {
     const storage = getAuthStorage();
-    let token = storage.getItem('accessToken');
+    const token = storage.getItem('accessToken');
 
     config.headers = config.headers ?? {};
 
@@ -96,19 +58,9 @@ axiosInstance.interceptors.request.use(
       config.url?.includes('/login') ||
       config.url?.includes('/token/refresh');
 
-    if (token && !isAuthEndpoint && (isSessionLocked() || lockIfExpiredAndIdle(token))) {
+    // An expired token is never renewed silently: the screen locks instead.
+    if (token && !isAuthEndpoint && (isSessionLocked() || lockIfExpired(token))) {
       return Promise.reject(sessionLockedError());
-    }
-
-    // An idle user's token is not renewed; it runs out and the screen locks.
-    if (token && !isAuthEndpoint && tokenNeedsRefresh(token) && !isIdle()) {
-      try {
-        token = await refreshAccessToken();
-      } catch (error) {
-        clearAuthSession();
-        if (window.location.pathname !== '/login') window.location.replace('/login');
-        return Promise.reject(error);
-      }
     }
 
     if (token && !isAuthEndpoint) {
@@ -173,7 +125,8 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (isSessionLocked() || isIdle()) {
+    // A token that ran out while the request was in flight locks the screen, as at expiry.
+    if (isSessionLocked() || isTokenExpired(getStoredAuth().accessToken)) {
       lockSession();
       return Promise.reject(sessionLockedError());
     }

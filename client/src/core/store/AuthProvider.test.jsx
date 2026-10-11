@@ -23,10 +23,10 @@ const jwt = (expiresAt) => {
   return `${encode({ alg: 'HS256' })}.${encode({ exp: Math.floor(expiresAt / 1000) })}.signature`;
 };
 
-function signIn({ accessExpiresAt }) {
+function signIn({ accessExpiresAt, refreshExpiresAt = START + 7 * 24 * 60 * 60 * 1000 }) {
   localStorage.setItem('authStorageMode', 'local');
   localStorage.setItem('accessToken', jwt(accessExpiresAt));
-  localStorage.setItem('refreshToken', jwt(START + 7 * 24 * 60 * 60 * 1000));
+  localStorage.setItem('refreshToken', jwt(refreshExpiresAt));
   localStorage.setItem('user', JSON.stringify(user));
 }
 
@@ -55,13 +55,13 @@ describe('session lock', () => {
     vi.useRealTimers();
   });
 
-  it('locks when the token expires on a screen left idle for 30 seconds', () => {
+  it('locks the moment the token expires', () => {
     signIn({ accessExpiresAt: START + 90 * 1000 });
     renderApp();
-    advance(60 * 1000);
+    advance(85 * 1000);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    advance(35 * 1000);
+    advance(10 * 1000);
 
     expect(screen.getByRole('dialog', { name: 'Welcome back' })).toBeInTheDocument();
     expect(document.getElementById('root').inert).toBe(true);
@@ -77,8 +77,7 @@ describe('session lock', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('renews the token silently for someone who is working', async () => {
-    authService.refreshToken.mockResolvedValue({ access: jwt(START + 60 * 60 * 1000) });
+  it('locks even while someone is working, without renewing the token behind their back', () => {
     signIn({ accessExpiresAt: START + 90 * 1000 });
     renderApp();
 
@@ -86,14 +85,38 @@ describe('session lock', () => {
       fireEvent.keyDown(window);
       advance(5 * 1000);
     }
-    await act(async () => {});
 
-    expect(authService.refreshToken).toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Welcome back' })).toBeInTheDocument();
+    expect(authService.refreshToken).not.toHaveBeenCalled();
+  });
+
+  it('locks, rather than signing out, when the whole sign-in has expired', () => {
+    signIn({ accessExpiresAt: START + 60 * 60 * 1000, refreshExpiresAt: START + 20 * 1000 });
+    renderApp();
+    advance(25 * 1000);
+
+    expect(screen.getByRole('dialog', { name: 'Welcome back' })).toBeInTheDocument();
+    expect(localStorage.getItem('user')).not.toBeNull();
+    // It stays locked: the still-valid access token is not a fresh sign-in.
+    advance(10 * 1000);
+    expect(screen.getByRole('dialog', { name: 'Welcome back' })).toBeInTheDocument();
+  });
+
+  it('unlocks when another tab unlocked the same account', () => {
+    signIn({ accessExpiresAt: START + 10 * 1000 });
+    renderApp();
+    advance(15 * 1000);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // The other tab signed in again with the password and saved fresh tokens.
+    localStorage.setItem('accessToken', jwt(START + 60 * 60 * 1000));
+    localStorage.setItem('refreshToken', jwt(START + 7 * 24 * 60 * 60 * 1000));
+    advance(5 * 1000);
+
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('locks straight away when the page is reopened after the token expired', () => {
-    localStorage.setItem('lastActivityAt', String(START - 60 * 60 * 1000));
     signIn({ accessExpiresAt: START - 1000 });
     resetSessionLock();
     renderApp();

@@ -32,16 +32,16 @@ describe('API requests and the session lock', () => {
     expect(adapter).not.toHaveBeenCalled();
   });
 
-  it('locks instead of renewing an expired token after 30 idle seconds', async () => {
+  it('locks instead of renewing an expired token', async () => {
     localStorage.setItem('accessToken', jwt(START + 10 * 1000));
-    vi.setSystemTime(START + 31 * 1000);
+    vi.setSystemTime(START + 11 * 1000);
 
     await expect(axiosInstance.get('/notifications/')).rejects.toMatchObject({ isSessionLocked: true });
     expect(isSessionLocked()).toBe(true);
     expect(adapter).not.toHaveBeenCalled();
   });
 
-  it('lets an active user’s requests through', async () => {
+  it('lets requests through while the token is valid', async () => {
     localStorage.setItem('accessToken', jwt(START + 60 * 60 * 1000));
 
     await axiosInstance.get('/cases/');

@@ -8,9 +8,9 @@ import FloatingInput from '@/components/ui/FloatingInput';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 
 /**
- * Covers every signed-in page once the session has expired on an idle
- * screen. The page underneath is fully hidden so client and case details
- * cannot be read off an unattended computer.
+ * Covers every signed-in page the moment its session token expires. The page
+ * underneath keeps its state but is fully hidden, so client and case details
+ * cannot be read off the screen until the password is entered.
  */
 export default function SessionLockScreen({ user, onUnlock, onSignOut }) {
   const queryClient = useContext(QueryClientContext);
@@ -47,7 +47,7 @@ export default function SessionLockScreen({ user, onUnlock, onSignOut }) {
         </span>
         <h1 id='session-lock-title' className='form-title'>Welcome back</h1>
         <p className='form-lead'>
-          Your session expired while this screen was unattended. Enter your password to carry on where you left off.
+          For security, your session has expired. Enter your password to carry on where you left off; nothing on this page is lost.
         </p>
         {error && <p role='alert' className='form-alert'>{error}</p>}
 
