@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import useAuth from '@/core/hooks/useAuth';
-import Swal from '@/core/utils/themedSwal';
+import Swal, { confirmAction } from '@/core/utils/themedSwal';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import adminBillingService from '../services/adminBillingService';
 import ActionModal from '@/components/ui/ActionModal';
@@ -95,13 +95,16 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   useEffect(() => { load(); }, []);
 
   const update = (setter) => (event) => setter((current) => ({ ...current, [event.target.name]: event.target.value }));
-  const run = async (command, message) => {
+  // Postings to the ledgers cannot be edited afterwards, so `confirm` asks before they are made.
+  const run = async (command, message, confirm) => {
+    if (confirm && !(await confirmAction({ confirmText: 'Post', tone: 'warning', ...confirm }))) return;
     setBusy(true);
     try { await command(); await load(); if (message) Swal.fire('Recorded', message, 'success'); }
     catch (error) { Swal.fire('Financial control rejected', getApiErrorMessage(error), 'error'); }
     finally { setBusy(false); }
   };
-  const submit = (command, message) => (event) => { event.preventDefault(); return run(command, message); };
+  const submit = (command, message, confirm) => (event) => { event.preventDefault(); return run(command, message, confirm); };
+  const POSTED = 'Once posted it cannot be edited or deleted; a correction needs a linked reversal.';
 
   const matterOptions = registers.matters.map((item) => ({ value: item.id, label: `${item.case_number} · ${item.client_name} — ${item.title}` }));
   const retainerOptions = registers.retainer_targets.map((item) => ({ value: item.proposed_matter_id, label: item.label }));
@@ -117,7 +120,11 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
     line_items: [{ line_type: 'PROFESSIONAL_FEE', description: invoice.description, quantity: '1.00', unit_price: invoice.amount }],
   }), 'Draft fee note created. Submit it for independent approval before issue.');
 
-  const action = (id, command) => run(() => adminBillingService.invoiceAction(id, command));
+  const INVOICE_CONFIRMS = {
+    approve: { title: 'Approve this invoice?', text: 'It becomes ready to issue to the client.', confirmText: 'Approve', tone: 'primary' },
+    issue: { title: 'Issue this invoice?', text: 'An issued invoice is final. Corrections need an approved credit note.', confirmText: 'Issue invoice' },
+  };
+  const action = (id, command) => run(() => adminBillingService.invoiceAction(id, command), undefined, INVOICE_CONFIRMS[command]);
   const cancelInvoice = (id) => setModal({ title: 'Cancel invoice', summary: 'Available only before issue; an audit record is kept.', fields: [{ name: 'reason', label: 'Cancellation reason', type: 'textarea' }], submit: ({ reason }) => run(() => adminBillingService.invoiceAction(id, 'cancel', { reason }), 'Invoice cancelled with reason and audit history.') });
   const linkBillables = (item) => setModal({
     title: `Link approved billables to ${item.invoice_number}`,
@@ -176,7 +183,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
         <button className={button} disabled={busy}>Create draft</button>
       </form>
 
-      <form onSubmit={submit(() => adminBillingService.receiveClientMoney(receipt), 'Client money recorded and the matter ledger credited.')} className='space-y-3 rounded-xl border p-5 dark:border-border-dark'>
+      <form onSubmit={submit(() => adminBillingService.receiveClientMoney(receipt), 'Client money recorded and the matter ledger credited.', { title: 'Post this client-money receipt?', text: `${money(receipt.currency, receipt.amount_received || 0)} will be credited to the matter's client ledger. ${POSTED}` })} className='space-y-3 rounded-xl border p-5 dark:border-border-dark'>
         <h2 className='font-semibold'>Record client-money receipt</h2>
         <Select label='Matter' name='matter' value={receipt.matter} onChange={update(setReceipt)} options={matterOptions} placeholder='Select the matter' />
         <Select label='Client account' name='account' value={receipt.account} onChange={update(setReceipt)} options={accountOptions('CLIENT')} placeholder='Select client bank account' />
@@ -223,7 +230,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
           const { target, ...rest } = retainer;
           const chosen = registers.retainer_targets.find((item) => item.proposed_matter_id === target) || {};
           return adminBillingService.receivePreMatterRetainer({ ...rest, client: chosen.client_id, proposed_matter: chosen.proposed_matter_id, engagement: chosen.engagement_id });
-        }, 'Retainer held as unallocated client money until the matter is opened.')}>
+        }, 'Retainer held as unallocated client money until the matter is opened.', { title: 'Post this retainer receipt?', text: `${money(retainer.currency, retainer.amount_received || 0)} will be held as unallocated client money. ${POSTED}` })}>
           <Select label='Accepted instructions' name='target' value={retainer.target} onChange={update(setRetainer)} options={retainerOptions} placeholder='Select client and proposed matter' />
           <Select label='Client account' name='account' value={retainer.account} onChange={update(setRetainer)} options={accountOptions('CLIENT')} />
           <div className='grid gap-3 sm:grid-cols-2'>
@@ -272,7 +279,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Client-money payment instruction</summary>
-        <form className='mt-3 space-y-3' onSubmit={submit(() => adminBillingService.requestPayment({ ...payment, beneficiary_details: { reference: payment.beneficiary_reference } }), 'Payment instruction sent for independent approval.')}>
+        <form className='mt-3 space-y-3' onSubmit={submit(() => adminBillingService.requestPayment({ ...payment, beneficiary_details: { reference: payment.beneficiary_reference } }), 'Payment instruction sent for independent approval.', { title: 'Send this payment for approval?', text: 'A second, independent person must approve it before client money leaves the account.', confirmText: 'Send for approval', tone: 'primary' })}>
           <Select label='Matter' name='matter' value={payment.matter} onChange={update(setPayment)} options={matterOptions} />
           <Select label='Client account' name='account' value={payment.account} onChange={update(setPayment)} options={accountOptions('CLIENT')} />
           <Input label='Pay to' name='beneficiary_name' value={payment.beneficiary_name} onChange={update(setPayment)} />
@@ -282,11 +289,11 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
           <Input label='Client instruction or basis' name='payment_basis' value={payment.payment_basis} onChange={update(setPayment)} />
           <button disabled={busy} className={button}>Request payment</button>
         </form>
-        <ul className='mt-3 space-y-1 text-sm'>{payments.map((item) => <li key={item.id}>{item.case_number} · {item.beneficiary_name} · {money(item.currency, item.amount)} · {item.status.replaceAll('_', ' ').toLowerCase()} {item.status === 'PENDING_APPROVAL' && <button className={linkButton} onClick={() => run(() => adminBillingService.approvePayment(item.id), 'Payment independently approved and posted.')}>Approve</button>}</li>)}</ul>
+        <ul className='mt-3 space-y-1 text-sm'>{payments.map((item) => <li key={item.id}>{item.case_number} · {item.beneficiary_name} · {money(item.currency, item.amount)} · {item.status.replaceAll('_', ' ').toLowerCase()} {item.status === 'PENDING_APPROVAL' && <button className={linkButton} onClick={() => run(() => adminBillingService.approvePayment(item.id), 'Payment independently approved and posted.', { title: 'Approve this client-money payment?', text: `${money(item.currency, item.amount)} to ${item.beneficiary_name} will be paid out of client money. ${POSTED}`, confirmText: 'Approve payment' })}>Approve</button>}</li>)}</ul>
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Transfer earned fees from client to office account</summary>
-        <form className='mt-3 space-y-3' onSubmit={submit(() => adminBillingService.transferToOffice(transfer), 'Client debit and office credit posted against the issued invoice.')}>
+        <form className='mt-3 space-y-3' onSubmit={submit(() => adminBillingService.transferToOffice(transfer), 'Client debit and office credit posted against the issued invoice.', { title: 'Transfer client money to office?', text: `${money('KES', transfer.amount || 0)} moves from the client account to office against the issued invoice. ${POSTED}`, confirmText: 'Transfer' })}>
           <Select label='Issued invoice' name='invoice' value={transfer.invoice} onChange={update(setTransfer)} options={invoiceOptions(['ISSUED', 'PARTIALLY_PAID', 'OVERDUE'])} />
           <Select label='From client account' name='client_account' value={transfer.client_account} onChange={update(setTransfer)} options={accountOptions('CLIENT')} />
           <Select label='To office account' name='office_account' value={transfer.office_account} onChange={update(setTransfer)} options={accountOptions('OFFICE')} />
@@ -330,7 +337,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Office-money receipt against an invoice</summary>
-        <form className='mt-3 space-y-3' onSubmit={submit(() => adminBillingService.receiveOfficeMoney({ ...officeReceipt, matter: matterForInvoice(officeReceipt.invoice), allocations: [{ allocation_type: 'INVOICE', amount: officeReceipt.amount_received, invoice: officeReceipt.invoice }] }), 'Office receipt allocated to the invoice.')}>
+        <form className='mt-3 space-y-3' onSubmit={submit(() => adminBillingService.receiveOfficeMoney({ ...officeReceipt, matter: matterForInvoice(officeReceipt.invoice), allocations: [{ allocation_type: 'INVOICE', amount: officeReceipt.amount_received, invoice: officeReceipt.invoice }] }), 'Office receipt allocated to the invoice.', { title: 'Post this office receipt?', text: `${money(officeReceipt.currency, officeReceipt.amount_received || 0)} will be allocated to the invoice. ${POSTED}` })}>
           <Select label='Invoice being paid' name='invoice' value={officeReceipt.invoice} onChange={update(setOfficeReceipt)} options={invoiceOptions(['ISSUED', 'PARTIALLY_PAID', 'OVERDUE'])} />
           <Select label='Office account' name='account' value={officeReceipt.account} onChange={update(setOfficeReceipt)} options={accountOptions('OFFICE')} />
           <div className='grid gap-3 sm:grid-cols-2'>
@@ -355,7 +362,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
           <Input label='Reason' name='reason' value={credit.reason} onChange={update(setCredit)} />
           <button disabled={busy} className={button}>Create credit note</button>
         </form>
-        <ul className='mt-3 space-y-1 text-xs'>{creditNotes.map((item) => <li key={item.id}>{item.credit_note_number} · {money('KES', item.amount)} · {item.status.replaceAll('_', ' ').toLowerCase()} {item.status === 'PENDING_APPROVAL' && <button className={linkButton} onClick={() => run(() => adminBillingService.creditNoteAction(item.id, 'approve'), 'Credit note approved.')}>Approve</button>} {item.status === 'APPROVED' && <button className={linkButton} onClick={() => run(() => adminBillingService.creditNoteAction(item.id, 'issue'), 'Credit note issued and invoice balance adjusted.')}>Issue</button>}</li>)}</ul>
+        <ul className='mt-3 space-y-1 text-xs'>{creditNotes.map((item) => <li key={item.id}>{item.credit_note_number} · {money('KES', item.amount)} · {item.status.replaceAll('_', ' ').toLowerCase()} {item.status === 'PENDING_APPROVAL' && <button className={linkButton} onClick={() => run(() => adminBillingService.creditNoteAction(item.id, 'approve'), 'Credit note approved.')}>Approve</button>} {item.status === 'APPROVED' && <button className={linkButton} onClick={() => run(() => adminBillingService.creditNoteAction(item.id, 'issue'), 'Credit note issued and invoice balance adjusted.', { title: 'Issue this credit note?', text: `${item.credit_note_number} reduces the invoice balance by ${money('KES', item.amount)}. ${POSTED}`, confirmText: 'Issue' })}>Issue</button>}</li>)}</ul>
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Bank reconciliation</summary>
@@ -365,7 +372,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
           <Input label='Bank statement balance' type='number' step='0.01' name='statement_balance' value={reconciliation.statement_balance} onChange={update(setReconciliation)} />
           <button disabled={busy} className={button}>Prepare reconciliation</button>
         </form>
-        <ul className='mt-3 space-y-1 text-xs'>{reconciliations.map((item) => <li key={item.id}>{item.period_end} · difference {item.difference} · {item.status.toLowerCase()} {item.status === 'DRAFT' && <button className={linkButton} onClick={() => run(() => adminBillingService.approveReconciliation(item.id), 'Zero-difference reconciliation approved.')}>Approve</button>}</li>)}</ul>
+        <ul className='mt-3 space-y-1 text-xs'>{reconciliations.map((item) => <li key={item.id}>{item.period_end} · difference {item.difference} · {item.status.toLowerCase()} {item.status === 'DRAFT' && <button className={linkButton} onClick={() => run(() => adminBillingService.approveReconciliation(item.id), 'Zero-difference reconciliation approved.', { title: 'Approve this reconciliation?', text: 'An approved reconciliation is locked and cannot be changed.', confirmText: 'Approve' })}>Approve</button>}</li>)}</ul>
       </details>
     </div>
 

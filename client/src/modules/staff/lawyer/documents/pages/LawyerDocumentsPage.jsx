@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText } from 'lucide-react';
+import Swal, { confirmAction, toneColor } from '@/core/utils/themedSwal';
 
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
@@ -24,6 +25,23 @@ const actionErrorMessage = (error) => {
   if (typeof detail === 'string') return detail;
   if (detail && typeof detail === 'object') return String(Object.values(detail).flat()[0]);
   return 'The document action could not be completed.';
+};
+
+// The reason goes to the secretary and the client with the replacement request.
+const askReturnReason = async (item) => {
+  const { value } = await Swal.fire({
+    icon: 'warning',
+    title: 'Return for replacement?',
+    text: `Say what is wrong with ${item.title}. The secretary and client see this reason.`,
+    input: 'textarea',
+    inputPlaceholder: 'For example: the copy is unsigned, or the date is illegible.',
+    inputValidator: (text) => (text?.trim() ? undefined : 'Give the reason for returning it.'),
+    showCancelButton: true,
+    confirmButtonText: 'Return document',
+    confirmButtonColor: toneColor('warning'),
+    reverseButtons: true,
+  });
+  return value?.trim();
 };
 
 export default function LawyerDocumentsPage({ caseId = '', compact = false }) {
@@ -118,7 +136,7 @@ export default function LawyerDocumentsPage({ caseId = '', compact = false }) {
       </div>
       <FormButton className='mt-4' disabled={!request.case_id || !request.title || action.isPending} onClick={() => action.mutate(request)}>Send request to secretary</FormButton>
     </Card>
-    <Card className='p-5'><h3 className='font-semibold'>Required documents and advocate review</h3><p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>Track each requested item from secretary dispatch through receipt verification and legal acceptance.</p><div className='mt-3 space-y-2'>{requests.map((item) => { const fulfilled = documents.find((document) => String(document.id) === String(item.fulfilled_document_id)); return <div key={item.id} className='border-l-4 border-l-brand-primary bg-black/[0.02] p-4 dark:bg-white/[0.03]'><div className='flex flex-wrap items-start justify-between gap-2'><strong>{item.title}</strong><span className='text-xs font-semibold uppercase tracking-wide text-brand-primary'>{requestStatus[item.status] || item.status.replaceAll('_', ' ')}</span></div><p className='mt-1 text-sm'>{item.client_name} · {item.case_number}{item.due_date ? ` · Due ${item.due_date}` : ''}</p>{item.instructions && <p className='mt-2 text-sm text-text-muted-light dark:text-text-muted-dark'>{item.instructions}</p>}{item.secretary_verified_by && <p className='mt-2 text-xs'>Filed and verified by {item.secretary_verified_by}</p>}{fulfilled && <button type='button' className='mt-2 inline-flex items-center gap-2 text-sm font-semibold text-brand-primary' onClick={() => downloadDocument(fulfilled)}><FileText size={16}/>Open supplied document</button>}{item.status === 'UPLOADED' && <div className='mt-3 flex flex-wrap gap-2'><button className='bg-success px-3 py-2 text-white' onClick={() => review.mutate({ requestId: item.id, decision: 'ACCEPTED' })}>Accept into matter file</button><button className='bg-warning px-3 py-2 text-white' onClick={() => review.mutate({ requestId: item.id, decision: 'REPLACEMENT_REQUIRED' })}>Return to secretary for replacement</button></div>}</div>; })}{requests.length === 0 && <p>No required documents have been recorded for this matter.</p>}</div></Card>
+    <Card className='p-5'><h3 className='font-semibold'>Required documents and advocate review</h3><p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>Track each requested item from secretary dispatch through receipt verification and legal acceptance.</p><div className='mt-3 space-y-2'>{requests.map((item) => { const fulfilled = documents.find((document) => String(document.id) === String(item.fulfilled_document_id)); return <div key={item.id} className='border-l-4 border-l-brand-primary bg-black/[0.02] p-4 dark:bg-white/[0.03]'><div className='flex flex-wrap items-start justify-between gap-2'><strong>{item.title}</strong><span className='text-xs font-semibold uppercase tracking-wide text-brand-primary'>{requestStatus[item.status] || item.status.replaceAll('_', ' ')}</span></div><p className='mt-1 text-sm'>{item.client_name} · {item.case_number}{item.due_date ? ` · Due ${item.due_date}` : ''}</p>{item.instructions && <p className='mt-2 text-sm text-text-muted-light dark:text-text-muted-dark'>{item.instructions}</p>}{item.secretary_verified_by && <p className='mt-2 text-xs'>Filed and verified by {item.secretary_verified_by}</p>}{fulfilled && <button type='button' className='mt-2 inline-flex items-center gap-2 text-sm font-semibold text-brand-primary' onClick={() => downloadDocument(fulfilled)}><FileText size={16}/>Open supplied document</button>}{item.status === 'UPLOADED' && <div className='mt-3 flex flex-wrap gap-2'><button className='bg-success px-3 py-2 text-white' onClick={async () => { if (await confirmAction({ title: 'Accept into the matter file?', text: `${item.title} becomes part of the matter record.`, confirmText: 'Accept document' })) review.mutate({ requestId: item.id, decision: 'ACCEPTED' }); }}>Accept into matter file</button><button className='bg-warning px-3 py-2 text-white' onClick={async () => { const reason = await askReturnReason(item); if (reason) review.mutate({ requestId: item.id, decision: 'REPLACEMENT_REQUIRED', notes: reason }); }}>Return to secretary for replacement</button></div>}</div>; })}{requests.length === 0 && <p>No required documents have been recorded for this matter.</p>}</div></Card>
     <Card className='p-5'><h3 className='font-semibold'>Matter documents</h3>{isLoading && <p>Loading register…</p>}<div className='mt-4 grid gap-5 lg:grid-cols-2'><div><h4 className='text-sm font-bold uppercase tracking-wide'>Referenced physical client documents</h4><div className='mt-2 space-y-2'>{matterDocuments.map((item) => <details key={item.id} className='border-b p-3'><summary className='cursor-pointer font-semibold text-brand-primary'>{item.reference}</summary><p className='mt-2 text-sm'>{item.subtype_label}{item.document_identifier ? ` · ${item.document_identifier}` : ''} · {item.source_copy_type_label || item.source_copy_type.replaceAll('_', ' ')}</p><p className='text-sm'>Physical location: {item.physical_storage_location || 'Not recorded'}</p></details>)}{!matterDocuments.length && <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>No physical client documents referenced.</p>}</div></div><div><h4 className='text-sm font-bold uppercase tracking-wide'>Physical matter-file documents</h4><div className='mt-2 space-y-2'>{generatedMatterDocuments.map((item) => <div key={item.id} className='border-b p-3'><strong>{item.document_reference} — {item.title}</strong><small className='mt-1 block'>{item.attachment_type_label} · {item.physical_copy_type_label}</small><small className='block'>Physical location: {item.physical_storage_location}</small></div>)}{!generatedMatterDocuments.length && <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>No physical matter documents recorded.</p>}</div></div></div></Card>
   </div>;
 }

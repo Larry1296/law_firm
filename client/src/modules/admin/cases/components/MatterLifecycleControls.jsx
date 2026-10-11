@@ -1,7 +1,7 @@
 import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useEffect, useState } from 'react';
 import useAuth from '@/core/hooks/useAuth';
-import Swal from '@/core/utils/themedSwal';
+import Swal, { confirmAction } from '@/core/utils/themedSwal';
 import adminCasesService from '../services/adminCasesService';
 import ActionModal from '@/components/ui/ActionModal';
 
@@ -70,7 +70,9 @@ export default function MatterLifecycleControls({ matter }) {
   const [modal, setModal] = useState(null);
 
   const fail = (error) => Swal.fire('Control rejected', error.response?.data ? JSON.stringify(error.response.data) : error.message, 'error');
-  const execute = async (command, success) => {
+  // `confirm` names a critical step; the user is asked before it is recorded.
+  const execute = async (command, success, confirm) => {
+    if (confirm && !(await confirmAction(confirm))) return;
     setBusy(true);
     try { await command(); if (success) await Swal.fire('Recorded', success, 'success'); }
     catch (error) { await fail(error); }
@@ -116,10 +118,17 @@ export default function MatterLifecycleControls({ matter }) {
 
   const requestClosure = (event) => { event.preventDefault(); return execute(async () => {
     await adminCasesService.requestClosure(matter.id, closureForm); await load();
-  }, 'The formal closing review was requested.'); };
+  }, 'The formal closing review was requested.', {
+    title: 'Request the closing review?', text: `${matter.case_number} goes into formal closing review. Approvals and the final review follow.`, confirmText: 'Request closing review',
+  }); };
+  const CLOSURE_CONFIRMS = {
+    'approve-advocate': { title: 'Give advocate approval?', text: 'You confirm the legal work, result and client instructions are complete for closure.', confirmText: 'Approve' },
+    'approve-finance': { title: 'Give finance approval?', text: 'You confirm invoices are settled and the client-money balance is nil.', confirmText: 'Approve' },
+    finalise: { title: 'Close this matter?', text: `${matter.case_number} will be formally closed. Reopening afterwards needs an authorised, recorded reason.`, confirmText: 'Close matter', tone: 'warning' },
+  };
   const closureAction = (action, payload = {}) => execute(async () => {
     await adminCasesService.closureAction(matter.id, closures[0].id, action, payload); await load();
-  }, `Closing action ${label(action)} recorded.`);
+  }, `Closing action ${label(action)} recorded.`, CLOSURE_CONFIRMS[action]);
   const generateClosing = (type) => execute(async () => {
     await adminCasesService.generateClosingDocument(matter.id, closures[0].id, type); await load();
   }, `${label(type)} generated, versioned and registered.`);
@@ -133,20 +142,28 @@ export default function MatterLifecycleControls({ matter }) {
     if (!payload.proposed_destruction_date) payload.proposed_destruction_date = null;
     payload.archive_checklist = { intake: true, conflict: true, engagement: true, kyc_authority: true, correspondence: true, legal_work: true, finance: true, closing_letter: true, document_return: true, retention_classification: true };
     const data = await adminCasesService.createArchive(matter.id, payload); setArchive(data.archive);
-  }, 'The closed matter was placed in the controlled archive.'); };
+  }, 'The closed matter was placed in the controlled archive.', {
+    title: 'Archive this matter?', text: 'The closed file moves into the controlled archive under the retention policy you entered.', confirmText: 'Archive', tone: 'warning',
+  }); };
   const recordRetention = (event) => { event.preventDefault(); return execute(async () => {
     const payload = { ...retention, next_review_date: retention.next_review_date || null };
     await adminCasesService.createRetentionReview(archive.id, payload);
     const data = await adminCasesService.getArchive(matter.id, archivePurpose); setArchive(data.archive);
-  }, 'The retention assessment and decision were recorded.'); };
+  }, 'The retention assessment and decision were recorded.', {
+    title: 'Record this retention decision?', text: `Decision: ${label(retention.outcome)}. It is kept in the archive's history.`, confirmText: 'Record decision', tone: retention.outcome === 'APPROVE_DESTRUCTION' ? 'warning' : 'primary',
+  }); };
   const legalHold = (event) => { event.preventDefault(); return execute(async () => {
     const data = await adminCasesService.changeLegalHold(archive.id, hold); setArchive(data.archive);
-  }, `Legal hold ${hold.action === 'PLACE' ? 'placed' : 'released'} with authority history.`); };
+  }, `Legal hold ${hold.action === 'PLACE' ? 'placed' : 'released'} with authority history.`, hold.action === 'PLACE'
+    ? { title: 'Place a legal hold?', text: 'Nothing in this archive can be destroyed while the hold stands.', confirmText: 'Place hold' }
+    : { title: 'Release the legal hold?', text: 'Once released, the archive can again be approved for destruction.', confirmText: 'Release hold', tone: 'warning' }); };
   const recordDestruction = (event) => { event.preventDefault(); return execute(async () => {
     const excluded = (archive.document_inventory || []).map((item) => String(item.id)).filter((id) => !destruction.records_approved.includes(id));
     await adminCasesService.recordDestruction(archive.id, { ...destruction, records_excluded: excluded });
     const data = await adminCasesService.getArchive(matter.id, archivePurpose); setArchive(data.archive);
-  }, 'Secure destruction was logged; matter and audit metadata were retained.'); };
+  }, 'Secure destruction was logged; matter and audit metadata were retained.', {
+    title: 'Record secure destruction?', text: `${destruction.records_approved.length} record(s) will be logged as destroyed. This cannot be undone.`, confirmText: 'Record destruction', tone: 'danger',
+  }); };
 
   const closure = closures[0];
   const workstreamStages = WORKSTREAM_STAGES[workstreamRecord?.workstream_type || workstreamType];

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import Swal from '@/core/utils/themedSwal';
+import Swal, { toneColor } from '@/core/utils/themedSwal';
 
 import {
   Users,
@@ -126,7 +126,7 @@ export default function AdminStaffPage() {
       showCancelButton: true,
       confirmButtonText: 'Yes, delete',
       cancelButtonText: 'Cancel',
-      confirmButtonColor: '#d33',
+      confirmButtonColor: toneColor('danger'),
     });
 
     if (!result.isConfirmed) return;

@@ -24,6 +24,8 @@ vi.mock('react-router-dom', () => ({
   useParams: () => ({ id: 'client-1', checkId: 'check-1' }),
 }));
 
+vi.mock('@/core/utils/themedSwal', () => ({ confirmAction: vi.fn(async () => true) }));
+
 vi.mock('@/components/ui/BackLink', () => ({
   default: ({ label }) => <span>{label}</span>,
 }));

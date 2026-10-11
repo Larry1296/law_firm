@@ -8,7 +8,7 @@ import FormSection from '@/components/ui/FormSection';
 import SectionHeading from '@/components/ui/SectionHeading';
 import Select3D from '@/components/ui/Select3D';
 import TableHeaderText from '@/components/ui/TableHeaderText';
-import Swal from '@/core/utils/themedSwal';
+import Swal, { toneColor } from '@/core/utils/themedSwal';
 import secretaryDocumentsService from '../services/secretaryDocumentsService';
 import DeliveriesExpected from '../components/DeliveriesExpected';
 
@@ -119,7 +119,7 @@ export default function SecretaryDocuments({ caseId = '', compact = false }) {
       inputAttributes: { 'aria-label': 'Reason for removing the physical document entry' },
       showCancelButton: true,
       confirmButtonText: 'Remove from active register',
-      confirmButtonColor: '#dc2626',
+      confirmButtonColor: toneColor('danger'),
       cancelButtonText: 'Keep document',
       reverseButtons: true,
       inputValidator: (value) => (!value?.trim() ? 'A removal reason is required.' : undefined),

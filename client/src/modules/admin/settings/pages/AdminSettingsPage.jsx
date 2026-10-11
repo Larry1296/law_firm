@@ -2,6 +2,7 @@ import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useEffect, useState } from 'react';
 import { intakePrivacyService as service } from '../services/intakePrivacyService';
 import { creationError } from '@/modules/clients/shared/prospectiveClientService';
+import { confirmAction } from '@/core/utils/themedSwal';
 import FirmLogoField from '@/modules/admin/firm/components/FirmLogoField';
 import RecordsRoomSection from '@/modules/admin/firm/components/RecordsRoomSection';
 
@@ -72,8 +73,8 @@ export default function AdminSettingsPage() {
           <dl className='space-y-1 text-sm'>
             {[['Approved', config.approved_at, config.approved_by_name], ['Activated', config.activated_at, config.activated_by_name], ['Retired', config.retired_at, config.retired_by_name]].map(([label, at, by]) => <div key={label}><dt className='inline font-medium'>{label}: </dt><dd className='inline'>{timestamp(at)}{by ? ` · ${by}` : ''}</dd></div>)}
           </dl>
-          {config.status === 'DRAFT' && <button disabled={busy} className='rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-50' onClick={() => run(() => service.activate(config.id), `Version ${config.policy_version} approved and activated.`)}>Approve and activate {config.policy_version}</button>}
-          {config.status === 'ACTIVE' && <><p className='text-sm'>Retiring without a replacement blocks new prospective-client creation.</p><button disabled={busy} className='rounded-lg border border-[color:var(--border)] px-4 py-2 disabled:opacity-50' onClick={() => run(() => service.retire(config.id), `Version ${config.policy_version} retired.`)}>Retire {config.policy_version}</button></>}
+          {config.status === 'DRAFT' && <button disabled={busy} className='rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-50' onClick={async () => { if (await confirmAction({ title: `Approve and activate ${config.policy_version}?`, text: 'Every new prospective client will be given this notice from now on. Any active version is retired.', confirmText: 'Approve and activate' })) run(() => service.activate(config.id), `Version ${config.policy_version} approved and activated.`); }}>Approve and activate {config.policy_version}</button>}
+          {config.status === 'ACTIVE' && <><p className='text-sm'>Retiring without a replacement blocks new prospective-client creation.</p><button disabled={busy} className='rounded-lg border border-[color:var(--border)] px-4 py-2 disabled:opacity-50' onClick={async () => { if (await confirmAction({ title: `Retire ${config.policy_version}?`, text: 'With no active notice, nobody can create a prospective client until another version is activated.', confirmText: 'Retire notice', tone: 'danger' })) run(() => service.retire(config.id), `Version ${config.policy_version} retired.`); }}>Retire {config.policy_version}</button></>}
         </article>)}
       </section>
     </>}

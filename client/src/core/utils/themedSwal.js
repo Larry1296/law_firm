@@ -14,6 +14,7 @@ const getThemeValues = () => {
     // The form action colour: navy in light mode, gold in dark mode.
     primary: styles.getPropertyValue('--form-primary').trim() || styles.getPropertyValue('--brand-primary').trim() || '#0a2540',
     error: styles.getPropertyValue('--error').trim() || '#ef4444',
+    warning: styles.getPropertyValue('--warning').trim() || '#b87503',
   };
 };
 
@@ -53,5 +54,31 @@ const themedSwal = {
   getPopup: Swal.getPopup,
   showValidationMessage: Swal.showValidationMessage,
 };
+
+/**
+ * Asks before a critical action and resolves to true only when it is confirmed.
+ * `tone` colours the confirm button from the current theme: 'danger' for what cannot be
+ * undone, 'warning' for what changes a record others rely on, 'primary' otherwise.
+ */
+export async function confirmAction({ title, text, html, confirmText = 'Confirm', cancelText = 'Cancel', tone = 'primary' }) {
+  const theme = getThemeValues();
+  const toneColor = { danger: theme.error, warning: theme.warning }[tone];
+  const result = await themedSwal.fire({
+    icon: tone === 'primary' ? 'question' : 'warning',
+    title,
+    text,
+    html,
+    showCancelButton: true,
+    confirmButtonText: confirmText,
+    cancelButtonText: cancelText,
+    reverseButtons: true,
+    focusCancel: tone !== 'primary',
+    ...(toneColor ? { confirmButtonColor: toneColor } : {}),
+  });
+  return result.isConfirmed;
+}
+
+/** The theme colour for a destructive or cautionary confirm button, for prompts built by hand. */
+export const toneColor = (tone) => ({ danger: getThemeValues().error, warning: getThemeValues().warning }[tone]);
 
 export default themedSwal;

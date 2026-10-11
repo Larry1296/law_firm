@@ -16,6 +16,7 @@ import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
 import lawyerCasesService from '@/modules/staff/lawyer/cases/services/lawyerCasesService';
 import { enumLabel } from '@/core/utils/textFormatter';
 import { formatDateTime } from '@/core/utils/dateFormatter';
+import { confirmAction } from '@/core/utils/themedSwal';
 import { PRACTICE_AREAS } from '@/modules/cases/shared/create/caseCreateOptions';
 
 const SOURCE_OPTIONS = [
@@ -37,6 +38,24 @@ const STATUS_ACTIONS = {
   CLEARED: 'decide',
   CONFLICT_CONFIRMED: 'decide',
   CLOSED_WITHOUT_DECISION: 'close',
+};
+
+// Decisions that settle the proposal; workflow steps such as escalation need no confirmation.
+const DECISION_CONFIRMS = {
+  CLEARED: { title: 'Clear this conflict check?', text: 'You record that no conflict prevents the firm from acting. Firm acceptance is decided next.', confirmText: 'Record cleared' },
+  CONFLICT_CONFIRMED: { title: 'Confirm a conflict?', text: 'The firm cannot act on this proposed matter. The decision is final and kept in the register.', confirmText: 'Confirm conflict', tone: 'danger' },
+  CLOSED_WITHOUT_DECISION: { title: 'Close without a decision?', text: 'The proposal is closed and cannot proceed to acceptance or opening.', confirmText: 'Close proposal', tone: 'warning' },
+};
+
+const ACCEPTANCE_CONFIRMS = {
+  ACCEPTED: { title: 'Accept these instructions?', text: 'The firm agrees to act. KYC and the engagement letter follow before the matter is opened.', confirmText: 'Accept instructions' },
+  DECLINED: { title: 'Decline these instructions?', text: 'The firm will not act. The proposal stays in the register and cannot be opened.', confirmText: 'Decline instructions', tone: 'danger' },
+  CLIENT_WITHDREW: { title: 'Record that the client withdrew?', text: 'The proposal stays in the register and cannot be opened.', confirmText: 'Record withdrawal', tone: 'warning' },
+};
+
+// Runs `run` only once the user confirms; with no prompt it runs at once.
+const confirmThen = async (prompt, run) => {
+  if (!prompt || await confirmAction(prompt)) run();
 };
 
 const emptyDraft = {
@@ -533,7 +552,7 @@ export default function ClientConflictCheckPage() {
       {nextOptions.length > 0 && (
         <Card id='conflict-outcome' className='scroll-mt-28 p-6'>
           <h3 className='mb-4 text-lg font-semibold'>Next outcome</h3>
-          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); if (!isOutcomeBlocked) actionMutation.mutate(); }}>
+          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); if (!isOutcomeBlocked) confirmThen(DECISION_CONFIRMS[actionDraft.next_status], () => actionMutation.mutate()); }}>
             <Select3D value={actionDraft.next_status} onChange={(e) => setActionDraft((v) => ({ ...v, next_status: e.target.value }))} options={nextOptions} placeholder='Select next outcome' />
             {actionDraft.next_status === 'AWAITING_INFORMATION' && <TextArea label='Information missing' value={actionDraft.information_missing} onChange={(value) => setActionDraft((v) => ({ ...v, information_missing: value }))} required />}
             {actionDraft.next_status === 'POTENTIAL_CONFLICT' && <TextArea label='First reviewer findings' value={actionDraft.first_reviewer_findings} onChange={(value) => setActionDraft((v) => ({ ...v, first_reviewer_findings: value }))} required />}
@@ -631,7 +650,7 @@ export default function ClientConflictCheckPage() {
                 Record Advocate Decision
               </Button3D>
               {['ACCEPTED', 'MODIFIED', 'REJECTED'].includes(check.jurisdiction.status) && (
-                <Button3D type='button' variant='primary' onClick={() => jurisdictionConfirmMutation.mutate()} disabled={jurisdictionConfirmMutation.isPending}>
+                <Button3D type='button' variant='primary' onClick={() => confirmThen({ title: 'Confirm the jurisdiction?', text: 'The forum and jurisdiction become final for opening this matter. Reopening them needs a recorded reason.', confirmText: 'Confirm jurisdiction' }, () => jurisdictionConfirmMutation.mutate())} disabled={jurisdictionConfirmMutation.isPending}>
                   Confirm Final Jurisdiction
                 </Button3D>
               )}
@@ -651,7 +670,7 @@ export default function ClientConflictCheckPage() {
       {canRecordAcceptance && (
         <Card id='conflict-acceptance' className='scroll-mt-28 p-6'>
           <h3 className='mb-4 text-lg font-semibold'>Firm Acceptance Decision</h3>
-          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); acceptanceMutation.mutate(); }}>
+          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); confirmThen(ACCEPTANCE_CONFIRMS[acceptanceDraft.decision], () => acceptanceMutation.mutate()); }}>
             <Select3D label='Decision' value={acceptanceDraft.decision} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, decision: e.target.value }))} options={[{ value: 'ACCEPTED', label: 'Accept instructions' }, { value: 'DECLINED', label: 'Decline instructions' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }]} required />
             <Select3D label='Engagement preparation stage' value={acceptanceDraft.engagement_status} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, engagement_status: e.target.value }))} options={[{ value: 'DRAFTING', label: 'Drafting' }, { value: 'SENT_TO_CLIENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed document received (formal approval still required)' }, { value: 'FEE_ARRANGEMENT_CONFIRMED', label: 'Fee terms confirmed (formal approval still required)' }]} />
             {acceptanceDraft.decision !== 'ACCEPTED' && <Select3D label='Reason category' value={acceptanceDraft.reason_category} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, reason_category: e.target.value }))} options={[{ value: 'OUTSIDE_EXPERTISE', label: 'Outside expertise' }, { value: 'CAPACITY_CONSTRAINT', label: 'Capacity constraint' }, { value: 'COMMERCIAL_TERMS', label: 'Commercial terms' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }, { value: 'CDD_RESTRICTED', label: 'CDD restricted' }, { value: 'OTHER', label: 'Other' }]} required />}
@@ -684,7 +703,7 @@ export default function ClientConflictCheckPage() {
                     <div className='mt-3 rounded-lg border border-border-light p-3 dark:border-border-dark'>
                       <p className='text-sm'><strong>Required retainer:</strong> {engagement.required_retainer} · {engagement.retainer_received ? 'Received and verified' : 'Awaiting verified receipt'}</p>
                       {!engagement.retainer_received && !['SUPERSEDED', 'CANCELLED'].includes(engagement.status) && (
-                        <form className='mt-3 grid gap-3 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); receiveRetainerMutation.mutate(engagement.id); }}>
+                        <form className='mt-3 grid gap-3 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); confirmThen({ title: 'Post this retainer receipt?', text: 'It is held as unallocated client money until the matter opens. Once posted it cannot be edited; a correction needs a linked reversal.', confirmText: 'Post receipt', tone: 'warning' }, () => receiveRetainerMutation.mutate(engagement.id)); }}>
                           <Select3D label='Client account' value={retainerDraft.account} onChange={(event) => setRetainerDraft((value) => ({ ...value, account: event.target.value }))} options={clientAccountOptions} required />
                           <Input3D label='Receipt number' value={retainerDraft.receipt_number} onChange={(event) => setRetainerDraft((value) => ({ ...value, receipt_number: event.target.value }))} required />
                           <Input3D label='Amount received' type='number' value={retainerDraft.amount_received} onChange={(event) => setRetainerDraft((value) => ({ ...value, amount_received: event.target.value }))} required />
@@ -700,13 +719,13 @@ export default function ClientConflictCheckPage() {
                   {engagement.exception_reason && <p className='text-sm'><strong>Exception:</strong> {engagement.exception_reason} ({engagement.exception_policy_basis})</p>}
                   {!['SUPERSEDED', 'CANCELLED', 'READY', 'WAIVED', 'NOT_REQUIRED'].includes(engagement.status) && (
                     <div className='mt-4 grid gap-3 md:grid-cols-2'>
-                      <Button3D type='button' variant='primary' onClick={() => approveEngagementMutation.mutate(engagement.id)} disabled={approveEngagementMutation.isPending}>Approve Signed Engagement</Button3D>
+                      <Button3D type='button' variant='primary' onClick={() => confirmThen({ title: 'Approve the signed engagement?', text: 'You confirm the client has signed this version. It becomes the current engagement for opening the matter.', confirmText: 'Approve engagement' }, () => approveEngagementMutation.mutate(engagement.id))} disabled={approveEngagementMutation.isPending}>Approve Signed Engagement</Button3D>
                       <Select3D label='Exception type' value={engagementAction.status} onChange={(e) => setEngagementAction((value) => ({ ...value, status: e.target.value }))} options={[{ value: 'WAIVED', label: 'Waived with approval' }, { value: 'NOT_REQUIRED', label: 'Not required under firm policy' }]} />
                       <TextArea label='Exception reason' value={engagementAction.reason} onChange={(value) => setEngagementAction((current) => ({ ...current, reason: value }))} />
                       <TextArea label='Firm policy basis' value={engagementAction.policy_basis} onChange={(value) => setEngagementAction((current) => ({ ...current, policy_basis: value }))} />
-                      <Button3D type='button' variant='secondary' onClick={() => exceptionEngagementMutation.mutate(engagement.id)} disabled={exceptionEngagementMutation.isPending || !engagementAction.reason.trim() || !engagementAction.policy_basis.trim()}>Approve Exception</Button3D>
+                      <Button3D type='button' variant='secondary' onClick={() => confirmThen({ title: 'Approve this engagement exception?', text: `The matter may open without a signed engagement (${enumLabel(engagementAction.status)}). The reason and policy basis are recorded.`, confirmText: 'Approve exception', tone: 'warning' }, () => exceptionEngagementMutation.mutate(engagement.id))} disabled={exceptionEngagementMutation.isPending || !engagementAction.reason.trim() || !engagementAction.policy_basis.trim()}>Approve Exception</Button3D>
                       <TextArea label='Supersession reason' value={engagementAction.supersede_reason} onChange={(value) => setEngagementAction((current) => ({ ...current, supersede_reason: value }))} />
-                      <Button3D type='button' variant='secondary' onClick={() => supersedeEngagementMutation.mutate(engagement.id)} disabled={supersedeEngagementMutation.isPending || !engagementAction.supersede_reason.trim()}>Supersede Version</Button3D>
+                      <Button3D type='button' variant='secondary' onClick={() => confirmThen({ title: 'Supersede this engagement version?', text: 'It stops being current. The version is kept in the history.', confirmText: 'Supersede', tone: 'warning' }, () => supersedeEngagementMutation.mutate(engagement.id))} disabled={supersedeEngagementMutation.isPending || !engagementAction.supersede_reason.trim()}>Supersede Version</Button3D>
                     </div>
                   )}
                 </div>

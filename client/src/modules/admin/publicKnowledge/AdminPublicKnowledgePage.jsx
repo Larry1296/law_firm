@@ -1,6 +1,7 @@
 import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Plus, RefreshCw } from 'lucide-react';
+import { confirmAction } from '@/core/utils/themedSwal';
 
 import { actOnPublicKnowledge, createPublicKnowledge, listPublicKnowledge, updatePublicKnowledge } from './publicKnowledgeService';
 
@@ -30,7 +31,7 @@ export default function AdminPublicKnowledgePage() {
   };
   const action = async (name) => {
     if (!selected) return;
-    if (name === 'publish' && !window.confirm('Confirm that this information is intended for public visitors and contains no confidential information.')) return;
+    if (name === 'publish' && !(await confirmAction({ title: 'Publish to public visitors?', text: 'Confirm that this information is intended for public visitors and contains no confidential information.', confirmText: 'Publish', tone: 'warning' }))) return;
     try { const saved = await actOnPublicKnowledge(selected.id, name, name === 'publish' ? { confirmed: true } : {}); edit(saved); await load(); } catch (error) { setState((value) => ({ ...value, error: error.message || 'Action failed.' })); }
   };
   const editable = !selected || ['draft', 'rejected'].includes(selected.approval_status);

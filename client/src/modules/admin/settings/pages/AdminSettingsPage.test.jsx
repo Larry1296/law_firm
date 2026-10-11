@@ -3,16 +3,18 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import '@testing-library/jest-dom/vitest';
 import AdminSettingsPage from './AdminSettingsPage';
 import { intakePrivacyService as service } from '../services/intakePrivacyService';
+import { confirmAction } from '@/core/utils/themedSwal';
 
 // The logo and records-room sections have their own tests.
 vi.mock('@/modules/admin/firm/components/FirmLogoField', () => ({ default: () => null }));
 vi.mock('@/modules/admin/firm/components/RecordsRoomSection', () => ({ default: () => null }));
+vi.mock('@/core/utils/themedSwal', () => ({ confirmAction: vi.fn() }));
 vi.mock('../services/intakePrivacyService', () => ({ intakePrivacyService: { list: vi.fn(), create: vi.fn(), activate: vi.fn(), retire: vi.fn() } }));
 const bases = [{ value: 'LEGITIMATE_INTERESTS', label: 'Legitimate interests' }];
 const config = { id: 1, policy_version: 'v1', notice_text: 'Our notice', lawful_basis: 'LEGITIMATE_INTERESTS', lawful_basis_label: 'Legitimate interests', effective_date: '2026-01-01', status: 'DRAFT' };
 const result = (results = []) => ({ results, lawful_bases: bases });
 afterEach(cleanup);
-beforeEach(() => { vi.resetAllMocks(); service.list.mockResolvedValue(result()); });
+beforeEach(() => { vi.resetAllMocks(); service.list.mockResolvedValue(result()); confirmAction.mockResolvedValue(true); });
 
 describe('Intake Privacy Configuration settings', () => {
   it('creates a draft and displays its notice and history', async () => {
@@ -44,6 +46,17 @@ describe('Intake Privacy Configuration settings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retire v2' }));
     await screen.findByText(/No active approved configuration/);
     expect(service.retire).toHaveBeenCalledWith(2);
+    // Retiring leaves intake blocked, so it is asked as a danger.
+    expect(confirmAction).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Retire v2?', tone: 'danger' }));
+  });
+
+  it('does nothing when the confirmation is cancelled', async () => {
+    service.list.mockResolvedValue(result([{ ...config, status: 'ACTIVE' }]));
+    confirmAction.mockResolvedValue(false);
+    render(<AdminSettingsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Retire v1' }));
+    await waitFor(() => expect(confirmAction).toHaveBeenCalled());
+    expect(service.retire).not.toHaveBeenCalled();
   });
 
   it('shows API validation errors and retains entered notice text', async () => {

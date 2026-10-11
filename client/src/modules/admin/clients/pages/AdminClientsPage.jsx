@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Swal from '@/core/utils/themedSwal';
+import Swal, { toneColor } from '@/core/utils/themedSwal';
 
 import {
   Users,
@@ -111,7 +111,7 @@ export default function AdminClientsPage() {
       text: 'This client will be permanently deleted.',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#d33',
+      confirmButtonColor: toneColor('danger'),
       confirmButtonText: 'Delete',
     });
 
@@ -142,7 +142,7 @@ export default function AdminClientsPage() {
       text: 'This client has linked cases and will be archived instead of permanently deleted.',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#ca8a04',
+      confirmButtonColor: toneColor('warning'),
       confirmButtonText: 'Archive',
     });
 

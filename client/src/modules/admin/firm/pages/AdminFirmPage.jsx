@@ -15,7 +15,7 @@ import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
 import StatsCard from '@/components/ui/StatsCard';
 import TableHeaderText from '@/components/ui/TableHeaderText';
-import Swal from '@/core/utils/themedSwal';
+import Swal, { toneColor } from '@/core/utils/themedSwal';
 import { autoGrow } from '@/components/ui/autoGrow';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 
@@ -475,7 +475,7 @@ export default function AdminFirmPage() {
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Delete',
-      confirmButtonColor: '#d33',
+      confirmButtonColor: toneColor('danger'),
     });
 
     if (!result.isConfirmed) return;
@@ -603,7 +603,7 @@ export default function AdminFirmPage() {
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Delete',
-      confirmButtonColor: '#d33',
+      confirmButtonColor: toneColor('danger'),
     });
 
     if (!result.isConfirmed) return;

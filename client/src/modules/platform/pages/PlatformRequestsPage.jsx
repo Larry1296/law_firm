@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
+import { confirmAction } from '@/core/utils/themedSwal';
 import platformService from '@/modules/platform/services/platformService';
 import {
   Button,
@@ -64,7 +65,7 @@ function RequestCard({ item, onChanged }) {
           <div className='flex shrink-0 flex-wrap gap-2'>
             <Link to={`/platform/firms/register?request=${item.id}`}><Button size='sm'>{item.details?.firm ? 'Review & register' : 'Register this firm'}</Button></Link>
             {item.status === 'NEW' && <Button size='sm' variant='secondary' onClick={() => update({ status: 'CONTACTED' })}>Mark contacted</Button>}
-            {item.status !== 'DECLINED' && <Button size='sm' variant='secondary' onClick={() => update({ status: 'DECLINED' })}>Decline</Button>}
+            {item.status !== 'DECLINED' && <Button size='sm' variant='secondary' onClick={async () => { if (await confirmAction({ title: `Decline ${item.firm_name}?`, text: 'The request moves to Declined. You can still register the firm from it later.', confirmText: 'Decline request', tone: 'warning' })) update({ status: 'DECLINED' }); }}>Decline</Button>}
           </div>
         )}
       </div>

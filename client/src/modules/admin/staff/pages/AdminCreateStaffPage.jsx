@@ -194,7 +194,6 @@ export default function AdminCreateStaffPage() {
           </div>
         `,
         confirmButtonText: 'Continue',
-        confirmButtonColor: '#2563eb',
       });
 
       navigate('/admin/staff');
