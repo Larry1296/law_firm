@@ -227,4 +227,88 @@ describe('FloatingAIChat', () => {
     expect(await screen.findByText(/Article 48 addresses access to justice/)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Elsewhere' })).not.toBeInTheDocument();
   });
+
+  describe('message actions', () => {
+    async function askOnce(text = 'What is Article 48?') {
+      const user = await openChat();
+      await user.type(screen.getByLabelText('Ask a question'), `${text}{enter}`);
+      await screen.findByText(/Article 48 addresses/);
+      return user;
+    }
+
+    it('shows copy, edit and share on a question only on hover or focus, and always on an answer', async () => {
+      await askOnce();
+      const questionTools = screen.getByRole('button', { name: 'Copy your question' }).parentElement;
+      expect(questionTools).toHaveClass('opacity-0', 'group-hover:opacity-100', 'group-focus-within:opacity-100');
+      expect(screen.getByRole('button', { name: 'Edit your question' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Share your question' })).toBeInTheDocument();
+
+      const answerTools = screen.getByRole('button', { name: 'Copy this answer' }).parentElement;
+      expect(answerTools).not.toHaveClass('opacity-0');
+      expect(screen.getByRole('button', { name: 'Share this answer' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Regenerate this answer' })).toBeInTheDocument();
+      // The welcome message has no actions.
+      expect(screen.getAllByRole('button', { name: /^Copy / })).toHaveLength(2);
+    });
+
+    it('copies the question, and the answer with its question and sources', async () => {
+      const user = await askOnce();
+      await user.click(screen.getByRole('button', { name: 'Copy your question' }));
+      expect(await navigator.clipboard.readText()).toBe('What is Article 48?');
+      expect(screen.getByText('Copied')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Copy this answer' }));
+      const copied = await navigator.clipboard.readText();
+      expect(copied).toContain('Q: What is Article 48?');
+      expect(copied).toContain('Article 48 addresses access to justice');
+      expect(copied).toContain('Constitutional access to justice (Kenya Law, Article 48)');
+      expect(copied).toContain('General legal information only');
+    });
+
+    it('copies to share where the device has no share sheet', async () => {
+      const user = await askOnce();
+      await user.click(screen.getByRole('button', { name: 'Share this answer' }));
+      expect(await screen.findByText('Copied. Paste it to share')).toBeInTheDocument();
+      expect(await navigator.clipboard.readText()).toContain('Article 48 addresses');
+    });
+
+    it('edits a question in place and asks again from that point', async () => {
+      const user = await askOnce('First wording');
+      askKnowledgeBase.mockResolvedValueOnce({ ...groundedResponse, answer: 'The revised answer.' });
+      await user.click(screen.getByRole('button', { name: 'Edit your question' }));
+      const editor = screen.getByLabelText('Edit your question');
+      expect(editor).toHaveValue('First wording');
+      await user.clear(editor);
+      await user.type(editor, 'Better wording');
+      await user.click(screen.getByRole('button', { name: 'Save and ask' }));
+
+      expect(await screen.findByText('The revised answer.')).toBeInTheDocument();
+      expect(screen.queryByText('First wording')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Article 48 addresses/)).not.toBeInTheDocument();
+      expect(askKnowledgeBase).toHaveBeenLastCalledWith('Better wording', expect.any(Array), 'home', expect.anything());
+    });
+
+    it('cancels an edit without changing the conversation', async () => {
+      const user = await askOnce('Keep me');
+      await user.click(screen.getByRole('button', { name: 'Edit your question' }));
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(screen.getByText('Keep me')).toBeInTheDocument();
+      expect(askKnowledgeBase).toHaveBeenCalledTimes(1);
+    });
+
+    it('regenerates an answer, and offers to try again after an error', async () => {
+      const user = await askOnce();
+      askKnowledgeBase.mockResolvedValueOnce({ ...groundedResponse, answer: 'A second answer.' });
+      await user.click(screen.getByRole('button', { name: 'Regenerate this answer' }));
+      expect(await screen.findByText('A second answer.')).toBeInTheDocument();
+      expect(screen.getAllByText('What is Article 48?')).toHaveLength(1);
+
+      askKnowledgeBase.mockRejectedValueOnce({ response: { status: 429 } });
+      await user.click(screen.getByRole('button', { name: 'Regenerate this answer' }));
+      expect(await screen.findByText(/too many questions/i)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Copy this answer' })).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Try again' }));
+      expect(await screen.findByText(/Article 48 addresses/)).toBeInTheDocument();
+    });
+  });
 });

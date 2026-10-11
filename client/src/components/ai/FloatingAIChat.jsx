@@ -1,7 +1,7 @@
 import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Maximize2, MessageCircle, Minimize2, RefreshCw, Send, X } from 'lucide-react';
+import { Bot, ExternalLink, Maximize2, MessageCircle, Minimize2, RefreshCw, Send, X } from 'lucide-react';
 
 import Button3D from '@/components/ui/Button3D';
 import {
@@ -10,6 +10,7 @@ import {
   getKnowledgeBaseCategories,
   getLegalAssistantSuggestions,
 } from './knowledgeBaseService';
+import ChatMessageActions from './ChatMessageActions';
 import SafeMarkdown from './SafeMarkdown';
 import { OPEN_ASSISTANT_EVENT } from './assistantEvents';
 
@@ -60,6 +61,15 @@ function welcomeMessage(section, platform = false) {
   return { role: 'assistant', content, sources: [] };
 }
 
+// What a shared answer carries: the question, the answer and where it came from.
+function shareableAnswer(question, answer) {
+  const sources = (answer.sources || []).map((source) => `- ${source.title} (${source.source_name}${source.source_reference ? `, ${source.source_reference}` : ''})${source.source_url ? ` ${source.source_url}` : ''}`);
+  return [question && `Q: ${question}`, answer.content, sources.length ? `Sources:\n${sources.join('\n')}` : '', answer.disclaimer || '']
+    .filter(Boolean).join('\n\n');
+}
+
+const labelClass = 'mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted-light dark:text-text-muted-dark';
+
 function errorMessage(error) {
   if (error?.code === 'ECONNABORTED') return 'The request timed out. Please try again.';
   if (error?.response?.status === 429) return 'Too many questions have been sent from this connection. Please try again later.';
@@ -97,6 +107,8 @@ export default function FloatingAIChat({
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [maximized, setMaximized] = useState(false);
+  // The question being edited in place: { index, text }.
+  const [editing, setEditing] = useState(null);
   const abortRef = useRef(null);
   const widgetRef = useRef(null);
   const textareaRef = useRef(null);
@@ -181,20 +193,23 @@ export default function FloatingAIChat({
     setLoading(false);
     setMaximized(false);
     setDraft('');
+    setEditing(null);
     setMessages([firstMessage(safeSection)]);
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
-  const sendQuestion = async (value = draft) => {
+  // `base` is the conversation the question follows; editing or regenerating
+  // an earlier question asks it again from that point.
+  const sendQuestion = async (value = draft, base = messages) => {
     const question = value.trim();
     if (!question || loading) return;
-    const prior = messages
+    const prior = base
       .filter((item) => !item.error)
       .slice(-10)
       // The server accepts at most 1,500 characters per earlier message; the start carries the context.
       .map(({ role, content }) => ({ role, content: String(content).slice(0, HISTORY_MESSAGE_LIMIT) }));
-    setMessages((items) => [...items, { role: 'user', content: question }]);
-    setDraft('');
+    setMessages([...base, { role: 'user', content: question }]);
+    if (base === messages) setDraft('');
     setLoading(true);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -216,6 +231,18 @@ export default function FloatingAIChat({
         setLoading(false);
       }
     }
+  };
+
+  const regenerate = (answerIndex) => {
+    const question = messages[answerIndex - 1];
+    if (question?.role === 'user') sendQuestion(question.content, messages.slice(0, answerIndex - 1));
+  };
+
+  const saveEdit = () => {
+    const { index, text } = editing;
+    if (!text.trim()) return;
+    setEditing(null);
+    sendQuestion(text, messages.slice(0, index));
   };
 
   const handleKeyDown = (event) => {
@@ -247,27 +274,93 @@ export default function FloatingAIChat({
           </header>
 
           <div ref={messagesRef} aria-live='polite' aria-busy={loading} className='min-h-0 flex-1 space-y-5 overflow-y-auto p-4'>
-            {messages.map((item, index) => (
-              <article key={`${item.role}-${index}`} ref={index === latestQuestionIndex ? latestQuestionRef : undefined} className={item.role === 'user' ? 'ml-10 rounded-2xl rounded-br-sm bg-brand-primary px-4 py-3 text-sm text-white' : `mr-3 rounded-2xl rounded-bl-sm border px-4 py-3.5 text-sm ${item.error ? 'border-red-300 bg-red-50 text-red-800' : 'border-border-light bg-background-light text-text-primary-light dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark'}`}>
-                <SafeMarkdown content={item.content} />
-                {item.disclaimer && <p className='mt-4 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100'>{item.disclaimer}</p>}
-                {item.sources?.length > 0 && (
-                  <div className='mt-4 space-y-2 border-t border-border-light pt-3 dark:border-border-dark'>
-                    <p className='text-xs font-bold'>Sources</p>
-                    {item.sources.map((source) => (
-                      <div key={`${source.title}-${source.source_reference}`} className='rounded-lg border border-border-light p-2 text-xs dark:border-border-dark'>
-                        <p className='font-semibold'>{source.title}</p>
-                        <p className='mt-1 text-text-muted-light dark:text-text-muted-dark'>{source.source_name}{source.source_reference ? ` · ${source.source_reference}` : ''}</p>
-                        {source.source_url && <a href={source.source_url} target='_blank' rel='noreferrer' className='mt-1 inline-flex items-center gap-1 text-blue-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:text-blue-300'>{source.source_name === 'Kenya Law' ? 'Open official source' : 'Open public source'} <ExternalLink size={12} /></a>}
+            {messages.map((item, index) => {
+              if (item.role === 'user') {
+                const isEditing = editing?.index === index;
+                return (
+                  <article key={`user-${index}`} ref={index === latestQuestionIndex ? latestQuestionRef : undefined} aria-label='Your question' className='group ml-10 flex flex-col items-end'>
+                    <p className={labelClass}>You</p>
+                    {isEditing ? (
+                      <div className='w-full rounded-2xl border border-border-light bg-background-light p-2 dark:border-border-dark dark:bg-background-dark'>
+                        <label htmlFor={`${titleId}-edit-${index}`} className='sr-only'>Edit your question</label>
+                        <AutoGrowTextarea
+                          id={`${titleId}-edit-${index}`}
+                          autoFocus
+                          maxRows={6}
+                          maxLength={1200}
+                          value={editing.text}
+                          onChange={(event) => setEditing({ index, text: event.target.value })}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); saveEdit(); }
+                            if (event.key === 'Escape') { event.stopPropagation(); setEditing(null); }
+                          }}
+                          className='w-full resize-none rounded-lg border border-border-light bg-surface-light px-3 py-2 text-sm text-text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
+                        />
+                        <div className='mt-2 flex justify-end gap-2'>
+                          <button type='button' onClick={() => setEditing(null)} className='rounded-md px-3 py-1.5 text-xs font-semibold text-text-muted-light hover:bg-black/5 dark:text-text-muted-dark dark:hover:bg-white/10'>Cancel</button>
+                          <button type='button' onClick={saveEdit} disabled={!editing.text.trim() || loading} className='rounded-md bg-success px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50'>Save and ask</button>
+                        </div>
                       </div>
-                    ))}
+                    ) : (
+                      <div className='max-w-full rounded-2xl rounded-tr-sm bg-brand-primary px-4 py-3 text-sm text-white dark:bg-sky-700'>
+                        <SafeMarkdown content={item.content} />
+                      </div>
+                    )}
+                    {!isEditing && (
+                      <ChatMessageActions
+                        subject='your question'
+                        text={item.content}
+                        shareTitle={resolvedTitle}
+                        onEdit={() => setEditing({ index, text: item.content })}
+                        disabled={loading}
+                        // Shown on hover or keyboard focus; always on touch screens, which cannot hover.
+                        className='mt-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none [@media(hover:none)]:opacity-100'
+                      />
+                    )}
+                  </article>
+                );
+              }
+              const question = messages[index - 1]?.role === 'user' ? messages[index - 1].content : '';
+              return (
+                <article key={`assistant-${index}`} aria-label={index === 0 ? 'Welcome' : 'Assistant answer'} className='mr-3'>
+                  <p className={labelClass}><Bot size={13} aria-hidden='true' /> Assistant</p>
+                  <div className={`rounded-2xl rounded-tl-sm border px-4 py-3.5 text-sm ${item.error ? 'border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-950/40 dark:text-red-100' : 'border-border-light bg-background-light text-text-primary-light dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark'}`}>
+                    <SafeMarkdown content={item.content} />
+                    {item.disclaimer && <p className='mt-4 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100'>{item.disclaimer}</p>}
+                    {item.sources?.length > 0 && (
+                      <div className='mt-4 space-y-2 border-t border-border-light pt-3 dark:border-border-dark'>
+                        <p className='text-xs font-bold'>Sources</p>
+                        {item.sources.map((source) => (
+                          <div key={`${source.title}-${source.source_reference}`} className='rounded-lg border border-border-light p-2 text-xs dark:border-border-dark'>
+                            <p className='font-semibold'>{source.title}</p>
+                            <p className='mt-1 text-text-muted-light dark:text-text-muted-dark'>{source.source_name}{source.source_reference ? ` · ${source.source_reference}` : ''}</p>
+                            {source.source_url && <a href={source.source_url} target='_blank' rel='noreferrer' className='mt-1 inline-flex items-center gap-1 text-blue-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:text-blue-300'>{source.source_name === 'Kenya Law' ? 'Open official source' : 'Open public source'} <ExternalLink size={12} /></a>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {item.action && <Link to={item.action.path} onClick={close} className='mt-3 inline-flex rounded-md bg-brand-primary px-3 py-2 text-xs font-bold text-white hover:bg-[#0e2c47] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:bg-sky-600 dark:hover:bg-sky-500'>{item.action.label}</Link>}
+                    {item.needsLawyer && platform && <p className='mt-3 text-xs font-semibold'>For advice on your own situation, speak to a qualified advocate.</p>}
+                    {item.needsLawyer && !platform && <a href='#contact' onClick={close} className='mt-3 inline-flex rounded-md bg-success px-3 py-2 text-xs font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'>Speak to an advocate</a>}
+                    {question && item.error && (
+                      <button type='button' onClick={() => regenerate(index)} disabled={loading} className='mt-3 inline-flex items-center gap-1 rounded-md border border-current px-3 py-1.5 text-xs font-semibold disabled:opacity-50'>
+                        <RefreshCw size={13} aria-hidden='true' /> Try again
+                      </button>
+                    )}
+                    {question && !item.error && (
+                      <ChatMessageActions
+                        subject='this answer'
+                        text={shareableAnswer(question, item)}
+                        shareTitle={resolvedTitle}
+                        onRegenerate={() => regenerate(index)}
+                        disabled={loading}
+                        className='-mx-1 mt-3 border-t border-border-light pt-2 dark:border-border-dark'
+                      />
+                    )}
                   </div>
-                )}
-                {item.action && <Link to={item.action.path} onClick={close} className='mt-3 inline-flex rounded-md bg-brand-primary px-3 py-2 text-xs font-bold text-white hover:bg-[#0e2c47] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:bg-sky-600 dark:hover:bg-sky-500'>{item.action.label}</Link>}
-                {item.needsLawyer && platform && <p className='mt-3 text-xs font-semibold'>For advice on your own situation, speak to a qualified advocate.</p>}
-                {item.needsLawyer && !platform && <a href='#contact' onClick={close} className='mt-3 inline-flex rounded-md bg-success px-3 py-2 text-xs font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'>Speak to an advocate</a>}
-              </article>
-            ))}
+                </article>
+              );
+            })}
             {messages.length === 1 && <div aria-label='Suggested questions' className='flex flex-wrap gap-2'>{(suggestions.length ? suggestions : GENERIC_SUGGESTIONS).map((suggestion) => <button key={suggestion} type='button' onClick={() => sendQuestion(suggestion)} className='rounded-full border border-border-light px-3 py-2 text-left text-xs text-text-primary-light hover:bg-background-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:border-border-dark dark:text-text-primary-dark dark:hover:bg-background-dark'>{suggestion}</button>)}</div>}
             {loading && <div role='status' className='mr-20 rounded-2xl bg-background-light p-3 text-sm text-text-muted-light dark:bg-background-dark dark:text-text-muted-dark'>{loadingLabel}</div>}
           </div>
