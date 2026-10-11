@@ -6,6 +6,7 @@ import { Building2, CheckCircle2, Plus, X } from 'lucide-react';
 
 import { KENYAN_COUNTIES } from '@/core/constants/kenyanCounties';
 import BackButton from '@/components/ui/BackButton';
+import BrandMark from '@/components/ui/BrandMark';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { formatKes } from '@/modules/admin/subscription/utils/subscriptionFormatting';
 import platformService from '@/modules/platform/services/platformService';
@@ -261,6 +262,7 @@ export default function RegisterFirmPage() {
         <div className='lg:col-span-2'>
           <div className='lg:sticky lg:top-28'>
             <BackButton fallback='/' />
+            <BrandMark className='mt-6 flex' />
             <span className='mt-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary dark:bg-sky-400/10 dark:text-sky-300'>
               <Building2 size={24} aria-hidden='true' />
             </span>

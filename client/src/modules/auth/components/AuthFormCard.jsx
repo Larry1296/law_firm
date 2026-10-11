@@ -1,4 +1,5 @@
 import BackButton from '@/components/ui/BackButton';
+import BrandMark from '@/components/ui/BrandMark';
 import AuthShowcase from '@/modules/auth/components/AuthShowcase';
 
 /**
@@ -21,7 +22,8 @@ export default function AuthFormCard({
   const card = (
     <form onSubmit={onSubmit} className={`form-card ${wide ? '' : 'form-card--narrow'}`}>
       <BackButton fallback={backTo} label={backLabel} />
-      <span className='form-eyebrow'>{eyebrow}</span>
+      <BrandMark />
+      {eyebrow !== 'Sheria Master' && <span className='form-eyebrow'>{eyebrow}</span>}
       <h1 className='form-title'>{title}</h1>
       {lead && <p className='form-lead'>{lead}</p>}
       {error && <p role='alert' className='form-alert'>{error}</p>}

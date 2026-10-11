@@ -50,7 +50,7 @@ export default function Brand({
 
   return (
     <div className='flex w-full flex-col items-center justify-center text-center'>
-      <img src={logo} alt='Sheria Master logo' className={`${size} rounded-2xl object-cover`} />
+      <img src={logo} alt='Sheria Master logo' className={`${size} object-contain`} />
       {showText && <span className={`font-extrabold ${textSize} text-yellow-600`}>Sheria Master</span>}
     </div>
   );

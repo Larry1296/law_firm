@@ -49,7 +49,7 @@ export default function PublicNavbar() {
       <nav aria-label='Main navigation' className='fixed left-1/2 top-3 z-50 w-[95%] max-w-7xl -translate-x-1/2 rounded-2xl border border-white/15 bg-[#07101e]/85 shadow-lg backdrop-blur-xl md:top-5'>
         <div className='flex items-center justify-between gap-3 px-4 py-3 md:px-5'>
           <Link to='/' className='flex shrink-0 items-center gap-3 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50'>
-            <img src={logo} alt='' className='h-10 w-10 rounded-xl object-cover md:h-11 md:w-11' />
+            <img src={logo} alt='' className='h-10 w-10 object-contain md:h-11 md:w-11' />
             <span className='text-lg font-extrabold tracking-wide text-white'>Sheria Master</span>
           </Link>
 
