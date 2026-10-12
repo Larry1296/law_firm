@@ -28,7 +28,7 @@ export default function ForgotPassword() {
 
   return (
     <AuthFormCard
-      showcase={{ icon: Mail, title: 'Reset your password', text: 'Enter your email and we’ll send reset instructions securely.' }}
+      showcase={{ icon: Mail, title: 'Locked out? It happens', text: 'We email you a secure link to set a new password and get back to your firm’s workspace.' }}
       title='Forgot password'
       lead='Enter your email and we will send you a link to set a new password.'
       backTo='/login'
@@ -50,9 +50,8 @@ export default function ForgotPassword() {
       </Button3D>
 
       <hr className='form-divider' />
-      <p className='text-sm text-[color:var(--text-muted)]'>
-        Remember your password? <Link to='/login' className='form-link'>Sign in</Link>
-      </p>
+      <span className='text-sm text-[color:var(--text-muted)]'>Remember your password?</span>
+      <Link to='/login' className='btn btn-secondary'>Sign in</Link>
     </AuthFormCard>
   );
 }

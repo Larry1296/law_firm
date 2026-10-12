@@ -1,5 +1,6 @@
 import { ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import useAuth from '@/modules/auth/hook/useAuth';
 
@@ -65,7 +66,7 @@ export default function RecoverAccount() {
 
   return (
     <AuthFormCard
-      showcase={{ icon: ShieldCheck, title: 'Recover your account', text: 'Use your National ID or phone number to find your account.' }}
+      showcase={{ icon: ShieldCheck, title: 'Find your way back in', text: 'Lost access to your email? Your National ID or phone number is enough to find your account.' }}
       title='Recover your account'
       lead='Forgot which email you use? Enter your National ID or phone number and we will email a reset link to the address on your account.'
       backTo='/login'
@@ -94,6 +95,10 @@ export default function RecoverAccount() {
       </Button3D>
 
       {result && <p role='status' className='form-success'>{result}</p>}
+
+      <hr className='form-divider' />
+      <span className='text-sm text-[color:var(--text-muted)]'>Remember your password?</span>
+      <Link to='/login' className='btn btn-secondary'>Sign in</Link>
     </AuthFormCard>
   );
 }

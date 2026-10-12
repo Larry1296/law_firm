@@ -12,7 +12,7 @@ const LINKS = [
   { id: 'legal-assistant', label: 'Ask a question' },
 ];
 
-const AUTH_PATHS = ['/login', '/forgot-password', '/reset-password', '/recover-account'];
+const AUTH_PATHS = ['/login', '/forgot-password', '/reset-password', '/recover-account', '/register-firm'];
 
 export default function PublicNavbar() {
   const location = useLocation();

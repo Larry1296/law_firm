@@ -1,5 +1,5 @@
 import { LockKeyhole } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 
 import useAuth from '@/modules/auth/hook/useAuth';
@@ -47,7 +47,7 @@ export default function ResetPassword() {
 
   return (
     <AuthFormCard
-      showcase={{ icon: LockKeyhole, title: 'Set a new password', text: 'Choose a strong password to secure your account.' }}
+      showcase={{ icon: LockKeyhole, title: 'Almost back in', text: 'Choose a strong password, then sign in to your firm’s workspace with it.' }}
       title='Set a new password'
       lead='Choose a strong password. You will sign in with it from now on.'
       backTo='/login'
@@ -77,6 +77,10 @@ export default function ResetPassword() {
       <Button3D type='submit' className='w-full' disabled={loading}>
         {loading ? 'Saving…' : 'Save password'}
       </Button3D>
+
+      <hr className='form-divider' />
+      <span className='text-sm text-[color:var(--text-muted)]'>Remember your password?</span>
+      <Link to='/login' className='btn btn-secondary'>Sign in</Link>
     </AuthFormCard>
   );
 }
