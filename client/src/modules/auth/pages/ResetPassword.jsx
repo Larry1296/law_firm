@@ -49,7 +49,6 @@ export default function ResetPassword() {
     <AuthFormCard
       showcase={{ icon: LockKeyhole, title: 'Almost back in', text: 'Choose a strong password, then sign in to your firm’s workspace with it.' }}
       title='Set a new password'
-      lead='Choose a strong password. You will sign in with it from now on.'
       backTo='/login'
       error={localError || error}
       onSubmit={handleSubmit}

@@ -68,7 +68,6 @@ export default function RecoverAccount() {
     <AuthFormCard
       showcase={{ icon: ShieldCheck, title: 'Find your way back in', text: 'Lost access to your email? Your National ID or phone number is enough to find your account.' }}
       title='Recover your account'
-      lead='Forgot which email you use? Enter your National ID or phone number and we will email a reset link to the address on your account.'
       backTo='/login'
       error={localError || error}
       onSubmit={handleSubmit}

@@ -146,7 +146,6 @@ function OnboardingRequestForm({ plans, onSent }) {
       wide
       showcase={SHOWCASE}
       title='Register your firm'
-      lead='Send your firm’s full details once. Our team checks them against BRS, KRA and the Roll of Advocates, then registers the firm exactly as you sent it.'
       onSubmit={(event) => { event.preventDefault(); submit.mutate(); }}
     >
       <Section title='Firm identity' description='Who the firm is, as registered with BRS and KRA.'>

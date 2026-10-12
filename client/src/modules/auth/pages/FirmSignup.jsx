@@ -73,9 +73,8 @@ export default function FirmSignup() {
   return (
     <AuthFormCard
       wide
-      showcase={{ icon: Building2, title: 'Bring your firm to Sheria Master', text: 'Set up your firm’s workspace in minutes, then add your advocates, staff and clients.' }}
+      showcase={{ icon: Building2, title: 'Bring your firm to Sheria Master', text: 'Start a 14-day free trial. No payment is needed until it ends; plans are paid by M-Pesa.' }}
       title='Register your firm'
-      lead='Start a 14-day free trial. No payment is needed until the trial ends; plans are paid by M-Pesa.'
       backTo='/'
       error={error}
       onSubmit={handleSubmit}

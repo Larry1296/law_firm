@@ -30,7 +30,6 @@ export default function ForgotPassword() {
     <AuthFormCard
       showcase={{ icon: Mail, title: 'Locked out? It happens', text: 'We email you a secure link to set a new password and get back to your firm’s workspace.' }}
       title='Forgot password'
-      lead='Enter your email and we will send you a link to set a new password.'
       backTo='/login'
       error={error}
       onSubmit={handleSubmit}
