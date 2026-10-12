@@ -5,16 +5,21 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Building2, CheckCircle2, Plus, X } from 'lucide-react';
 
 import { KENYAN_COUNTIES } from '@/core/constants/kenyanCounties';
-import BackButton from '@/components/ui/BackButton';
-import BrandMark from '@/components/ui/BrandMark';
+import Button3D from '@/components/ui/Button3D';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { formatKes } from '@/modules/admin/subscription/utils/subscriptionFormatting';
+import AuthFormCard from '@/modules/auth/components/AuthFormCard';
 import platformService from '@/modules/platform/services/platformService';
 import subscriptionService from '@/modules/subscription/services/subscriptionService';
 
 const FirmSignup = lazy(() => import('@/modules/auth/pages/FirmSignup'));
 
 const inputClass = 'form-control';
+const SHOWCASE = {
+  icon: Building2,
+  title: 'Bring your firm to Sheria Master',
+  text: 'Send your firm’s details once. We check them against BRS, KRA and the Roll of Advocates, register the firm, and send the managing partner a link to sign in.',
+};
 const KRA_PIN = '[AaPp][0-9]{9}[A-Za-z]';
 
 const EMPTY = {
@@ -45,29 +50,34 @@ function Field({ label, required, error, hint, children, className = '' }) {
 
 function Section({ title, description, children }) {
   return (
-    <fieldset className='grid gap-5 border-t border-border-light pt-6 first:border-t-0 first:pt-0 dark:border-border-dark sm:grid-cols-2'>
-      <legend className='contents'>
-        <span className='block text-lg font-bold sm:col-span-2'>{title}</span>
-      </legend>
-      {description && <p className='-mt-3 text-sm text-text-muted-light dark:text-text-muted-dark sm:col-span-2'>{description}</p>}
-      {children}
-    </fieldset>
+    <>
+      <hr className='form-divider' />
+      <fieldset className='grid gap-4 sm:grid-cols-2'>
+        <legend className='mb-2 text-base font-semibold'>{title}</legend>
+        {description && <p className='form-hint -mt-1 sm:col-span-2'>{description}</p>}
+        {children}
+      </fieldset>
+    </>
   );
 }
 
 function RequestSent({ form }) {
   return (
-    <div className='flex min-h-screen items-center justify-center bg-background-light px-4 pb-16 pt-28 dark:bg-background-dark sm:px-6'>
-      <div role='status' className='w-full max-w-lg rounded-3xl border border-border-light bg-surface-light p-8 text-center shadow-medium dark:border-border-dark dark:bg-surface-dark'>
-        <CheckCircle2 size={44} className='mx-auto text-success' aria-hidden='true' />
-        <h2 className='mt-4 text-xl font-bold'>Thank you, we have your request</h2>
-        <p className='mx-auto mt-2 max-w-md text-sm text-text-muted-light dark:text-text-muted-dark'>
+    <AuthFormCard
+      wide
+      showcase={SHOWCASE}
+      title='Thank you, we have your request'
+      onSubmit={(event) => event.preventDefault()}
+    >
+      <div role='status' className='grid gap-3'>
+        <CheckCircle2 size={40} className='text-success' aria-hidden='true' />
+        <p className='text-sm text-[color:var(--text-muted)]'>
           The Sheria Master team will check {form.firm.name}&apos;s details and register the firm. {form.owner.first_name || 'The managing partner'} then
           receives a link at {form.owner.email} to set a password and sign in. We will call {form.owner.phone_number} if anything needs clarifying.
         </p>
-        <Link to='/' className='mt-6 inline-flex rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white dark:bg-sky-600'>Back to the homepage</Link>
       </div>
-    </div>
+      <Link to='/' className='btn btn-primary'>Back to the homepage</Link>
+    </AuthFormCard>
   );
 }
 
@@ -132,7 +142,13 @@ function OnboardingRequestForm({ plans, onSent }) {
   );
 
   return (
-    <form onSubmit={(event) => { event.preventDefault(); submit.mutate(); }} className='grid gap-8'>
+    <AuthFormCard
+      wide
+      showcase={SHOWCASE}
+      title='Register your firm'
+      lead='Send your firm’s full details once. Our team checks them against BRS, KRA and the Roll of Advocates, then registers the firm exactly as you sent it.'
+      onSubmit={(event) => { event.preventDefault(); submit.mutate(); }}
+    >
       <Section title='Firm identity' description='Who the firm is, as registered with BRS and KRA.'>
         {text('firm', 'name', 'Registered firm name', { required: true, className: 'sm:col-span-2', placeholder: 'e.g. Achieng & Mwangi Advocates' })}
         <Field label='Business structure' required error={err('firm.business_structure')}>
@@ -181,7 +197,7 @@ function OnboardingRequestForm({ plans, onSent }) {
                 type='button'
                 aria-pressed={chosen}
                 onClick={() => toggleArea(area)}
-                className={`rounded-full border px-3 py-1.5 text-sm transition ${chosen ? 'border-brand-primary bg-brand-primary text-white dark:border-sky-500 dark:bg-sky-700' : 'border-border-light hover:bg-background-light dark:border-border-dark dark:hover:bg-background-dark'}`}
+                className={`rounded-full border px-3 py-1.5 text-sm transition ${chosen ? 'border-[color:var(--form-primary)] bg-[color:var(--form-primary-soft)] font-semibold' : 'border-[color:var(--border)] hover:border-[color:var(--form-primary)]'}`}
               >
                 {area}{chosen && <X size={12} className='ml-1 inline' aria-hidden='true' />}
               </button>
@@ -200,7 +216,7 @@ function OnboardingRequestForm({ plans, onSent }) {
               className={inputClass}
             />
           </label>
-          <button type='button' onClick={addCustomArea} className='inline-flex items-center gap-1 rounded-xl border border-border-light px-3 text-sm font-semibold dark:border-border-dark'>
+          <button type='button' onClick={addCustomArea} className='btn btn-secondary'>
             <Plus size={14} aria-hidden='true' /> Add
           </button>
         </div>
@@ -232,20 +248,23 @@ function OnboardingRequestForm({ plans, onSent }) {
         </Field>
       </Section>
 
+      <hr className='form-divider' />
       {submit.error && (
-        <p role='alert' className='rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/40 dark:bg-red-950/60 dark:text-red-100'>
+        <p role='alert' className='form-alert'>
           {Object.keys(errors).length ? 'Some details need correcting. They are marked above.' : getApiErrorMessage(submit.error)}
         </p>
       )}
-      <div>
-        <button type='submit' disabled={submit.isPending} className='w-full rounded-xl bg-brand-primary px-5 py-3 font-bold text-white transition hover:bg-[#0e2c47] disabled:opacity-60 dark:bg-sky-600 dark:hover:bg-sky-500'>
-          {submit.isPending ? 'Sending…' : 'Request registration'}
-        </button>
-        <p className='mt-3 text-center text-xs text-text-muted-light dark:text-text-muted-dark'>
-          We use these details only to register your firm and contact you about it (Data Protection Act, 2019).
-        </p>
-      </div>
-    </form>
+      <Button3D type='submit' className='w-full' disabled={submit.isPending}>
+        {submit.isPending ? 'Sending…' : 'Request registration'}
+      </Button3D>
+      <p className='form-hint text-center'>
+        We use these details only to register your firm and contact you about it (Data Protection Act, 2019).
+      </p>
+
+      <hr className='form-divider' />
+      <span className='text-sm text-[color:var(--text-muted)]'>Already registered?</span>
+      <Link to='/login' className='btn btn-secondary'>Sign in</Link>
+    </AuthFormCard>
   );
 }
 
@@ -256,43 +275,5 @@ export default function RegisterFirmPage() {
   if (plansQuery.data?.firm_signup_enabled) return <FirmSignup />;
   if (sent) return <RequestSent form={sent} />;
 
-  return (
-    <div className='bg-background-light px-4 pb-16 pt-32 dark:bg-background-dark sm:px-6'>
-      <div className='mx-auto grid max-w-6xl gap-10 lg:grid-cols-5'>
-        <div className='lg:col-span-2'>
-          <div className='lg:sticky lg:top-28'>
-            <BackButton fallback='/' />
-            <BrandMark className='mt-6 flex' />
-            <span className='mt-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary dark:bg-sky-400/10 dark:text-sky-300'>
-              <Building2 size={24} aria-hidden='true' />
-            </span>
-            <h1 className='mt-5 text-3xl font-bold tracking-tight'>Register your firm</h1>
-            <p className='mt-3 leading-relaxed text-text-muted-light dark:text-text-muted-dark'>
-              Send your firm&apos;s full details once. Our team checks them against BRS, KRA and the Roll of Advocates,
-              then registers the firm exactly as you sent it.
-            </p>
-            <ol className='mt-8 space-y-4 text-sm'>
-              {[
-                'You send the firm’s registration, office and managing partner details.',
-                'We check the details and register the firm’s workspace.',
-                'The managing partner gets a link to set a password and signs in.',
-                'The firm adds staff and clients. Everyone signs in from this site.',
-              ].map((step, index) => (
-                <li key={step} className='flex gap-3'>
-                  <span className='flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white dark:bg-sky-600'>{index + 1}</span>
-                  <span className='text-text-primary-light dark:text-text-primary-dark'>{step}</span>
-                </li>
-              ))}
-            </ol>
-            <p className='mt-8 text-sm text-text-muted-light dark:text-text-muted-dark'>
-              Already registered? <Link to='/login' className='font-semibold text-brand-primary underline dark:text-sky-300'>Sign in</Link>
-            </p>
-          </div>
-        </div>
-        <div className='rounded-3xl border border-border-light bg-surface-light p-6 shadow-medium dark:border-border-dark dark:bg-surface-dark sm:p-8 lg:col-span-3'>
-          <OnboardingRequestForm plans={plansQuery.data?.plans || []} onSent={setSent} />
-        </div>
-      </div>
-    </div>
-  );
+  return <OnboardingRequestForm plans={plansQuery.data?.plans || []} onSent={setSent} />;
 }

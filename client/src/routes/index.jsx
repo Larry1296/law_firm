@@ -669,10 +669,7 @@ const AppRoutes = () => {
           {/* Password emails link to /reset-password?uid=…&token=… */}
           <Route path='/reset-password' element={<ResetPassword />} />
           <Route path='/reset-password/:token' element={<ResetPassword />} />
-        </Route>
-
-        {/* FIRM REGISTRATION (public entry point) */}
-        <Route element={<PublicLayoutWrapper />}>
+          {/* Firm registration: the public entry point, laid out like sign-in. */}
           <Route
             path='/register-firm'
             element={(

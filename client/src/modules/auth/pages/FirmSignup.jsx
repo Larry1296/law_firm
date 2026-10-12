@@ -2,6 +2,7 @@ import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
+import { Building2 } from 'lucide-react';
 
 import AuthContext from '@/core/store/AuthContext';
 import Button3D from '@/components/ui/Button3D';
@@ -72,6 +73,7 @@ export default function FirmSignup() {
   return (
     <AuthFormCard
       wide
+      showcase={{ icon: Building2, title: 'Bring your firm to Sheria Master', text: 'Set up your firm’s workspace in minutes, then add your advocates, staff and clients.' }}
       title='Register your firm'
       lead='Start a 14-day free trial. No payment is needed until the trial ends; plans are paid by M-Pesa.'
       backTo='/'
