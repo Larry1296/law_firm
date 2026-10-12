@@ -148,6 +148,23 @@ class FilingRegisterService:
             proceeding.save()
 
     @classmethod
+    def record_judgment(cls, *, case, actor, delivered_at=None):
+        """Called when the matter moves to Judgment delivered: register the judgment, which opens the appeal window."""
+        if case.filings.filter(filing_type=CaseFiling.FilingType.JUDGMENT).exclude(status=CaseFiling.FilingStatus.WITHDRAWN).exists():
+            return
+        filing = CaseFiling.objects.create(
+            case=case,
+            filing_type=CaseFiling.FilingType.JUDGMENT,
+            status=CaseFiling.FilingStatus.FILED,
+            title="Judgment",
+            filed_at=delivered_at or timezone.now(),
+            official_court_case_number=case.official_court_case_number,
+            source="COURT_STAGE_JUDGMENT_DELIVERED",
+            filed_by=actor,
+        )
+        cls._seed_deadlines(case, filing, actor)
+
+    @classmethod
     def _seed_deadlines(cls, case, filing, user):
         if filing.filing_type == CaseFiling.FilingType.DEMAND_LETTER:
             cls._deadline(

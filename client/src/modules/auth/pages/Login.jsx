@@ -226,7 +226,6 @@ export default function Login() {
     <AuthFormCard
       showcase={{ icon: ShieldCheck, title: 'Your firm, one sign-in away', text: 'Firm owners, advocates, staff and clients all sign in here and land in their own firm’s workspace.' }}
       title='Welcome back'
-      lead='One sign-in for every firm on Sheria Master. Use the email your firm registered for you.'
       error={error}
       onSubmit={handleLogin}
     >

@@ -2,6 +2,7 @@ import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useEffect, useState } from 'react';
 import useAuth from '@/core/hooks/useAuth';
 import Swal, { confirmAction } from '@/core/utils/themedSwal';
+import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import adminCasesService from '../services/adminCasesService';
 import ActionModal from '@/components/ui/ActionModal';
 
@@ -69,7 +70,7 @@ export default function MatterLifecycleControls({ matter }) {
   const [destruction, setDestruction] = useState({ records_approved: [], approval_date: today(), destruction_date: today(), method: '', performed_by: '', verifier: '', certificate_reference: '', electronic_deletion_confirmed: false, backup_handling_decision: '' });
   const [modal, setModal] = useState(null);
 
-  const fail = (error) => Swal.fire('Control rejected', error.response?.data ? JSON.stringify(error.response.data) : error.message, 'error');
+  const fail = (error) => Swal.fire('Control rejected', getApiErrorMessage(error), 'error');
   // `confirm` names a critical step; the user is asked before it is recorded.
   const execute = async (command, success, confirm) => {
     if (confirm && !(await confirmAction(confirm))) return;

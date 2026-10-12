@@ -289,10 +289,11 @@ class EndToEndLitigationTests(TestCase):
         self.assertEqual(matter.client_ledger.cleared_balance, Decimal("50000.00"))
         return matter
 
-    def transition(self, user, matter, to_state, reason, metadata=None, dimension="COURT_STAGE"):
-        return self.ok(self.as_user(user).post(f"/api/cases/{matter.id}/transitions/", {
-            "dimension": dimension, "to_state": to_state, "reason": reason, "metadata": metadata or {},
-        }, format="json"), 201 if False else 200)
+    def transition(self, user, matter, to_state, reason, metadata=None, dimension="COURT_STAGE", effective_at=None):
+        payload = {"dimension": dimension, "to_state": to_state, "reason": reason, "metadata": metadata or {}}
+        if effective_at:
+            payload["effective_at"] = effective_at.isoformat()
+        return self.ok(self.as_user(user).post(f"/api/cases/{matter.id}/transitions/", payload, format="json"))
 
     def step_secretary_prepares_physical_file(self, matter):
         self.ok(self.as_user(self.secretary_user).get(f"/api/cases/{matter.id}/physical-file/"))
@@ -477,7 +478,17 @@ class EndToEndLitigationTests(TestCase):
             "outcome": "Judgment for the plaintiff for KES 1,850,000 with interest at court rates and costs.",
             "party_favoured": "Plaintiff",
         }, format="json"))
-        self.transition(self.advocate_user, matter, "JUDGMENT_DELIVERED", "Judgment delivered for the plaintiff.")
+        # Judgment was delivered 35 days ago, so the appeal period has run by the time the file is closed.
+        delivered = timezone.now() - timedelta(days=35)
+        self.transition(self.advocate_user, matter, "JUDGMENT_DELIVERED", "Judgment delivered for the plaintiff.", effective_at=delivered)
+        # The judgment goes into the register and opens the 30-day appeal window (section 79G, Civil Procedure Act).
+        self.assertTrue(matter.filings.filter(filing_type="JUDGMENT").exists())
+        appeal = matter.deadlines.get(source__startswith="APPEAL_WINDOW:")
+        self.assertEqual(timezone.localdate(appeal.due_at), timezone.localdate(delivered) + timedelta(days=30))
+        # The window lapsed with no memorandum of appeal served; the advocate records that before closing.
+        self.ok(self.as_user(self.advocate_user).post(f"/api/cases/deadlines/{appeal.id}/resolve/", {
+            "action": "COMPLETE", "reason": "Appeal period under section 79G lapsed; no memorandum of appeal was served.",
+        }, format="json"))
         self.transition(self.advocate_user, matter, "WON", "Judgment for KES 1,850,000, interest and costs.", dimension="OUTCOME_STATUS")
         self.transition(self.advocate_user, matter, "DECREE_PENDING", "Draft decree sent to the defendant for approval.", dimension="ENFORCEMENT_STATUS")
         self.transition(self.advocate_user, matter, "DECREE_EXTRACTION", "Decree being extracted.")

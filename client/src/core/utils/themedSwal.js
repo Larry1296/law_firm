@@ -43,7 +43,9 @@ const withTheme = (options = {}) => {
 };
 
 const themedSwal = {
-  fire(options = {}) {
+  // Accepts SweetAlert2's shorthand too: fire(title, text, icon).
+  fire(options = {}, text, icon) {
+    if (typeof options === 'string') return Swal.fire(withTheme({ title: options, text, icon }));
     return Swal.fire(withTheme(options));
   },
 

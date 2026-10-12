@@ -1578,6 +1578,10 @@ class CaseLifecycleService:
                 from apps.cases.services.filing_register_service import FilingRegisterService
 
                 FilingRegisterService.record_originating_filing(case=case, actor=actor)
+            elif to_state == Case.CourtStage.JUDGMENT_DELIVERED:
+                from apps.cases.services.filing_register_service import FilingRegisterService
+
+                FilingRegisterService.record_judgment(case=case, actor=actor, delivered_at=effective_at)
 
                 # ======================================================
         # CREATE TRANSITION RECORD

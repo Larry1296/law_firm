@@ -15,7 +15,8 @@ import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
 import lawyerCasesService from '@/modules/staff/lawyer/cases/services/lawyerCasesService';
 import { enumLabel } from '@/core/utils/textFormatter';
 import { formatDateTime } from '@/core/utils/dateFormatter';
-import { confirmAction } from '@/core/utils/themedSwal';
+import themedSwal, { confirmAction } from '@/core/utils/themedSwal';
+import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { PRACTICE_AREAS } from '@/modules/cases/shared/create/caseCreateOptions';
 
 const SOURCE_OPTIONS = [
@@ -56,6 +57,10 @@ const ACCEPTANCE_CONFIRMS = {
 const confirmThen = async (prompt, run) => {
   if (!prompt || await confirmAction(prompt)) run();
 };
+
+// Every action here can be refused by the server (a missing retainer, an unconfirmed
+// conflict, a stale record), so each refusal is shown with the server's reason.
+const showRefusal = (error) => themedSwal.fire({ icon: 'error', title: 'Not recorded', text: getApiErrorMessage(error) });
 
 const emptyDraft = {
   proposed_matter_title: '',
@@ -293,6 +298,7 @@ export default function ClientConflictCheckPage() {
   );
 
   const createMutation = useMutation({
+    onError: showRefusal,
     mutationFn: async () => {
       return service.createConflictCheck(clientId, buildProposedMatterPayload(draft));
     },
@@ -300,6 +306,7 @@ export default function ClientConflictCheckPage() {
   });
 
   const acceptanceMutation = useMutation({
+    onError: showRefusal,
     mutationFn: async () => service.recordFirmAcceptance(clientId, checkId, acceptanceDraft),
     onSuccess: () => {
       setAcceptanceDraft(emptyAcceptanceDraft);
@@ -308,6 +315,7 @@ export default function ClientConflictCheckPage() {
   });
 
   const complianceMutation = useMutation({
+    onError: showRefusal,
     mutationFn: () => adminClientsService.recordComplianceReview(clientId, {
       identity_status: complianceDraft.identity_status || complianceReview?.identity_status || 'UNKNOWN',
       authority_status: complianceDraft.authority_status || complianceReview?.authority_status || 'UNKNOWN',
@@ -332,6 +340,7 @@ export default function ClientConflictCheckPage() {
   };
 
   const createEngagementMutation = useMutation({
+    onError: showRefusal,
     mutationFn: () => {
       const payload = Object.fromEntries(
         Object.entries(engagementDraft).filter(([, value]) => value !== '' && value !== null),
@@ -341,20 +350,24 @@ export default function ClientConflictCheckPage() {
     onSuccess: () => { setEngagementDraft(emptyEngagementDraft); refreshEngagement(); },
   });
   const approveEngagementMutation = useMutation({
+    onError: showRefusal,
     mutationFn: (engagementId) => adminClientsService.approveEngagement(clientId, checkId, engagementId),
     onSuccess: refreshEngagement,
   });
   const exceptionEngagementMutation = useMutation({
+    onError: showRefusal,
     mutationFn: (engagementId) => adminClientsService.approveEngagementException(clientId, checkId, engagementId, {
       status: engagementAction.status, reason: engagementAction.reason, policy_basis: engagementAction.policy_basis,
     }),
     onSuccess: () => { setEngagementAction({ status: 'WAIVED', reason: '', policy_basis: '', supersede_reason: '' }); refreshEngagement(); },
   });
   const supersedeEngagementMutation = useMutation({
+    onError: showRefusal,
     mutationFn: (engagementId) => adminClientsService.supersedeEngagement(clientId, checkId, engagementId, engagementAction.supersede_reason),
     onSuccess: () => { setEngagementAction((value) => ({ ...value, supersede_reason: '' })); refreshEngagement(); },
   });
   const receiveRetainerMutation = useMutation({
+    onError: showRefusal,
     mutationFn: (engagementId) => adminBillingService.receivePreMatterRetainer({
       ...retainerDraft,
       client: clientId,
@@ -373,6 +386,7 @@ export default function ClientConflictCheckPage() {
     .map((account) => ({ value: account.id, label: `${account.name} (${account.currency})` }));
 
   const actionMutation = useMutation({
+    onError: showRefusal,
     mutationFn: async () => {
       const action = STATUS_ACTIONS[actionDraft.next_status];
       const payload = {
@@ -399,14 +413,17 @@ export default function ClientConflictCheckPage() {
   });
 
   const jurisdictionSuggestionMutation = useMutation({
+    onError: showRefusal,
     mutationFn: () => service.generateJurisdictionSuggestion(clientId, checkId, jurisdictionFacts),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] }),
   });
   const jurisdictionDecisionMutation = useMutation({
+    onError: showRefusal,
     mutationFn: () => service.recordJurisdictionDecision(clientId, checkId, jurisdictionDecision),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] }),
   });
   const jurisdictionConfirmMutation = useMutation({
+    onError: showRefusal,
     mutationFn: () => service.confirmJurisdiction(clientId, checkId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] }),
   });
