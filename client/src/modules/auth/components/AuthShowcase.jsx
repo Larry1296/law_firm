@@ -37,7 +37,7 @@ const SLIDES = [
 ];
 
 /**
- * The image side of the auth pages, on the right: a slow, cross-fading
+ * The image side of the auth pages, on the left: a slow, cross-fading
  * carousel of courtrooms, each paired with a line from the Constitution,
  * with the page's own heading centred over it.
  */
