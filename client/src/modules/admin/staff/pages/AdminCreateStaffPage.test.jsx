@@ -55,6 +55,8 @@ describe('AdminCreateStaffPage', () => {
     await user.type(screen.getByLabelText(/Phone Number/), '0712345678');
     await user.type(screen.getByLabelText(/Email Address/), 'mercy@email.com');
     await user.type(screen.getByLabelText(/Admission Number/), 'P.105/1/26');
+    await user.type(screen.getByLabelText(/Practising Certificate Number/), 'LSK/2026/00001');
+    await user.type(screen.getByLabelText(/Practising Certificate Expiry/), '2026-12-31');
     await user.click(screen.getByRole('button', { name: 'Create Staff' }));
 
     const dialog = vi.mocked(Swal.fire).mock.calls.at(-1)[0];

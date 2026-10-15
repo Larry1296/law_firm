@@ -84,6 +84,30 @@ class AdminStaffCreatePermissionTests(TestCase):
             },
         )
 
+    def test_admin_create_lawyer_records_a_current_practising_certificate(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        payload = {**self.base_payload(index=7), "admission_number": "ADV-PC-001"}
+        url = reverse("admin-lawyer-create")
+        today = timezone.localdate()
+
+        lapsed = self.client.post(url, {**payload, "practicing_certificate_number": "LSK/2025/1",
+                                        "practicing_certificate_expiry": str(today - timedelta(days=1))}, format="json")
+        self.assertEqual(lapsed.status_code, 400)
+        self.assertIn("practicing_certificate_expiry", lapsed.data["errors"])
+
+        half = self.client.post(url, {**payload, "practicing_certificate_number": "LSK/2026/1"}, format="json")
+        self.assertEqual(half.status_code, 400)
+
+        current = self.client.post(url, {**payload, "practicing_certificate_number": "LSK/2026/1",
+                                         "practicing_certificate_expiry": f"{today.year}-12-31"}, format="json")
+        self.assertEqual(current.status_code, 201, current.data)
+        lawyer = Lawyer.objects.get(user__email=payload["email"])
+        self.assertEqual(lawyer.practicing_certificate_number, "LSK/2026/1")
+        self.assertEqual(str(lawyer.practicing_certificate_expiry), f"{today.year}-12-31")
+
     def test_admin_create_secretary_saves_selected_permissions(self):
         self.assert_created_with_permissions(
             route_name="admin-secretary-create",

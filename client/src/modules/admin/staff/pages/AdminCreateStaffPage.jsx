@@ -102,6 +102,7 @@ export default function AdminCreateStaffPage() {
     office_location: '',
     admission_number: '',
     practicing_certificate_number: '',
+    practicing_certificate_expiry: '',
     bar_admission_date: '',
     employment_type: 'PERMANENT',
     date_hired: new Date().toISOString().slice(0, 10),
@@ -278,6 +279,41 @@ export default function AdminCreateStaffPage() {
                 name='admission_number'
                 error={fieldErrors.admission_number}
                 value={formData.admission_number}
+                onChange={handleChange}
+                required
+              />
+            )}
+
+            {formData.firm_role === 'LAWYER' && (
+              <FloatingInput
+                label='Date of Admission to the Roll'
+                type='date'
+                name='bar_admission_date'
+                error={fieldErrors.bar_admission_date}
+                value={formData.bar_admission_date}
+                onChange={handleChange}
+              />
+            )}
+
+            {/* Advocates Act s.9: an advocate may practise only with a current practising certificate. */}
+            {formData.firm_role === 'LAWYER' && (
+              <FloatingInput
+                label='Practising Certificate Number'
+                name='practicing_certificate_number'
+                error={fieldErrors.practicing_certificate_number}
+                value={formData.practicing_certificate_number}
+                onChange={handleChange}
+                required
+              />
+            )}
+
+            {formData.firm_role === 'LAWYER' && (
+              <FloatingInput
+                label='Practising Certificate Expiry'
+                type='date'
+                name='practicing_certificate_expiry'
+                error={fieldErrors.practicing_certificate_expiry}
+                value={formData.practicing_certificate_expiry}
                 onChange={handleChange}
                 required
               />

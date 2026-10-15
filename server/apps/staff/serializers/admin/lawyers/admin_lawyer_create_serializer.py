@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.utils import timezone
 
 from apps.common.choices import EmploymentType
 from apps.firm.models import Branch, Department
@@ -100,7 +101,20 @@ class AdminLawyerCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Invalid employment type.")
         return value
 
+    def validate_practicing_certificate_expiry(self, value):
+        # Advocates Act s.9: only an advocate holding a current practising certificate may practise.
+        if value and value < timezone.localdate():
+            raise serializers.ValidationError(
+                "This practising certificate has expired. Record the current year's certificate."
+            )
+        return value
+
     def validate(self, attrs):
+        has_number = bool((attrs.get("practicing_certificate_number") or "").strip())
+        if has_number != bool(attrs.get("practicing_certificate_expiry")):
+            raise serializers.ValidationError(
+                {"practicing_certificate_expiry": "Record both the practising certificate number and its expiry date."}
+            )
         law_firm = self.context.get("law_firm")
         reports_to = attrs.get("reports_to")
         practice_areas = attrs.get("practice_area_ids", [])

@@ -342,6 +342,8 @@ const adminStaffService = {
         admission_number: payload.admission_number,
         practicing_certificate_number:
           payload.practicing_certificate_number || '',
+        practicing_certificate_expiry:
+          payload.practicing_certificate_expiry || null,
         bar_admission_date: payload.bar_admission_date || null,
         is_notary: Boolean(payload.is_notary),
         can_commission_oaths: Boolean(payload.can_commission_oaths),
