@@ -182,11 +182,11 @@ export default function AdminCreateStaffPage() {
             ${
               tempPassword
                 ? `
-                  <div style="margin-top:12px;padding:12px;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0">
+                  <div style="margin-top:12px;padding:12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text-primary)">
                     <p style="margin:0 0 6px 0"><strong>Temporary Password</strong></p>
-                    <code style="font-size:16px;font-weight:700">${tempPassword}</code>
+                    <code style="font-size:16px;font-weight:700;color:var(--text-primary);background:transparent;user-select:all">${tempPassword}</code>
                   </div>
-                  <p style="margin-top:10px;font-size:13px;color:#64748b">
+                  <p style="margin-top:10px;font-size:13px;color:var(--text-muted)">
                     Share this with the staff member. They will be required to change it after login.
                   </p>
                 `
