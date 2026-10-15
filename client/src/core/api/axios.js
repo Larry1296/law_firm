@@ -120,6 +120,13 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // A session still on a temporary password goes back to sign-in, where the change is required.
+    if (status === 403 && error.response?.data?.code === 'password_change_required') {
+      forceLogoutToLogin();
+      attachApiErrorMessage(error);
+      return Promise.reject(error);
+    }
+
     if (status !== 401 || isAuthEndpoint) {
       attachApiErrorMessage(error);
       return Promise.reject(error);

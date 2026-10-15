@@ -200,3 +200,53 @@ class AccountRecoveryTests(TestCase):
 
     def test_an_identifier_is_required(self):
         self.assertEqual(self.recover().status_code, 400)
+
+
+class TemporaryPasswordGateTests(TestCase):
+    def setUp(self):
+        from datetime import date
+
+        from apps.common.choices import FirmRole
+        from apps.firm.models import LawFirmMember
+        from apps.staff.models import Lawyer
+
+        self.api = APIClient()
+        owner = User.objects.create_user(
+            email="gate-owner@example.com", password="strong-pass123", first_name="Gate", last_name="Owner",
+            phone_number="+254733100001", national_id_number="733100001", role=UserRole.ADMIN,
+        )
+        firm = LawFirm.objects.create(name="Gate Firm", registration_number="GATE-001", owner=owner, is_active=True)
+        self.staff = User.objects.create_user(
+            email="gate-advocate@example.com", password="temp-pass-2026", first_name="Gate", last_name="Advocate",
+            phone_number="+254733100002", national_id_number="733100002", role=UserRole.STAFF,
+            must_change_password=True,
+        )
+        LawFirmMember.objects.create(firm=firm, user=self.staff, role=FirmRole.LAWYER, created_by=owner, is_active=True)
+        Lawyer.objects.create(
+            user=self.staff, law_firm=firm, staff_number="ADV-GATE", admission_number="P.105/1/26",
+            date_hired=date(2026, 1, 1),
+        )
+
+    def sign_in(self, password):
+        response = self.api.post("/api/auth/login/", {"email": self.staff.email, "password": password}, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.api.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
+        return response
+
+    def test_temporary_password_blocks_work_until_changed(self):
+        self.assertTrue(self.sign_in("temp-pass-2026").data["user"]["must_change_password"])
+
+        blocked = self.api.get("/api/cases/")
+        self.assertEqual(blocked.status_code, 403)
+        self.assertEqual(blocked.data["code"], "password_change_required")
+        self.assertEqual(self.api.get("/api/auth/me/").status_code, 200)
+
+        changed = self.api.post(
+            "/api/staff/lawyer/change-password/",
+            {"current_password": "temp-pass-2026", "new_password": "Fresh#Pass2026", "confirm_password": "Fresh#Pass2026"},
+            format="json",
+        )
+        self.assertEqual(changed.status_code, 200, changed.data)
+        self.staff.refresh_from_db()
+        self.assertFalse(self.staff.must_change_password)
+        self.assertEqual(self.api.get("/api/cases/").status_code, 200)

@@ -48,3 +48,17 @@ describe('API requests and the session lock', () => {
     expect(adapter).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('API requests on a temporary password', () => {
+  it('signs the user out when the server requires a password change', async () => {
+    localStorage.setItem('accessToken', jwt(Date.now() + 60 * 60 * 1000));
+    localStorage.setItem('user', JSON.stringify({ role: 'STAFF', must_change_password: true }));
+    axiosInstance.defaults.adapter = vi.fn(async (config) => Promise.reject(Object.assign(new Error('Forbidden'), {
+      config,
+      response: { status: 403, data: { code: 'password_change_required', detail: 'Change your temporary password before continuing.' } },
+    })));
+
+    await expect(axiosInstance.get('/cases/')).rejects.toMatchObject({ response: { status: 403 } });
+    expect(localStorage.getItem('accessToken')).toBeNull();
+  });
+});

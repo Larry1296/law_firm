@@ -56,37 +56,25 @@ export default function Login() {
     return navigate('/', { replace: true });
   };
 
-  const promptPasswordChoice = async ({ sessionUser, access, refresh }) => {
-    const canPrompt =
-      ['STAFF', 'PROSPECT'].includes(sessionUser.role) &&
-      sessionUser.must_change_password;
+  // The server refuses work until a temporary password is replaced, so the change is not optional.
+  const requirePasswordChange = async ({ sessionUser, access, refresh }) => {
+    const mustChange =
+      sessionUser.role !== 'ADMIN' && sessionUser.must_change_password;
 
-    if (!canPrompt) {
-      return sessionUser;
-    }
-
-    const result = await Swal.fire({
-      icon: 'info',
-      title: 'Change temporary password?',
-      text: 'You are signed in with a temporary password. You can change it now or keep it for the moment.',
-      showDenyButton: true,
-      confirmButtonText: 'Change now',
-      denyButtonText: 'Keep it',
-      allowOutsideClick: false,
-    });
-
-    if (!result.isConfirmed) {
+    if (!mustChange) {
       return sessionUser;
     }
 
     const passwordResult = await Swal.fire({
-      title: 'Set new password',
+      title: 'Set your own password',
       html: `
+        <p class="swal2-html-container" style="margin:0 0 0.5rem">You signed in with a temporary password. Choose your own password to continue.</p>
         <input id="new-password" type="password" class="swal2-input" placeholder="New password" autocomplete="new-password" />
         <input id="confirm-password" type="password" class="swal2-input" placeholder="Confirm password" autocomplete="new-password" />
       `,
       confirmButtonText: 'Update password',
-      showCancelButton: true,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
       focusConfirm: false,
       preConfirm: async () => {
         const newPassword = document.getElementById('new-password')?.value || '';
@@ -201,7 +189,7 @@ export default function Login() {
       /* =====================================================
          FIRST-TIME PASSWORD CHOICE
       ===================================================== */
-      const finalUser = await promptPasswordChoice({
+      const finalUser = await requirePasswordChange({
         sessionUser,
         access,
         refresh,

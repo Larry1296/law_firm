@@ -13,9 +13,29 @@ def portal_access_allowed(user):
     ).exists()
 
 
+class PasswordChangeRequired(PermissionDenied):
+    default_detail = "Change your temporary password before continuing."
+    error_code = "password_change_required"
+
+
+def _is_account_view(request):
+    """Sign-in, session and password views stay reachable whatever gate applies."""
+    view_class = getattr(getattr(request.resolver_match, "func", None), "view_class", None)
+    if view_class is None:
+        return False
+    return view_class.__module__.startswith("apps.authentication.") or view_class.__name__.endswith("ChangePasswordView")
+
+
+def password_change_pending(user):
+    # Firm owners set their own password from the invitation link, so they are never held here.
+    return bool(user.must_change_password) and user.role != "ADMIN"
+
+
 class AcceptanceGatedJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
         result = super().authenticate(request)
+        if result and password_change_pending(result[0]) and not _is_account_view(request):
+            raise PasswordChangeRequired()
         if result and not portal_access_allowed(result[0]):
             # Account/session endpoints remain available; business data does not.
             if request.resolver_match and getattr(getattr(request.resolver_match.func, "view_class", None), "__module__", "").startswith("apps.authentication."):
