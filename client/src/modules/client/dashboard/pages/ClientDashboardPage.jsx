@@ -14,6 +14,7 @@ import { useState } from 'react';
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
+import fillDashboardRows from '@/components/dashboard/fillDashboardRows';
 import CourtroomTodayPanel from '@/modules/courtroom/components/CourtroomTodayPanel';
 import ClientCourtPreparationPanel from '@/modules/preparation/components/ClientCourtPreparationPanel';
 import { getFirstName } from '@/core/utils/personName';
@@ -242,7 +243,7 @@ export default function ClientDashboardPage() {
 
       <section className='mt-0 hidden lg:block'>
         <DashboardGrid>
-          {clientTiles.map((tile) => {
+          {fillDashboardRows(clientTiles).map((tile) => {
             const Icon = tile.icon;
             const value = tileValue(tile);
 

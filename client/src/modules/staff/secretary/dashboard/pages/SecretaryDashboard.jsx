@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
+import fillDashboardRows from '@/components/dashboard/fillDashboardRows';
 import { getFirstName } from '@/core/utils/personName';
 import useSecretaryDashboard from '@/modules/staff/secretary/dashboard/hooks/useSecretaryDashboard';
 import { formatDateTime } from '@/core/utils/dateFormatter';
@@ -124,7 +125,7 @@ export default function SecretaryDashboard() {
 
       <section className='mt-0'>
         <DashboardGrid>
-          {visibleTiles.map((tile) => {
+          {fillDashboardRows(visibleTiles).map((tile) => {
             const Icon = tile.icon;
             const value = getTileValue(tile, summary);
             const isNotificationsTile = tile.title === 'Notifications';

@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
+import fillDashboardRows from '@/components/dashboard/fillDashboardRows';
 import { getFirstName } from '@/core/utils/personName';
 import { displayEnum } from '@/core/utils/textFormatter';
 import CourtroomTodayPanel from '@/modules/courtroom/components/CourtroomTodayPanel';
@@ -124,7 +125,7 @@ export default function LawyerDashboardPage() {
 
       <section className='mt-0'>
         <DashboardGrid>
-          {lawyerTiles.map((tile) => {
+          {fillDashboardRows(lawyerTiles).map((tile) => {
             const Icon = tile.icon;
             const value = tileValue(tile);
 

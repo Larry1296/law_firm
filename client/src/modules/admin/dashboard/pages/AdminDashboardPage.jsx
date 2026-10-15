@@ -20,6 +20,7 @@ import useAuth from '@/core/hooks/useAuth';
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
+import fillDashboardRows from '@/components/dashboard/fillDashboardRows';
 import useAdminDashboard from '@/modules/admin/dashboard/hooks/useAdminDashboard';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { displayEnum } from '@/core/utils/textFormatter';
@@ -233,7 +234,7 @@ export default function AdminDashboardPage() {
 
       <section className='mt-0'>
         <DashboardGrid>
-          {adminTiles.map((tile) => {
+          {fillDashboardRows(adminTiles).map((tile) => {
             const Icon = tile.icon;
             const metric = tileMetrics[tile.key] || {};
             const metricValue =

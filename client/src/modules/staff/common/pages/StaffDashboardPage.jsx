@@ -5,6 +5,7 @@ import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardHero from '@/components/dashboard/DashboardHero';
 import DashboardNotifications from '@/components/dashboard/DashboardNotifications';
 import DashboardTile from '@/components/dashboard/DashboardTile';
+import fillDashboardRows from '@/components/dashboard/fillDashboardRows';
 import SystemHealthReport from '@/components/it/SystemHealthReport';
 import { getFirstName } from '@/core/utils/personName';
 import { useStaffDashboard } from '@/modules/staff/common/hooks/useStaffWorkspace';
@@ -39,7 +40,7 @@ export default function StaffDashboardPage({ config }) {
 
       <section className='mt-0'>
         <DashboardGrid>
-          {config.tiles.map((tile) => {
+          {fillDashboardRows(config.tiles).map((tile) => {
             const TileIcon = tile.icon;
             const value =
               tile.title === 'Notifications'
