@@ -15,7 +15,7 @@ export default function ResetPassword() {
   const uid = searchParams.get('uid');
   const token = searchParams.get('token');
 
-  const { resetPassword, loading, error } = useAuth();
+  const { resetPassword, logout, isAuthenticated, loading, error } = useAuth();
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -39,6 +39,12 @@ export default function ResetPassword() {
         confirm_password: confirmPassword,
       });
 
+      // Whoever was signed in on this browser is signed out, so the person
+      // who just chose a password signs in as themselves.
+      if (isAuthenticated) {
+        await logout();
+        return;
+      }
       navigate('/login');
     } catch (err) {
       console.error('Reset password failed:', err);
