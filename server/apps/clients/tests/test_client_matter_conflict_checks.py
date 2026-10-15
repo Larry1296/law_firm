@@ -472,6 +472,67 @@ class ClientMatterConflictCheckTests(APITestCase):
         )
         self.assertTrue(check.history.filter(action="CLOSED_WITHOUT_DECISION").exists())
 
+    def make_lawyer(self, suffix, permissions):
+        user = User.objects.create_user(
+            email=f"conflict-{suffix}@example.com", password="pass", first_name="Advocate", last_name=suffix.title(),
+            phone_number=f"+2547112{len(suffix):02d}{suffix[:3].encode().hex()[:4]}", national_id_number=f"CONF{suffix.upper()}",
+            role=UserRole.STAFF,
+        )
+        lawyer = Lawyer.objects.create(
+            user=user, law_firm=self.firm, staff_number=f"ADV-{suffix}", admission_number=f"ADV-{suffix}",
+            date_hired=date(2026, 1, 1),
+        )
+        for code in permissions:
+            LawyerPermissionGrant.objects.create(lawyer=lawyer, code=code, granted_by=self.admin)
+        return lawyer
+
+    def test_escalated_reviewer_is_notified_and_can_decide(self):
+        from apps.notifications.models import Notification
+
+        associate = self.make_lawyer("associate", [LawyerPermission.CREATE_PROPOSED_MATTER, LawyerPermission.PERFORM_CONFLICT_CHECK])
+        partner = self.make_lawyer("partner", [LawyerPermission.APPROVE_CONFLICT_RESULT])
+        outsider = self.make_lawyer("outsider", [LawyerPermission.PERFORM_CONFLICT_CHECK, LawyerPermission.APPROVE_CONFLICT_RESULT])
+        payload = self.proposed_payload()
+        payload["responsible_lawyer_id"] = str(associate.id)
+        created = self.client.post(
+            reverse("admin-client-conflict-checks", kwargs={"client_id": self.client_record.id}), payload, format="json",
+        )
+        self.assertEqual(created.status_code, 201, created.data)
+        kwargs = {"client_id": self.client_record.id, "check_id": created.data["conflict_check"]["id"]}
+
+        self.client.force_authenticate(associate.user)
+        for name, body in (
+            ("admin-client-conflict-check-start", {}),
+            ("admin-client-conflict-check-potential", {"first_reviewer_findings": "Adverse party is an existing client."}),
+            ("admin-client-conflict-check-escalate", {"review_assigned_to_id": str(partner.id), "summary": "Partner decision needed."}),
+        ):
+            response = self.client.post(reverse(name, kwargs=kwargs), body, format="json")
+            self.assertEqual(response.status_code, 200, response.data)
+
+        notification = Notification.objects.get(recipient=partner.user)
+        self.assertIn("Conflict review requested", notification.title)
+        self.assertEqual(
+            notification.action_url,
+            f"/lawyer/clients/{self.client_record.id}/conflict-checks/{kwargs['check_id']}",
+        )
+
+        self.client.force_authenticate(outsider.user)
+        hidden = self.client.get(reverse("admin-client-conflict-check-detail", kwargs=kwargs))
+        self.assertEqual(hidden.status_code, 400, hidden.data)
+
+        self.client.force_authenticate(partner.user)
+        visible = self.client.get(reverse("admin-client-conflict-check-detail", kwargs=kwargs))
+        self.assertEqual(visible.status_code, 200, visible.data)
+        decided = self.client.post(
+            reverse("admin-client-conflict-check-decide", kwargs=kwargs),
+            {"decision": ConflictCheckStatus.CONFLICT_CONFIRMED, "decision_confirmation": True,
+             "internal_reason": "The firm acts for the proposed adverse party."},
+            format="json",
+        )
+        self.assertEqual(decided.status_code, 200, decided.data)
+        self.assertEqual(decided.data["conflict_check"]["status"], ConflictCheckStatus.CONFLICT_CONFIRMED)
+        self.assertEqual(decided.data["conflict_check"]["decided_by"], partner.id)
+
     def test_illegal_state_transition_is_rejected_without_mutating_history(self):
         check = self.create_check()
         history_count = check.history.count()

@@ -203,7 +203,13 @@ class ClientMatterConflictService:
         lawyer = cls._active_lawyer_for_user(user, firm)
         if lawyer is None:
             raise PermissionDenied("Only firm admins and active lawyers can manage conflict checks.")
-        if not lawyer.has_permission(LawyerPermission.CREATE_PROPOSED_MATTER):
+        # Any conflict role opens the register; each command still checks its own grant,
+        # so a reviewer holding only the approval grant can reach checks escalated to them.
+        if not any(lawyer.has_permission(code) for code in (
+            LawyerPermission.CREATE_PROPOSED_MATTER,
+            LawyerPermission.PERFORM_CONFLICT_CHECK,
+            LawyerPermission.APPROVE_CONFLICT_RESULT,
+        )):
             raise PermissionDenied("Lawyer permission is required to manage proposed matters.")
 
     @classmethod
@@ -347,8 +353,13 @@ class ClientMatterConflictService:
         )
         lawyer = cls._active_lawyer_for_user(user, firm)
         if lawyer is not None and not (user.role == UserRole.ADMIN and getattr(firm, "owner_id", None) == user.id):
-            queryset = queryset.filter(responsible_lawyer=lawyer)
+            queryset = cls._scope_to_lawyer(queryset, lawyer)
         return queryset
+
+    @staticmethod
+    def _scope_to_lawyer(queryset, lawyer):
+        """An advocate sees the checks they are responsible for or were asked to review."""
+        return queryset.filter(models.Q(responsible_lawyer=lawyer) | models.Q(review_assigned_to=lawyer))
 
     @classmethod
     def list_for_client(cls, *, user, client_id):
@@ -365,7 +376,7 @@ class ClientMatterConflictService:
             queryset = ClientMatterConflictCheck.objects.select_for_update().filter(firm=firm)
             lawyer = cls._active_lawyer_for_user(user, firm)
             if lawyer is not None and not (user.role == UserRole.ADMIN and getattr(firm, "owner_id", None) == user.id):
-                queryset = queryset.filter(responsible_lawyer=lawyer)
+                queryset = cls._scope_to_lawyer(queryset, lawyer)
         else:
             queryset = cls.base_queryset(user)
         try:
@@ -649,7 +660,23 @@ class ClientMatterConflictService:
             metadata={"review_assigned_to_id": str(reviewer.id)},
         )
         check.save(update_fields=["status", "review_assigned_to", "updated_at"])
+        cls._notify_reviewer(check, reviewer, actor=user, summary=summary)
         return check
+
+    @staticmethod
+    def _notify_reviewer(check, reviewer, *, actor, summary):
+        from apps.notifications.services.notification_service import NotificationService
+
+        area = "admin" if reviewer.user_id == check.firm.owner_id else "lawyer"
+        NotificationService.create(
+            firm=check.firm,
+            recipient=reviewer.user,
+            actor=actor,
+            title=f"Conflict review requested: {check.reference_number}",
+            message=f"{actor.full_name} escalated the conflict check on {check.proposed_matter_title} for your decision. {summary}",
+            action_url=f"/{area}/clients/{check.client_id}/conflict-checks/{check.id}",
+            event_key=f"CONFLICT_ESCALATED:{check.id}:{reviewer.id}",
+        )
 
     @classmethod
     @transaction.atomic
