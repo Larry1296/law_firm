@@ -9,6 +9,8 @@ import { formatDateTime } from '@/core/utils/dateFormatter';
 import { Input3D } from '@/components/ui/Input3D';
 import Card from '@/components/ui/Card';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
+import Swal from '@/core/utils/themedSwal';
+import { FormButton } from '@/components/forms';
 import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
 import StaffPermissionPicker from '@/modules/admin/staff/components/StaffPermissionPicker';
 import AdvocateChecklist from '@/modules/admin/staff/components/AdvocateChecklist';
@@ -63,6 +65,20 @@ const SingleStaffDetailsPage = () => {
       queryClient.invalidateQueries({ queryKey: staffKeys.detail(id) });
       setAdvocateDraft(null);
     },
+  });
+
+  const sendSignInLinkMutation = useMutation({
+    mutationFn: (email) => staffService.sendSignInLink(email),
+    onSuccess: (result) => {
+      const box = document.createElement('div');
+      box.innerHTML = `
+        <p style="margin:0 0 10px">${result.detail}</p>
+        <p style="margin:0 0 6px;font-size:13px;color:var(--text-muted)">If the email does not reach them, send this link another way. It works once.</p>
+        <div style="padding:12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text-primary);word-break:break-all;user-select:all;font-family:monospace;font-size:13px"></div>`;
+      box.lastElementChild.textContent = result.link;
+      Swal.fire({ icon: 'success', title: 'Sign-in link ready', html: box, confirmButtonText: 'Done' });
+    },
+    onError: (err) => Swal.fire({ icon: 'error', title: 'No link was sent', text: getApiErrorMessage(err, 'Could not create a sign-in link.') }),
   });
 
   if (isLoading) return <div>Loading staff details...</div>;
@@ -126,6 +142,17 @@ const SingleStaffDetailsPage = () => {
         <p>
           <strong>Created:</strong> {formatDateTime(user.created_at)}
         </p>
+        <FormButton
+          type='button'
+          className='mt-3'
+          variant='secondary'
+          disabled={!user.email || !user.is_active}
+          loading={sendSignInLinkMutation.isPending}
+          loadingText='Sending…'
+          onClick={() => sendSignInLinkMutation.mutate(user.email)}
+        >
+          Send sign-in link
+        </FormButton>
       </div>
       {/* MEMBERSHIP + SUMMARY */}
       <div

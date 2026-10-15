@@ -394,6 +394,12 @@ const adminStaffService = {
     return data;
   },
 
+  // A one-time link to set their password, emailed and also returned to pass on by hand.
+  async sendSignInLink(email) {
+    const { data } = await axiosInstance.post('/admin/staff/sign-in-link/', { email });
+    return data;
+  },
+
   /* ======================================================
      TOGGLE STATUS
   ====================================================== */
