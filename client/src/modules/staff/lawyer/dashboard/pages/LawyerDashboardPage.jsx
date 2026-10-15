@@ -16,7 +16,6 @@ import DashboardGrid from '@/components/dashboard/DashboardGrid';
 import DashboardTile from '@/components/dashboard/DashboardTile';
 import fillDashboardRows from '@/components/dashboard/fillDashboardRows';
 import { getFirstName } from '@/core/utils/personName';
-import { displayEnum } from '@/core/utils/textFormatter';
 import CourtroomTodayPanel from '@/modules/courtroom/components/CourtroomTodayPanel';
 import useLawyerDashboard from '@/modules/staff/lawyer/dashboard/hooks/useLawyerDashboard';
 // INTERNAL AI TEMPORARILY PAUSED
@@ -100,7 +99,6 @@ export default function LawyerDashboardPage() {
   const summary = data?.summary || {};
   const profile = data?.lawyer || {};
   const firstName = getFirstName(profile.first_name, profile.full_name, profile.email);
-  const firmRole = displayEnum(profile.firm_role || 'LAWYER');
 
   const tileValue = (tile) => {
     if (tile.title === 'Notifications') return summary.unread_notifications ?? 0;
@@ -117,7 +115,7 @@ export default function LawyerDashboardPage() {
     <>
       <DashboardHero
         badge='Advocate'
-        title={`Welcome ${firmRole}${firstName ? `, ${firstName}` : ''}`}
+        title={`Welcome${firstName ? `, ${firstName}` : ''}`}
         description='Manage assigned matters, prepare court appearances, track deadlines, and collaborate with clients.'
         statusTitle='Practice Active'
         statusDescription={`${summary.tasks_due ?? 0} pending tasks, ${summary.unread_notifications ?? 0} unread notifications.`}
@@ -165,12 +163,14 @@ export default function LawyerDashboardPage() {
                         ? `${summary.unread_notifications ?? 0} unread`
                         : tile.path
                           ? 'Open workspace'
-                          : 'API ready'}
+                          : 'Across your matters'}
                     </span>
 
-                    <span className='w-fit shrink-0 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold'>
-                      {tile.path ? 'Quick access' : 'Metric only'}
-                    </span>
+                    {tile.path && (
+                      <span className='w-fit shrink-0 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold'>
+                        Quick access
+                      </span>
+                    )}
                   </div>
                 </div>
               </DashboardTile>
