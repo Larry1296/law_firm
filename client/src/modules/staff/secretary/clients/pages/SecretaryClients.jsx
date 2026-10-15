@@ -126,21 +126,12 @@ export default function SecretaryClients() {
 
         <div className='flex w-full flex-wrap items-center justify-between gap-3'>
           {canManageClients && (
-            <div className='flex flex-wrap gap-3'>
-              {/* A walk-in starts with the conflict check; full client details come after clearance. */}
-              <Button3D
-                variant='primary'
-                onClick={() => navigate('/secretary/clients/proposed-matters/new')}
-              >
-                New proposed matter / Start conflict check
-              </Button3D>
-              <Button3D
-                variant='secondary'
-                onClick={() => navigate('/secretary/clients/create')}
-              >
-                + Create Client
-              </Button3D>
-            </div>
+            <Button3D
+              variant='primary'
+              onClick={() => navigate('/secretary/clients/create')}
+            >
+              + Create Client
+            </Button3D>
           )}
           {!canManageClients && <span aria-hidden='true' />}
           <Button3D onClick={refetch}>Refresh</Button3D>
