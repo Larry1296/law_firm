@@ -81,6 +81,8 @@ class Secretary(TimestampedModel):
         related_name="assigned_secretaries",
     )
 
+    is_receptionist = models.BooleanField(default=False, help_text="Designated receptionist account for preliminary client intake.")
+
     can_prepare_documents = models.BooleanField(default=True)
     can_schedule_appointments = models.BooleanField(default=True)
     can_manage_client_intake = models.BooleanField(default=True)

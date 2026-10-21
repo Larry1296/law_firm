@@ -43,6 +43,7 @@ class OnboardingOwnerSerializer(AdminSerializer):
     password = None
     confirm_password = None
     job_title = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    office_location = serializers.CharField(max_length=255, required=False, allow_blank=True)
 
     def validate(self, data):
         return data
@@ -57,6 +58,7 @@ class OfficeSerializer(serializers.Serializer):
 
 
 class FirmSettingsInputSerializer(serializers.Serializer):
+    queue_reception_mode = serializers.ChoiceField(choices=['SHARED', 'ASSIGNED'], required=False)
     opening_time = serializers.TimeField(required=False)
     closing_time = serializers.TimeField(required=False)
     work_on_saturday = serializers.BooleanField(required=False)

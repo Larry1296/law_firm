@@ -6,6 +6,7 @@ class FirmSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = FirmSetting
         fields = [
+            "queue_reception_mode",
             "timezone",
             "language",
             "currency",

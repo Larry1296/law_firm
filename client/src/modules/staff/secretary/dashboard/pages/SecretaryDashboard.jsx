@@ -1,3 +1,4 @@
+import ClientQueueDashboard from '@/modules/clients/shared/ClientQueueDashboard';
 import {
   Activity,
   Bell,
@@ -122,6 +123,8 @@ export default function SecretaryDashboard() {
         statusTitle='Operations Running Smoothly'
         statusDescription={`${summary.pending_tasks ?? 0} pending tasks, ${summary.appointments_today ?? 0} appointments today.`}
       />
+
+      <ClientQueueDashboard path='/secretary/arrivals' />
 
       <section className='mt-0'>
         <DashboardGrid>

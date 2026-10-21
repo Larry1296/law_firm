@@ -1,7 +1,7 @@
 import { ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
-import { saveAuthSession } from '@/core/utils/authStorage';
+import { clearAuthSession, saveAuthSession } from '@/core/utils/authStorage';
 import { useNavigate, Link } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 
@@ -118,7 +118,8 @@ export default function Login() {
     });
 
     if (!passwordResult.isConfirmed) {
-      return sessionUser;
+      clearAuthSession();
+      throw new Error('Set your own password to finish signing in.');
     }
 
     const updatedUser = {
@@ -127,7 +128,6 @@ export default function Login() {
     };
 
     saveAuthSession({ user: updatedUser, access, refresh }, rememberMe);
-    authLogin({ user: updatedUser, access, refresh }, rememberMe);
 
     await Swal.fire({
       icon: 'success',
@@ -182,9 +182,9 @@ export default function Login() {
       /* =====================================================
          AUTH CONTEXT UPDATE + STORAGE
       ===================================================== */
-      flushSync(() => {
-        authLogin({ user: sessionUser, access, refresh }, rememberMe);
-      });
+      // The password-change API needs the token, but publishing the session to
+      // context now would redirect away from this form and load the dashboard.
+      saveAuthSession({ user: sessionUser, access, refresh }, rememberMe);
 
       /* =====================================================
          FIRST-TIME PASSWORD CHOICE
@@ -193,6 +193,9 @@ export default function Login() {
         sessionUser,
         access,
         refresh,
+      });
+      flushSync(() => {
+        authLogin({ user: finalUser, access, refresh }, rememberMe);
       });
 
       /* =====================================================

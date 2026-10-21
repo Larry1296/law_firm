@@ -1,5 +1,6 @@
 import ProspectiveClientActions from '@/modules/clients/shared/ProspectiveClientActions';
 import React from 'react';
+import ResendTemporaryPasswordButton from '@/modules/admin/components/ResendTemporaryPasswordButton';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
@@ -237,6 +238,7 @@ export default function AdminClientDetailsPage() {
           { id: 'client-contacts', label: 'Contacts' },
         ]}
       />
+      {client.portal_access_exists && <ResendTemporaryPasswordButton clientId={id} />}
       <div className='flex justify-end'><Button3D variant='primary' onClick={() => navigate(`/admin/clients/${id}/documents`)}>Open Physical Document Register</Button3D></div>
 
       <div id='client-overview' className='scroll-mt-28 grid grid-cols-1 gap-4 md:grid-cols-4'>

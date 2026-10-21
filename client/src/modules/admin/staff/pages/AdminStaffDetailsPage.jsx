@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ResendTemporaryPasswordButton from '@/modules/admin/components/ResendTemporaryPasswordButton';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -56,6 +57,14 @@ const SingleStaffDetailsPage = () => {
         queryKey: staffKeys.detail(id),
       });
       setPermissionDraft(null);
+    },
+  });
+
+  const updateReceptionistMutation = useMutation({
+    mutationFn: (value) => staffService.updateReceptionistDesignation(id, value),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: staffKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ['client-arrivals'] });
     },
   });
 
@@ -153,6 +162,7 @@ const SingleStaffDetailsPage = () => {
         >
           Send sign-in link
         </FormButton>
+        <ResendTemporaryPasswordButton email={user.email} disabled={!user.email || !user.is_active} />
       </div>
       {/* MEMBERSHIP + SUMMARY */}
       <div
@@ -206,6 +216,18 @@ const SingleStaffDetailsPage = () => {
           )}
         </div>
       </Card>
+
+      {membership.role === 'SECRETARY' && (
+        <Card className='mb-6 space-y-3 p-5'>
+          <h2 className='text-lg font-bold'>Reception duties</h2>
+          <label className='flex items-center gap-2'>
+            <input type='checkbox' checked={Boolean(staff.secretary?.is_receptionist)} disabled={updateReceptionistMutation.isPending} onChange={(event) => updateReceptionistMutation.mutate(event.target.checked)} />
+            Designated receptionist account
+          </label>
+          <p className='text-sm'>An active receptionist with client-intake access handles preliminary intake. Without one, the secretary records arrival and the advocate asks the intake questions.</p>
+          {updateReceptionistMutation.isError && <p role='alert'>Unable to update reception duties. Please try again.</p>}
+        </Card>
+      )}
 
       {membership.role === 'SECRETARY' && (
         <Card className='mb-6 space-y-4 p-5'>

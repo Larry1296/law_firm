@@ -43,7 +43,10 @@ describe('RegisterFirmPage', () => {
     await type('Registered firm name', 'Achieng & Mwangi Advocates');
     await user.selectOptions(screen.getByLabelText('Business structure', { exact: false }), 'LLP');
     await type('BRS registration number', 'BN-2026-0042');
-    await type('KRA PIN', 'p051234567x');
+    await user.click(screen.getByLabelText('KRA PIN', { exact: false }));
+    await user.paste(' p051234567x ');
+    expect(screen.getByLabelText('KRA PIN', { exact: false })).toHaveValue('P051234567X');
+    expect(screen.getByLabelText('KRA PIN', { exact: false })).toBeValid();
     await type('Firm email', 'info@am.co.ke');
     await type('Firm phone', '+254700000000');
     await type('Physical address', 'Upper Hill');
@@ -64,9 +67,19 @@ describe('RegisterFirmPage', () => {
     expect(logo).toBeNull();
     expect(payload.firm).toMatchObject({ business_structure: 'LLP', kra_pin: 'P051234567X', county: 'Nairobi' });
     expect(payload.owner).toMatchObject({ first_name: 'Grace', admission_number: 'P.105/1234/15', job_title: 'Managing Partner' });
-    expect(payload.settings).toEqual({ opening_time: '08:00', closing_time: '17:00', work_on_saturday: false });
+    expect(payload.settings).toEqual({ opening_time: '08:00', closing_time: '17:00', work_on_saturday: false, queue_reception_mode: 'SHARED' });
     expect(payload.practice_areas).toEqual(['Family law']);
   }, 20000);
+
+  it('still rejects malformed KRA PINs before submission', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const pin = screen.getByLabelText('KRA PIN', { exact: false });
+    await user.click(pin);
+    await user.paste(' P05123456X ');
+    expect(pin).toHaveValue('P05123456X');
+    expect(pin.validity.patternMismatch).toBe(true);
+  });
 
   it('marks the exact fields the platform rejected', async () => {
     vi.mocked(platformService.submitOnboardingRequest).mockRejectedValue({

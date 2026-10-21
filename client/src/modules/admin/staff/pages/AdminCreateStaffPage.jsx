@@ -109,6 +109,7 @@ export default function AdminCreateStaffPage() {
     professional_summary: '',
     can_prepare_documents: true,
     can_schedule_appointments: true,
+    is_receptionist: false,
     can_manage_client_intake: true,
     can_receive_documents: true,
     accounting_specialization: '',
@@ -397,6 +398,12 @@ export default function AdminCreateStaffPage() {
               />
             </div>
 
+            {formData.firm_role === 'SECRETARY' && (
+              <label className='flex items-center gap-2 py-3'>
+                <input type='checkbox' checked={formData.is_receptionist} onChange={(event) => setFormData((previous) => ({ ...previous, is_receptionist: event.target.checked }))} />
+                Receptionist account — handles preliminary intake before the advocate
+              </label>
+            )}
             <FloatingInput
               label='Job Title'
               name='job_title'
@@ -431,7 +438,8 @@ export default function AdminCreateStaffPage() {
             />
 
             <FloatingInput
-              label='Office Location'
+              label={formData.firm_role === 'LAWYER' ? 'Office / room label' : 'Office Location'}
+              placeholder='e.g. Room 201, second floor'
               name='office_location'
               error={fieldErrors.office_location}
               value={formData.office_location}

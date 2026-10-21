@@ -86,6 +86,7 @@ class AdminSecretaryDetailSerializer(serializers.ModelSerializer):
             "reports_to",
             "reports_to_name",
             "assigned_lawyers",
+            "is_receptionist",
             "can_prepare_documents",
             "can_schedule_appointments",
             "can_manage_client_intake",

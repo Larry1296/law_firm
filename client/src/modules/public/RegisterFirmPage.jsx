@@ -27,11 +27,11 @@ const EMPTY = {
     name: '', business_structure: 'PARTNERSHIP', registration_number: '', kra_pin: '', description: '',
     email: '', phone_number: '', website: '', physical_address: '', postal_address: '', county: '', town: '',
   },
-  settings: { opening_time: '08:00', closing_time: '17:00', work_on_saturday: false },
+  settings: { opening_time: '08:00', closing_time: '17:00', work_on_saturday: false, queue_reception_mode: 'SHARED' },
   practice_areas: [],
   owner: {
     first_name: '', last_name: '', email: '', phone_number: '', national_id_number: '',
-    admission_number: '', job_title: 'Managing Partner',
+    admission_number: '', job_title: 'Managing Partner', office_location: '',
   },
 };
 
@@ -76,7 +76,7 @@ function RequestSent({ form }) {
           receives a link at {form.owner.email} to set a password and sign in. We will call {form.owner.phone_number} if anything needs clarifying.
         </p>
       </div>
-      <Link to='/' className='btn btn-primary'>Back to the homepage</Link>
+      <Link to='/' className='btn btn-primary'>Done</Link>
     </AuthFormCard>
   );
 }
@@ -92,7 +92,9 @@ function OnboardingRequestForm({ plans, onSent }) {
   const suggestions = choices.data?.practice_areas || [];
 
   const set = (section, key) => (event) => {
-    const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+    let value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+    // Native pattern validation runs before submit-time normalization.
+    if (section === 'firm' && key === 'kra_pin') value = value.trim().toUpperCase();
     setForm((current) => ({ ...current, [section]: { ...current[section], [key]: value } }));
   };
   const setExtraField = (key) => (event) => setExtra((current) => ({ ...current, [key]: event.target.value }));
@@ -186,6 +188,15 @@ function OnboardingRequestForm({ plans, onSent }) {
         </label>
       </Section>
 
+      <Section title='Reception structure' description='Choose how secretaries receive clients. You can update coverage and room labels after registration.'>
+        <Field label='Reception coverage' className='sm:col-span-2'>
+          <select name='settings.queue_reception_mode' className={inputClass} value={form.settings.queue_reception_mode} onChange={set('settings', 'queue_reception_mode')}>
+            <option value='SHARED'>Shared reception — secretaries cover all advocates</option>
+            <option value='ASSIGNED'>Assigned secretaries — each supports selected advocates</option>
+          </select>
+        </Field>
+      </Section>
+
       <Section title='Practice areas' description='The kinds of work the firm takes on. Choose at least one.'>
         <div className='flex flex-wrap gap-2 sm:col-span-2'>
           {[...new Set([...suggestions, ...form.practice_areas])].map((area) => {
@@ -230,6 +241,7 @@ function OnboardingRequestForm({ plans, onSent }) {
         {text('owner', 'national_id_number', 'National ID number', { required: true })}
         {text('owner', 'admission_number', 'Admission number', { required: true, placeholder: 'e.g. P.105/1234/15', hint: 'As on the Roll of Advocates.' })}
         {text('owner', 'job_title', 'Job title')}
+        {text('owner', 'office_location', 'Managing partner’s office / room', { placeholder: 'e.g. Room 201, second floor', hint: 'Shown to reception when ushering clients in. You can change it later.' })}
       </Section>
 
       <Section title='Plan'>

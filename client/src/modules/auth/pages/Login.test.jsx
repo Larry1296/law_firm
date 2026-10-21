@@ -8,7 +8,9 @@ import AuthContext from '@/core/store/AuthContext';
 import authService from '@/modules/auth/service/authService';
 import Login from './Login';
 
-vi.mock('@/modules/auth/service/authService', () => ({ default: { login: vi.fn() } }));
+vi.mock('@/modules/auth/service/authService', () => ({ default: {
+  login: vi.fn(), changeStaffPassword: vi.fn(), changePassword: vi.fn(),
+} }));
 
 const navigate = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => ({ ...(await importOriginal()), useNavigate: () => navigate }));
@@ -33,6 +35,9 @@ describe('Login', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
+    window.matchMedia = vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    window.scrollTo = vi.fn();
   });
 
   it('explains a firm administrator with no firm instead of bouncing back to sign-in', async () => {
@@ -62,4 +67,30 @@ describe('Login', () => {
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith('/admin/dashboard', { replace: true }));
     expect(login).toHaveBeenCalled();
   });
+
+  it.each(['STAFF', 'OFFICIAL_CLIENT'])('keeps %s on password setup until the new password is saved', async (role) => {
+    authService.login.mockResolvedValue({
+      user: { id: 'temp-user', email: 'admin@email.com', role, must_change_password: true },
+      firm_role: role === 'STAFF' ? 'SECRETARY' : null,
+      access: 'access', refresh: 'refresh',
+    });
+    authService.changeStaffPassword.mockResolvedValue({});
+    authService.changePassword.mockResolvedValue({});
+    const login = renderLogin();
+    await signIn();
+
+    const newPassword = await screen.findByPlaceholderText('New password');
+    expect(login).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    await userEvent.type(newPassword, 'MyNewPassword2026!');
+    await userEvent.type(screen.getByPlaceholderText('Confirm password'), 'MyNewPassword2026!');
+    expect(login).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Update password' }));
+
+    await vi.waitFor(() => expect(login).toHaveBeenCalledWith(expect.objectContaining({
+      user: expect.objectContaining({ must_change_password: false }),
+    }), false), { timeout: 4000 });
+    expect(role === 'STAFF' ? authService.changeStaffPassword : authService.changePassword).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalled();
+  }, 10000);
 });

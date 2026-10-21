@@ -1,3 +1,4 @@
+import QueueConfiguration from '@/modules/clients/shared/QueueConfiguration';
 import React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -747,6 +748,8 @@ export default function AdminFirmPage() {
         size='hero'
         as='h1'
       />
+
+      <QueueConfiguration />
 
       <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
         <StatsCard

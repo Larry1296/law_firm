@@ -58,6 +58,7 @@ class AdminSecretaryCreateSerializer(serializers.ModelSerializer):
             "office_location",
             "reports_to",
             "assigned_lawyer_ids",
+            "is_receptionist",
             "can_prepare_documents",
             "can_schedule_appointments",
             "can_manage_client_intake",

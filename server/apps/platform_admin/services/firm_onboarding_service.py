@@ -29,7 +29,7 @@ class FirmOnboardingService:
         "name", "business_structure", "registration_number", "kra_pin", "email", "phone_number",
         "website", "physical_address", "postal_address", "county", "town", "description",
     )
-    SETTING_FIELDS = ("opening_time", "closing_time", "work_on_saturday", "allow_client_registration")
+    SETTING_FIELDS = ("queue_reception_mode", "opening_time", "closing_time", "work_on_saturday", "allow_client_registration")
 
     @classmethod
     @transaction.atomic
@@ -74,6 +74,7 @@ class FirmOnboardingService:
             firm_role=FirmRole.LAWYER,
             job_title=owner.get("job_title") or "Managing Partner",
             admission_number=owner["admission_number"],
+            office_location=owner.get("office_location", ""),
             date_hired=date.today(),
         )
         AdminLawyerPermissionService.sync_permissions(

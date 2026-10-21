@@ -248,6 +248,7 @@ const adminStaffService = {
         const secretaryPayload = {
           ...basePayload,
           job_title: payload.job_title || 'Secretary',
+          is_receptionist: payload.is_receptionist ?? false,
           can_prepare_documents: payload.can_prepare_documents ?? true,
           can_schedule_appointments: payload.can_schedule_appointments ?? true,
           can_manage_client_intake: payload.can_manage_client_intake ?? true,
@@ -383,6 +384,14 @@ const adminStaffService = {
 
     const { data } = await axiosInstance.post(endpoint, body);
 
+    return data;
+  },
+
+  async updateReceptionistDesignation(secretaryId, isReceptionist) {
+    const { data } = await axiosInstance.patch(
+      `/admin/staff/secretaries/${secretaryId}/update/`,
+      { is_receptionist: isReceptionist },
+    );
     return data;
   },
 

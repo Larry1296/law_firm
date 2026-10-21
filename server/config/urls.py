@@ -3,7 +3,13 @@ from django.urls import path, include
 
 from apps.firm.views.public.firm_logo_view import FirmLogoView
 
+from apps.clients.views.client_visit_views import ClientVisitListView, ClientVisitActionView
+from apps.clients.views.queue_configuration_view import QueueConfigurationView
+
 urlpatterns = [
+    path("api/admin/firm/queue-configuration/", QueueConfigurationView.as_view(), name="queue-configuration"),
+    path("api/arrivals/", ClientVisitListView.as_view(), name="client-arrivals"),
+    path("api/arrivals/<uuid:visit_id>/", ClientVisitActionView.as_view(), name="client-arrival-action"),
     path("admin/", admin.site.urls),
 
     path("api/auth/", include("apps.authentication.urls")),

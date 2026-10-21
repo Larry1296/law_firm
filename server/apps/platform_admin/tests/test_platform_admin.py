@@ -107,6 +107,12 @@ class PlatformAccessTests(PlatformTestCase):
 
 
 class FirmRegistrationTests(PlatformTestCase):
+    def test_registration_keeps_reception_structure_and_owner_room(self):
+        result = self.register(owner={'office_location': 'Room 201'}, settings={'queue_reception_mode': 'ASSIGNED'})
+        firm = LawFirm.objects.get(pk=result['firm']['id'])
+        self.assertEqual(firm.settings.queue_reception_mode, 'ASSIGNED')
+        self.assertEqual(firm.owner.lawyer_profile.office_location, 'Room 201')
+
     def test_registering_a_firm_sets_up_the_tenant_and_invites_the_owner(self):
         data = self.register()
         firm = LawFirm.objects.get(name="Achieng & Mwangi Advocates")

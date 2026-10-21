@@ -1,3 +1,4 @@
+import ClientQueueDashboard from '@/modules/clients/shared/ClientQueueDashboard';
 import {
   Activity,
   Bell,
@@ -120,6 +121,8 @@ export default function LawyerDashboardPage() {
         statusTitle='Practice Active'
         statusDescription={`${summary.tasks_due ?? 0} pending tasks, ${summary.unread_notifications ?? 0} unread notifications.`}
       />
+
+      <ClientQueueDashboard path='/lawyer/arrivals' />
 
       <section className='mt-0'>
         <DashboardGrid>

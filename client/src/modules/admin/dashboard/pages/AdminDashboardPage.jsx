@@ -1,3 +1,4 @@
+import ClientQueueDashboard from '@/modules/clients/shared/ClientQueueDashboard';
 import {
   Activity,
   BarChart3,
@@ -230,6 +231,8 @@ export default function AdminDashboardPage() {
         statusTitle='Firm Operational'
         statusDescription={isFetching ? 'Refreshing dashboard metrics.' : 'Dashboard metrics are synced with firm data.'}
       />
+
+      <ClientQueueDashboard path='/admin/arrivals' />
 
       <section className='mt-0'>
         <DashboardGrid>

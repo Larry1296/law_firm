@@ -19,6 +19,11 @@ class FirmSetting(TimestampedModel):
         editable=False,
     )
 
+    queue_reception_mode = models.CharField(
+        max_length=20, default='SHARED',
+        choices=[('SHARED', 'Shared reception — all advocates'), ('ASSIGNED', 'Secretaries handle their assigned advocates')],
+    )
+
     firm = models.OneToOneField(
         "firm.LawFirm",
         on_delete=models.CASCADE,

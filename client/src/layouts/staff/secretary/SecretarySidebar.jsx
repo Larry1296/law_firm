@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 
 const links = [
+  { name: 'Client arrivals', path: '/secretary/arrivals', icon: Calendar, section: 'Overview' },
   {
     name: 'Dashboard',
     path: '/secretary/dashboard',

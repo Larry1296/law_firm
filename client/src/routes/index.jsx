@@ -51,6 +51,7 @@ const SignedInDashboardRedirect = ({ children }) => {
   const { user, firmRole, isAuthenticated } = useAuth();
 
   if (!isAuthenticated || !user) return children;
+  if (user.role !== 'ADMIN' && user.must_change_password) return children;
 
   const effectiveRole = getEffectiveRole(user, firmRole);
   const dashboardPath = ROLE_DASHBOARD[effectiveRole];
@@ -64,6 +65,8 @@ const SignedInDashboardRedirect = ({ children }) => {
 /* =========================================================
   PUBLIC
 ========================================================= */
+
+const ClientArrivalsPage = lazy(() => import('@/modules/clients/shared/ClientArrivalsPage'));
 
 const HomePage = lazy(() => import('@/modules/public/HomePage'));
 
@@ -719,6 +722,7 @@ const AppRoutes = () => {
 
           {/* DASHBOARD */}
           <Route path='dashboard' element={<AdminDashboard />} />
+          <Route path='arrivals' element={<ClientArrivalsPage />} />
           <Route path='profile' element={<AdminProfilePage />} />
 
           {/* CASES */}
@@ -849,6 +853,7 @@ const AppRoutes = () => {
         >
           <Route path='' element={<Navigate to='dashboard' replace />} />
           <Route path='dashboard' element={<LawyerDashboard />} />
+          <Route path='arrivals' element={<ClientArrivalsPage />} />
           <Route path='calendar' element={<LawyerCalendar />} />
           {/* INTERNAL AI TEMPORARILY PAUSED
           Uncomment this block when internal AI development resumes after the
@@ -898,6 +903,7 @@ const AppRoutes = () => {
           <Route path='' element={<Navigate to='dashboard' replace />} />
 
           <Route path='dashboard' element={<SecretaryDashboard />} />
+          <Route path='arrivals' element={<ClientArrivalsPage />} />
 
           {/* CLIENTS */}
           <Route path='clients' element={<SecretaryClients />} />

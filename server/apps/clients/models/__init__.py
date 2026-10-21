@@ -106,3 +106,4 @@ __all__ = [
 ]
 
 from .intake_privacy import IntakePrivacyConfig
+from .client_visit import ClientVisit

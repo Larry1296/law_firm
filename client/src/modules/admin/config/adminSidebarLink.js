@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 
 export const adminSidebarLinks = [
+  { name: 'Client arrivals', path: '/admin/arrivals', icon: Users, section: 'Clients', ownerOnly: true },
   {
     name: 'Dashboard',
     path: '/admin/dashboard',

@@ -35,11 +35,11 @@ const EMPTY = {
     email: '', phone_number: '', website: '', physical_address: '', postal_address: '', county: '', town: '',
   },
   office: { name: 'Head Office' },
-  settings: { opening_time: '08:00', closing_time: '17:00', work_on_saturday: false },
+  settings: { opening_time: '08:00', closing_time: '17:00', work_on_saturday: false, queue_reception_mode: 'SHARED' },
   practice_areas: [],
   owner: {
     first_name: '', last_name: '', email: '', phone_number: '', national_id_number: '',
-    admission_number: '', job_title: 'Managing Partner',
+    admission_number: '', job_title: 'Managing Partner', office_location: '',
   },
   subscription: { plan_code: 'PRO', billing_cycle: 'MONTHLY', start: 'TRIAL', trial_days: 14, mpesa_receipt: '', payer_phone: '' },
 };
@@ -446,7 +446,13 @@ export default function PlatformRegisterFirmPage() {
               <Field label='Head office name' error={err('office.name')}>
                 <input value={form.office.name} onChange={set('office', 'name')} className={inputClass} />
               </Field>
-              <div className='grid grid-cols-2 gap-3'>
+              <div className='grid gap-3 sm:grid-cols-2'>
+                <Field label='Reception coverage' className='sm:col-span-2' hint='Room labels and secretary assignments can be changed later in Firm settings.'>
+                  <select value={form.settings.queue_reception_mode || 'SHARED'} onChange={set('settings', 'queue_reception_mode')} className={inputClass}>
+                    <option value='SHARED'>Shared reception — all advocates</option>
+                    <option value='ASSIGNED'>Assigned secretaries — selected advocates</option>
+                  </select>
+                </Field>
                 <Field label='Opens' error={err('settings.opening_time')}>
                   <input type='time' value={form.settings.opening_time} onChange={set('settings', 'opening_time')} className={inputClass} />
                 </Field>
@@ -527,6 +533,9 @@ export default function PlatformRegisterFirmPage() {
               </Field>
               <Field label='Advocate admission number' required hint='Roll of Advocates number, e.g. P.105/1234/15.' error={err('owner.admission_number')}>
                 <input value={form.owner.admission_number} onChange={set('owner', 'admission_number')} className={inputClass} />
+              </Field>
+              <Field label='Office / room label' error={err('owner.office_location')} hint='Shown to reception when the managing partner calls a client.'>
+                <input value={form.owner.office_location || ''} onChange={set('owner', 'office_location')} className={inputClass} placeholder='e.g. Room 201, second floor' maxLength={255} />
               </Field>
               <Field label='Title' error={err('owner.job_title')}>
                 <input value={form.owner.job_title} onChange={set('owner', 'job_title')} className={inputClass} />
@@ -611,6 +620,8 @@ export default function PlatformRegisterFirmPage() {
                   <ReviewRow label='KRA PIN' value={form.firm.kra_pin.toUpperCase()} />
                   <ReviewRow label='Email / phone' value={`${form.firm.email} · ${form.firm.phone_number}`} />
                   <ReviewRow label='Office' value={`${form.firm.physical_address}, ${form.firm.town}, ${form.firm.county}`} />
+                  <ReviewRow label='Reception coverage' value={form.settings.queue_reception_mode === 'ASSIGNED' ? 'Assigned secretaries' : 'Shared reception'} />
+                  <ReviewRow label='Managing partner’s room' value={form.owner.office_location || 'Set after registration'} />
                   <ReviewRow label='Hours' value={`${form.settings.opening_time}–${form.settings.closing_time}${form.settings.work_on_saturday ? ', Saturdays too' : ''}`} />
                   <ReviewRow label='Practice areas' value={form.practice_areas.join(', ')} />
                   <ReviewRow
