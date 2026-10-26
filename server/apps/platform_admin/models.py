@@ -51,6 +51,7 @@ class PlatformActivity(models.Model):
 
     class Action(models.TextChoices):
         FIRM_REGISTERED = "FIRM_REGISTERED", "Firm registered"
+        FIRM_DELETED = "FIRM_DELETED", "Trial firm deleted"
         FIRM_UPDATED = "FIRM_UPDATED", "Firm details updated"
         FIRM_SUSPENDED = "FIRM_SUSPENDED", "Firm suspended"
         FIRM_REACTIVATED = "FIRM_REACTIVATED", "Firm reactivated"
@@ -87,3 +88,10 @@ class PlatformActivity(models.Model):
     @classmethod
     def record(cls, actor, action, summary, firm=None):
         return cls.objects.create(actor=actor, action=action, summary=summary[:500], firm=firm)
+
+
+class FirmFileCleanup(models.Model):
+    """Retryable storage cleanup after committed trial-tenant erasure."""
+    name = models.CharField(max_length=1000, unique=True)
+    last_error = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)

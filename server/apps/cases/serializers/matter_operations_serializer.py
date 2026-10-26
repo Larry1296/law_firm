@@ -39,7 +39,8 @@ class MatterDeadlineSerializer(serializers.ModelSerializer):
     class Meta:
         model = MatterDeadline
         fields = "__all__"
-        read_only_fields = ("firm", "matter", "created_by", "completed_by", "completed_at", "cancellation_reason")
+        read_only_fields = ("firm", "matter", "created_by", "status", "completed_by", "completed_at", "cancellation_reason",
+                            "requires_review", "reviewed_by", "reviewed_at", "review_basis")
 
     def get_change_history(self, obj):
         date_changes = [{"kind": "DATE_CHANGE", "previous_due_at": x.previous_due_at, "new_due_at": x.new_due_at, "reason": x.reason,

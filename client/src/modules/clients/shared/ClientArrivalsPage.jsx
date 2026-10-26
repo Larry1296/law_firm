@@ -24,6 +24,7 @@ export default function ClientArrivalsPage() {
   const [selected, setSelected] = useState(null);
   const [intake, setIntake] = useState(emptyIntake);
   const [error, setError] = useState('');
+  const [clientLinks, setClientLinks] = useState({});
   const { data, isLoading, isError } = useClientQueue();
   const queueAction = useQueueAction();
   const mutation = useMutation({
@@ -32,6 +33,7 @@ export default function ClientArrivalsPage() {
       setError('');
       if (!variables.id) setArrival(emptyArrival);
       const messages = {
+        LINK_CLIENT: ['Client linked', 'The arrival is now linked to the client record. Conflict clearance and matter opening remain separate.'],
         INTAKE: ['Intake saved', 'The preliminary intake details have been recorded.'],
         START: ['Consultation started', 'The waiting queue has been updated.'],
         COMPLETE: ['Consultation completed', 'The visit has been marked as completed.'],
@@ -44,7 +46,7 @@ export default function ClientArrivalsPage() {
       if (variables.payload.action === 'INTAKE') setSelected(null);
       queryClient.invalidateQueries({ queryKey: ['client-arrivals'] });
     },
-    onError: (err) => {
+    onError: (err) => { if (err?.isActionCancelled) return;
       const message = errorText(err);
       setError(message);
       Swal.fire({ icon: 'error', title: 'Could not save', text: message, confirmButtonText: 'Try again' });
@@ -111,14 +113,21 @@ export default function ClientArrivalsPage() {
           <div className='flex flex-wrap gap-3'>
             {visit.can_record_intake && <Button3D variant='outlineLight' disabled={pending} onClick={() => { setSelected(visit.id); setIntake(Object.fromEntries(Object.keys(emptyIntake).map((key) => [key, visit[key] || '']))); }}>Record preliminary intake</Button3D>}
             {data.role === 'ADMIN' && visit.status === 'WAITING' && <Button3D variant='outlineLight' disabled={pending || data.queues?.some((q) => q.advocate === visit.advocate && (q.current || q.called))} onClick={async () => {
-              const confirmed = await Swal.fire({ icon: 'question', title: 'Call this client?', text: `${visit.visitor_name}: Reception will be told to usher this client to ${visit.advocate_name} · ${visit.office_location || 'office not assigned'}. As admin, you can call out of arrival order.`, showCancelButton: true, confirmButtonText: 'Call this client' });
-              if (confirmed.isConfirmed) act(visit.id, 'CALL');
+
+              act(visit.id, 'CALL');
             }}>Call this client</Button3D>}
             {visit.can_usher && visit.status === 'CALLED' && <Button3D disabled={pending} onClick={() => act(visit.id, 'USHER')}>Client ushered in</Button3D>}
             {visit.can_consult && visit.status === 'CALLED' && <Button3D variant='outlineLight' disabled={pending} onClick={() => act(visit.id, 'START')}>Client is in office</Button3D>}
             {visit.can_consult && visit.status === 'IN_CONSULTATION' && <Button3D variant='outlineLight' disabled={pending} onClick={() => act(visit.id, 'COMPLETE')}>Complete consultation</Button3D>}
             {['WAITING', 'CALLED'].includes(visit.status) && <Button3D variant='outlineLight' disabled={pending} onClick={() => act(visit.id, 'LEFT')}>Mark as left</Button3D>}
           </div>
+          {visit.client && ['ADMIN', 'SECRETARY', 'RECEPTIONIST'].includes(data.role) && <a className='inline-block text-sm font-semibold underline' href={`/${data.role === 'ADMIN' ? 'admin' : 'secretary'}/clients/${visit.client}`}>Continue client onboarding and proposed matter</a>}
+          {!visit.client && visit.intake_completed_at && ['IN_CONSULTATION', 'COMPLETED'].includes(visit.status) && data.can_receive && <div className='space-y-3 border-t pt-3'>
+            <p className='text-sm'>Create or select the client record after consultation, then link this arrival.</p>
+            <a className='inline-block text-sm font-semibold underline' href={`/${data.role === 'ADMIN' ? 'admin' : 'secretary'}/clients/create`}>Create prospective client</a>
+            <SelectInput name={`link-client-${visit.id}`} label='Client to link to this arrival' placeholder='Select the client record' options={data.clients} value={clientLinks[visit.id] || ''} onChange={(event) => setClientLinks({ ...clientLinks, [visit.id]: event.target.value })} />
+            <Button3D disabled={pending || !clientLinks[visit.id]} onClick={() => mutation.mutate({ id: visit.id, payload: { action: 'LINK_CLIENT', client: clientLinks[visit.id] } })}>Link client record</Button3D>
+          </div>}
           {selected === visit.id && visit.can_record_intake && <form className='space-y-4 border-t border-[color:var(--border)] pt-4' onSubmit={(event) => { event.preventDefault(); mutation.mutate({ id: visit.id, payload: { action: 'INTAKE', ...intake, deadline: intake.deadline || null } }); }}>
             <p className='text-sm'>Keep this preliminary. Record detailed instructions through the existing matter and conflict-check workflow.</p>
             <fieldset disabled={pending} className='grid gap-4 md:grid-cols-2'>

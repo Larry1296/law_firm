@@ -33,6 +33,13 @@ table tbody td {
     font-family: inherit;
   }
 
+  /* Keep action targets separated, including raw buttons outside shared components.
+     Explicit margin utilities can override this for tightly controlled widgets. */
+  button {
+    margin: 0.25rem;
+    max-width: calc(100% - 0.5rem);
+  }
+
   button,
   input,
   optgroup,
@@ -1085,6 +1092,8 @@ html:not(.dark) .public-home #home [class*="via-black"] {
   }
 
   .btn {
+    margin: 0.25rem;
+    max-width: calc(100% - 0.5rem);
     display: inline-flex;
     align-items: center;
     justify-content: center;

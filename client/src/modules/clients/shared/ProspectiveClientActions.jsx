@@ -12,7 +12,7 @@ export default function ProspectiveClientActions({ client, workspace }) {
   const invite = async () => {
     setBusy(true); setError('');
     try { await service.invite(workspace, client.id); setInvited(true); }
-    catch (e) { setError(creationError(e)); }
+    catch (e) { if (e?.isActionCancelled) return;  setError(creationError(e)); }
     finally { setBusy(false); }
   };
   return <section className='space-y-3 rounded-xl border p-4'>

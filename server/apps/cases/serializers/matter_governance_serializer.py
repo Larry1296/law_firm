@@ -5,6 +5,7 @@ from apps.cases.models import DestructionLog, GeneratedClosingDocument, MatterAr
 
 class MatterClosureSerializer(serializers.ModelSerializer):
     blocking_reasons = serializers.SerializerMethodField()
+    generated_documents = serializers.SerializerMethodField()
 
     class Meta:
         model = MatterClosure
@@ -18,6 +19,11 @@ class MatterClosureSerializer(serializers.ModelSerializer):
     def get_blocking_reasons(self, obj):
         from apps.cases.services.matter_governance_service import MatterClosureService
         return MatterClosureService.blocking_reasons(obj)
+
+    def get_generated_documents(self, obj):
+        return [{'id': item.id, 'document_type': item.document_type, 'version': item.version,
+                 'client_document': item.client_document_id, 'generated_at': item.generated_at}
+                for item in obj.generated_documents.order_by('-generated_at')]
 
 
 class MatterArchiveSerializer(serializers.ModelSerializer):

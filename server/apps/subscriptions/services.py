@@ -6,11 +6,13 @@ from decimal import ROUND_HALF_UP, Decimal
 from django.conf import settings
 from django.db import connection, transaction
 from django.utils import timezone
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.exceptions import APIException, ValidationError
 
 from apps.subscriptions.catalog import PLANS_BY_CODE, PRO, Feature, Limit
 from apps.subscriptions.models import FirmSubscription, Plan, SubscriptionInvoice
+from apps.firm.models import LawFirm
 
 CENT = Decimal("0.01")
 MPESA_RECEIPT_PATTERN = re.compile(r"^[A-Z0-9]{10}$")
@@ -113,6 +115,20 @@ class SubscriptionService:
         if subscription is None:
             subscription = cls.start_trial(firm)
         return subscription
+
+    @classmethod
+    def price_for(cls, subscription, billing_cycle=None, plan=None):
+        """Firm overrides are totals per billing period, never per-seat rates."""
+        plan = plan or subscription.plan
+        cycle = billing_cycle or subscription.billing_cycle
+        if subscription.is_complimentary:
+            return Decimal("0.00")
+        custom = (subscription.custom_annual_price if cycle == FirmSubscription.BillingCycle.ANNUAL
+                  else subscription.custom_monthly_price)
+        if custom is not None:
+            return custom
+        quantity = max(1, cls.usage(subscription.firm)[Limit.ADVOCATES]) if plan.pricing_basis == Plan.PricingBasis.ADVOCATE else 1
+        return (plan.price_for(cycle) * quantity).quantize(CENT)
 
     # -----------------------------------------------------------------
     # State
@@ -240,12 +256,19 @@ class SubscriptionService:
             return Decimal("0.00")
         remaining = Decimal((end - now).total_seconds())
         total = Decimal((end - start).total_seconds()) or Decimal(1)
-        price = subscription.plan.price_for(subscription.billing_cycle)
+        if subscription.is_complimentary:
+            return Decimal("0.00")
+        paid = SubscriptionInvoice.objects.filter(
+            firm=subscription.firm, plan=subscription.plan, billing_cycle=subscription.billing_cycle,
+            status=SubscriptionInvoice.Status.PAID,
+        ).order_by("-confirmed_at", "-created_at").first()
+        price = paid.list_price if paid else cls.price_for(subscription)
         return (price * remaining / total).quantize(CENT, rounding=ROUND_HALF_UP)
 
     @classmethod
     @transaction.atomic
     def issue_invoice(cls, *, firm, plan_code, billing_cycle, user):
+        get_object_or_404(LawFirm.objects.select_for_update(), pk=firm.pk)
         plan = Plan.objects.filter(code=plan_code, is_active=True).first()
         if plan is None:
             raise ValidationError({"plan_code": "Choose an available plan."})
@@ -256,12 +279,14 @@ class SubscriptionService:
             raise ValidationError({"plan_code": ["Reduce usage before moving to this plan."] + problems})
 
         subscription = cls.get(firm, lock=True)
+        if subscription.is_complimentary:
+            raise ValidationError({"subscription": "This firm has complimentary access. Contact the platform administrator to change its billing terms."})
         SubscriptionInvoice.objects.filter(firm=firm, status=SubscriptionInvoice.Status.ISSUED).update(
             status=SubscriptionInvoice.Status.VOID,
         )
 
         now = timezone.now()
-        list_price = plan.price_for(billing_cycle)
+        list_price = cls.price_for(subscription, billing_cycle, plan)
         changing = plan.id != subscription.plan_id or billing_cycle != subscription.billing_cycle
         credit = min(cls.proration_credit(subscription, now), list_price) if changing else Decimal("0.00")
         amount = (list_price - credit).quantize(CENT)
@@ -284,6 +309,7 @@ class SubscriptionService:
     @staticmethod
     @transaction.atomic
     def submit_payment(*, invoice, mpesa_receipt, user, payer_phone=""):
+        get_object_or_404(LawFirm.objects.select_for_update(), pk=invoice.firm_id)
         invoice = SubscriptionInvoice.objects.select_for_update().get(pk=invoice.pk)
         if invoice.status != SubscriptionInvoice.Status.ISSUED:
             raise ValidationError({"invoice": "This invoice is not awaiting payment."})
@@ -304,6 +330,7 @@ class SubscriptionService:
     @transaction.atomic
     def confirm_payment(cls, *, invoice, confirmed_by, now=None):
         """Platform finance confirms the M-Pesa receipt against the Paybill statement."""
+        get_object_or_404(LawFirm.objects.select_for_update(), pk=invoice.firm_id)
         invoice = SubscriptionInvoice.objects.select_for_update().select_related("plan").get(pk=invoice.pk)
         if invoice.status not in {SubscriptionInvoice.Status.ISSUED, SubscriptionInvoice.Status.PAYMENT_SUBMITTED}:
             raise ValidationError({"invoice": "Only an unpaid invoice can be confirmed."})
@@ -350,6 +377,7 @@ class SubscriptionService:
             "tagline": plan.tagline,
             "monthly_price": str(plan.monthly_price),
             "annual_price": str(plan.annual_price),
+            "pricing_basis": plan.pricing_basis,
             "limits": {resource: getattr(plan, field) for resource, field in Limit.FIELDS.items()},
             "features": [
                 {"code": code, "label": label, "included": code in (plan.features or [])}
@@ -367,6 +395,11 @@ class SubscriptionService:
             "effective_status": effective,
             "writable": cls.is_writable(subscription),
             "billing_cycle": subscription.billing_cycle,
+            "is_complimentary": subscription.is_complimentary,
+            "custom_monthly_price": str(subscription.custom_monthly_price) if subscription.custom_monthly_price is not None else None,
+            "custom_annual_price": str(subscription.custom_annual_price) if subscription.custom_annual_price is not None else None,
+            "effective_monthly_price": str(cls.price_for(subscription, FirmSubscription.BillingCycle.MONTHLY)),
+            "effective_annual_price": str(cls.price_for(subscription, FirmSubscription.BillingCycle.ANNUAL)),
             "trial_ends_at": subscription.trial_ends_at,
             "current_period_end": subscription.current_period_end,
             "grace_ends_at": (

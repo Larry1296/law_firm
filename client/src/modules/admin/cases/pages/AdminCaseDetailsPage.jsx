@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from "react";
 import { useParams } from 'react-router-dom';
 import Swal from '@/core/utils/themedSwal';
 import useAuth from '@/core/hooks/useAuth';
@@ -392,29 +392,6 @@ const AdminCaseDetailsPage = () => {
   const handleReassign = async () => {
     if (!selectedLawyer) return;
 
-    const selectedLawyerData = lawyers.find(
-      (lawyer) => lawyer.membership_id === selectedLawyer,
-    );
-
-    const result = await Swal.fire({
-      title: 'Reassign Lawyer?',
-      html: `
-        <div style="text-align:left">
-          <p>This action will immediately transfer ownership of this case.</p>
-          <br/>
-          <strong>New Lawyer:</strong><br/>
-          ${selectedLawyerData?.full_name || 'Selected Lawyer'}
-        </div>
-      `,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, Reassign',
-      cancelButtonText: 'Cancel',
-      reverseButtons: true,
-    });
-
-    if (!result.isConfirmed) return;
-
     try {
       await reassignLawyer({
         caseId: id,
@@ -430,7 +407,7 @@ const AdminCaseDetailsPage = () => {
       });
 
       setSelectedLawyer('');
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Reassignment Failed',
@@ -441,29 +418,6 @@ const AdminCaseDetailsPage = () => {
 
   const handleSecretaryReassign = async () => {
     if (!selectedSecretary) return;
-
-    const secretary = secretaries.find(
-      (s) => s.membership_id === selectedSecretary,
-    );
-
-    const result = await Swal.fire({
-      title: 'Assign Secretary?',
-      html: `
-        <div style="text-align:left">
-          <p>You are about to assign this secretary to the case.</p>
-          <br/>
-          <strong>${secretary?.full_name || ''}</strong>
-          <br/>
-          ${secretary?.email || ''}
-        </div>
-      `,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, Assign',
-      cancelButtonText: 'Cancel',
-    });
-
-    if (!result.isConfirmed) return;
 
     try {
       await reassignSecretary({
@@ -479,7 +433,7 @@ const AdminCaseDetailsPage = () => {
         showConfirmButton: false,
       });
       setSelectedSecretary('');
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Assignment Failed',
@@ -505,7 +459,7 @@ const AdminCaseDetailsPage = () => {
         timer: 1800,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Update Failed',
@@ -573,7 +527,7 @@ const AdminCaseDetailsPage = () => {
         timer: 1800,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Transition failed',
@@ -609,19 +563,6 @@ const AdminCaseDetailsPage = () => {
       return;
     }
 
-    const consequentialActions = ['CONFIRM_CONFLICT', 'REJECT', 'CANCEL'];
-    if (consequentialActions.includes(conflictDraft.action)) {
-      const result = await Swal.fire({
-        title: 'Confirm conflict-check action?',
-        text: 'This will be recorded in the matter audit history.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Record Action',
-        cancelButtonText: 'Cancel',
-      });
-      if (!result.isConfirmed) return;
-    }
-
     const payload = {
       action: conflictDraft.action,
       effective_at: conflictDraft.effective_at || null,
@@ -650,7 +591,7 @@ const AdminCaseDetailsPage = () => {
         timer: 1800,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       const backendErrors = error?.response?.data?.errors;
       if (backendErrors) {
         setConflictErrors(backendErrors);
@@ -767,7 +708,7 @@ const AdminCaseDetailsPage = () => {
         timer: 1800,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       const backendErrors = error?.response?.data || {};
       setEventErrors(normalizeBackendErrors(backendErrors));
       Swal.fire({
@@ -814,7 +755,7 @@ const AdminCaseDetailsPage = () => {
         timer: 1800,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       const backendErrors = error?.response?.data || {};
       setCtsErrors(
         Object.fromEntries(
@@ -876,7 +817,7 @@ const AdminCaseDetailsPage = () => {
         timer: 1800,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       const backendErrors = error?.response?.data || {};
       setJurisdictionErrors(
         Object.fromEntries(

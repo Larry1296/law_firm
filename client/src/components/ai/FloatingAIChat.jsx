@@ -202,7 +202,7 @@ export default function FloatingAIChat({
   // an earlier question asks it again from that point.
   const sendQuestion = async (value = draft, base = messages) => {
     const question = value.trim();
-    if (!question || loading) return;
+    if (!question || loading || (editing && base === messages)) return;
     const prior = base
       .filter((item) => !item.error)
       .slice(-10)
@@ -222,7 +222,7 @@ export default function FloatingAIChat({
         // Only a page inside this app, never an outside link.
         action: /^\/(?!\/)/.test(result.action?.path || '') ? result.action : null,
       }]);
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       if (controller.signal.aborted) return;
       setMessages((items) => [...items, { role: 'assistant', content: errorMessage(error), error: true }]);
     } finally {
@@ -239,6 +239,7 @@ export default function FloatingAIChat({
   };
 
   const saveEdit = () => {
+    if (!editing || loading) return;
     const { index, text } = editing;
     if (!text.trim()) return;
     setEditing(null);
@@ -246,7 +247,7 @@ export default function FloatingAIChat({
   };
 
   const handleKeyDown = (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       sendQuestion();
     }
@@ -291,14 +292,15 @@ export default function FloatingAIChat({
                           value={editing.text}
                           onChange={(event) => setEditing({ index, text: event.target.value })}
                           onKeyDown={(event) => {
-                            if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); saveEdit(); }
+                            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); saveEdit(); }
                             if (event.key === 'Escape') { event.stopPropagation(); setEditing(null); }
                           }}
                           className='w-full resize-none rounded-lg border border-border-light bg-surface-light px-3 py-2 text-sm text-text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark'
                         />
-                        <div className='mt-2 flex justify-end gap-2'>
+                        {index < latestQuestionIndex && <p className='mt-2 text-xs text-text-muted-light dark:text-text-muted-dark'>Resending this question replaces the replies and questions that follow it.</p>}
+                        <div className='mt-2 flex flex-wrap justify-end gap-2'>
                           <button type='button' onClick={() => setEditing(null)} className='rounded-md px-3 py-1.5 text-xs font-semibold text-text-muted-light hover:bg-black/5 dark:text-text-muted-dark dark:hover:bg-white/10'>Cancel</button>
-                          <button type='button' onClick={saveEdit} disabled={!editing.text.trim() || loading} className='rounded-md bg-success px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50'>Save and ask</button>
+                          <button type='button' onClick={saveEdit} disabled={!editing.text.trim() || loading} className='rounded-md bg-success px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50'>Save and resend</button>
                         </div>
                       </div>
                     ) : (
@@ -312,9 +314,8 @@ export default function FloatingAIChat({
                         text={item.content}
                         shareTitle={resolvedTitle}
                         onEdit={() => setEditing({ index, text: item.content })}
-                        disabled={loading}
-                        // Shown on hover or keyboard focus; always on touch screens, which cannot hover.
-                        className='mt-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none [@media(hover:none)]:opacity-100'
+                        disabled={loading || editing !== null}
+                        className='mt-1'
                       />
                     )}
                   </article>
@@ -343,7 +344,7 @@ export default function FloatingAIChat({
                     {item.needsLawyer && platform && <p className='mt-3 text-xs font-semibold'>For advice on your own situation, speak to a qualified advocate.</p>}
                     {item.needsLawyer && !platform && <a href='#contact' onClick={close} className='mt-3 inline-flex rounded-md bg-success px-3 py-2 text-xs font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2'>Speak to an advocate</a>}
                     {question && item.error && (
-                      <button type='button' onClick={() => regenerate(index)} disabled={loading} className='mt-3 inline-flex items-center gap-1 rounded-md border border-current px-3 py-1.5 text-xs font-semibold disabled:opacity-50'>
+                      <button type='button' onClick={() => regenerate(index)} disabled={loading || editing !== null} className='mt-3 inline-flex items-center gap-1 rounded-md border border-current px-3 py-1.5 text-xs font-semibold disabled:opacity-50'>
                         <RefreshCw size={13} aria-hidden='true' /> Try again
                       </button>
                     )}
@@ -353,7 +354,7 @@ export default function FloatingAIChat({
                         text={shareableAnswer(question, item)}
                         shareTitle={resolvedTitle}
                         onRegenerate={() => regenerate(index)}
-                        disabled={loading}
+                        disabled={loading || editing !== null}
                         className='-mx-1 mt-3 border-t border-border-light pt-2 dark:border-border-dark'
                       />
                     )}
@@ -369,8 +370,8 @@ export default function FloatingAIChat({
             {footnote && <p className='mb-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300'>{footnote}</p>}
             <div className='flex items-end gap-2'>
               <label htmlFor={`${titleId}-input`} className='sr-only'>Ask a question</label>
-              <AutoGrowTextarea maxRows={5} id={`${titleId}-input`} ref={textareaRef} maxLength={1200} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleKeyDown} disabled={loading} placeholder={placeholder ?? (platform ? PLATFORM_COPY.placeholder : 'Ask about the firm or a legal topic…')} className='min-h-10 flex-1 rounded-lg border border-border-light bg-background-light px-3 py-2 text-sm text-text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark' />
-              <button type='button' onClick={() => sendQuestion()} disabled={!draft.trim() || loading} aria-label='Send question' className='rounded-lg bg-success p-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'><Send size={18} /></button>
+              <AutoGrowTextarea maxRows={5} id={`${titleId}-input`} ref={textareaRef} maxLength={1200} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleKeyDown} disabled={loading || editing !== null} placeholder={placeholder ?? (platform ? PLATFORM_COPY.placeholder : 'Ask about the firm or a legal topic…')} className='min-h-10 flex-1 rounded-lg border border-border-light bg-background-light px-3 py-2 text-sm text-text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success disabled:opacity-60 dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark' />
+              <button type='button' onClick={() => sendQuestion()} disabled={!draft.trim() || loading || editing !== null} aria-label='Send question' className='rounded-lg bg-success p-2.5 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'><Send size={18} /></button>
             </div>
           </div>
         </section>

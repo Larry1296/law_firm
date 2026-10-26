@@ -63,7 +63,7 @@ class AdminLoginPasswordResetTests(TestCase):
 
         self.assertFalse(user.must_change_password)
 
-    def test_admin_login_clears_stale_password_reset_flag(self):
+    def test_admin_login_preserves_required_password_change(self):
         user = User.objects.create_user(
             email="admin-stale@example.com",
             password="strong-pass123",
@@ -86,10 +86,10 @@ class AdminLoginPasswordResetTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertFalse(response.data["user"]["must_change_password"])
+        self.assertTrue(response.data["user"]["must_change_password"])
 
         user.refresh_from_db()
-        self.assertFalse(user.must_change_password)
+        self.assertTrue(user.must_change_password)
 
 
 class PasswordResetFlowTests(TestCase):

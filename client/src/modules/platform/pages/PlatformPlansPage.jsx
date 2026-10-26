@@ -26,11 +26,12 @@ const LIMIT_FIELDS = [
 const NEW_PLAN = {
   code: '', name: '', tagline: '', monthly_price: '', annual_price: '',
   max_advocates: '', max_support_staff: '', max_active_matters: '', max_branches: '',
-  features: [], is_public: true, is_active: true, sort_order: 30,
+  pricing_basis: 'FIRM', features: [], is_public: true, is_active: true, sort_order: 30,
 };
 
 const toDraft = (plan) => ({
   ...plan,
+  pricing_basis: plan.pricing_basis || 'FIRM',
   ...Object.fromEntries(LIMIT_FIELDS.map(([key]) => [key, plan[key] ?? ''])),
 });
 
@@ -68,6 +69,12 @@ function PlanForm({ initial, features, onDone, onCancel }) {
         <input required value={draft.code} onChange={set('code')} disabled={!isNew} className={`${inputClass} uppercase`} />
       </Field>
       <Field label='Tagline' className='sm:col-span-2'><input value={draft.tagline} onChange={set('tagline')} className={inputClass} /></Field>
+      <Field label='Pricing basis' hint='Per advocate counts active advocates, including a practising owner, with a minimum of one.' className='sm:col-span-2'>
+        <select value={draft.pricing_basis} onChange={set('pricing_basis')} className={inputClass}>
+          <option value='FIRM'>Flat price per firm</option>
+          <option value='ADVOCATE'>Price per active advocate</option>
+        </select>
+      </Field>
       <Field label='Monthly price (KES, excl. VAT)' required>
         <input required type='number' min='0' step='0.01' value={draft.monthly_price} onChange={set('monthly_price')} className={inputClass} />
       </Field>
@@ -98,7 +105,7 @@ function PlanForm({ initial, features, onDone, onCancel }) {
         <label className='flex items-center gap-2'><input type='checkbox' checked={draft.is_public} onChange={set('is_public')} /> Shown on the homepage</label>
         <label className='flex items-center gap-2'>Display order <input type='number' value={draft.sort_order} onChange={set('sort_order')} className={`${inputClass} w-20`} /></label>
       </div>
-      {save.error && <div className='sm:col-span-2'><ErrorNotice>{getApiErrorMessage(save.error)}</ErrorNotice></div>}
+      {(save.error && !save.error?.isActionCancelled) && <div className='sm:col-span-2'><ErrorNotice>{getApiErrorMessage(save.error)}</ErrorNotice></div>}
       <div className='flex gap-2 sm:col-span-2'>
         <Button type='submit' disabled={save.isPending}>{save.isPending ? 'Saving…' : isNew ? 'Create plan' : 'Save plan'}</Button>
         <Button variant='secondary' onClick={onCancel}>Cancel</Button>
@@ -114,19 +121,12 @@ export default function PlatformPlansPage() {
   const [actionError, setActionError] = useState(null);
 
   const remove = async (plan) => {
-    const answer = await Swal.fire({
-      icon: 'warning',
-      title: `Delete the ${plan.name} plan?`,
-      text: 'This cannot be undone.',
-      showCancelButton: true,
-      confirmButtonText: 'Delete',
-    });
-    if (!answer.isConfirmed) return;
+
     try {
       setActionError(null);
       await platformService.deletePlan(plan.id);
       queryClient.invalidateQueries({ queryKey: ['platform'] });
-    } catch (err) {
+    } catch (err) { if (err?.isActionCancelled) return;
       setActionError(getApiErrorMessage(err));
     }
   };
@@ -141,7 +141,7 @@ export default function PlatformPlansPage() {
     <>
       <PageHeader
         title='Plans'
-        description='What firms can subscribe to. Changes to limits and features apply immediately to every firm on the plan. Prices exclude 16% VAT.'
+        description='What firms can subscribe to. Changes to limits and features apply immediately to every firm on the plan. Price changes apply to new invoices. Prices exclude 16% VAT. Set firm-specific prices or complimentary access from a firm’s subscription panel.'
         actions={!editing && <Button onClick={() => setEditing(NEW_PLAN)}><Plus size={14} /> New plan</Button>}
       />
       {actionError && <div className='mb-4'><ErrorNotice>{actionError}</ErrorNotice></div>}
@@ -169,8 +169,8 @@ export default function PlatformPlansPage() {
             className={plan.is_active ? '' : 'opacity-70'}
           >
             <div className='flex flex-wrap items-baseline gap-x-4 gap-y-1'>
-              <p className='text-2xl font-bold tabular-nums'>{formatKes(plan.monthly_price)}<span className='text-sm font-normal text-text-muted-light dark:text-text-muted-dark'> / month</span></p>
-              <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>{formatKes(plan.annual_price)} / year</p>
+              <p className='text-2xl font-bold tabular-nums'>{formatKes(plan.monthly_price)}<span className='text-sm font-normal text-text-muted-light dark:text-text-muted-dark'> / month{plan.pricing_basis === 'ADVOCATE' ? ' per advocate' : ' per firm'}</span></p>
+              <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>{formatKes(plan.annual_price)} / year{plan.pricing_basis === 'ADVOCATE' ? ' per advocate' : ' per firm'}</p>
             </div>
             <div className='mt-2 flex flex-wrap gap-2'>
               {plan.is_active ? <StatusBadge status='ACTIVE' label='Available' /> : <StatusBadge status='CANCELLED' label='Retired' />}

@@ -20,19 +20,21 @@ PAYING_STATES = {"ACTIVE", "GRACE"}
 
 def monthly_value(subscription):
     """What a subscription earns per month, excluding VAT."""
-    plan = subscription.plan
+    price = SubscriptionService.price_for(subscription)
     if subscription.billing_cycle == FirmSubscription.BillingCycle.ANNUAL:
-        return (plan.annual_price / 12).quantize(Decimal("0.01"))
-    return plan.monthly_price
+        return (price / 12).quantize(Decimal("0.01"))
+    return price
 
 
 class PlatformMonitoringService:
 
     @staticmethod
     def firm_row(firm, subscription=None):
+        from apps.platform_admin.services.trial_firm_deletion_service import TrialFirmDeletionService
         subscription = subscription or SubscriptionService.get(firm)
         return {
             "id": firm.id,
+            **TrialFirmDeletionService.eligibility(firm, subscription),
             "name": firm.name,
             "county": firm.county,
             "town": firm.town,

@@ -31,6 +31,7 @@ class MatterOperationsService:
     @transaction.atomic
     def assess(cls, *, user, matter_id, data):
         firm = GovernanceAccess.require_lawyer(user, LawyerPermission.COMPLETE_LEGAL_ASSESSMENT)
+        GovernanceAccess.matter(user, matter_id)
         matter = Case.objects.select_for_update().get(id=matter_id, firm=firm)
         if matter.matter_status == Case.MatterStatus.ARCHIVED:
             raise ValidationError({"matter": "Archived matters are read-only."})
@@ -54,6 +55,7 @@ class MatterOperationsService:
     def submit_assessment(cls, *, user, assessment_id):
         firm = GovernanceAccess.require_lawyer(user, LawyerPermission.COMPLETE_LEGAL_ASSESSMENT)
         assessment = LegalAssessment.objects.select_for_update().get(id=assessment_id, firm=firm)
+        GovernanceAccess.matter(user, assessment.matter_id)
         if assessment.status != LegalAssessment.Status.DRAFT:
             raise ValidationError({"status": "Only a draft assessment may be submitted."})
         assessment.status = LegalAssessment.Status.SUBMITTED
@@ -67,6 +69,7 @@ class MatterOperationsService:
     def approve_assessment(cls, *, user, assessment_id):
         firm = GovernanceAccess.require_lawyer(user, LawyerPermission.COMPLETE_LEGAL_ASSESSMENT)
         assessment = LegalAssessment.objects.select_for_update().get(id=assessment_id, firm=firm)
+        GovernanceAccess.matter(user, assessment.matter_id)
         if assessment.status != LegalAssessment.Status.SUBMITTED:
             raise ValidationError({"status": "Only a submitted assessment may be approved."})
         if assessment.advocate.user_id == user.id:
@@ -81,6 +84,7 @@ class MatterOperationsService:
     @transaction.atomic
     def set_workstream(cls, *, user, matter_id, workstream_type, stage, stage_data):
         firm = GovernanceAccess.require_lawyer(user, LawyerPermission.MANAGE_ASSIGNED_CASES)
+        GovernanceAccess.matter(user, matter_id)
         matter = Case.objects.select_for_update().get(id=matter_id, firm=firm)
         if matter.matter_status == Case.MatterStatus.ARCHIVED:
             raise ValidationError({"matter": "Archived matters are read-only."})
@@ -126,6 +130,7 @@ class MatterOperationsService:
         firm = GovernanceAccess.require_lawyer(user, LawyerPermission.MANAGE_ASSIGNED_CASES)
         if not reason.strip():
             raise ValidationError({"reason": "A stage-completion reason is required."})
+        GovernanceAccess.matter(user, matter_id)
         matter = Case.objects.select_for_update().get(id=matter_id, firm=firm)
         if matter.matter_status == Case.MatterStatus.ARCHIVED:
             raise ValidationError({"matter": "Archived matters are read-only."})
@@ -155,7 +160,7 @@ class MatterOperationsService:
     @transaction.atomic
     def create_deadline(cls, *, user, matter_id, data):
         firm = GovernanceAccess.require_lawyer(user, LawyerPermission.MANAGE_ASSIGNED_CASES)
-        matter = Case.objects.get(id=matter_id, firm=firm)
+        matter = GovernanceAccess.matter(user, matter_id)
         if matter.matter_status == Case.MatterStatus.ARCHIVED:
             raise ValidationError({"matter": "Archived matters are read-only."})
         try:
@@ -175,14 +180,23 @@ class MatterOperationsService:
         if not reason.strip():
             raise ValidationError({"reason": "A reason is required when changing a critical date."})
         deadline = MatterDeadline.objects.select_for_update().get(id=deadline_id, firm=firm)
+        GovernanceAccess.matter(user, deadline.matter_id)
+        if deadline.matter.matter_status in {Case.MatterStatus.CLOSED, Case.MatterStatus.ARCHIVED}:
+            raise ValidationError({"matter": "Closed and archived matters are read-only."})
+        if deadline.status != MatterDeadline.Status.OPEN:
+            raise ValidationError({"status": "Only open deadlines may be changed or verified."})
         previous_due_at = deadline.due_at
         DeadlineChangeHistory.objects.create(
             deadline=deadline, previous_due_at=previous_due_at, new_due_at=new_due_at,
             reason=reason, actor=user,
         )
         deadline.due_at = new_due_at
-        deadline.save(update_fields=["due_at", "updated_at"])
+        deadline.requires_review = False
+        deadline.reviewed_by, deadline.reviewed_at, deadline.review_basis = user, timezone.now(), reason
+        deadline.save(update_fields=["due_at", "requires_review", "reviewed_by", "reviewed_at", "review_basis", "updated_at"])
         AuditService.record(firm=firm, user=user, action="CRITICAL_DEADLINE_CHANGED", obj=deadline, previous={"due_at": previous_due_at}, new={"due_at": new_due_at}, reason=reason)
+        from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
+        ProceedingsWorkflowService._resync_next_action(deadline.matter, actor=user)
         return deadline
 
     @classmethod
@@ -194,10 +208,13 @@ class MatterOperationsService:
         if not reason.strip():
             raise ValidationError({"reason": "A completion or cancellation reason is required."})
         deadline = MatterDeadline.objects.select_for_update().get(id=deadline_id, firm=firm)
-        if deadline.matter.matter_status == Case.MatterStatus.ARCHIVED:
+        GovernanceAccess.matter(user, deadline.matter_id)
+        if deadline.matter.matter_status in {Case.MatterStatus.CLOSED, Case.MatterStatus.ARCHIVED}:
             raise ValidationError({"matter": "Archived matters are read-only."})
         if deadline.status != MatterDeadline.Status.OPEN:
             raise ValidationError({"status": "Only open deadlines may be resolved."})
+        if action == 'COMPLETE' and deadline.requires_review:
+            raise ValidationError({'deadline': 'Verify the date and legal basis before completing this court deadline, or cancel it with a recorded reason.'})
         previous = deadline.status
         if action == "COMPLETE":
             deadline.status = MatterDeadline.Status.COMPLETED

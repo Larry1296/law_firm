@@ -19,8 +19,11 @@ vi.mock('@/modules/platform/services/platformService', () => ({
     getMeta: vi.fn(),
     getFirm: vi.fn(),
     getPlans: vi.fn(),
+    updateSubscription: vi.fn(),
+    updatePlan: vi.fn(),
     registerFirm: vi.fn(),
     uploadLogo: vi.fn(),
+    generateTemporaryPassword: vi.fn(),
     getOnboardingRequest: vi.fn(),
   },
 }));
@@ -105,6 +108,8 @@ function renderPage(element, { path = '/', route = '/' } = {}) {
 }
 
 beforeAll(() => {
+  window.matchMedia = vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+  window.scrollTo = vi.fn();
   globalThis.ResizeObserver ??= class {
     observe() {}
     unobserve() {}
@@ -118,6 +123,50 @@ beforeEach(() => {
 });
 
 describe('platform console', () => {
+  it('saves complimentary access with a reason and no expiry', async () => {
+    platformService.getFirm.mockResolvedValue(FIRM);
+    platformService.updateSubscription.mockResolvedValue(FIRM);
+    renderPage(<PlatformFirmDetailPage />, { path: '/platform/firms/:id', route: '/platform/firms/firm-1' });
+    const user = userEvent.setup();
+    await user.selectOptions(await screen.findByLabelText(/Billing arrangement/), 'COMPLIMENTARY');
+    expect(screen.getByLabelText(/Status/)).toHaveValue('ACTIVE');
+    expect(screen.getByLabelText(/Complimentary until/)).toHaveValue('');
+    expect(screen.getByLabelText(/Reason for billing arrangement/)).toBeRequired();
+    await user.type(screen.getByLabelText(/Reason for billing arrangement/), 'Legal aid sponsorship');
+    await user.click(screen.getByRole('button', { name: 'Update subscription' }));
+    await waitFor(() => expect(platformService.updateSubscription).toHaveBeenCalledWith('firm-1', expect.objectContaining({
+      is_complimentary: true, status: 'ACTIVE', current_period_end: null,
+      custom_monthly_price: null, custom_annual_price: null, pricing_reason: 'Legal aid sponsorship',
+    })));
+  });
+
+  it('saves a custom total for a firm', async () => {
+    platformService.getFirm.mockResolvedValue(FIRM);
+    platformService.updateSubscription.mockResolvedValue(FIRM);
+    renderPage(<PlatformFirmDetailPage />, { path: '/platform/firms/:id', route: '/platform/firms/firm-1' });
+    const user = userEvent.setup();
+    await user.selectOptions(await screen.findByLabelText(/Billing arrangement/), 'CUSTOM');
+    await user.type(screen.getByLabelText(/Custom monthly total/), '1200');
+    await user.type(screen.getByLabelText(/Reason for billing arrangement/), 'Negotiated fee');
+    await user.click(screen.getByRole('button', { name: 'Update subscription' }));
+    await waitFor(() => expect(platformService.updateSubscription).toHaveBeenCalledWith('firm-1', expect.objectContaining({
+      is_complimentary: false, custom_monthly_price: '1200', custom_annual_price: null,
+    })));
+  });
+
+  it('generates and dismisses a temporary password for the firm owner', async () => {
+    platformService.getFirm.mockResolvedValue(FIRM);
+    platformService.generateTemporaryPassword.mockResolvedValue({ email: FIRM.owner.email, temp_password: 'temporary-secret' });
+    renderPage(<PlatformFirmDetailPage />, { path: '/firms/:id', route: '/firms/firm-1' });
+    await userEvent.click(await screen.findByRole('button', { name: 'Generate temporary password' }));
+    expect(platformService.generateTemporaryPassword).not.toHaveBeenCalled();
+    await userEvent.click(await screen.findByRole('button', { name: 'Generate password', exact: true }));
+    expect(await screen.findByLabelText('Temporary password')).toHaveValue('temporary-secret');
+    expect(platformService.generateTemporaryPassword).toHaveBeenCalledWith('firm-1', { confirmation: expect.any(Function) });
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByLabelText('Temporary password')).not.toBeInTheDocument();
+  });
+
   it('shows the platform overview with alerts, metrics and activity', async () => {
     platformService.getOverview.mockResolvedValue({
       firms: { total: 3, active: 2, suspended: 1, new_this_month: 1 },
@@ -255,5 +304,9 @@ describe('platform console', () => {
     await user.click(screen.getByRole('button', { name: 'Edit Basic' }));
     expect(screen.getByRole('heading', { name: 'Edit Basic' })).toBeInTheDocument();
     expect(screen.getByLabelText('Monthly price (KES, excl. VAT) *')).toHaveValue(2500);
+    platformService.updatePlan.mockResolvedValue({});
+    await user.selectOptions(screen.getByLabelText(/Pricing basis/), 'ADVOCATE');
+    await user.click(screen.getByRole('button', { name: 'Save plan' }));
+    await waitFor(() => expect(platformService.updatePlan).toHaveBeenCalledWith('p1', expect.objectContaining({ pricing_basis: 'ADVOCATE' })));
   });
 });

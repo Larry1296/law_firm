@@ -48,14 +48,8 @@ export default function FirmLogoField() {
   };
 
   const confirmRemove = async () => {
-    const result = await Swal.fire({
-      icon: 'warning',
-      title: 'Remove the firm logo?',
-      text: 'Your firm’s initials will show in its place until you upload a new logo.',
-      showCancelButton: true,
-      confirmButtonText: 'Remove logo',
-    });
-    if (result.isConfirmed) remove.mutate();
+
+    remove.mutate();
   };
 
   return (

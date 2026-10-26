@@ -9,6 +9,11 @@ from apps.common.models.timestamped_model import TimestampedModel
 class Plan(TimestampedModel):
     """A SaaS tier. A null limit means unlimited."""
 
+    class PricingBasis(models.TextChoices):
+        FIRM = "FIRM", "Per firm"
+        ADVOCATE = "ADVOCATE", "Per active advocate"
+
+    pricing_basis = models.CharField(max_length=10, choices=PricingBasis.choices, default=PricingBasis.FIRM)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=30, unique=True)
     name = models.CharField(max_length=80)
@@ -64,6 +69,11 @@ class FirmSubscription(TimestampedModel):
         help_text="Blank on an active subscription means it does not lapse (complimentary or legacy).",
     )
     grace_period_days = models.PositiveIntegerField(default=7)
+    is_complimentary = models.BooleanField(default=False)
+    has_ever_subscribed = models.BooleanField(default=False, editable=False)
+    custom_monthly_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)])
+    custom_annual_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)])
+    pricing_reason = models.CharField(max_length=500, blank=True)
     notes = models.TextField(blank=True)
 
     class Meta:
@@ -71,6 +81,16 @@ class FirmSubscription(TimestampedModel):
 
     def __str__(self):
         return f"{self.firm} — {self.plan} ({self.status})"
+
+    def save(self, *args, **kwargs):
+        # Trial start also uses current_period_start, so retain a separate,
+        # monotonic record of access beyond trial, even after cancellation.
+        previous = self.pk and type(self).objects.filter(pk=self.pk, has_ever_subscribed=True).exists()
+        if previous or self.status == self.Status.ACTIVE or self.is_complimentary or self.current_period_end:
+            self.has_ever_subscribed = True
+            if kwargs.get('update_fields') is not None:
+                kwargs['update_fields'] = set(kwargs['update_fields']) | {'has_ever_subscribed'}
+        return super().save(*args, **kwargs)
 
 
 class SubscriptionInvoice(TimestampedModel):

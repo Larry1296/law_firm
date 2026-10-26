@@ -27,7 +27,7 @@ export default function AdminDocumentsPage() {
 
   const download = async (document) => {
     try { await downloadDocument(document); }
-    catch (err) { Swal.fire('Download failed', getApiErrorMessage(err), 'error'); }
+    catch (err) { if (err?.isActionCancelled) return;  Swal.fire('Download failed', getApiErrorMessage(err), 'error'); }
   };
 
   return (

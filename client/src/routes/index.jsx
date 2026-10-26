@@ -47,11 +47,15 @@ import PortalLayoutWrapper from '@/layouts/portal/ClientLayoutWrapper';
 
 import PlatformLayoutWrapper from '@/modules/platform/layout/PlatformLayoutWrapper';
 
+const HelpCenter = lazy(() => import('@/modules/tutorials/HelpCenter'));
+const TutorialDetail = lazy(() => import('@/modules/tutorials/HelpCenter').then(m => ({default:m.TutorialDetail})));
+const TutorialAdmin = lazy(() => import('@/modules/tutorials/TutorialAdmin'));
+
 const SignedInDashboardRedirect = ({ children }) => {
   const { user, firmRole, isAuthenticated } = useAuth();
 
   if (!isAuthenticated || !user) return children;
-  if (user.role !== 'ADMIN' && user.must_change_password) return children;
+  if (user.must_change_password) return children;
 
   const effectiveRole = getEffectiveRole(user, firmRole);
   const dashboardPath = ROLE_DASHBOARD[effectiveRole];
@@ -695,6 +699,9 @@ const AppRoutes = () => {
           }
         >
           <Route path='' element={<Navigate to='overview' replace />} />
+          <Route path='help' element={<HelpCenter />} />
+          <Route path='help/manage' element={<TutorialAdmin />} />
+          <Route path='help/:id' element={<TutorialDetail />} />
           <Route path='overview' element={<PlatformOverviewPage />} />
           <Route path='firms' element={<PlatformFirmsPage />} />
           <Route path='firms/register' element={<PlatformRegisterFirmPage />} />
@@ -719,6 +726,8 @@ const AppRoutes = () => {
           }
         >
           <Route path='' element={<Navigate to='dashboard' replace />} />
+          <Route path='help' element={<HelpCenter />} />
+          <Route path='help/:id' element={<TutorialDetail />} />
 
           {/* DASHBOARD */}
           <Route path='dashboard' element={<AdminDashboard />} />
@@ -852,6 +861,8 @@ const AppRoutes = () => {
           }
         >
           <Route path='' element={<Navigate to='dashboard' replace />} />
+          <Route path='help' element={<HelpCenter />} />
+          <Route path='help/:id' element={<TutorialDetail />} />
           <Route path='dashboard' element={<LawyerDashboard />} />
           <Route path='arrivals' element={<ClientArrivalsPage />} />
           <Route path='calendar' element={<LawyerCalendar />} />
@@ -901,6 +912,8 @@ const AppRoutes = () => {
           }
         >
           <Route path='' element={<Navigate to='dashboard' replace />} />
+          <Route path='help' element={<HelpCenter />} />
+          <Route path='help/:id' element={<TutorialDetail />} />
 
           <Route path='dashboard' element={<SecretaryDashboard />} />
           <Route path='arrivals' element={<ClientArrivalsPage />} />
@@ -949,6 +962,8 @@ const AppRoutes = () => {
           }
         >
           <Route path='' element={<Navigate to='dashboard' replace />} />
+          <Route path='help' element={<HelpCenter />} />
+          <Route path='help/:id' element={<TutorialDetail />} />
           <Route path='dashboard' element={<AccountantDashboard />} />
           <Route path='billing' element={<AccountantBilling />} />
           <Route path='tasks' element={<AccountantTasks />} />
@@ -972,6 +987,8 @@ const AppRoutes = () => {
           }
         >
           <Route path='' element={<Navigate to='dashboard' replace />} />
+          <Route path='help' element={<HelpCenter />} />
+          <Route path='help/:id' element={<TutorialDetail />} />
           <Route path='dashboard' element={<HRDashboard />} />
           <Route path='staff-records' element={<HRStaffRecords />} />
           <Route path='tasks' element={<HRTasks />} />
@@ -995,6 +1012,8 @@ const AppRoutes = () => {
           }
         >
           <Route path='' element={<Navigate to='dashboard' replace />} />
+          <Route path='help' element={<HelpCenter />} />
+          <Route path='help/:id' element={<TutorialDetail />} />
           <Route path='dashboard' element={<ITDashboard />} />
           <Route path='systems' element={<ITSystems />} />
           <Route path='tasks' element={<ITTasks />} />
@@ -1018,6 +1037,8 @@ const AppRoutes = () => {
           }
         >
           <Route path='' element={<Navigate to='dashboard' replace />} />
+          <Route path='help' element={<HelpCenter />} />
+          <Route path='help/:id' element={<TutorialDetail />} />
           <Route path='dashboard' element={<ClientDashboardPage />} />
           <Route path='cases' element={<ClientCasesPage />} />
           <Route path='cases/:id' element={<ClientCaseDetailsPage />} />
@@ -1049,6 +1070,8 @@ const AppRoutes = () => {
           }
         >
           <Route path='' element={<Navigate to='dashboard' replace />} />
+          <Route path='help' element={<HelpCenter />} />
+          <Route path='help/:id' element={<TutorialDetail />} />
           <Route path='dashboard' element={<PortalDashboard />} />
           <Route path='documents' element={<PortalDocuments />} />
           <Route path='notifications' element={<PortalNotifications />} />

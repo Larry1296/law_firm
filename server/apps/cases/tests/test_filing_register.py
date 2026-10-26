@@ -76,6 +76,43 @@ class FilingRegisterTests(TestCase):
         self.assertEqual(data["next_action"], f"Await demand response (due {due:%d %b %Y})")
         self.assertEqual(self.matter.deadlines.get().due_at.date(), due)
 
+    def test_summons_requires_actual_due_date_and_never_prompts_default_until_verified(self):
+        self.move_to(Case.CourtStage.AWAITING_RESPONSE)
+        served = timezone.now() - timedelta(days=30)
+        self.record(self.secretary_user, 'SUMMONS', status=400, served_at=served.isoformat())
+        self.assertFalse(self.matter.filings.exists())
+        due = timezone.localdate(served) + timedelta(days=10)
+        data = self.record(self.secretary_user, 'SUMMONS', served_at=served.isoformat(), response_due_date=due.isoformat())
+        self.assertIn('verify response deadline', data['next_action'])
+        deadline = self.matter.deadlines.get()
+        self.assertTrue(deadline.requires_review)
+        self.assertEqual(timezone.localdate(deadline.due_at), due)
+        self.record(self.secretary_user, 'AFFIDAVIT_OF_SERVICE', status=400, served_at=served.isoformat(), response_due_date=(due + timedelta(days=1)).isoformat())
+        self.api.force_authenticate(self.secretary_user)
+        rejected = self.api.post(f'/api/cases/deadlines/{deadline.id}/change/', {
+            'new_due_at': deadline.due_at.isoformat(), 'reason': 'Secretary attempted approval.',
+        }, format='json')
+        self.assertEqual(rejected.status_code, 403)
+        self.api.force_authenticate(self.owner)
+        accepted = self.api.post(f'/api/cases/deadlines/{deadline.id}/change/', {
+            'new_due_at': deadline.due_at.isoformat(), 'reason': 'Actual summons, service and court directions verified.',
+        }, format='json')
+        self.assertEqual(accepted.status_code, 200, accepted.data)
+        deadline.refresh_from_db()
+        self.assertFalse(deadline.requires_review)
+        self.assertEqual(deadline.reviewed_by, self.owner)
+        self.assertEqual(deadline.change_history.count(), 1)
+        self.matter.refresh_from_db()
+        self.assertIn('Review default judgment', self.matter.next_action)
+
+    def test_unknown_forum_creates_urgent_appeal_review_instead_of_omitting_it(self):
+        self.move_to(Case.CourtStage.JUDGMENT_DELIVERED)
+        self.record(self.lawyer_user, 'JUDGMENT')
+        deadline = self.matter.deadlines.get(source__startswith='APPEAL_WINDOW:')
+        self.assertTrue(deadline.requires_review)
+        self.assertEqual(deadline.priority, 'CRITICAL')
+        self.assertIn('prescribe deadline', deadline.description)
+
     def test_demand_period_must_be_7_14_or_21_days(self):
         self.record(self.lawyer_user, "DEMAND_LETTER", status=400, response_period_days=10)
         self.assertFalse(self.matter.filings.exists())
@@ -91,7 +128,13 @@ class FilingRegisterTests(TestCase):
     def test_default_judgment_requires_a_request_for_judgment(self):
         self.move_to(Case.CourtStage.AWAITING_RESPONSE)
         served = timezone.now() - timedelta(days=20)
-        self.record(self.secretary_user, "AFFIDAVIT_OF_SERVICE", served_at=served.isoformat())
+        self.record(self.secretary_user, "AFFIDAVIT_OF_SERVICE", served_at=served.isoformat(), response_due_date=(timezone.localdate(served) + timedelta(days=10)).isoformat())
+        deadline = self.matter.deadlines.get(source__startswith="APPEARANCE:")
+        self.api.force_authenticate(self.owner)
+        checked = self.api.post(f"/api/cases/deadlines/{deadline.id}/change/", {
+            "new_due_at": deadline.due_at.isoformat(), "reason": "Summons and service checked; no order extending time."
+        }, format="json")
+        self.assertEqual(checked.status_code, 200, checked.data)
         self.matter.refresh_from_db()
         self.assertEqual(self.matter.next_action, "Review default judgment (Order 10) for advocate decision")
 

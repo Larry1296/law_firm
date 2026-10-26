@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
+import DeleteTrialFirmButton from '../components/DeleteTrialFirmButton';
 
 import { formatSubscriptionDate } from '@/modules/admin/subscription/utils/subscriptionFormatting';
 import platformService from '@/modules/platform/services/platformService';
@@ -83,13 +84,13 @@ export default function PlatformFirmsPage() {
           </label>
         </div>
 
-        {firms.error && <div className='p-4'><ErrorNotice error={firms.error} /></div>}
+        {(firms.error && !firms.error?.isActionCancelled) && <div className='p-4'><ErrorNotice error={firms.error} /></div>}
         {firms.isLoading ? (
           <p role='status' className='p-5 text-sm text-text-muted-light dark:text-text-muted-dark'>Loading firms…</p>
         ) : rows.length === 0 ? (
           <EmptyState>No firms match these filters.</EmptyState>
         ) : (
-          <Table caption='Law firms' columns={['Firm', 'Owner', 'Plan', 'Subscription', 'Access', 'Registered']}>
+          <Table caption='Law firms' columns={['Firm', 'Owner', 'Plan', 'Subscription', 'Access', 'Registered', 'Actions']}>
             {rows.map((firm) => (
               <tr
                 key={firm.id}
@@ -108,6 +109,7 @@ export default function PlatformFirmsPage() {
                 <td className={cellClass}><StatusBadge status={firm.subscription_status} /></td>
                 <td className={cellClass}><FirmAccessBadge isActive={firm.is_active} /></td>
                 <td className={`${cellClass} whitespace-nowrap`}>{formatSubscriptionDate(firm.created_at)}</td>
+                <td className={cellClass}><DeleteTrialFirmButton firm={firm} /></td>
               </tr>
             ))}
           </Table>

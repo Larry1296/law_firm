@@ -13,6 +13,13 @@ function show(data) {
 }
 beforeEach(() => vi.clearAllMocks());
 describe('client arrival staffing flows', () => {
+  it('links the completed arrival to the chosen client without opening a case', async () => {
+    axios.post.mockResolvedValue({ data: {} });
+    show({ ...base, clients: [{ value: 'c1', label: 'Kamau Hardware Limited' }], visits: [{ id: 'v1', visitor_name: 'Peter Kamau', advocate: 'a1', status: 'COMPLETED', intake_completed_at: '2026-10-26T08:00:00Z', intake_handler: 'ADVOCATE' }] });
+    fireEvent.change(await screen.findByLabelText('Client to link to this arrival'), { target: { value: 'c1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Link client record' }));
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/v1/', { action: 'LINK_CLIENT', client: 'c1' }));
+  });
   it('secretary records only basic arrival and notifies the advocate', async () => {
     axios.post.mockResolvedValue({ data: {} });
     show(base);

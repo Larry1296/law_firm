@@ -13,6 +13,7 @@ import {
 import AuthContext from '@/core/store/AuthContext';
 import { getEffectiveRole } from '@/core/utils/effectiveRole';
 import authService from '@/modules/auth/service/authService';
+import { confirmAction } from '@/core/utils/themedSwal';
 import {
   clearAuthSession,
   getAuthStorage,
@@ -44,7 +45,7 @@ const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
       return getStoredAuth().user;
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       console.error('Failed to parse user:', error);
       return null;
     }
@@ -95,14 +96,17 @@ const AuthProvider = ({ children }) => {
   }, []);
 
   const logout = async ({ redirect = true } = {}) => {
+    const confirmation = await confirmAction({ title: 'Sign out of Sheria Master?', text: 'You will need to sign in again to continue.', confirmText: 'Sign out', tone: 'warning' });
+    if (!confirmation) return false;
     const refresh = refreshToken || getStoredAuth().refreshToken;
 
     if (refresh) {
       try {
         await authService.logout({
           refresh,
-        });
+        }, { confirmation });
       } catch (error) {
+        if (error?.isActionCancelled) return false;
         console.error('Logout API failed:', error);
       }
     }
@@ -117,6 +121,7 @@ const AuthProvider = ({ children }) => {
     if (redirect && window.location.pathname !== '/login') {
       window.location.replace('/login');
     }
+    return true;
   };
 
   const syncSessionUser = useCallback(async () => {
@@ -144,7 +149,7 @@ const AuthProvider = ({ children }) => {
       const storage = getAuthStorage();
       storage.setItem('user', JSON.stringify(serverUser));
       setUser(serverUser);
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       const status = error.response?.status;
       if (status === 401 || status === 403) {
         clearSessionAndRedirect();

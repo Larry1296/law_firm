@@ -110,6 +110,7 @@ export function EmptyState({ children }) {
 }
 
 export function ErrorNotice({ error, children }) {
+  if (error?.isActionCancelled) return null;
   if (!error && !children) return null;
   return (
     <p role='alert' className='rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/40 dark:bg-red-950/60 dark:text-red-100'>

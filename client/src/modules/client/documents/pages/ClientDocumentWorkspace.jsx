@@ -35,7 +35,7 @@ function DeliveryForm({ item, onDone }) {
   const send = useMutation({
     mutationFn: () => documentsService.sendDeliveryNotice(item.id, { delivery_method: method, expected_delivery_date: date || null, note }),
     onSuccess: onDone,
-    onError: (failure) => setError(getApiErrorMessage(failure, 'Your answer could not be sent.')),
+    onError: (failure) => { if (failure?.isActionCancelled) return; return setError(getApiErrorMessage(failure, 'Your answer could not be sent.')); },
   });
 
   return (

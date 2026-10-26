@@ -1,6 +1,8 @@
+import FinanceClosingReviews from './FinanceClosingReviews';
 import { useEffect, useState } from 'react';
 import useAuth from '@/core/hooks/useAuth';
-import Swal, { confirmAction } from '@/core/utils/themedSwal';
+import Swal from '@/core/utils/themedSwal';
+import { withCriticalAction } from '@/core/utils/confirmationContext';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import adminBillingService from '../services/adminBillingService';
 import ActionModal from '@/components/ui/ActionModal';
@@ -97,10 +99,9 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   const update = (setter) => (event) => setter((current) => ({ ...current, [event.target.name]: event.target.value }));
   // Postings to the ledgers cannot be edited afterwards, so `confirm` asks before they are made.
   const run = async (command, message, confirm) => {
-    if (confirm && !(await confirmAction({ confirmText: 'Post', tone: 'warning', ...confirm }))) return;
     setBusy(true);
-    try { await command(); await load(); if (message) Swal.fire('Recorded', message, 'success'); }
-    catch (error) { Swal.fire('Financial control rejected', getApiErrorMessage(error), 'error'); }
+    try { await withCriticalAction(confirm, command); await load(); if (message) Swal.fire('Recorded', message, 'success'); return true; }
+    catch (error) { if (error?.isActionCancelled) return false; Swal.fire('Financial control rejected', getApiErrorMessage(error), 'error'); return false; }
     finally { setBusy(false); }
   };
   const submit = (command, message, confirm) => (event) => { event.preventDefault(); return run(command, message, confirm); };
@@ -146,7 +147,8 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   const inspectLedger = () => run(async () => { const data = await adminBillingService.getMatterLedger(ledgerMatter); setLedger(data.ledger); });
 
   return <div className='space-y-6 p-4 text-text-primary-light dark:text-text-primary-dark sm:p-6'>
-    <ActionModal open={Boolean(modal)} {...modal} busy={busy} onCancel={() => setModal(null)} onSubmit={(values) => Promise.resolve(modal.submit(values)).finally(() => setModal(null))} />
+    <FinanceClosingReviews />
+    <ActionModal open={Boolean(modal)} {...modal} busy={busy} onCancel={() => setModal(null)} onSubmit={(values) => Promise.resolve(modal.submit(values)).then((done) => { if (done !== false) setModal(null); })} />
     <div>
       <p className='text-xs font-semibold uppercase tracking-widest text-brand-primary'>Advocates (Accounts) Rules</p>
       <h1 className='text-2xl font-bold'>{heading}</h1>

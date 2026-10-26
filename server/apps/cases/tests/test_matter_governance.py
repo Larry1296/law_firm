@@ -95,6 +95,34 @@ class MatterGovernanceTests(TestCase):
         self.matter.refresh_from_db()
         self.assertEqual(self.matter.matter_status, Case.MatterStatus.ACTIVE)
 
+    def test_amending_review_invalidates_approvals_and_requires_fresh_outputs(self):
+        closure = self.prepared_closure()
+        response = self.api.patch(f'/api/cases/{self.matter.pk}/closure/', {'closing_summary': 'Updated client instructions and final result.'}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        closure.refresh_from_db()
+        self.assertIsNone(closure.finance_approved_by)
+        self.assertIsNone(closure.responsible_advocate_approved_by)
+        self.assertFalse(closure.closing_letter_prepared)
+        self.assertFalse(closure.final_client_account_prepared)
+        self.assertEqual(closure.generated_documents.count(), 2)
+        with self.assertRaises(ValidationError):
+            MatterClosureService.finalise(user=self.owner, closure_id=closure.pk)
+
+    def test_document_receipt_cannot_assert_final_account_prepared(self):
+        closure = MatterClosureService.request(user=self.owner, matter_id=self.matter.id, data=self.closure_data(final_client_account_prepared=False))
+        MatterClosureService.generate_document(user=self.owner, closure_id=closure.pk, document_type=GeneratedClosingDocument.Type.DOCUMENT_RECEIPT)
+        closure.refresh_from_db()
+        self.assertFalse(closure.final_client_account_prepared)
+
+    def test_client_cannot_read_internal_closure_or_deadline_records(self):
+        client_user = User.objects.create_user(email='private-client@example.test', password='pass', first_name='Client', last_name='User', phone_number='+254700830002', national_id_number='GOVCLIENTUSER', role=UserRole.OFFICIAL_CLIENT)
+        self.client.user = client_user
+        self.client.save()
+        self.api.force_authenticate(client_user)
+        for resource in ['closure', 'deadlines', 'legal-assessments', 'workstream']:
+            response = self.api.get(f'/api/cases/{self.matter.pk}/{resource}/')
+            self.assertEqual(response.status_code, 403, response.data)
+
     def test_reopening_requires_reason_and_preserves_closure_history(self):
         closure = MatterClosureService.finalise(user=self.owner, closure_id=self.prepared_closure().id)
         with self.assertRaises(ValidationError):
@@ -125,7 +153,7 @@ class MatterGovernanceTests(TestCase):
                 "electronic_location": "vault/MAT-GOV-001", "archive_category": "ADVISORY",
                 "matter_type": "COMMERCIAL", "retention_policy": "Seven-year standard policy",
                 "retention_start_date": date.today(), "scheduled_review_date": date.today() + timedelta(days=365 * 7),
-                "responsible_custodian": self.owner, "archive_checklist": {"closing_letter": True},
+                "responsible_custodian": self.owner, "archive_checklist": {key: True for key in ArchiveService.CHECKLIST_FIELDS},
             },
         )
 

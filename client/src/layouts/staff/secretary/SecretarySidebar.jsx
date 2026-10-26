@@ -1,3 +1,4 @@
+import { HelpNavigation } from '@/modules/tutorials/HelpNavigation';
 import { useContext } from 'react';
 import AuthContext from '@/core/store/AuthContext';
 
@@ -152,6 +153,7 @@ export default function SecretarySidebar({ onClose }) {
             </div>
           ))}
         </div>
+      <HelpNavigation onClick={onClose} />
       </nav>
 
       {/* FOOTER */}

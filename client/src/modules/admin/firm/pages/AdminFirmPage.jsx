@@ -1,5 +1,6 @@
+import { withConfirmation } from '@/core/utils/confirmationContext';
 import QueueConfiguration from '@/modules/clients/shared/QueueConfiguration';
-import React from 'react';
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
@@ -16,7 +17,7 @@ import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
 import StatsCard from '@/components/ui/StatsCard';
 import TableHeaderText from '@/components/ui/TableHeaderText';
-import Swal, { toneColor } from '@/core/utils/themedSwal';
+import Swal from "@/core/utils/themedSwal";
 import { autoGrow } from '@/components/ui/autoGrow';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 
@@ -130,7 +131,7 @@ export default function AdminFirmPage() {
         showConfirmButton: false,
       });
     },
-    onError: (error) => {
+    onError: (error) => { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Update failed',
@@ -153,7 +154,7 @@ export default function AdminFirmPage() {
         showConfirmButton: false,
       });
     },
-    onError: (error) => {
+    onError: (error) => { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Could not confirm owner lawyer role',
@@ -176,7 +177,7 @@ export default function AdminFirmPage() {
         showConfirmButton: false,
       });
     },
-    onError: (error) => {
+    onError: (error) => { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Delegation failed',
@@ -199,7 +200,7 @@ export default function AdminFirmPage() {
         showConfirmButton: false,
       });
     },
-    onError: (error) => {
+    onError: (error) => { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Revocation failed',
@@ -222,7 +223,7 @@ export default function AdminFirmPage() {
         showConfirmButton: false,
       });
     },
-    onError: (error) => {
+    onError: (error) => { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Update failed',
@@ -256,7 +257,7 @@ export default function AdminFirmPage() {
         showConfirmButton: false,
       });
     },
-    onError: (error) => {
+    onError: (error) => { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Department action failed',
@@ -290,7 +291,7 @@ export default function AdminFirmPage() {
         showConfirmButton: false,
       });
     },
-    onError: (error) => {
+    onError: (error) => { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Branch action failed',
@@ -327,9 +328,9 @@ export default function AdminFirmPage() {
 
     if (!result.isConfirmed) return;
 
-    firmMutation.mutate({
+    firmMutation.mutate(withConfirmation(result, {
       [field]: result.value,
-    });
+    }));
   };
 
   const updateSettingField = async ({
@@ -352,20 +353,12 @@ export default function AdminFirmPage() {
 
     if (!result.isConfirmed) return;
 
-    settingsMutation.mutate({
+    settingsMutation.mutate(withConfirmation(result, {
       [field]: parser(result.value),
-    });
+    }));
   };
 
-  const toggleSettingField = async ({ field, label, value }) => {
-    const result = await Swal.fire({
-      title: `${value ? 'Disable' : 'Enable'} ${label}?`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: value ? 'Disable' : 'Enable',
-    });
-
-    if (!result.isConfirmed) return;
+  const toggleSettingField = async ({ field, value }) => {
 
     settingsMutation.mutate({
       [field]: !value,
@@ -373,14 +366,6 @@ export default function AdminFirmPage() {
   };
 
   const toggleFirmActive = async (firm) => {
-    const result = await Swal.fire({
-      title: firm.is_active ? 'Deactivate firm?' : 'Activate firm?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: firm.is_active ? 'Deactivate' : 'Activate',
-    });
-
-    if (!result.isConfirmed) return;
 
     firmMutation.mutate({
       is_active: !firm.is_active,
@@ -443,24 +428,11 @@ export default function AdminFirmPage() {
     departmentMutation.mutate({
       action: department ? 'update' : 'create',
       id: department?.id,
-      payload: result.value,
+      payload: withConfirmation(result, result.value),
     });
   };
 
   const toggleDepartmentStatus = async (department) => {
-    const result = await Swal.fire({
-      title: department.is_active
-        ? 'Disable department?'
-        : 'Enable department?',
-      text: department.is_active
-        ? 'This department will stop appearing as an active option.'
-        : 'This department will become available again.',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: department.is_active ? 'Disable' : 'Enable',
-    });
-
-    if (!result.isConfirmed) return;
 
     departmentMutation.mutate({
       action: 'update',
@@ -470,16 +442,6 @@ export default function AdminFirmPage() {
   };
 
   const deleteDepartment = async (department) => {
-    const result = await Swal.fire({
-      title: 'Delete department?',
-      text: `${department.name} will be permanently removed.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Delete',
-      confirmButtonColor: toneColor('danger'),
-    });
-
-    if (!result.isConfirmed) return;
 
     departmentMutation.mutate({
       action: 'delete',
@@ -593,21 +555,11 @@ export default function AdminFirmPage() {
     branchMutation.mutate({
       action: branch ? 'update' : 'create',
       id: branch?.id,
-      payload: result.value,
+      payload: withConfirmation(result, result.value),
     });
   };
 
   const deleteBranch = async (branch) => {
-    const result = await Swal.fire({
-      title: 'Delete branch?',
-      text: `${branch.name} will be permanently removed.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Delete',
-      confirmButtonColor: toneColor('danger'),
-    });
-
-    if (!result.isConfirmed) return;
 
     branchMutation.mutate({
       action: 'delete',
@@ -663,7 +615,7 @@ export default function AdminFirmPage() {
 
     if (!result.isConfirmed) return;
 
-    ownerLawyerMutation.mutate(result.value);
+    ownerLawyerMutation.mutate(withConfirmation(result, result.value));
   };
 
   const openAdminDelegationForm = async () => {
@@ -697,19 +649,10 @@ export default function AdminFirmPage() {
 
     if (!result.isConfirmed) return;
 
-    delegateAdminMutation.mutate({ user_id: result.value });
+    delegateAdminMutation.mutate(withConfirmation(result, { user_id: result.value }));
   };
 
   const revokeDelegatedAdmin = async (admin) => {
-    const result = await Swal.fire({
-      icon: 'warning',
-      title: 'Revoke delegated administration?',
-      text: `${admin.full_name} will return to their normal staff dashboard on next login.`,
-      showCancelButton: true,
-      confirmButtonText: 'Revoke',
-    });
-
-    if (!result.isConfirmed) return;
 
     revokeDelegatedAdminMutation.mutate(admin.user_id);
   };

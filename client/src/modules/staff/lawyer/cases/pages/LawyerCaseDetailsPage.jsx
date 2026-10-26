@@ -29,6 +29,7 @@ import CaseCourtroomPanel from '@/modules/courtroom/components/CaseCourtroomPane
 import LawyerDocumentsPage from '@/modules/staff/lawyer/documents/pages/LawyerDocumentsPage';
 import PhysicalMatterFileCard from '@/modules/cases/shared/PhysicalMatterFileCard';
 import PageSectionNav from '@/components/ui/PageSectionNav';
+import MatterLifecycleControls from '@/modules/admin/cases/components/MatterLifecycleControls';
 import CourtProgressPanel from '@/modules/cases/shared/CourtProgressPanel';
 
 const CASE_STATUS_OPTIONS = [
@@ -377,7 +378,7 @@ export default function LawyerCaseDetailsPage() {
 
         try {
           await axiosInstance.post(`/cases/${id}/events/`, eventPayload);
-        } catch (evtError) {
+        } catch (evtError) { if (evtError?.isActionCancelled) return;
           console.error('Event execution failed:', evtError);
         }
       }
@@ -392,7 +393,7 @@ export default function LawyerCaseDetailsPage() {
         timer: 1600,
         showConfirmButton: false,
       });
-    } catch (err) {
+    } catch (err) { if (err?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Lifecycle Update Failed',
@@ -969,6 +970,8 @@ export default function LawyerCaseDetailsPage() {
           </p>
         )}
       </Card>
+
+      <MatterLifecycleControls matter={caseData} />
 
       <div id='lawyer-documents' className='scroll-mt-28'><LawyerDocumentsPage caseId={id} compact /></div>
     </div>

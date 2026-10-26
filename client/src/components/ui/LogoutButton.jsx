@@ -15,10 +15,13 @@ const LogoutButton = () => {
 
     try {
       setIsLoggingOut(true);
-      await logout({ redirect: false });
+      const completed = await logout({ redirect: false });
+      if (completed === false) return;
       navigate('/login', { replace: true });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       console.error('Logout failed:', error);
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 

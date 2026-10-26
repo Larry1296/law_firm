@@ -16,7 +16,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.cases.models import Case, CaseEvent
-from apps.clients.models import Client, ClientMatterConflictCheck, IntakePrivacyConfig
+from apps.clients.models import ClientVisit, Client, ClientMatterConflictCheck, IntakePrivacyConfig
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.firm.models import LawFirm
 from apps.billing.models import FinancialAccount, TaxConfiguration
@@ -55,7 +55,7 @@ class EndToEndLitigationTests(TestCase):
         self.advocate_user = make_user("otieno@mwangi-advocates.test", UserRole.STAFF, "Brian", "Otieno", "+254711000002")
         self.advocate = Lawyer.objects.create(
             user=self.advocate_user, law_firm=self.firm, staff_number="ADV-002",
-            admission_number="P.105/2222/18", date_hired=date(2020, 3, 1),
+            office_location="Room 201", admission_number="P.105/2222/18", date_hired=date(2020, 3, 1),
         )
         for code in self.ADVOCATE_GRANTS:
             LawyerPermissionGrant.objects.create(lawyer=self.advocate, code=code, granted_by=self.partner)
@@ -70,7 +70,7 @@ class EndToEndLitigationTests(TestCase):
         self.accountant = Accountant.objects.create(
             user=self.accountant_user, law_firm=self.firm, staff_number="ACC-004", date_hired=date(2022, 1, 10),
         )
-        for code in [AccountantPermission.RECORD_RECEIPTS, AccountantPermission.MANAGE_CLIENT_MONEY, AccountantPermission.MANAGE_INVOICES]:
+        for code in [AccountantPermission.RECORD_RECEIPTS, AccountantPermission.MANAGE_CLIENT_MONEY, AccountantPermission.MANAGE_INVOICES, AccountantPermission.RECONCILE_ACCOUNTS]:
             AccountantPermissionGrant.objects.create(accountant=self.accountant, code=code, granted_by=self.partner)
         self.client_account = FinancialAccount.objects.create(
             firm=self.firm, name="Client account", account_type=FinancialAccount.AccountType.CLIENT,
@@ -102,6 +102,18 @@ class EndToEndLitigationTests(TestCase):
 
     # ------------------------------------------------------------------ steps
     def step_reception_records_walk_in(self):
+        arrival = self.ok(self.as_user(self.secretary_user).post("/api/arrivals/", {
+            "visitor_name": "Peter Kamau for Kamau Hardware Limited", "advocate": str(self.advocate.pk),
+        }, format="json"), 201)
+        visit_url = f"/api/arrivals/{arrival['id']}/"
+        self.ok(self.as_user(self.advocate_user).post(visit_url, {"action": "CALL"}, format="json"))
+        self.ok(self.as_user(self.secretary_user).post(visit_url, {"action": "USHER"}, format="json"))
+        self.ok(self.as_user(self.advocate_user).post(visit_url, {
+            "action": "INTAKE", "broad_issue": "Recovery for unpaid hardware supplies",
+            "other_parties": "Baraka Builders Limited", "acting_capacity": "Company director",
+        }, format="json"))
+        self.ok(self.as_user(self.advocate_user).post(visit_url, {"action": "COMPLETE"}, format="json"))
+        self.visit_id = arrival['id']
         data = self.ok(self.as_user(self.secretary_user).post("/api/staff/secretary/clients/prospective/", {
             "full_name": "Kamau Hardware Limited", "client_type": "COMPANY", "access_type": "PORTAL_ENABLED",
             "email": "accounts@kamauhardware.test", "phone_number": "+254722000100",
@@ -116,6 +128,11 @@ class EndToEndLitigationTests(TestCase):
         client = Client.objects.get(pk=data["client"]["id"])
         self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
         self.assertFalse(client.cases.exists())
+        linked = self.ok(self.as_user(self.secretary_user).post(visit_url, {
+            "action": "LINK_CLIENT", "client": str(client.pk),
+        }, format="json"))
+        self.assertEqual(str(linked["client"]), str(client.pk))
+        self.assertEqual(ClientVisit.objects.get(pk=self.visit_id).client_id, client.pk)
         return client
 
     def company_profile(self):
@@ -343,16 +360,26 @@ class EndToEndLitigationTests(TestCase):
         self.assertEqual(matter.next_action, "Serve summons and plaint")
 
         served = timezone.now() - timedelta(days=3)
-        self.register(self.secretary_user, matter, "SUMMONS", served_at=served.isoformat(), title="Summons served on the defendant's director")
-        self.register(self.secretary_user, matter, "AFFIDAVIT_OF_SERVICE", served_at=served.isoformat(), efiling_reference="EF-2026-779001")
+        self.register(self.secretary_user, matter, "SUMMONS", served_at=served.isoformat(), response_due_date=(timezone.localdate(served) + timedelta(days=10)).isoformat(), title="Summons served on the defendant's director")
+        self.register(self.secretary_user, matter, "AFFIDAVIT_OF_SERVICE", served_at=served.isoformat(), response_due_date=(timezone.localdate(served) + timedelta(days=10)).isoformat(), efiling_reference="EF-2026-779001")
         self.transition(self.advocate_user, matter, "AWAITING_RESPONSE", "Affidavit of service filed.", {"affidavit_of_service_filed": True})
-        appearance_due = timezone.localdate(served) + timedelta(days=15)
+        appearance_due = timezone.localdate(served) + timedelta(days=10)
+        provisional = matter.deadlines.get(source__startswith="APPEARANCE:")
+        self.assertTrue(provisional.requires_review)
+        self.ok(self.as_user(self.advocate_user).post(f"/api/cases/deadlines/{provisional.id}/change/", {
+            "new_due_at": provisional.due_at.isoformat(), "reason": "Appearance date in the served summons verified; court directions and time computation checked.",
+        }, format="json"))
         matter.refresh_from_db()
         self.assertEqual(matter.next_action, f"Entry of appearance due by {appearance_due:%d %b %Y}")
         self.assertEqual(matter.deadlines.filter(source=f"APPEARANCE:{matter.id}").count(), 1)
 
         appeared = timezone.now() - timedelta(days=1)
         self.register(self.secretary_user, matter, "MEMORANDUM_OF_APPEARANCE", filed_at=appeared.isoformat(), title="Memorandum of appearance by Baraka Builders Limited")
+        matter.refresh_from_db()
+        defence = matter.deadlines.get(source__startswith="DEFENCE:")
+        self.ok(self.as_user(self.advocate_user).post(f"/api/cases/deadlines/{defence.id}/change/", {
+            "new_due_at": defence.due_at.isoformat(), "reason": "Order 7 rule 1, filing date and applicable time computation reviewed.",
+        }, format="json"))
         matter.refresh_from_db()
         self.assertEqual(matter.next_action, f"Defence due by {timezone.localdate(appeared) + timedelta(days=14):%d %b %Y}")
 
@@ -485,6 +512,9 @@ class EndToEndLitigationTests(TestCase):
         self.assertTrue(matter.filings.filter(filing_type="JUDGMENT").exists())
         appeal = matter.deadlines.get(source__startswith="APPEAL_WINDOW:")
         self.assertEqual(timezone.localdate(appeal.due_at), timezone.localdate(delivered) + timedelta(days=30))
+        self.ok(self.as_user(self.advocate_user).post(f"/api/cases/deadlines/{appeal.id}/change/", {
+            "new_due_at": appeal.due_at.isoformat(), "reason": "Section 79G trigger, decree, registry exclusions and court orders checked; date confirmed.",
+        }, format="json"))
         # The window lapsed with no memorandum of appeal served; the advocate records that before closing.
         self.ok(self.as_user(self.advocate_user).post(f"/api/cases/deadlines/{appeal.id}/resolve/", {
             "action": "COMPLETE", "reason": "Appeal period under section 79G lapsed; no memorandum of appeal was served.",
@@ -557,7 +587,10 @@ class EndToEndLitigationTests(TestCase):
         base = f"/api/cases/{matter.id}/closure/{closure['id']}"
         partner = self.as_user(self.partner)
         self.ok(partner.post(f"{base}/approve-advocate/", {}, format="json"))
-        self.ok(partner.post(f"{base}/approve-finance/", {}, format="json"))
+        queue = self.ok(self.as_user(self.accountant_user).get("/api/cases/closing-reviews/finance/"))
+        self.assertTrue(any(str(item["id"]) == str(closure["id"]) for item in queue["closing_reviews"]))
+        self.ok(self.as_user(self.accountant_user).post(f"{base}/approve-finance/", {}, format="json"))
+        partner = self.as_user(self.partner)
         for document_type in ("CLOSING_LETTER", "FINAL_CLIENT_STATEMENT"):
             self.ok(partner.post(f"{base}/documents/", {"document_type": document_type}, format="json"), 201)
         self.ok(partner.post(f"{base}/finalise/", {}, format="json"))
@@ -570,7 +603,7 @@ class EndToEndLitigationTests(TestCase):
             "matter_type": "DEBT_RECOVERY", "retention_policy": "Seven years from closure",
             "retention_start_date": date.today().isoformat(),
             "scheduled_review_date": (date.today() + timedelta(days=365 * 7)).isoformat(),
-            "responsible_custodian": str(self.partner.id), "archive_checklist": {"closing_letter": True, "originals_returned": True},
+            "responsible_custodian": str(self.partner.id), "archive_checklist": {key: True for key in ("intake", "conflict", "engagement", "kyc_authority", "correspondence", "legal_work", "finance", "closing_letter", "document_return", "retention_classification")},
         }, format="json"), 201)
         matter.refresh_from_db()
         self.assertEqual(matter.matter_status, Case.MatterStatus.ARCHIVED)

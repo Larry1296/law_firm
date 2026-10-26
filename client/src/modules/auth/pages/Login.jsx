@@ -58,8 +58,7 @@ export default function Login() {
 
   // The server refuses work until a temporary password is replaced, so the change is not optional.
   const requirePasswordChange = async ({ sessionUser, access, refresh }) => {
-    const mustChange =
-      sessionUser.role !== 'ADMIN' && sessionUser.must_change_password;
+    const mustChange = sessionUser.must_change_password;
 
     if (!mustChange) {
       return sessionUser;
@@ -76,7 +75,7 @@ export default function Login() {
       allowOutsideClick: false,
       allowEscapeKey: false,
       focusConfirm: false,
-      preConfirm: async () => {
+      preConfirm: async (_value, confirmation) => {
         const newPassword = document.getElementById('new-password')?.value || '';
         const confirmPassword =
           document.getElementById('confirm-password')?.value || '';
@@ -97,16 +96,17 @@ export default function Login() {
               current_password: password,
               new_password: newPassword,
               confirm_password: confirmPassword,
-            });
+            }, { confirmation });
           } else {
             await authService.changePassword({
               current_password: password,
               new_password: newPassword,
               confirm_password: confirmPassword,
-            });
+            }, { confirmation });
           }
           return true;
         } catch (err) {
+          if (err?.isActionCancelled) return false;
           const message = getApiErrorMessage(
             err,
             'Could not update password.',

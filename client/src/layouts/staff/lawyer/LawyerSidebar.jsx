@@ -1,3 +1,4 @@
+import { HelpNavigation } from '@/modules/tutorials/HelpNavigation';
 import { X } from 'lucide-react';
 import { useContext } from 'react';
 import AuthContext from '@/core/store/AuthContext';
@@ -185,6 +186,7 @@ export default function LawyerSidebar({ onClose }) {
             </div>
           ))}
         </div>
+      <HelpNavigation onClick={onClose} />
       </nav>
 
       {/* FOOTER */}

@@ -157,6 +157,10 @@ class SubscriptionUpdateSerializer(serializers.Serializer):
     current_period_end = serializers.DateTimeField(required=False, allow_null=True)
     grace_period_days = serializers.IntegerField(min_value=0, max_value=60, required=False)
     notes = serializers.CharField(required=False, allow_blank=True)
+    is_complimentary = serializers.BooleanField(required=False)
+    custom_monthly_price = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0, required=False, allow_null=True)
+    custom_annual_price = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0, required=False, allow_null=True)
+    pricing_reason = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
     def validate_plan_code(self, value):
         if not Plan.objects.filter(code=value, is_active=True).exists():
@@ -174,7 +178,7 @@ class PlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Plan
         fields = [
-            "id", "code", "name", "tagline", "monthly_price", "annual_price",
+            "id", "code", "name", "tagline", "monthly_price", "annual_price", "pricing_basis",
             "max_advocates", "max_support_staff", "max_active_matters", "max_branches",
             "features", "is_public", "is_active", "sort_order", "subscriber_count",
         ]

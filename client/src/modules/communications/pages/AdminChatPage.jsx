@@ -90,7 +90,7 @@ export default function AdminChatPage() {
       setSelectedThreadId(response.thread?.id);
       setThreadType('ALL');
       setFeedback({ type: 'success', text: 'Staff chat opened successfully.' });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setFeedback({
         type: 'error',
         text: getApiErrorMessage(error, 'Could not open staff chat.'),

@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 
-import Swal, { toneColor } from '@/core/utils/themedSwal';
+import Swal from "@/core/utils/themedSwal";
 
 import {
   Users,
@@ -85,18 +85,6 @@ export default function AdminStaffPage() {
   const handleToggleStatus = async (member) => {
     const activating = !member.is_active;
 
-    const result = await Swal.fire({
-      title: activating ? 'Activate Staff?' : 'Deactivate Staff?',
-      text: activating
-        ? 'This staff member will regain system access.'
-        : 'This staff member will lose access to firm resources.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: activating ? 'Yes, activate' : 'Yes, deactivate',
-    });
-
-    if (!result.isConfirmed) return;
-
     try {
       await toggleStaffStatus(member);
 
@@ -109,7 +97,7 @@ export default function AdminStaffPage() {
         timer: 2000,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -119,17 +107,6 @@ export default function AdminStaffPage() {
   };
 
   const handleDelete = async (member) => {
-    const result = await Swal.fire({
-      title: 'Delete Staff?',
-      text: 'This staff member will be permanently removed.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, delete',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: toneColor('danger'),
-    });
-
-    if (!result.isConfirmed) return;
 
     try {
       await deleteStaff(member);
@@ -141,7 +118,7 @@ export default function AdminStaffPage() {
         timer: 2000,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Error',

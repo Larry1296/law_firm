@@ -56,7 +56,7 @@ export default function RecoverAccount() {
 
       // backend response shape safe access
       setResult((res?.data || res)?.detail);
-    } catch (err) {
+    } catch (err) { if (err?.isActionCancelled) return;
       console.error(
         'Recover account failed:',
         err.response?.data || err.message,

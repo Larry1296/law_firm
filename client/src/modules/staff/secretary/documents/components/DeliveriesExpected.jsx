@@ -27,7 +27,7 @@ function ReceiveForm({ item, originalsPlaces, onDone }) {
       expected_return_date: isOriginal && returnDate ? returnDate : null,
     }),
     onSuccess: onDone,
-    onError: (failure) => setError(getApiErrorMessage(failure, 'Could not file this document.')),
+    onError: (failure) => { if (failure?.isActionCancelled) return; return setError(getApiErrorMessage(failure, 'Could not file this document.')); },
   });
   const ready = CHECKS.every(([key]) => checks[key]);
 

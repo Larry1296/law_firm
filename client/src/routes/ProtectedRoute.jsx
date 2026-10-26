@@ -19,7 +19,7 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to='/login' replace />;
   }
 
-  if (user.role !== 'ADMIN' && user.must_change_password) {
+  if (user.must_change_password) {
     return <Navigate to='/login' replace />;
   }
 

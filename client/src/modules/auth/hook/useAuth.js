@@ -6,7 +6,7 @@ import {
   getAuthStorage,
   getStoredAuth,
 } from '@/core/utils/authStorage';
-import Swal from '@/core/utils/themedSwal';
+import Swal, { confirmAction } from '@/core/utils/themedSwal';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 
 export default function useAuth() {
@@ -137,10 +137,12 @@ export default function useAuth() {
   // =====================
   const logout = () =>
     execute(async () => {
+      const confirmation = await confirmAction({ title: 'Sign out of Sheria Master?', text: 'You will need to sign in again to continue.', confirmText: 'Sign out', tone: 'warning' });
+      if (!confirmation) return null;
       const { refreshToken: refresh } = getStoredAuth();
 
       if (refresh) {
-        await authService.logout({ refresh });
+        await authService.logout({ refresh }, { confirmation });
       }
 
       clearAuthSession();

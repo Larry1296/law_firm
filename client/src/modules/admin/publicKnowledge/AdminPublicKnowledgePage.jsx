@@ -1,7 +1,6 @@
 import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Plus, RefreshCw } from 'lucide-react';
-import { confirmAction } from '@/core/utils/themedSwal';
 
 import { actOnPublicKnowledge, createPublicKnowledge, listPublicKnowledge, updatePublicKnowledge } from './publicKnowledgeService';
 
@@ -16,7 +15,7 @@ export default function AdminPublicKnowledgePage() {
 
   const load = async () => {
     setState((value) => ({ ...value, loading: true, error: '' }));
-    try { setData(await listPublicKnowledge(filters)); } catch (error) { setState((value) => ({ ...value, error: error.message || 'Could not load public knowledge.' })); } finally { setState((value) => ({ ...value, loading: false })); }
+    try { setData(await listPublicKnowledge(filters)); } catch (error) { if (error?.isActionCancelled) return;  setState((value) => ({ ...value, error: error.message || 'Could not load public knowledge.' })); } finally { setState((value) => ({ ...value, loading: false })); }
   };
   useEffect(() => { load(); }, [filters.search, filters.category, filters.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -27,19 +26,18 @@ export default function AdminPublicKnowledgePage() {
       const payload = { ...form, expires_at: form.expires_at || null };
       const saved = selected ? await updatePublicKnowledge(selected.id, payload) : await createPublicKnowledge(payload);
       setSelected(saved); setForm({ ...EMPTY, ...saved, expires_at: saved.expires_at?.slice(0, 16) || '' }); await load();
-    } catch (error) { setState((value) => ({ ...value, error: error.response?.data?.body?.[0] || error.message || 'Could not save.' })); } finally { setState((value) => ({ ...value, saving: false })); }
+    } catch (error) { if (error?.isActionCancelled) return;  setState((value) => ({ ...value, error: error.response?.data?.body?.[0] || error.message || 'Could not save.' })); } finally { setState((value) => ({ ...value, saving: false })); }
   };
   const action = async (name) => {
     if (!selected) return;
-    if (name === 'publish' && !(await confirmAction({ title: 'Publish to public visitors?', text: 'Confirm that this information is intended for public visitors and contains no confidential information.', confirmText: 'Publish', tone: 'warning' }))) return;
-    try { const saved = await actOnPublicKnowledge(selected.id, name, name === 'publish' ? { confirmed: true } : {}); edit(saved); await load(); } catch (error) { setState((value) => ({ ...value, error: error.message || 'Action failed.' })); }
+    try { const saved = await actOnPublicKnowledge(selected.id, name, name === 'publish' ? { confirmed: true } : {}); edit(saved); await load(); } catch (error) { if (error?.isActionCancelled) return;  setState((value) => ({ ...value, error: error.message || 'Action failed.' })); }
   };
   const editable = !selected || ['draft', 'rejected'].includes(selected.approval_status);
 
   return <main className='space-y-5 p-4 md:p-6'>
     <div><h1 className='text-2xl font-bold'>Public Website · Chatbot Knowledge</h1><p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>Control exactly what the firm legal assistant may use for firm-related answers.</p></div>
     <div className='flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100'><AlertTriangle className='shrink-0' size={20}/><p><strong>Only publish information intended for public visitors.</strong> Do not include client, matter, financial, staff-private or confidential information.</p></div>
-    {state.error && <p role='alert' className='rounded-lg bg-red-50 p-3 text-sm text-red-800'>{state.error}</p>}
+    {(state.error && !state.error?.isActionCancelled) && <p role='alert' className='rounded-lg bg-red-50 p-3 text-sm text-red-800'>{state.error}</p>}
     <div className='grid gap-5 lg:grid-cols-[minmax(280px,0.8fr)_minmax(420px,1.2fr)]'>
       <section className='rounded-xl border border-border-light p-4 dark:border-border-dark'>
         <div className='mb-3 flex items-center justify-between'><h2 className='font-bold'>Published-information records</h2><button type='button' onClick={() => { setSelected(null); setForm(EMPTY); }} className='inline-flex items-center gap-1 rounded-lg bg-success px-3 py-2 text-xs font-bold text-white'><Plus size={15}/>New draft</button></div>

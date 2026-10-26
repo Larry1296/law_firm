@@ -1,6 +1,8 @@
+import { withConfirmation } from '@/core/utils/confirmationContext';
 import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import DeleteTrialFirmButton from '../components/DeleteTrialFirmButton';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Copy, ImagePlus, KeyRound, Pause, Pencil, Play } from 'lucide-react';
 
@@ -92,7 +94,7 @@ function ProfilePanel({ firm, meta, onSaved }) {
           <Field label='About the firm' className='sm:col-span-2'>
             <AutoGrowTextarea value={draft.description} onChange={set('description')} className={inputClass} />
           </Field>
-          {save.error && <div className='sm:col-span-2'><ErrorNotice error={save.error} /></div>}
+          {(save.error && !save.error?.isActionCancelled) && <div className='sm:col-span-2'><ErrorNotice error={save.error} /></div>}
           <div className='flex gap-2 sm:col-span-2'>
             <Button type='submit' disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save changes'}</Button>
             <Button variant='secondary' onClick={() => setEditing(false)}>Cancel</Button>
@@ -133,21 +135,41 @@ function SubscriptionPanel({ firm, meta, onSaved }) {
     trial_ends_at: toDateInput(subscription.trial_ends_at),
     current_period_end: toDateInput(subscription.current_period_end),
     notes: subscription.notes || '',
+    is_complimentary: subscription.is_complimentary || false,
+    custom_monthly_price: subscription.custom_monthly_price ?? '',
+    custom_annual_price: subscription.custom_annual_price ?? '',
+    pricing_reason: subscription.pricing_reason || '',
+    grace_period_days: subscription.grace_period_days ?? 7,
   };
   const [draft, setDraft] = useState(initial);
   const set = (key) => (event) => setDraft((current) => ({ ...current, [key]: event.target.value }));
   const save = useMutation({
     mutationFn: () => platformService.updateSubscription(firm.id, {
       ...draft,
+      custom_monthly_price: draft.custom_monthly_price === '' ? null : draft.custom_monthly_price,
+      custom_annual_price: draft.custom_annual_price === '' ? null : draft.custom_annual_price,
       trial_ends_at: fromDateInput(draft.trial_ends_at),
       current_period_end: fromDateInput(draft.current_period_end),
     }),
     onSuccess: onSaved,
   });
   const changed = JSON.stringify(draft) !== JSON.stringify(initial);
+  const pricingChanged = ['is_complimentary', 'custom_monthly_price', 'custom_annual_price'].some((key) => draft[key] !== initial[key]);
+  const billingMode = draft.is_complimentary ? 'COMPLIMENTARY' : (draft.custom_monthly_price !== '' || draft.custom_annual_price !== '' ? 'CUSTOM' : 'STANDARD');
+  const [selectedMode, setSelectedMode] = useState(billingMode);
+  const changeBillingMode = (event) => {
+    const mode = event.target.value;
+    setSelectedMode(mode);
+    setDraft((current) => ({
+      ...current,
+      is_complimentary: mode === 'COMPLIMENTARY',
+      custom_monthly_price: '', custom_annual_price: '',
+      ...(mode === 'COMPLIMENTARY' ? { status: 'ACTIVE', current_period_end: '', trial_ends_at: '' } : {}),
+    }));
+  };
 
   return (
-    <Panel title='Subscription' description='Change the plan, extend a trial or record a paid period.'>
+    <Panel title='Subscription' description='Manage the plan, billing exceptions, trial and access period for this firm.'>
       <div className='flex flex-wrap items-center gap-2'>
         <span className='text-lg font-bold'>{subscription.plan.name}</span>
         <StatusBadge status={subscription.effective_status} />
@@ -156,15 +178,15 @@ function SubscriptionPanel({ firm, meta, onSaved }) {
         {subscription.effective_status === 'TRIALING' && `Trial ends ${formatSubscriptionDate(subscription.trial_ends_at)}.`}
         {['ACTIVE', 'GRACE'].includes(subscription.effective_status) && (subscription.current_period_end
           ? `Paid until ${formatSubscriptionDate(subscription.current_period_end)}.`
-          : 'Does not lapse (complimentary).')}
+          : 'Does not lapse.')}
         {subscription.effective_status === 'EXPIRED' && 'Lapsed: the firm can view its records but cannot make changes.'}
-        {' '}{formatKes(subscription.billing_cycle === 'ANNUAL' ? subscription.plan.annual_price : subscription.plan.monthly_price)} / {subscription.billing_cycle === 'ANNUAL' ? 'year' : 'month'} excl. VAT
+        {' '}{subscription.is_complimentary ? 'Complimentary · ' : ''}{formatKes(subscription.billing_cycle === 'ANNUAL' ? (subscription.effective_annual_price ?? subscription.plan.annual_price) : (subscription.effective_monthly_price ?? subscription.plan.monthly_price))} / {subscription.billing_cycle === 'ANNUAL' ? 'year' : 'month'} excl. VAT
       </p>
 
       <form onSubmit={(event) => { event.preventDefault(); save.mutate(); }} className='mt-6 grid gap-4 border-t border-border-light pt-5 dark:border-border-dark sm:grid-cols-2'>
         <Field label='Plan'>
           <select value={draft.plan_code} onChange={set('plan_code')} className={inputClass}>
-            {(meta?.plans || []).map((plan) => <option key={plan.code} value={plan.code}>{plan.name} — {formatKes(plan.monthly_price)}/month</option>)}
+            {(meta?.plans || []).map((plan) => <option key={plan.code} value={plan.code}>{plan.name} — {formatKes(plan.monthly_price)}/month{plan.pricing_basis === 'ADVOCATE' ? ' per advocate' : ' per firm'}</option>)}
             {!(meta?.plans || []).some((plan) => plan.code === draft.plan_code) && <option value={draft.plan_code}>{subscription.plan.name} (retired)</option>}
           </select>
         </Field>
@@ -172,6 +194,24 @@ function SubscriptionPanel({ firm, meta, onSaved }) {
           <select value={draft.billing_cycle} onChange={set('billing_cycle')} className={inputClass}>
             {(meta?.billing_cycles || []).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
+        </Field>
+        <Field label='Billing arrangement' className='sm:col-span-2' hint='Custom amounts are the total for this firm per period, regardless of advocate count. Blank amounts use the plan price. Existing paid invoices are preserved; unpaid invoices are voided when terms change.'>
+          <select value={selectedMode} onChange={changeBillingMode} className={inputClass}>
+            <option value='STANDARD'>Standard plan pricing</option>
+            <option value='CUSTOM'>Custom firm price</option>
+            <option value='COMPLIMENTARY'>Complimentary — exempt from subscription charges</option>
+          </select>
+        </Field>
+        {selectedMode === 'CUSTOM' && <>
+          <Field label='Custom monthly total (KES, excl. VAT)'>
+            <input type='number' min='0' step='0.01' value={draft.custom_monthly_price} onChange={set('custom_monthly_price')} placeholder='Use plan price' className={inputClass} />
+          </Field>
+          <Field label='Custom annual total (KES, excl. VAT)'>
+            <input type='number' min='0' step='0.01' value={draft.custom_annual_price} onChange={set('custom_annual_price')} placeholder='Use plan price' className={inputClass} />
+          </Field>
+        </>}
+        <Field label='Reason for billing arrangement' required={pricingChanged} className='sm:col-span-2'>
+          <AutoGrowTextarea required={pricingChanged} maxLength={500} value={draft.pricing_reason} onChange={set('pricing_reason')} className={inputClass} />
         </Field>
         <Field label='Status'>
           <select value={draft.status} onChange={set('status')} className={inputClass}>
@@ -183,14 +223,17 @@ function SubscriptionPanel({ firm, meta, onSaved }) {
             <input type='date' value={draft.trial_ends_at} onChange={set('trial_ends_at')} className={inputClass} />
           </Field>
         ) : (
-          <Field label='Paid until' hint='Leave empty for a subscription that does not lapse.'>
-            <input type='date' value={draft.current_period_end} onChange={set('current_period_end')} className={inputClass} />
+          <Field label={draft.is_complimentary ? 'Complimentary until' : 'Paid until'} required={subscription.is_complimentary && !draft.is_complimentary && draft.status === 'ACTIVE'} hint={subscription.is_complimentary && !draft.is_complimentary ? 'Set an access end date when returning this firm to paid billing.' : 'Leave empty for access with no expiry.'}>
+            <input type='date' required={subscription.is_complimentary && !draft.is_complimentary && draft.status === 'ACTIVE'} value={draft.current_period_end} onChange={set('current_period_end')} className={inputClass} />
           </Field>
         )}
-        <Field label='Internal notes' className='sm:col-span-2'>
+        <Field label='Grace period (days)'>
+          <input type='number' min='0' max='60' value={draft.grace_period_days} onChange={set('grace_period_days')} className={inputClass} />
+        </Field>
+        <Field label='Internal notes'  className='sm:col-span-2'>
           <AutoGrowTextarea value={draft.notes} onChange={set('notes')} className={inputClass} />
         </Field>
-        {save.error && <div className='sm:col-span-2'><ErrorNotice error={save.error} /></div>}
+        {(save.error && !save.error?.isActionCancelled) && <div className='sm:col-span-2'><ErrorNotice error={save.error} /></div>}
         <div className='sm:col-span-2'>
           <Button type='submit' disabled={!changed || save.isPending}>{save.isPending ? 'Saving…' : 'Update subscription'}</Button>
         </div>
@@ -200,10 +243,13 @@ function SubscriptionPanel({ firm, meta, onSaved }) {
 }
 
 export default function PlatformFirmDetailPage() {
+  const navigate = useNavigate();
   const { id } = useParams();
   const queryClient = useQueryClient();
   const firmQuery = useQuery({ queryKey: ['platform', 'firm', id], queryFn: () => platformService.getFirm(id) });
   const meta = useQuery({ queryKey: ['platform', 'meta'], queryFn: platformService.getMeta });
+  const [temporaryPassword, setTemporaryPassword] = useState(null);
+  const [generatingPassword, setGeneratingPassword] = useState(false);
   const [inviteLink, setInviteLink] = useState(null);
   const [actionError, setActionError] = useState(null);
 
@@ -217,7 +263,7 @@ export default function PlatformFirmDetailPage() {
     setActionError(null);
     try {
       return await action();
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setActionError(getApiErrorMessage(error));
       return null;
     }
@@ -239,11 +285,29 @@ export default function PlatformFirmDetailPage() {
         confirmButtonText: 'Suspend firm',
       });
       if (!answer.isConfirmed) return;
-      const data = await run(() => platformService.setFirmStatus(firm.id, { is_active: false, reason: answer.value || '' }));
+      const data = await run(() => platformService.setFirmStatus(firm.id, withConfirmation(answer, { is_active: false, reason: answer.value || '' })));
       if (data) refresh(data);
     } else {
       const data = await run(() => platformService.setFirmStatus(firm.id, { is_active: true }));
       if (data) refresh(data);
+    }
+  };
+
+  const generatePassword = async () => {
+    const answer = await Swal.fire({
+      icon: 'warning', titleText: 'Generate a temporary password?',
+      text: `This replaces the password for ${firm.owner.email}. The owner must change it at sign-in.`,
+      showCancelButton: true, confirmButtonText: 'Generate password',
+    });
+    if (!answer.isConfirmed) return;
+
+    setGeneratingPassword(true);
+    setTemporaryPassword(null);
+    const data = await run(() => platformService.generateTemporaryPassword(firm.id, { confirmation: answer.confirmation }));
+    setGeneratingPassword(false);
+    if (data) {
+      setTemporaryPassword(data.temp_password);
+      queryClient.invalidateQueries({ queryKey: ['platform', 'firm', id] });
     }
   };
 
@@ -281,6 +345,7 @@ export default function PlatformFirmDetailPage() {
           </div>
         </div>
         <div className='flex flex-wrap gap-2'>
+          <DeleteTrialFirmButton firm={firm} onDeleted={() => navigate('/platform/firms', { replace: true })} />
           <Button variant={firm.is_active ? 'danger' : 'primary'} onClick={toggleAccess}>
             {firm.is_active ? <><Pause size={14} /> Suspend firm</> : <><Play size={14} /> Reactivate firm</>}
           </Button>
@@ -304,6 +369,19 @@ export default function PlatformFirmDetailPage() {
             </dl>
             <div className='mt-4 border-t border-border-light pt-4 dark:border-border-dark'>
               <Button variant='secondary' onClick={resendInvite}><KeyRound size={14} /> Send a new password link</Button>
+              <Button variant='secondary' disabled={generatingPassword} onClick={generatePassword}>
+                <KeyRound size={14} /> {generatingPassword ? 'Generating…' : 'Generate temporary password'}
+              </Button>
+              {temporaryPassword && (
+                <div className='mt-3'>
+                  <p className='text-xs text-text-muted-light dark:text-text-muted-dark'>Share this password with {firm.owner.email}. They must change it at sign-in. It is only shown here until you leave this page.</p>
+                  <div className='mt-2 flex gap-2'>
+                    <input readOnly value={temporaryPassword} aria-label='Temporary password' className={`${inputClass} font-mono text-xs`} onFocus={(event) => event.target.select()} />
+                    <Button variant='secondary' onClick={() => navigator.clipboard?.writeText(temporaryPassword)} aria-label='Copy temporary password'><Copy size={14} /></Button>
+                    <Button variant='secondary' onClick={() => setTemporaryPassword(null)}>Dismiss</Button>
+                  </div>
+                </div>
+              )}
               {inviteLink && (
                 <div className='mt-3'>
                   <p className='text-xs text-text-muted-light dark:text-text-muted-dark'>Emailed to {firm.owner.email}. You can also share it with them directly; it works once.</p>

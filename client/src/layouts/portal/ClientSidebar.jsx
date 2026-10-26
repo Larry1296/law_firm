@@ -1,3 +1,4 @@
+import { HelpNavigation } from '@/modules/tutorials/HelpNavigation';
 import {
   X,
   LayoutDashboard,
@@ -131,6 +132,7 @@ export default function ClientSidebar({ onClose }) {
             </div>
           ))}
         </div>
+      <HelpNavigation onClick={onClose} />
       </nav>
 
       {/* =========================================================

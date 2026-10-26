@@ -1,3 +1,4 @@
+import { HelpNavigation } from '@/modules/tutorials/HelpNavigation';
 import { X } from 'lucide-react';
 import { useContext } from 'react';
 
@@ -78,6 +79,7 @@ export default function AdminSidebar({ onClose }) {
             </div>
           ))}
         </div>
+      <HelpNavigation onClick={onClose} />
       </nav>
 
       {/* FOOTER */}

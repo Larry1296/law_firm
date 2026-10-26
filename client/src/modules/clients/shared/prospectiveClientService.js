@@ -11,6 +11,7 @@ export const prospectiveClientService = {
   async proposedMatter(workspace, payload) { return (await axios.post(`${root(workspace)}/proposed-matters/`, payload)).data; },
 };
 export const creationError = (error) => {
+  if (error?.isActionCancelled) return '';
   const data = error.response?.data;
   const messages = (value) => typeof value === 'string' ? value : Array.isArray(value) ? value.map(messages).join(' ') : value && typeof value === 'object' ? Object.entries(value).map(([key, item]) => `${key.replaceAll('_', ' ')}: ${messages(item)}`).join(' ') : '';
   return messages(data) || error.message || 'Unable to save. Please try again.';

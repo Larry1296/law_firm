@@ -5,6 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetSessionLock } from '@/core/auth/sessionLock';
 import AuthProvider from '@/core/store/AuthProvider';
 import authService from '@/modules/auth/service/authService';
+import { useContext } from 'react';
+import AuthContext from '@/core/store/AuthContext';
+import { confirmAction } from '@/core/utils/themedSwal';
+
+vi.mock('@/core/utils/themedSwal', () => ({ confirmAction: vi.fn() }));
 
 vi.mock('@/modules/auth/service/authService', () => ({
   default: {
@@ -30,9 +35,15 @@ function signIn({ accessExpiresAt, refreshExpiresAt = START + 7 * 24 * 60 * 60 *
   localStorage.setItem('user', JSON.stringify(user));
 }
 
+function SignOutProbe() {
+  const { logout } = useContext(AuthContext);
+  return <button onClick={() => logout({ redirect: false })}>Sign out securely</button>;
+}
+
 const renderApp = () => render(
   <AuthProvider>
     <p>Client file: Mwangi v Republic</p>
+    <SignOutProbe />
   </AuthProvider>,
   { container: document.body.appendChild(Object.assign(document.createElement('div'), { id: 'root' })) },
 );
@@ -46,6 +57,7 @@ describe('session lock', () => {
     localStorage.clear();
     resetSessionLock();
     vi.clearAllMocks();
+    confirmAction.mockResolvedValue(() => {});
     authService.me.mockResolvedValue({ user });
   });
 
@@ -66,6 +78,25 @@ describe('session lock', () => {
     expect(screen.getByRole('dialog', { name: 'Welcome back' })).toBeInTheDocument();
     expect(document.getElementById('root').inert).toBe(true);
     expect(authService.refreshToken).not.toHaveBeenCalled();
+  });
+
+  it('preserves the session and sends no logout when sign-out confirmation is cancelled', async () => {
+    signIn({ accessExpiresAt: START + 90 * 1000 });
+    const token = localStorage.getItem('accessToken');
+    confirmAction.mockResolvedValue(false);
+    renderApp();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Sign out securely' })); });
+    expect(authService.logout).not.toHaveBeenCalled();
+    expect(localStorage.getItem('accessToken')).toBe(token);
+  });
+
+  it('clears the session only after confirmed sign-out', async () => {
+    signIn({ accessExpiresAt: START + 90 * 1000 });
+    authService.logout.mockResolvedValue({});
+    renderApp();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Sign out securely' })); });
+    expect(authService.logout).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem('accessToken')).toBeNull();
   });
 
   it('does not lock an idle screen while the token is still valid', () => {

@@ -1,7 +1,7 @@
 import axiosInstance from '@/core/api/axios';
 
 const get = async (url, params) => (await axiosInstance.get(url, { params })).data;
-const post = async (url, body) => (await axiosInstance.post(url, body)).data;
+const post = async (url, body, options) => (await (options ? axiosInstance.post(url, body, options) : axiosInstance.post(url, body))).data;
 const patch = async (url, body) => (await axiosInstance.patch(url, body)).data;
 
 const platformService = {
@@ -10,10 +10,12 @@ const platformService = {
 
   getFirms: (params) => get('/platform/firms/', params),
   getFirm: (id) => get(`/platform/firms/${id}/`),
+  deleteTrialFirm: async (id, confirmation, options = {}) => (await axiosInstance.delete(`/platform/firms/${id}/`, { ...options, data: { confirmation } })).data,
   registerFirm: (payload) => post('/platform/firms/', payload),
   updateFirm: (id, payload) => patch(`/platform/firms/${id}/`, payload),
   setFirmStatus: (id, payload) => post(`/platform/firms/${id}/status/`, payload),
   updateSubscription: (id, payload) => post(`/platform/firms/${id}/subscription/`, payload),
+  generateTemporaryPassword: (id, options) => post(`/platform/firms/${id}/temporary-password/`, undefined, options),
   resendOwnerInvitation: (id) => post(`/platform/firms/${id}/owner-invitation/`),
   uploadLogo: (id, file) => {
     const form = new FormData();

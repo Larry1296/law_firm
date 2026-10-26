@@ -495,7 +495,7 @@ export default function CaseCreateForm({
         timer: 1400,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       const responseErrors = error?.response?.data?.errors || error?.response?.data || {};
       setErrors((current) => ({
         ...current,

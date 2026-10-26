@@ -161,7 +161,7 @@ export default function AdminVirtualCourtroomPage() {
 
       setEventForm(emptyEvent);
       setFeedback({ type: 'success', text: 'Courtroom link attached to today’s court event.' });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setFeedback({ type: 'error', text: getApiErrorMessage(error, 'Could not attach courtroom session.') });
     }
   };
@@ -172,7 +172,7 @@ export default function AdminVirtualCourtroomPage() {
       await createProvider.mutateAsync(providerForm);
       setProviderForm(emptyProvider);
       setFeedback({ type: 'success', text: 'Courtroom provider saved.' });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setFeedback({ type: 'error', text: getApiErrorMessage(error, 'Could not save provider.') });
     }
   };

@@ -59,6 +59,7 @@ const adminCasesService = {
   async completeWorkstreamStage(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/workstream/current-stage/complete/`, payload)).data; },
   async resolveDeadline(deadlineId, payload) { return (await axiosInstance.post(`/cases/deadlines/${deadlineId}/resolve/`, payload)).data; },
   async getClosures(caseId) { return (await axiosInstance.get(`/cases/${caseId}/closure/`)).data; },
+  async updateClosure(caseId, payload) { return (await axiosInstance.patch(`/cases/${caseId}/closure/`, payload)).data; },
   async requestClosure(caseId, payload) { return (await axiosInstance.post(`/cases/${caseId}/closure/`, payload)).data; },
   async closureAction(caseId, closureId, action, payload = {}) { return (await axiosInstance.post(`/cases/${caseId}/closure/${closureId}/${action}/`, payload)).data; },
   async generateClosingDocument(caseId, closureId, documentType) { return (await axiosInstance.post(`/cases/${caseId}/closure/${closureId}/documents/`, { document_type: documentType })).data; },

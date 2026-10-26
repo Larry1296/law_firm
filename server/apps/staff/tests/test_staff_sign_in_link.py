@@ -1,4 +1,5 @@
 from urllib.parse import parse_qs, urlparse
+from unittest.mock import patch
 
 from django.core import mail
 from django.urls import reverse
@@ -31,6 +32,10 @@ class StaffSignInLinkTests(APITestCase):
     def test_owner_gets_a_one_time_link_that_sets_the_password(self):
         response = self.client.post(reverse("admin-staff-sign-in-link"), {"email": self.staff.email}, format="json")
         self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response['Cache-Control'], 'no-store')
+        self.assertTrue(response.data['email_sent'])
+        self.staff.refresh_from_db()
+        self.assertTrue(self.staff.check_password(self.temp_password))
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(response.data["link"], mail.outbox[0].body)
 
@@ -56,3 +61,15 @@ class StaffSignInLinkTests(APITestCase):
         self.client.force_authenticate(self.staff)
         response = self.client.post(reverse("admin-staff-sign-in-link"), {"email": self.staff.email}, format="json")
         self.assertEqual(response.status_code, 403)
+
+    def test_email_failure_returns_a_shareable_link(self):
+        for delivery in (0, OSError('Email unavailable')):
+            with self.subTest(delivery=delivery):
+                options = {'side_effect': delivery} if isinstance(delivery, Exception) else {'return_value': delivery}
+                with patch('apps.staff.views.admin.staff_sign_in_link_view.send_mail', **options):
+                    response = self.client.post(reverse('admin-staff-sign-in-link'), {'email': self.staff.email}, format='json')
+                self.assertEqual(response.status_code, 200)
+                self.assertFalse(response.data['email_sent'])
+                self.assertIn('Email could not be sent', response.data['detail'])
+                self.assertIn('token=', response.data['link'])
+                self.assertEqual(response['Cache-Control'], 'no-store')

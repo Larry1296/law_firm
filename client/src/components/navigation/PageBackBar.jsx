@@ -1,3 +1,4 @@
+import { WorkspaceHelp } from '@/modules/tutorials/ContextualHelp';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -54,11 +55,13 @@ export default function PageBackBar({ inset = true }) {
     target = { label: previous.title || labelFromPath(previous.path), go: () => navigate(-1) };
   } else {
     const parent = parentPath(location.pathname);
-    if (!parent) return null;
+    if (!parent) return <WorkspaceHelp />;
     target = { label: labelFromPath(parent), go: () => navigate(parent) };
   }
 
   return (
+    <>
+    <WorkspaceHelp />
     <nav aria-label='Back' className={`print:hidden ${inset ? 'px-4 pt-4 sm:px-6' : 'mb-4'}`}>
       <button
         type='button'
@@ -69,5 +72,6 @@ export default function PageBackBar({ inset = true }) {
         <span className='truncate'>Back to {target.label}</span>
       </button>
     </nav>
+    </>
   );
 }

@@ -55,7 +55,7 @@ export default function MatterTasksCard({
       });
       setDraft(emptyDraft);
       setIsOpen(false);
-    } catch (requestError) {
+    } catch (requestError) { if (requestError?.isActionCancelled) return;
       const response = requestError?.response?.data;
       const detail = response?.detail || response?.title || response?.due_at;
       setError(Array.isArray(detail) ? detail.join(' ') : detail || 'The task could not be created. Check the fields and try again.');

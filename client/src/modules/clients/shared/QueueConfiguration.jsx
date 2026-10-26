@@ -29,7 +29,7 @@ export default function QueueConfiguration() {
       setDraft(null);
       Swal.fire({ icon: 'success', title: 'Queue setup saved', text: 'Office labels and reception coverage have been updated.', confirmButtonText: 'Done' });
     },
-    onError: (error) => Swal.fire({ icon: 'error', title: 'Could not save queue setup', text: getApiErrorMessage(error) }),
+    onError: (error) => { if (error?.isActionCancelled) return; return Swal.fire({ icon: 'error', title: 'Could not save queue setup', text: getApiErrorMessage(error) }); },
   });
   const updateOffice = (id, value) => setDraft({ ...form, advocates: form.advocates.map((x) => x.id === id ? { ...x, office_location: value } : x) });
   const toggle = (secretaryId, lawyerId) => setDraft({ ...form, secretaries: form.secretaries.map((x) => x.id !== secretaryId ? x : {

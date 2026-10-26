@@ -58,7 +58,7 @@ function PendingInvoice({ invoice, instructions, onPaid }) {
         text: 'We will confirm the M-Pesa payment against the Paybill statement and activate the plan.',
       });
     },
-    onError: (error) => Swal.fire({ icon: 'error', title: 'Payment not submitted', text: getApiErrorMessage(error) }),
+    onError: (error) => { if (error?.isActionCancelled) return; return Swal.fire({ icon: 'error', title: 'Payment not submitted', text: getApiErrorMessage(error) }); },
   });
 
   if (invoice.status === 'PAYMENT_SUBMITTED') {
@@ -111,8 +111,11 @@ function PendingInvoice({ invoice, instructions, onPaid }) {
   );
 }
 
-function PlanCard({ plan, cycle, current, onChoose, busy }) {
-  const price = cycle === 'ANNUAL' ? plan.annual_price : plan.monthly_price;
+function PlanCard({ plan, cycle, current, onChoose, busy, subscription }) {
+  const custom = cycle === 'ANNUAL' ? subscription.custom_annual_price : subscription.custom_monthly_price;
+  const unitPrice = cycle === 'ANNUAL' ? plan.annual_price : plan.monthly_price;
+  const quantity = plan.pricing_basis === 'ADVOCATE' ? Math.max(1, subscription.usage.advocates) : 1;
+  const price = subscription.is_complimentary ? 0 : (custom ?? Number(unitPrice) * quantity);
   return (
     <Card className={`flex flex-col p-6 ${current ? 'ring-2 ring-blue-500' : ''}`}>
       <div className='flex items-start justify-between gap-2'>
@@ -123,6 +126,9 @@ function PlanCard({ plan, cycle, current, onChoose, busy }) {
       <p className='mt-4 text-3xl font-bold'>
         {formatKes(price)}
         <span className='text-sm font-medium text-gray-500 dark:text-gray-400'> /{cycle === 'ANNUAL' ? 'year' : 'month'} + VAT</span>
+      </p>
+      <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>
+        {subscription.is_complimentary ? 'Complimentary access. Contact the platform administrator to change plans.' : custom != null ? 'Your custom firm price applies.' : plan.pricing_basis === 'ADVOCATE' ? `${formatKes(unitPrice)} × ${quantity} active advocate${quantity === 1 ? '' : 's'}. Total is fixed when the invoice is issued.` : 'Flat price for the firm.'}
       </p>
       <ul className='mt-4 space-y-1 text-sm'>
         {Object.entries(plan.limits).map(([key, value]) => (
@@ -139,7 +145,7 @@ function PlanCard({ plan, cycle, current, onChoose, busy }) {
           </li>
         ))}
       </ul>
-      <button type='button' className={`${primaryButton} mt-6`} onClick={() => onChoose(plan)} disabled={busy}>
+      <button type='button' className={`${primaryButton} mt-6`} onClick={() => onChoose(plan)} disabled={busy || subscription.is_complimentary}>
         {current ? 'Renew this plan' : `Choose ${plan.name}`}
       </button>
     </Card>
@@ -161,7 +167,7 @@ export default function AdminSubscriptionPage() {
   const invoiceMutation = useMutation({
     mutationFn: (plan) => subscriptionService.requestInvoice({ plan_code: plan.code, billing_cycle: cycle }),
     onSuccess: refresh,
-    onError: (error) => Swal.fire({ icon: 'error', title: 'Cannot change plan', text: getApiErrorMessage(error) }),
+    onError: (error) => { if (error?.isActionCancelled) return; return Swal.fire({ icon: 'error', title: 'Cannot change plan', text: getApiErrorMessage(error) }); },
   });
 
   if (isLoading) {
@@ -191,12 +197,13 @@ export default function AdminSubscriptionPage() {
           <div>
             <p className='text-sm text-gray-500 dark:text-gray-400'>Current plan</p>
             <p className='text-2xl font-bold'>{subscription.plan.name}</p>
-            <p className='mt-1 text-sm'>{STATUS_LABELS[subscription.effective_status] || subscription.effective_status}</p>
+            <p className='mt-1 text-sm'>{subscription.is_complimentary ? 'Complimentary · ' : ''}{STATUS_LABELS[subscription.effective_status] || subscription.effective_status}</p>
           </div>
           <div className='text-sm sm:text-right'>
             <p className='text-gray-500 dark:text-gray-400'>{periodLabel}</p>
             <p className='font-semibold'>{periodDate ? formatSubscriptionDate(periodDate) : 'No expiry'}</p>
-            <p className='mt-1 text-gray-500 dark:text-gray-400'>Billed {subscription.billing_cycle.toLowerCase()}</p>
+            <p className='mt-1 text-gray-500 dark:text-gray-400'>{subscription.is_complimentary ? 'No subscription charge' : `Billed ${subscription.billing_cycle.toLowerCase()}`}</p>
+            {!subscription.is_complimentary && <p className='font-medium'>{formatKes(subscription.billing_cycle === 'ANNUAL' ? subscription.effective_annual_price : subscription.effective_monthly_price)} excl. VAT</p>}
           </div>
         </div>
         <div className='mt-6 grid gap-5 sm:grid-cols-2'>
@@ -214,7 +221,7 @@ export default function AdminSubscriptionPage() {
         <div className='flex flex-wrap items-center justify-between gap-3'>
           <h2 id='plans-heading' className='text-xl font-bold'>Plans</h2>
           <div role='group' aria-label='Billing cycle' className='inline-flex rounded-lg border border-border-light p-1 dark:border-border-dark'>
-            {[['MONTHLY', 'Monthly'], ['ANNUAL', 'Annual (2 months free)']].map(([value, label]) => (
+            {[['MONTHLY', 'Monthly'], ['ANNUAL', 'Annual']].map(([value, label]) => (
               <button
                 key={value}
                 type='button'
@@ -232,6 +239,7 @@ export default function AdminSubscriptionPage() {
             <PlanCard
               key={plan.code}
               plan={plan}
+              subscription={subscription}
               cycle={cycle}
               current={plan.code === subscription.plan.code}
               busy={invoiceMutation.isPending}

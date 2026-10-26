@@ -7,6 +7,7 @@ from apps.clients.views.client_visit_views import ClientVisitListView, ClientVis
 from apps.clients.views.queue_configuration_view import QueueConfigurationView
 
 urlpatterns = [
+    path("api/tutorials/", include("apps.tutorials.urls")),
     path("api/admin/firm/queue-configuration/", QueueConfigurationView.as_view(), name="queue-configuration"),
     path("api/arrivals/", ClientVisitListView.as_view(), name="client-arrivals"),
     path("api/arrivals/<uuid:visit_id>/", ClientVisitActionView.as_view(), name="client-arrival-action"),

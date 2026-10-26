@@ -28,14 +28,14 @@ export default function PricingSection({ plans, includedInEveryPlan, loading }) 
               >
                 <div className='flex items-center justify-between gap-3'>
                   <h3 className='text-xl font-bold text-text-primary-light dark:text-text-primary-dark'>{plan.name}</h3>
-                  {isFeatured && <span className='rounded-full bg-brand-accent/15 px-3 py-1 text-xs font-bold text-[#7a5a14] dark:text-brand-accent'>All features</span>}
+                  {isFeatured && <span className='rounded-full bg-brand-accent/15 px-3 py-1 text-xs font-bold text-[#7a5a14] dark:text-brand-accent'>{plan.features.every((feature) => feature.included) ? 'All features' : 'Featured'}</span>}
                 </div>
                 <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>{plan.tagline}</p>
                 <p className='mt-6'>
                   <span className='text-4xl font-extrabold tabular-nums text-text-primary-light dark:text-text-primary-dark'>{formatKes(plan.monthly_price)}</span>
-                  <span className='text-sm text-text-muted-light dark:text-text-muted-dark'> / month</span>
+                  <span className='text-sm text-text-muted-light dark:text-text-muted-dark'> / month{plan.pricing_basis === 'ADVOCATE' ? ' per advocate' : ' per firm'}</span>
                 </p>
-                <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>or {formatKes(plan.annual_price)} a year</p>
+                <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>or {formatKes(plan.annual_price)} a year{plan.pricing_basis === 'ADVOCATE' ? ' per advocate' : ' per firm'}</p>
 
                 <ul className='mt-6 space-y-2 text-sm'>
                   {Object.entries(plan.limits).map(([key, value]) => (

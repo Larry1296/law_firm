@@ -98,7 +98,7 @@ export default function AdminAnnouncementsPage() {
       setForm(initialForm);
       setStaffSearch('');
       setFeedback({ type: 'success', text: 'Announcement sent successfully.' });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setFeedback({
         type: 'error',
         text: getApiErrorMessage(error, 'Could not send announcement.'),

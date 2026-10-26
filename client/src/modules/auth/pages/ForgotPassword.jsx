@@ -21,7 +21,7 @@ export default function ForgotPassword() {
 
       // optional success handling already in hook (SweetAlert)
       setEmail('');
-    } catch (err) {
+    } catch (err) { if (err?.isActionCancelled) return;
       console.error('Forgot password failed:', err);
     }
   };

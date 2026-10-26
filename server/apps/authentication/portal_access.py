@@ -27,8 +27,7 @@ def _is_account_view(request):
 
 
 def password_change_pending(user):
-    # Firm owners set their own password from the invitation link, so they are never held here.
-    return bool(user.must_change_password) and user.role != "ADMIN"
+    return bool(user.must_change_password)
 
 
 class AcceptanceGatedJWTAuthentication(JWTAuthentication):

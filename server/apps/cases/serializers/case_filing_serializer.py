@@ -42,6 +42,7 @@ class CaseFilingRecordSerializer(serializers.Serializer):
     filed_at = serializers.DateTimeField(required=False, allow_null=True)
     served_at = serializers.DateTimeField(required=False, allow_null=True)
     response_period_days = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    response_due_date = serializers.DateField(required=False, allow_null=True)
     efiling_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)
     court_fee_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True)
     payment_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)

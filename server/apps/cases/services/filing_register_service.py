@@ -19,8 +19,6 @@ class FilingRegisterService:
     """
 
     DEMAND_PERIODS = {7, 14, 21}
-    # Summons require appearance within the period they state; 15 days is the ordinary period.
-    APPEARANCE_DAYS = 15
     # Order 7 rule 1: defence within 14 days after appearance.
     DEFENCE_DAYS = 14
 
@@ -77,6 +75,15 @@ class FilingRegisterService:
             response_due_date = timezone.localdate(filed_at) + timedelta(days=period)
         if filing_type in {CaseFiling.FilingType.SUMMONS, CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE} and not served_at:
             raise ValidationError({"served_at": "Record the date the summons was served; the appearance period runs from service."})
+        if filing_type in {CaseFiling.FilingType.SUMMONS, CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE}:
+            response_due_date = data.get("response_due_date")
+            if not response_due_date:
+                raise ValidationError({"response_due_date": "Record the appearance due date prescribed by the summons or court order; an advocate must verify it."})
+            if response_due_date < timezone.localdate(served_at):
+                raise ValidationError({"response_due_date": "The appearance date cannot precede service."})
+            existing = MatterDeadline.objects.filter(matter=case, source=f"APPEARANCE:{case.id}").first()
+            if existing and timezone.localdate(existing.due_at) != response_due_date:
+                raise ValidationError({"response_due_date": "A different appearance deadline is already recorded. Use the audited deadline-change action first."})
 
         status = CaseFiling.FilingStatus.SERVED if served_at or filing_type == CaseFiling.FilingType.DEMAND_LETTER else CaseFiling.FilingStatus.FILED
         filing = CaseFiling.objects.create(
@@ -175,9 +182,10 @@ class FilingRegisterService:
         elif filing.filing_type in {CaseFiling.FilingType.SUMMONS, CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE} and filing.served_at:
             cls._deadline(
                 case, user, key=f"APPEARANCE:{case.id}",
-                due=timezone.localdate(filing.served_at) + timedelta(days=cls.APPEARANCE_DAYS),
+                due=filing.response_due_date,
                 deadline_type=MatterDeadline.Type.RESPONSE, priority="HIGH",
-                description="Entry of appearance due (15 days from service of summons).",
+                description="Entry of appearance due (verify summons, service and court directions).",
+                requires_review=True,
             )
         elif filing.filing_type == CaseFiling.FilingType.MEMORANDUM_OF_APPEARANCE:
             cls._complete(case, user, key=f"APPEARANCE:{case.id}")
@@ -186,6 +194,7 @@ class FilingRegisterService:
                 due=timezone.localdate(filing.filed_at) + timedelta(days=cls.DEFENCE_DAYS),
                 deadline_type=MatterDeadline.Type.RESPONSE, priority="HIGH",
                 description="Defence due (Order 7 rule 1: 14 days after appearance).",
+                requires_review=True,
             )
         elif filing.filing_type == CaseFiling.FilingType.DEFENCE:
             cls._complete(case, user, key=f"APPEARANCE:{case.id}")
@@ -200,6 +209,15 @@ class FilingRegisterService:
                     due=delivered + timedelta(days=days),
                     deadline_type=MatterDeadline.Type.APPEAL_REVIEW, priority="HIGH",
                     description=description,
+                    requires_review=True,
+                )
+            else:
+                cls._deadline(
+                    case, user, key=f"APPEAL_WINDOW:{filing.id}",
+                    due=timezone.localdate(filing.filed_at),
+                    deadline_type=MatterDeadline.Type.APPEAL_REVIEW, priority="CRITICAL",
+                    description="Review appeal route and prescribe deadline immediately; no automatic period is available for this forum.",
+                    requires_review=True,
                 )
         elif filing.filing_type in {CaseFiling.FilingType.NOTICE_OF_APPEAL, CaseFiling.FilingType.MEMORANDUM_OF_APPEAL}:
             MatterDeadline.objects.filter(
@@ -215,6 +233,7 @@ class FilingRegisterService:
                         "Record of appeal due (Rule 84, Court of Appeal Rules, 2022: 60 days from the notice "
                         "of appeal, excluding time certified by the registry for typed proceedings)."
                     ),
+                    requires_review=True,
                 )
         elif filing.filing_type == CaseFiling.FilingType.RECORD_OF_APPEAL:
             cls._complete(case, user, key=f"RECORD_OF_APPEAL:{case.id}")
@@ -223,12 +242,12 @@ class FilingRegisterService:
     def appeal_window(cls, case):
         """Days to appeal and a description, or None where the governing statute must be checked."""
         is_criminal = case.case_type == Case.CaseType.CRIMINAL or case.court_division == Case.CourtDivision.CRIMINAL
-        if is_criminal and case.court_type in cls.SUBORDINATE_COURTS | cls.SUPERIOR_COURTS:
+        if is_criminal and case.court_type == Case.CourtType.MAGISTRATE:
             return cls.NOTICE_OF_APPEAL_DAYS, (
                 "Criminal appeal period closes (14 days from judgment or sentence). Take the client's "
                 "instructions on appeal; late appeals need leave."
             )
-        if case.court_type in cls.SUBORDINATE_COURTS:
+        if case.court_type in cls.SUBORDINATE_COURTS and not is_criminal:
             return cls.SUBORDINATE_CIVIL_APPEAL_DAYS, (
                 "Appeal period to the High Court closes (section 79G, Civil Procedure Act: 30 days from the "
                 "decree). Take the client's instructions on appeal, or on execution once it lapses."
@@ -246,7 +265,7 @@ class FilingRegisterService:
         return None
 
     @staticmethod
-    def _deadline(case, user, *, key, due, deadline_type, priority, description):
+    def _deadline(case, user, *, key, due, deadline_type, priority, description, requires_review=False):
         if MatterDeadline.objects.filter(matter=case, source=key).exists():
             return
         MatterDeadline.objects.create(
@@ -259,6 +278,7 @@ class FilingRegisterService:
             source=key,
             description=description,
             created_by=user,
+            requires_review=requires_review,
         )
 
     @staticmethod
@@ -300,6 +320,8 @@ class FilingRegisterService:
             defence = MatterDeadline.objects.filter(matter=case, source=f"DEFENCE:{case.id}").first()
             for deadline in (defence, appearance):
                 if deadline and deadline.status == MatterDeadline.Status.OPEN:
+                    if deadline.requires_review:
+                        return "Advocate to verify response deadline against summons, rules and court directions"
                     if deadline.due_at < timezone.now():
                         return "Review default judgment (Order 10) for advocate decision"
                     return f"{deadline.description.split(' (')[0]} by {timezone.localtime(deadline.due_at):%d %b %Y}"

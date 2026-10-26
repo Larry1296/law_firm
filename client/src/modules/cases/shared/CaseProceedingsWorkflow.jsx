@@ -55,7 +55,7 @@ export default function CaseProceedingsWorkflow({ caseData }) {
       );
       setMessage('Proceeding recorded. The lifecycle, next event, calendar, tasks and audit history were updated.');
       window.location.reload();
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setMessage(error.response?.data?.detail || error.response?.data?.outcome?.[0] || 'Unable to record the proceeding.');
     } finally {
       setSaving(false);

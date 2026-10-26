@@ -199,7 +199,7 @@ export default function AdminCreateStaffPage() {
       });
 
       navigate('/admin/staff');
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       const serverErrors = error?.response?.data?.errors || {};
       const marked = Object.fromEntries(
         Object.entries(serverErrors).map(([key, message]) => [SERVER_FIELD_TO_FORM[key] || key, message]),

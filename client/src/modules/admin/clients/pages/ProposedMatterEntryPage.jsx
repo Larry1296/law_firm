@@ -18,7 +18,7 @@ export default function ProposedMatterEntryPage() {
   const [created, setCreated] = useState(null);
   useEffect(() => {
     let active = true;
-    service.options(workspace).then((value) => { if (active) setOptions(value); }).catch((e) => { if (active) setError(creationError(e)); });
+    service.options(workspace).then((value) => { if (active) setOptions(value); }).catch((e) => { if (e?.isActionCancelled) return;  if (active) setError(creationError(e)); });
     return () => { active = false; };
   }, [workspace]);
   const update = (key, value) => setForm((previous) => ({ ...previous, [key]: value }));
@@ -26,7 +26,7 @@ export default function ProposedMatterEntryPage() {
   const submit = async (event) => {
     event.preventDefault(); setError(''); setSaving(true);
     try { setCreated(await service.proposedMatter(workspace, { client_id: clientId, proposed_matter: { ...form, parties: parties.filter((party) => party.name.trim()) } })); }
-    catch (e) { setError(creationError(e)); }
+    catch (e) { if (e?.isActionCancelled) return;  setError(creationError(e)); }
     finally { setSaving(false); }
   };
   if (created) return <main className='mx-auto max-w-4xl space-y-4 p-4 md:p-8'><h1 className='text-2xl font-bold'>Proposed matter recorded</h1><p>Reference: {created.conflict_check.reference_number}</p><p>Ready for conflict screening by the responsible advocate. No conflict decision, acceptance or matter opening has occurred.</p><button className='rounded border px-4 py-2' onClick={() => navigate(`/${workspace}/clients/${created.client_id}`)}>View prospective client</button></main>;

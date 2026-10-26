@@ -68,9 +68,10 @@ describe('Login', () => {
     expect(login).toHaveBeenCalled();
   });
 
-  it.each(['STAFF', 'OFFICIAL_CLIENT'])('keeps %s on password setup until the new password is saved', async (role) => {
+  it.each(['ADMIN', 'STAFF', 'OFFICIAL_CLIENT'])('keeps %s on password setup until the new password is saved', async (role) => {
     authService.login.mockResolvedValue({
       user: { id: 'temp-user', email: 'admin@email.com', role, must_change_password: true },
+      firm: { id: 'firm-1' },
       firm_role: role === 'STAFF' ? 'SECRETARY' : null,
       access: 'access', refresh: 'refresh',
     });

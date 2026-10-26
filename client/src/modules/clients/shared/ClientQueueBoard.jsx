@@ -33,8 +33,8 @@ export default function ClientQueueBoard({ data, pending = false, onAction }) {
               {waiting.map((visit, index) => <li key={visit.id} className='flex items-center justify-between gap-2'>
                 <span>{index + 1}. {visit.visitor_name}</span>
                 {data.role === 'ADMIN' && <Button3D size='sm' variant='outlineLight' disabled={pending || !!queue.current || !!queue.called} onClick={async () => {
-                  const result = await Swal.fire({ icon: 'question', title: 'Call this client?', text: `Call ${visit.visitor_name} to ${queue.advocate_name} · ${queue.office_location || 'office not assigned'}? This may change the arrival order.`, showCancelButton: true, confirmButtonText: 'Call client' });
-                  if (result.isConfirmed) onAction(visit.id, 'CALL');
+
+                  onAction(visit.id, 'CALL');
                 }}>Call client</Button3D>}
               </li>)}
             </ol>

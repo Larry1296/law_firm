@@ -30,7 +30,7 @@ const authService = {
     return data;
   },
 
-  async changeStaffPassword(firmRole, payload) {
+  async changeStaffPassword(firmRole, payload, options = {}) {
     const endpoints = {
       LAWYER: '/staff/lawyer/change-password/',
       SECRETARY: '/staff/secretary/change-password/',
@@ -48,12 +48,12 @@ const authService = {
             confirm_password: payload.confirm_password,
           };
 
-    const { data } = await axiosInstance.post(endpoint, body);
+    const { data } = await axiosInstance.post(endpoint, body, options);
     return data;
   },
 
-  async changePassword(payload) {
-    const { data } = await axiosInstance.post('/auth/change-password/', payload);
+  async changePassword(payload, options = {}) {
+    const { data } = await axiosInstance.post('/auth/change-password/', payload, options);
     return data;
   },
 
@@ -79,8 +79,8 @@ const authService = {
   // =====================
   // LOGOUT
   // =====================
-  async logout(payload) {
-    const { data } = await axiosInstance.post('/auth/logout/', payload);
+  async logout(payload, options = {}) {
+    const { data } = await axiosInstance.post('/auth/logout/', payload, options);
     return data;
   },
 };

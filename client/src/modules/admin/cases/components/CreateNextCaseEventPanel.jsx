@@ -193,7 +193,7 @@ export default function CreateNextCaseEventPanel({
         timer: 2000,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       const backendErrors = error?.response?.data || {};
       setErrors(
         Object.fromEntries(

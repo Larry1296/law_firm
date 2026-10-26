@@ -2,7 +2,7 @@ from datetime import date
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
-from apps.clients.models import ClientVisit
+from apps.clients.models import Client, ClientVisit
 from apps.common.choices import UserRole
 from apps.firm.models import LawFirm
 from apps.notifications.models import Notification
@@ -51,6 +51,21 @@ class ClientVisitTests(TestCase):
         row = self.api.get(self.url).data['visits'][0]
         self.assertNotIn('other_parties', row)
         self.assertEqual(row['status'], 'COMPLETED')
+
+    def test_client_link_requires_consultation_and_preserves_existing_link(self):
+        client = Client.objects.create(firm=self.firm, created_by=self.owner, full_name='Visitor Client', client_type='INDIVIDUAL')
+        other = Client.objects.create(firm=self.firm, created_by=self.owner, full_name='Another Client', client_type='INDIVIDUAL')
+        pk = self.arrive()
+        self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 400)
+        self.api.force_authenticate(self.lawyer.user)
+        self.assertEqual(self.action(pk, 'START').status_code, 200)
+        self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt').status_code, 200)
+        self.assertEqual(self.action(pk, 'COMPLETE').status_code, 200)
+        self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 403)
+        self.api.force_authenticate(self.secretary.user)
+        self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 200)
+        self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(other.pk)).status_code, 400)
+        self.assertEqual(ClientVisit.objects.get(pk=pk).client_id, client.pk)
 
     def test_receptionist_route_and_server_enforcement(self):
         receptionist = self.receptionist()

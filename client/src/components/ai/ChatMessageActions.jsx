@@ -49,7 +49,7 @@ export default function ChatMessageActions({ subject, text, shareTitle, onEdit, 
       try {
         await navigator.share({ title: shareTitle, text });
         return;
-      } catch (error) {
+      } catch (error) { if (error?.isActionCancelled) return;
         if (error?.name === 'AbortError') return;
       }
     }

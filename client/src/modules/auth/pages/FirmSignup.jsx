@@ -63,7 +63,7 @@ export default function FirmSignup() {
         authLogin({ user: sessionUser, access: data.access, refresh: data.refresh }, false);
       });
       navigate('/admin/subscription', { replace: true });
-    } catch (err) {
+    } catch (err) { if (err?.isActionCancelled) return;
       setError(getApiErrorMessage(err));
     } finally {
       setLoading(false);
@@ -102,7 +102,7 @@ export default function FirmSignup() {
                     className='sr-only'
                   />
                   <span className='block font-semibold'>{plan.name}</span>
-                  <span className='block text-[color:var(--text-muted)]'>{formatKes(plan.monthly_price)} / month + VAT</span>
+                  <span className='block text-[color:var(--text-muted)]'>{formatKes(plan.monthly_price)} / month{plan.pricing_basis === 'ADVOCATE' ? ' per advocate' : ' per firm'} + VAT</span>
                   <span className='form-hint mt-1 block'>{plan.tagline}</span>
                 </label>
               ))}

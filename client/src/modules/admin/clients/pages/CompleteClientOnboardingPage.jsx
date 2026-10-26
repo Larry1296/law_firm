@@ -29,7 +29,7 @@ export default function CompleteClientOnboardingPage() {
         privacy: client.privacy || initialOnboardingState.privacy, regulatory_profiles: client.education_profile ? { education: client.education_profile } : {},
       } });
       setMetadata(meta);
-    }).catch((e) => { if (active) setError(creationError(e)); });
+    }).catch((e) => { if (e?.isActionCancelled) return;  if (active) setError(creationError(e)); });
     return () => { active = false; };
   }, [workspace, id]);
   const setObject = (section, value) => dispatch({ type: 'SET_SECTION', section, value });
@@ -37,7 +37,7 @@ export default function CompleteClientOnboardingPage() {
   const submit = async (event) => {
     event.preventDefault(); setSaving(true); setError('');
     try { await service.complete(workspace, id, buildOnboardingPayload(state)); navigate(`/${workspace}/clients/${id}`); }
-    catch (e) { setError(creationError(e)); }
+    catch (e) { if (e?.isActionCancelled) return;  setError(creationError(e)); }
     finally { setSaving(false); }
   };
   return <main className='mx-auto max-w-5xl space-y-5 p-4 md:p-8'>

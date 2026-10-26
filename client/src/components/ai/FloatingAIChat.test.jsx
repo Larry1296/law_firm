@@ -236,10 +236,10 @@ describe('FloatingAIChat', () => {
       return user;
     }
 
-    it('shows copy, edit and share on a question only on hover or focus, and always on an answer', async () => {
+    it('always shows copy, edit and share on questions and answers', async () => {
       await askOnce();
       const questionTools = screen.getByRole('button', { name: 'Copy your question' }).parentElement;
-      expect(questionTools).toHaveClass('opacity-0', 'group-hover:opacity-100', 'group-focus-within:opacity-100');
+      expect(questionTools).not.toHaveClass('opacity-0');
       expect(screen.getByRole('button', { name: 'Edit your question' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Share your question' })).toBeInTheDocument();
 
@@ -276,16 +276,53 @@ describe('FloatingAIChat', () => {
       const user = await askOnce('First wording');
       askKnowledgeBase.mockResolvedValueOnce({ ...groundedResponse, answer: 'The revised answer.' });
       await user.click(screen.getByRole('button', { name: 'Edit your question' }));
-      const editor = screen.getByLabelText('Edit your question');
+      const editor = screen.getByRole('textbox', { name: 'Edit your question' });
       expect(editor).toHaveValue('First wording');
       await user.clear(editor);
       await user.type(editor, 'Better wording');
-      await user.click(screen.getByRole('button', { name: 'Save and ask' }));
+      await user.click(screen.getByRole('button', { name: 'Save and resend' }));
 
       expect(await screen.findByText('The revised answer.')).toBeInTheDocument();
       expect(screen.queryByText('First wording')).not.toBeInTheDocument();
       expect(screen.queryByText(/Article 48 addresses/)).not.toBeInTheDocument();
       expect(askKnowledgeBase).toHaveBeenLastCalledWith('Better wording', expect.any(Array), 'home', expect.anything());
+    });
+
+    it('resends an earlier prompt using only the history before it', async () => {
+      const user = await askOnce('First question');
+      askKnowledgeBase.mockResolvedValueOnce({ ...groundedResponse, answer: 'Follow-up answer' });
+      await user.type(screen.getByLabelText('Ask a question'), 'Follow-up question{enter}');
+      await screen.findByText('Follow-up answer');
+      askKnowledgeBase.mockResolvedValueOnce({ ...groundedResponse, answer: 'Revised first answer' });
+      await user.click(screen.getAllByRole('button', { name: 'Edit your question' })[0]);
+      expect(screen.getByText(/Resending this question replaces/)).toBeInTheDocument();
+      const editor = screen.getByRole('textbox', { name: 'Edit your question' });
+      await user.clear(editor);
+      expect(screen.getByRole('button', { name: 'Save and resend' })).toBeDisabled();
+      await user.type(editor, 'Revised first question{enter}');
+      expect(await screen.findByText('Revised first answer')).toBeInTheDocument();
+      expect(screen.queryByText('Follow-up question')).not.toBeInTheDocument();
+      expect(screen.queryByText('Follow-up answer')).not.toBeInTheDocument();
+      expect(askKnowledgeBase).toHaveBeenLastCalledWith('Revised first question', [
+        expect.objectContaining({ role: 'assistant' }),
+      ], 'home', expect.anything());
+    });
+
+    it('preserves the composer draft and blocks other sends while editing', async () => {
+      const user = await askOnce('Original question');
+      const composer = screen.getByLabelText('Ask a question');
+      await user.type(composer, 'Unsent draft');
+      await user.click(screen.getByRole('button', { name: 'Edit your question' }));
+      expect(composer).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Send question' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Regenerate this answer' })).toBeDisabled();
+      fireEvent.keyDown(composer, { key: 'Enter' });
+      expect(askKnowledgeBase).toHaveBeenCalledTimes(1);
+      await user.keyboard('{Escape}');
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(composer).toHaveValue('Unsent draft');
+      expect(composer).toBeEnabled();
+      expect(screen.getByText('Original question')).toBeInTheDocument();
     });
 
     it('cancels an edit without changing the conversation', async () => {

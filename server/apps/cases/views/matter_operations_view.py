@@ -10,13 +10,14 @@ from apps.cases.serializers.matter_operations_serializer import (
 )
 from apps.cases.services.case_service import CaseService
 from apps.cases.services.matter_operations_service import MatterOperationsService
+from apps.cases.services.matter_governance_service import GovernanceAccess
 
 
 class LegalAssessmentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, case_id):
-        matter = CaseService.base_queryset(request.user).get(id=case_id)
+        matter = GovernanceAccess.matter(request.user, case_id)
         return Response({"assessments": LegalAssessmentSerializer(matter.legal_assessments.all(), many=True).data})
 
     def post(self, request, case_id):
@@ -41,7 +42,7 @@ class MatterWorkstreamView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, case_id):
-        matter = CaseService.base_queryset(request.user).get(id=case_id)
+        matter = GovernanceAccess.matter(request.user, case_id)
         record = MatterWorkstream.objects.filter(matter=matter).prefetch_related(
             "stage_records", "stage_records__supporting_documents"
         ).first()
@@ -74,6 +75,7 @@ class MatterDeadlineView(APIView):
 
     def get(self, request, case_id):
         firm = CaseService.get_user_firm(request.user)
+        GovernanceAccess.matter(request.user, case_id)
         records = MatterDeadline.objects.filter(firm=firm, matter_id=case_id).prefetch_related("change_history", "status_history")
         return Response({"deadlines": MatterDeadlineSerializer(records, many=True).data})
 

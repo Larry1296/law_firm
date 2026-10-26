@@ -513,3 +513,48 @@ class PlatformLegalAssistantTests(TestCase):
         with self.settings(ALLOW_PUBLIC_FIRM_SIGNUP=True):
             response = self.ask("Can I sign up my firm?")
         self.assertIn("free trial", response.data["answer"])
+
+
+class FirmTemporaryPasswordTests(PlatformTestCase):
+    def setUp(self):
+        super().setUp()
+        data = self.register()
+        self.firm = LawFirm.objects.get(pk=data['firm']['id'])
+        self.url = f'/api/platform/firms/{self.firm.pk}/temporary-password/'
+
+    def test_password_replaces_previous_and_requires_change(self):
+        first = self.api.post(self.url)
+        self.assertEqual(first.status_code, 200, first.data)
+        owner = self.firm.owner
+        owner.refresh_from_db()
+        self.assertTrue(owner.check_password(first.data['temp_password']))
+        self.assertTrue(owner.must_change_password)
+        self.assertEqual(first['Cache-Control'], 'no-store')
+        login = APIClient().post('/api/auth/login/', {
+            'email': owner.email, 'password': first.data['temp_password'],
+        })
+        self.assertEqual(login.status_code, 200, login.data)
+        self.assertTrue(login.data['user']['must_change_password'])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+        self.assertEqual(client.get('/api/admin/firm/').status_code, 403)
+        second = self.api.post(self.url)
+        owner.refresh_from_db()
+        self.assertNotEqual(first.data['temp_password'], second.data['temp_password'])
+        self.assertFalse(owner.check_password(first.data['temp_password']))
+        self.assertTrue(owner.check_password(second.data['temp_password']))
+        activity = PlatformActivity.objects.filter(firm=self.firm).first()
+        self.assertIn('temporary password', activity.summary)
+        self.assertNotIn(second.data['temp_password'], activity.summary)
+
+    def test_only_platform_admin_can_generate(self):
+        self.assertEqual(APIClient().post(self.url).status_code, 401)
+        self.api.force_authenticate(self.firm.owner)
+        self.assertEqual(self.api.post(self.url).status_code, 403)
+
+    def test_inactive_owner_and_unknown_firm_are_rejected(self):
+        owner = self.firm.owner
+        owner.is_active = False
+        owner.save(update_fields=['is_active'])
+        self.assertEqual(self.api.post(self.url).status_code, 400)
+        self.assertEqual(self.api.post('/api/platform/firms/00000000-0000-0000-0000-000000000000/temporary-password/').status_code, 404)

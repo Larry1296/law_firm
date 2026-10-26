@@ -125,7 +125,7 @@ export default function AdminChatPage() {
       });
       setSelectedThreadId(response.thread?.id);
       setMessage('');
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setFeedback({
         type: 'error',
         text: getApiErrorMessage(error, 'Could not open staff chat.'),
@@ -167,7 +167,7 @@ export default function AdminChatPage() {
         });
       }
       setMessage('');
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setFeedback({
         type: 'error',
         text: getApiErrorMessage(error, 'Could not send staff message.'),

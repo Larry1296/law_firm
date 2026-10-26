@@ -1,0 +1,21 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import axios from '@/core/api/axios';
+import CourtProgressPanel from './CourtProgressPanel';
+
+vi.mock('@/core/api/axios', () => ({ default: { post: vi.fn() } }));
+
+describe('summons service diary', () => {
+  beforeEach(() => vi.clearAllMocks());
+  it('records the actual summons appearance date instead of adding fifteen days', async () => {
+    axios.post.mockResolvedValue({ data: { next_action: 'Advocate to verify response deadline' } });
+    render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1' }} showStage={false} /></QueryClientProvider>);
+    fireEvent.change(screen.getByLabelText('Paper'), { target: { value: 'SUMMONS' } });
+    fireEvent.change(screen.getByLabelText('Date served'), { target: { value: '2026-11-02T10:00' } });
+    fireEvent.change(screen.getByLabelText(/Appearance due date in summons/), { target: { value: '2026-11-12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Record in register' }));
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/cases/case-1/filings/', expect.objectContaining({ filing_type: 'SUMMONS', response_due_date: '2026-11-12' })));
+    expect(await screen.findByRole('status')).toHaveProperty('textContent', expect.stringContaining('Advocate to verify'));
+  });
+});

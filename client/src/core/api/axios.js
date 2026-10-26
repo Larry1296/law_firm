@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { captureConfirmationOptions, releaseCriticalAction, requireCriticalConfirmation } from './criticalActionGuard';
 
 import {
   clearAuthSession,
@@ -24,6 +25,7 @@ const cleanBaseURL = import.meta.env.VITE_API_BASE_URL?.trim().replace(
 const axiosInstance = axios.create({
   baseURL: cleanBaseURL,
 });
+captureConfirmationOptions(axiosInstance);
 
 // A locked screen sends nothing until the user unlocks it with their password.
 const sessionLockedError = () => {
@@ -63,8 +65,15 @@ axiosInstance.interceptors.request.use(
       return Promise.reject(sessionLockedError());
     }
 
-    if (token && !isAuthEndpoint) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const initiatingUser = getStoredAuth().user?.id;
+    await requireCriticalConfirmation(config);
+    const currentToken = getAuthStorage().getItem('accessToken');
+    if ((initiatingUser !== getStoredAuth().user?.id) || (currentToken && !isAuthEndpoint && (isSessionLocked() || lockIfExpired(currentToken)))) {
+      releaseCriticalAction(config);
+      return Promise.reject(sessionLockedError());
+    }
+    if (currentToken && !isAuthEndpoint) {
+      config.headers.Authorization = `Bearer ${currentToken}`;
     }
 
     return config;
@@ -102,7 +111,7 @@ const forceLogoutToLogin = () => {
    RESPONSE INTERCEPTOR (AUTO REFRESH)
 ========================================================= */
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => { releaseCriticalAction(response.config); return response; },
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
@@ -113,6 +122,7 @@ axiosInstance.interceptors.response.use(
 
     const isAdminStaffEndpoint = originalRequest?.url?.includes('/admin/staff/');
     const storedUser = getStoredAuth().user;
+    if (status !== 401 || isAuthEndpoint) releaseCriticalAction(originalRequest);
 
     if (status === 403 && isAdminStaffEndpoint && storedUser?.role === 'ADMIN') {
       forceLogoutToLogin();
@@ -134,18 +144,21 @@ axiosInstance.interceptors.response.use(
 
     // A token that ran out while the request was in flight locks the screen, as at expiry.
     if (isSessionLocked() || isTokenExpired(getStoredAuth().accessToken)) {
+      releaseCriticalAction(originalRequest);
       lockSession();
       return Promise.reject(sessionLockedError());
     }
 
     // prevent infinite loop
     if (originalRequest._retry) {
+      releaseCriticalAction(originalRequest);
       forceLogoutToLogin();
       attachApiErrorMessage(error);
       return Promise.reject(error);
     }
 
     if (isRefreshing) {
+      originalRequest._retry = true;
       return new Promise((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       })
@@ -189,6 +202,7 @@ axiosInstance.interceptors.response.use(
 
       return axiosInstance(originalRequest);
     } catch (err) {
+      releaseCriticalAction(originalRequest);
       processQueue(err, null);
 
       forceLogoutToLogin();

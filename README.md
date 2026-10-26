@@ -120,21 +120,20 @@ The system is designed for scalability, maintainability, and clear separation of
 
 ### Legal Business Layer
 - clients
-- lawyers (planned)
-- secretaries (planned)
-- cases (planned)
-- tasks (planned)
-- scheduling (planned)
-- communications (planned)
-- documents (planned)
-- hearings (planned)
+- advocates and support staff
+- cases
+- tasks
+- scheduling
+- communications
+- documents
+- hearings
 
 ### Supporting Layers
-- billing (planned)
-- reports (planned)
-- audit_logs (planned)
-- AI integration (planned)
-- portal (planned)
+- billing
+- reports
+- audit_logs
+- AI integration
+- portal
 
 ---
 
@@ -187,3 +186,50 @@ Centralized RBAC system using:
 # Matter lifecycle and compliance
 
 The controlled Kenyan law-firm lifecycle, opening rules, financial controls, permission matrix, legacy procedure, API summary and administrator configuration are documented in [docs/MATTER_LIFECYCLE.md](docs/MATTER_LIFECYCLE.md).
+
+## Video tutorials
+
+The integrated Help & Video Tutorials module supports published videos, chapters, role-based learning and private progress. See [architecture, API and administrator guide](docs/VIDEO_TUTORIALS.md). Platform operators manage content at `/platform/help/manage`.
+
+## Practical client walkthrough
+
+Use the isolated [walk-in to archive exercise](docs/END_TO_END_WALKTHROUGH.md) to start with staff accounts and an empty client register. It includes local setup, role changes, example records, financial balancing and archive checks. Court dates require advocate verification against the actual summons, rules and orders.
+
+## Trial-firm deletion
+
+Platform operators can use **Delete trial firm** in the firm register or firm
+details. It is available only for a recorded trial with no history of subscribed
+or complimentary access and no submitted/confirmed subscription payment. The
+operator must type the exact firm name; eligibility is rechecked under database
+locks. This permanently removes tenant records and accounts used only by that
+firm, while shared accounts, shared files, other tenants and shared legal sources
+are preserved. A platform deletion event remains without the firm profile.
+
+Run migrations before deploying this feature. Subscription migration 0005
+backfills the permanent subscription-history flag from existing access/payment
+records. Platform migration 0003 adds durable file-cleanup jobs. Uploads are
+removed after database commit; storage failures are reported by the UI and remain
+retryable with `python manage.py retry_trial_firm_file_cleanup`. Schedule that
+command when using remote storage. The API is `DELETE /api/platform/firms/{id}/`
+with JSON `{ "confirmation": "Exact firm name" }`. No existing firms are deleted
+by the migrations.
+
+## Critical-action confirmations
+
+All application writes use the shared Axios client, which asks for a themed SWAL
+confirmation before dispatch. The policy covers every workspace, defaults to
+confirmation for new write endpoints, and supplies specific prompts for finance,
+access, legal decisions, custody, court records, closure, archiving, destruction,
+publication and communications. Ordinary reads, sign-in/token renewal, read
+markers, assistant questions, document-reference previews and tutorial progress
+do not interrupt users.
+
+Cancel sends no pending request and preserves form entries. Existing SWAL data
+entry, typed-name deletion and password dialogs can pass a one-use confirmation
+capability to the intended request; there is no time-based global approval. An
+unchanged authentication retry keeps its approval, while changed content needs
+a new confirmation. Concurrent dialogs are queued and duplicate clicks blocked.
+Confirmation does not replace backend permissions or lifecycle checks.
+
+Policy and transport tests are under `client/src/core/api/criticalAction*.test.js`.
+The source-coverage test prevents workspaces from bypassing the shared HTTP client.

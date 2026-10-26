@@ -143,6 +143,10 @@ class MatterDeadline(TimestampedModel):
     completed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="completed_deadlines")
     completed_at = models.DateTimeField(null=True, blank=True)
     cancellation_reason = models.TextField(blank=True, default="")
+    requires_review = models.BooleanField(default=False)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="reviewed_matter_deadlines")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_basis = models.TextField(blank=True, default="")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_deadlines")
 
     class Meta:

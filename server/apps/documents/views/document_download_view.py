@@ -15,18 +15,21 @@ class DocumentDownloadView(APIView):
         client = getattr(user, "client_profile", None)
         lawyer = getattr(user, "lawyer_profile", None)
         secretary = getattr(user, "secretary_profile", None)
-        if client:
+        if getattr(user, "owned_firm", None):
+            queryset = queryset.filter(firm=user.owned_firm)
+        elif client:
             queryset = queryset.filter(client=client, is_client_visible=True)
-        elif lawyer:
-            queryset = queryset.filter(client__cases__assigned_lawyer=lawyer)
+        elif lawyer and lawyer.is_active:
+            queryset = queryset.filter(firm=lawyer.law_firm).filter(
+                Q(matter_references__case__assigned_lawyer=lawyer)
+                | (~Q(classification=ClientDocument.Classification.MATTER_SPECIFIC) & Q(client__cases__assigned_lawyer=lawyer))
+            )
         elif secretary and secretary.is_active:
             lawyer_ids = secretary.assigned_lawyers.values_list("id", flat=True)
             queryset = queryset.filter(
                 Q(client__cases__assigned_secretary=secretary)
                 | Q(client__cases__assigned_lawyer_id__in=lawyer_ids)
             )
-        elif getattr(user, "owned_firm", None):
-            queryset = queryset.filter(firm=user.owned_firm)
         else:
             raise Http404
         try:

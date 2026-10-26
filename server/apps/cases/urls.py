@@ -20,7 +20,7 @@ from apps.cases.views import (
 )
 from apps.cases.views.matter_governance_view import (
     ClosingDocumentGenerateView, DestructionView, LegalHoldView, MatterArchiveView,
-    MatterClosureActionView, MatterClosureView, RetentionReviewView,
+    MatterClosureActionView, MatterClosureView, RetentionReviewView, FinanceClosingReviewView,
 )
 from apps.cases.views.matter_operations_view import (
     DeadlineChangeView, DeadlineResolveView, LegalAssessmentActionView, LegalAssessmentView, MatterDeadlineView, MatterWorkstreamView,
@@ -30,6 +30,7 @@ from apps.cases.views.court_view import CourtDetailView, CourtListView
 from apps.cases.views.case_filing_register_view import CaseFilingRegisterView
 
 urlpatterns = [
+    path("closing-reviews/finance/", FinanceClosingReviewView.as_view(), name="finance-closing-reviews"),
     path("courts/", CourtListView.as_view(), name="court-directory"),
     path("courts/<uuid:pk>/", CourtDetailView.as_view(), name="court-directory-detail"),
     path("", CaseListCreateView.as_view(), name="case-list"),

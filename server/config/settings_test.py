@@ -17,6 +17,7 @@ if os.environ.get("TEST_DATABASE_BACKEND", "sqlite").lower() == "postgresql":
             "PASSWORD": os.environ.get("TEST_DB_PASSWORD", "postgres"),
             "HOST": os.environ.get("TEST_DB_HOST", "localhost"),
             "PORT": os.environ.get("TEST_DB_PORT", "5432"),
+            "TEST": {"CHARSET": "UTF8", "TEMPLATE": "template0"},
         }
     }
 else:

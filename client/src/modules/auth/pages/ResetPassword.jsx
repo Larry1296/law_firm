@@ -46,7 +46,7 @@ export default function ResetPassword() {
         return;
       }
       navigate('/login');
-    } catch (err) {
+    } catch (err) { if (err?.isActionCancelled) return;
       console.error('Reset password failed:', err);
     }
   };

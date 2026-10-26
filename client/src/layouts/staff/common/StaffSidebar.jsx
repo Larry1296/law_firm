@@ -1,3 +1,4 @@
+import { HelpNavigation } from '@/modules/tutorials/HelpNavigation';
 import { useContext } from 'react';
 import { X, User } from 'lucide-react';
 
@@ -70,6 +71,7 @@ export default function StaffSidebar({ config, onClose }) {
             </div>
           ))}
         </div>
+      <HelpNavigation onClick={onClose} />
       </nav>
 
       <div className='p-4 mt-auto border-t border-white/10'>

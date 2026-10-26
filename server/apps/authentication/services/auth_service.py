@@ -39,9 +39,7 @@ class AuthService:
     @staticmethod
     def build_session_payload(user):
         from apps.authentication.portal_access import portal_access_allowed
-        must_change_password = (
-            False if user.role == UserRole.ADMIN else user.must_change_password
-        )
+        must_change_password = user.must_change_password
         membership = AuthService.get_active_membership(user)
 
         owned_firm = getattr(user, "owned_firm", None)
@@ -112,10 +110,6 @@ class AuthService:
         firm = AuthService.user_firm(user)
         if firm is not None and not firm.is_active:
             return None, FIRM_SUSPENDED_MESSAGE
-
-        if user.role == UserRole.ADMIN and user.must_change_password:
-            user.must_change_password = False
-            user.save(update_fields=["must_change_password", "updated_at"])
 
         update_last_login(None, user)
         refresh = RefreshToken.for_user(user)

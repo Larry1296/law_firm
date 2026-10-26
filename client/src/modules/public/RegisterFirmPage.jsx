@@ -123,7 +123,7 @@ function OnboardingRequestForm({ plans, onSent }) {
       window.scrollTo({ top: 0 });
       onSent(form);
     },
-    onError: (error) => {
+    onError: (error) => { if (error?.isActionCancelled) return;
       const first = Object.keys(error?.response?.data?.errors || {})[0];
       document.querySelector(`[name="${first}"]`)?.focus();
     },
@@ -248,7 +248,7 @@ function OnboardingRequestForm({ plans, onSent }) {
         <Field label='Plan you are interested in' error={err('preferred_plan')}>
           <select name='preferred_plan' value={extra.preferred_plan} onChange={setExtraField('preferred_plan')} className={inputClass}>
             <option value=''>Not sure yet</option>
-            {plans.map((plan) => <option key={plan.code} value={plan.code}>{plan.name} ({formatKes(plan.monthly_price)} / month)</option>)}
+            {plans.map((plan) => <option key={plan.code} value={plan.code}>{plan.name} ({formatKes(plan.monthly_price)} / month{plan.pricing_basis === 'ADVOCATE' ? ' per advocate' : ' per firm'})</option>)}
           </select>
         </Field>
         <Field label='Number of advocates' error={err('advocates_count')}>
@@ -260,7 +260,7 @@ function OnboardingRequestForm({ plans, onSent }) {
       </Section>
 
       <hr className='form-divider' />
-      {submit.error && (
+      {(submit.error && !submit.error?.isActionCancelled) && (
         <p role='alert' className='form-alert'>
           {Object.keys(errors).length ? 'Some details need correcting. They are marked above.' : getApiErrorMessage(submit.error)}
         </p>

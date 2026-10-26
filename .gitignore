@@ -194,3 +194,10 @@ docker-compose.override.yml
 
 # Local environment secrets
 .env
+
+# Version the tutorial architecture and administrator guide.
+!docs/VIDEO_TUTORIALS.md
+
+# Practical lifecycle review and walkthrough.
+!docs/WALK_IN_TO_ARCHIVE_REVIEW.md
+!docs/END_TO_END_WALKTHROUGH.md

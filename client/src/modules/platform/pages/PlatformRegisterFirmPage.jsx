@@ -306,14 +306,14 @@ export default function PlatformRegisterFirmPage() {
       if (logo) {
         try {
           finalData = { ...data, firm: await platformService.uploadLogo(data.firm.id, logo) };
-        } catch (error) {
+        } catch (error) { if (error?.isActionCancelled) return;
           setLogoError(getApiErrorMessage(error));
         }
       }
       queryClient.invalidateQueries({ queryKey: ['platform'] });
       setResult(finalData);
     },
-    onError: (error) => {
+    onError: (error) => { if (error?.isActionCancelled) return;
       const serverErrors = error?.response?.data?.errors || {};
       setErrors(serverErrors);
       const first = Object.keys(serverErrors)[0];
@@ -555,7 +555,7 @@ export default function PlatformRegisterFirmPage() {
                         <input type='radio' name='plan' value={plan.code} checked={selected} onChange={set('subscription', 'plan_code')} className='sr-only' />
                         <span className='flex items-baseline justify-between gap-2'>
                           <span className='text-base font-bold'>{plan.name}</span>
-                          <span className='text-sm font-semibold tabular-nums'>{formatKes(plan.monthly_price)}<span className='font-normal text-text-muted-light dark:text-text-muted-dark'> / month</span></span>
+                          <span className='text-sm font-semibold tabular-nums'>{formatKes(plan.monthly_price)}<span className='font-normal text-text-muted-light dark:text-text-muted-dark'> / month{plan.pricing_basis === 'ADVOCATE' ? ' per advocate' : ' per firm'}</span></span>
                         </span>
                         <span className='mt-1 block text-xs text-text-muted-light dark:text-text-muted-dark'>{plan.tagline}</span>
                         <ul className='mt-3 space-y-1 text-xs'>
@@ -658,8 +658,8 @@ export default function PlatformRegisterFirmPage() {
             </div>
           )}
 
-          {register.error && !serverFlaggedFields && <div className='mt-6'><ErrorNotice error={register.error} /></div>}
-          {register.error && serverFlaggedFields && Object.keys(errors).length > 0 && (
+          {(register.error && !register.error?.isActionCancelled) && !serverFlaggedFields && <div className='mt-6'><ErrorNotice error={register.error} /></div>}
+          {(register.error && !register.error?.isActionCancelled) && serverFlaggedFields && Object.keys(errors).length > 0 && (
             <div className='mt-6'><ErrorNotice>{getApiErrorMessage(register.error)}</ErrorNotice></div>
           )}
 

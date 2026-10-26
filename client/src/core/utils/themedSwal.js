@@ -1,4 +1,5 @@
 import Swal from 'sweetalert2';
+import { issueConfirmation } from './confirmationContext';
 
 const getThemeValues = () => {
   const root = document.documentElement;
@@ -44,9 +45,15 @@ const withTheme = (options = {}) => {
 
 const themedSwal = {
   // Accepts SweetAlert2's shorthand too: fire(title, text, icon).
-  fire(options = {}, text, icon) {
-    if (typeof options === 'string') return Swal.fire(withTheme({ title: options, text, icon }));
-    return Swal.fire(withTheme(options));
+  async fire(options = {}, text, icon) {
+    const args = typeof options === 'string' ? { title: options, text, icon } : { ...options };
+    // Cancellation is a normal choice, not an error notification.
+    if (args.icon === 'error' && ('text' in args) && (!args.text || args.text === 'Action cancelled. No changes were made.')) return { isConfirmed: false, isDismissed: true };
+    const preConfirm = args.preConfirm;
+    if (preConfirm) args.preConfirm = (value) => preConfirm(value, issueConfirmation());
+    const result = await Swal.fire(withTheme(args));
+    if (result.isConfirmed && (args.showCancelButton || args.input || preConfirm)) return { ...result, confirmation: issueConfirmation() };
+    return result;
   },
 
   mixin(options = {}) {
@@ -58,7 +65,7 @@ const themedSwal = {
 };
 
 /**
- * Asks before a critical action and resolves to true only when it is confirmed.
+ * Resolves to a one-use request capability when confirmed, or false on cancel.
  * `tone` colours the confirm button from the current theme: 'danger' for what cannot be
  * undone, 'warning' for what changes a record others rely on, 'primary' otherwise.
  */
@@ -67,7 +74,7 @@ export async function confirmAction({ title, text, html, confirmText = 'Confirm'
   const toneColor = { danger: theme.error, warning: theme.warning }[tone];
   const result = await themedSwal.fire({
     icon: tone === 'primary' ? 'question' : 'warning',
-    title,
+    titleText: title,
     text,
     html,
     showCancelButton: true,
@@ -77,7 +84,7 @@ export async function confirmAction({ title, text, html, confirmText = 'Confirm'
     focusCancel: tone !== 'primary',
     ...(toneColor ? { confirmButtonColor: toneColor } : {}),
   });
-  return result.isConfirmed;
+  return result.isConfirmed ? result.confirmation : false;
 }
 
 /** The theme colour for a destructive or cautionary confirm button, for prompts built by hand. */

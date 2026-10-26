@@ -1,7 +1,8 @@
 import json
+import secrets
 
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
@@ -32,6 +33,7 @@ from apps.platform_admin.serializers import (
 )
 from apps.platform_admin.services.firm_onboarding_service import FirmOnboardingService, OnboardingStart
 from apps.platform_admin.services.platform_monitoring_service import PlatformMonitoringService
+from apps.platform_admin.services.trial_firm_deletion_service import TrialFirmDeletionService
 from apps.subscriptions.catalog import Feature, Limit
 from apps.subscriptions.models import FirmSubscription, Plan, SubscriptionInvoice
 from apps.subscriptions.serializers import SubscriptionInvoiceSerializer
@@ -122,6 +124,7 @@ def firm_detail_payload(firm):
 
     return {
         "id": firm.id,
+        **TrialFirmDeletionService.eligibility(firm, subscription),
         "name": firm.name,
         "business_structure": firm.business_structure,
         "business_structure_label": firm.get_business_structure_display(),
@@ -168,6 +171,7 @@ def firm_detail_payload(firm):
             "status": subscription.status,
             "grace_period_days": subscription.grace_period_days,
             "notes": subscription.notes,
+            "pricing_reason": subscription.pricing_reason,
         },
         "invoices": SubscriptionInvoiceSerializer(invoices, many=True).data,
         "activity": [
@@ -208,6 +212,15 @@ class FirmListCreateView(PlatformView):
 
 
 class FirmDetailView(PlatformView):
+    def delete(self, request, firm_id):
+        try:
+            result = TrialFirmDeletionService.delete(
+                actor=request.user, firm_id=firm_id, confirmation=request.data.get('confirmation', ''),
+            )
+        except IntegrityError:
+            return Response({'detail': 'The firm changed during deletion. Refresh and retry; no records were removed.'}, status=status.HTTP_409_CONFLICT)
+        return Response(result)
+
     def get(self, request, firm_id):
         return Response(firm_detail_payload(get_object_or_404(LawFirm, id=firm_id)))
 
@@ -242,12 +255,22 @@ class FirmStatusView(PlatformView):
 class FirmSubscriptionView(PlatformView):
     @transaction.atomic
     def post(self, request, firm_id):
-        firm = get_object_or_404(LawFirm, id=firm_id)
+        firm = get_object_or_404(LawFirm.objects.select_for_update(), id=firm_id)
         serializer = SubscriptionUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         subscription = SubscriptionService.get(firm, lock=True)
 
+        special_fields = ("is_complimentary", "custom_monthly_price", "custom_annual_price")
+        terms_changed = any(field in data and data[field] != getattr(subscription, field) for field in special_fields)
+        if terms_changed and not data.get("pricing_reason", "").strip():
+            raise ValidationError({"pricing_reason": "Record a reason for changing this firm's billing terms."})
+        if terms_changed and SubscriptionInvoice.objects.filter(firm=firm, status=SubscriptionInvoice.Status.PAYMENT_SUBMITTED).exists():
+            raise ValidationError({"subscription": "Confirm or void the submitted payment before changing billing terms."})
+        if (subscription.is_complimentary and data.get("is_complimentary") is False
+                and data.get("status", subscription.status) == FirmSubscription.Status.ACTIVE
+                and data.get("current_period_end", subscription.current_period_end) is None):
+            raise ValidationError({"current_period_end": "Set an access end date when returning a complimentary firm to paid billing."})
         changes = []
         if "plan_code" in data and data["plan_code"] != subscription.plan.code:
             plan = Plan.objects.get(code=data["plan_code"])
@@ -258,12 +281,22 @@ class FirmSubscriptionView(PlatformView):
                 ]})
             changes.append(f"plan {subscription.plan.name} → {plan.name}")
             subscription.plan = plan
-        for field in ("billing_cycle", "status", "trial_ends_at", "current_period_end", "grace_period_days", "notes"):
+        for field in ("billing_cycle", "status", "trial_ends_at", "current_period_end", "grace_period_days", "notes", "is_complimentary", "custom_monthly_price", "custom_annual_price", "pricing_reason"):
             if field in data and data[field] != getattr(subscription, field):
                 setattr(subscription, field, data[field])
-                changes.append(field.replace("_", " "))
+                changes.append(f"{field.replace('_', ' ')} = {data[field]}" if field in (*special_fields, "pricing_reason") else field.replace("_", " "))
         if subscription.status == FirmSubscription.Status.ACTIVE and "status" in data and not subscription.current_period_start:
             subscription.current_period_start = timezone.now()
+        if terms_changed:
+            SubscriptionInvoice.objects.filter(firm=firm, status=SubscriptionInvoice.Status.ISSUED).update(status=SubscriptionInvoice.Status.VOID)
+        if subscription.is_complimentary and terms_changed:
+            subscription.status = FirmSubscription.Status.ACTIVE
+            subscription.trial_ends_at = None
+            if not subscription.current_period_start:
+                subscription.current_period_start = timezone.now()
+            # A dated exemption uses current_period_end; omission grants ongoing access.
+            if "current_period_end" not in data:
+                subscription.current_period_end = None
         subscription.save()
 
         if changes:
@@ -283,6 +316,26 @@ class FirmOwnerInvitationView(PlatformView):
             f"Sent {firm.owner.full_name} a new password link for {firm.name}.", firm=firm,
         )
         return Response({"owner_invitation_url": link, "email": firm.owner.email})
+
+
+class FirmTemporaryPasswordView(PlatformView):
+    @transaction.atomic
+    def post(self, request, firm_id):
+        firm = get_object_or_404(LawFirm, id=firm_id)
+        owner = User.objects.select_for_update().get(pk=firm.owner_id)
+        if not owner.is_active:
+            raise ValidationError("Reactivate the firm owner account before generating a password.")
+        password = secrets.token_urlsafe(18)
+        owner.set_password(password)
+        owner.must_change_password = True
+        owner.save(update_fields=["password", "must_change_password", "updated_at"])
+        PlatformActivity.record(
+            request.user, Action.FIRM_UPDATED,
+            f"Issued a temporary password for {owner.email} at {firm.name}.", firm=firm,
+        )
+        response = Response({"email": owner.email, "temp_password": password})
+        response["Cache-Control"] = "no-store"
+        return response
 
 
 class FirmLogoUploadView(PlatformView):

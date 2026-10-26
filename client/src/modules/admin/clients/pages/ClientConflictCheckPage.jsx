@@ -15,7 +15,8 @@ import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
 import lawyerCasesService from '@/modules/staff/lawyer/cases/services/lawyerCasesService';
 import { enumLabel } from '@/core/utils/textFormatter';
 import { formatDateTime } from '@/core/utils/dateFormatter';
-import themedSwal, { confirmAction } from '@/core/utils/themedSwal';
+import themedSwal from '@/core/utils/themedSwal';
+import { withCriticalAction } from '@/core/utils/confirmationContext';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { PRACTICE_AREAS } from '@/modules/cases/shared/create/caseCreateOptions';
 
@@ -55,7 +56,7 @@ const ACCEPTANCE_CONFIRMS = {
 
 // Runs `run` only once the user confirms; with no prompt it runs at once.
 const confirmThen = async (prompt, run) => {
-  if (!prompt || await confirmAction(prompt)) run();
+  return withCriticalAction(prompt, run);
 };
 
 // Every action here can be refused by the server (a missing retainer, an unconfirmed

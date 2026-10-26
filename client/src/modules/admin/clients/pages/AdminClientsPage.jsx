@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from "react";
 import { useNavigate } from 'react-router-dom';
-import Swal, { toneColor } from '@/core/utils/themedSwal';
+import Swal from "@/core/utils/themedSwal";
 
 import {
   Users,
@@ -106,16 +106,6 @@ export default function AdminClientsPage() {
   }, [activeCategoryTab, clients, search, searchBy]);
 
   const handleDelete = async (clientId) => {
-    const result = await Swal.fire({
-      title: 'Delete Client?',
-      text: 'This client will be permanently deleted.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: toneColor('danger'),
-      confirmButtonText: 'Delete',
-    });
-
-    if (!result.isConfirmed) return;
 
     try {
       await deleteClient(clientId);
@@ -127,7 +117,7 @@ export default function AdminClientsPage() {
         timer: 1800,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -137,16 +127,6 @@ export default function AdminClientsPage() {
   };
 
   const handleArchive = async (clientId) => {
-    const result = await Swal.fire({
-      title: 'Archive Client?',
-      text: 'This client has linked cases and will be archived instead of permanently deleted.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: toneColor('warning'),
-      confirmButtonText: 'Archive',
-    });
-
-    if (!result.isConfirmed) return;
 
     try {
       await archiveClient(clientId);
@@ -158,7 +138,7 @@ export default function AdminClientsPage() {
         timer: 1800,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -168,15 +148,6 @@ export default function AdminClientsPage() {
   };
 
   const handleRestore = async (clientId) => {
-    const result = await Swal.fire({
-      title: 'Restore Client?',
-      text: 'This client will be restored to the state they had before archiving.',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Restore',
-    });
-
-    if (!result.isConfirmed) return;
 
     try {
       await restoreClient(clientId);
@@ -188,7 +159,7 @@ export default function AdminClientsPage() {
         timer: 1800,
         showConfirmButton: false,
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       Swal.fire({
         icon: 'error',
         title: 'Error',

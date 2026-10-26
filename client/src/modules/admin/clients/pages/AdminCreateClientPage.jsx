@@ -20,7 +20,7 @@ export default function AdminCreateClientPage() {
   const [created, setCreated] = useState(null);
   useEffect(() => {
     let active = true;
-    service.metadata(workspace).then((data) => { if (active) setMetadata(data); }).catch((e) => { if (active) setError(creationError(e)); });
+    service.metadata(workspace).then((data) => { if (active) setMetadata(data); }).catch((e) => { if (e?.isActionCancelled) return;  if (active) setError(creationError(e)); });
     return () => { active = false; };
   }, [workspace]);
   const setObject = (section, value) => dispatch({ type: 'SET_SECTION', section, value });
@@ -42,7 +42,7 @@ export default function AdminCreateClientPage() {
     if (portal && kind !== 'INDIVIDUAL' && (!rep?.is_portal_contact || !rep?.email)) return setError('Select an authorised portal contact and enter their email.');
     setSaving(true);
     try { setCreated((await service.create(workspace, buildProspectivePayload(state, metadata))).client); }
-    catch (e) { setError(creationError(e)); }
+    catch (e) { if (e?.isActionCancelled) return;  setError(creationError(e)); }
     finally { setSaving(false); }
   };
   if (created) return <main className='mx-auto max-w-4xl space-y-5 p-4 md:p-8'>

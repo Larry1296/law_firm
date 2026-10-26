@@ -71,7 +71,7 @@ export default function ClientCaseCommunicationPage() {
     setFeedback(null);
     try {
       await sendMessage.mutateAsync({ caseId: selectedCaseId, body });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setFeedback({
         type: 'error',
         text: getApiErrorMessage(error, 'Could not send message.'),

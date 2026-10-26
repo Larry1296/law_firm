@@ -87,7 +87,7 @@ class Command(BaseCommand):
         LawFirmMember.objects.create(firm=firm, user=advocate_user, role=FirmRole.LAWYER, created_by=partner)
         advocate = Lawyer.objects.create(
             user=advocate_user, law_firm=firm, staff_number="ADV-002", job_title="Associate",
-            admission_number="P.105/2222/18", date_hired=date(2020, 3, 1),
+            office_location="Room 201", admission_number="P.105/2222/18", date_hired=date(2020, 3, 1),
         )
         for code in ADVOCATE_GRANTS:
             LawyerPermissionGrant.objects.create(lawyer=advocate, code=code, granted_by=partner)
@@ -103,7 +103,7 @@ class Command(BaseCommand):
         accountant_user = self.user("accountant")
         LawFirmMember.objects.create(firm=firm, user=accountant_user, role=FirmRole.ACCOUNTANT, created_by=partner)
         accountant = Accountant.objects.create(user=accountant_user, law_firm=firm, staff_number="ACC-004", date_hired=date(2022, 1, 10))
-        for code in [AccountantPermission.RECORD_RECEIPTS, AccountantPermission.MANAGE_CLIENT_MONEY, AccountantPermission.MANAGE_INVOICES]:
+        for code in [AccountantPermission.RECORD_RECEIPTS, AccountantPermission.MANAGE_CLIENT_MONEY, AccountantPermission.MANAGE_INVOICES, AccountantPermission.RECONCILE_ACCOUNTS]:
             AccountantPermissionGrant.objects.create(accountant=accountant, code=code, granted_by=partner)
 
         FinancialAccount.objects.create(

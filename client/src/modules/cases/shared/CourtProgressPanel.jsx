@@ -46,7 +46,7 @@ const emptyFiling = {
   registry: '', court_fee_amount: '', payment_reference: '', payment_date: '',
 };
 const emptyEntry = {
-  filing_type: 'DEMAND_LETTER', title: '', filed_at: '', served_at: '', response_period_days: '14',
+  filing_type: 'DEMAND_LETTER', title: '', filed_at: '', served_at: '', response_period_days: '14', response_due_date: '',
   efiling_reference: '', court_fee_amount: '', payment_reference: '', receipt_number: '',
 };
 
@@ -102,7 +102,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       setFiling(emptyFiling);
       setServiceFiled(false);
       refresh();
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setStageFeedback({ tone: 'error', text: getApiErrorMessage(error, 'The update could not be saved.') });
     } finally {
       setBusy(false);
@@ -117,6 +117,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       title: entry.title,
       filed_at: toIso(entry.filed_at),
       served_at: SERVICE_TYPES.has(entry.filing_type) ? toIso(entry.served_at) : null,
+      response_due_date: SERVICE_TYPES.has(entry.filing_type) ? entry.response_due_date : null,
       response_period_days: entry.filing_type === 'DEMAND_LETTER' ? Number(entry.response_period_days) : null,
       efiling_reference: entry.efiling_reference,
       court_fee_amount: entry.court_fee_amount,
@@ -129,7 +130,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       setEntryFeedback({ tone: 'success', text: `Recorded. Next action: ${data.next_action || 'none pending'}.` });
       setEntry(emptyEntry);
       refresh();
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setEntryFeedback({ tone: 'error', text: getApiErrorMessage(error, 'The entry could not be recorded.') });
     } finally {
       setBusy(false);
@@ -223,9 +224,15 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
             </Field>
           )}
           {SERVICE_TYPES.has(entry.filing_type) && (
+            <>
+            <Field label='Appearance due date in summons / court order'>
+              <input type='date' name='response_due_date' value={entry.response_due_date} onChange={updateEntry} className={inputClass} required />
+              <span className='block text-xs font-normal'>The advocate verifies this date in the matter deadlines before relying on it.</span>
+            </Field>
             <Field label='Date served'>
               <input type='datetime-local' name='served_at' value={entry.served_at} onChange={updateEntry} className={inputClass} required />
             </Field>
+            </>
           )}
           <Field label='E-filing reference'><input name='efiling_reference' value={entry.efiling_reference} onChange={updateEntry} className={inputClass} /></Field>
           <Field label='Court fees (KES)'><input type='number' step='0.01' min='0' name='court_fee_amount' value={entry.court_fee_amount} onChange={updateEntry} className={inputClass} /></Field>

@@ -101,7 +101,7 @@ export default function CourtroomLinkForm({ caseId }) {
           : 'Court link saved. The matter team has been notified.',
       });
       setForm(emptyForm);
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setFeedback({ tone: 'error', text: getApiErrorMessage(error, 'The court link could not be saved.') });
     }
   };

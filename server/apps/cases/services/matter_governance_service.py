@@ -7,6 +7,7 @@ from django.core.files.base import ContentFile
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from django.shortcuts import get_object_or_404
 
 from apps.billing.models import Disbursement, Invoice, LedgerTransaction, MatterClientLedger
 from apps.audit_logs.services import AuditService
@@ -37,6 +38,13 @@ def _pdf_bytes(title, body):
 
 
 class GovernanceAccess:
+    @classmethod
+    def matter(cls, user, matter_id):
+        """Internal legal records follow the existing assigned-matter boundary."""
+        if user.role not in {UserRole.ADMIN, UserRole.STAFF}:
+            raise PermissionDenied("Internal matter records are restricted to firm staff.")
+        return get_object_or_404(CaseService.base_queryset(user), pk=matter_id)
+
     @staticmethod
     def firm(user):
         return CaseService.get_user_firm(user)
@@ -65,8 +73,33 @@ class GovernanceAccess:
 class MatterClosureService:
     @classmethod
     @transaction.atomic
+    def update(cls, *, user, matter_id, data):
+        firm = GovernanceAccess.require_lawyer(user, LawyerPermission.REQUEST_MATTER_CLOSURE)
+        GovernanceAccess.matter(user, matter_id)
+        closure = get_object_or_404(MatterClosure.objects.select_for_update(), firm=firm, matter_id=matter_id,
+                                   status__in=[MatterClosure.Status.DRAFT, MatterClosure.Status.PENDING_APPROVAL])
+        previous = {key: getattr(closure, key) for key in data}
+        for key, value in data.items():
+            setattr(closure, key, value)
+        # Changed instructions/checklists need fresh documents and fresh approvals.
+        closure.status = MatterClosure.Status.DRAFT
+        closure.responsible_advocate_approved_by = None
+        closure.finance_approved_by = None
+        closure.administrative_approved_by = None
+        closure.financial_clearance_status = "PENDING_FINANCE"
+        closure.closing_letter_prepared = False
+        closure.final_client_account_prepared = False
+        closure.full_clean()
+        closure.save()
+        AuditService.record(firm=firm, user=user, action="MATTER_CLOSURE_UPDATED", obj=closure,
+                            previous=previous, new=data, reason="Closing review amended; approvals and documents require renewal.")
+        return closure
+
+    @classmethod
+    @transaction.atomic
     def request(cls, *, user, matter_id, data):
         firm = GovernanceAccess.require_lawyer(user, LawyerPermission.REQUEST_MATTER_CLOSURE)
+        GovernanceAccess.matter(user, matter_id)
         matter = Case.objects.select_for_update().get(id=matter_id, firm=firm)
         if matter.matter_status in {Case.MatterStatus.CLOSED, Case.MatterStatus.ARCHIVED}:
             raise ValidationError({"matter": "A closed or archived matter cannot receive a new closure request."})
@@ -135,6 +168,9 @@ class MatterClosureService:
     def generate_document(cls, *, user, closure_id, document_type):
         firm = GovernanceAccess.require_lawyer(user, LawyerPermission.REQUEST_MATTER_CLOSURE)
         closure = MatterClosure.objects.select_for_update().select_related("matter", "matter__client").get(id=closure_id, firm=firm)
+        GovernanceAccess.matter(user, closure.matter_id)
+        if closure.status not in {MatterClosure.Status.DRAFT, MatterClosure.Status.PENDING_APPROVAL}:
+            raise ValidationError({"closure": "Generate closing documents during the pending closing review."})
         if document_type not in GeneratedClosingDocument.Type.values:
             raise ValidationError({"document_type": "Select a supported closing document type."})
         matter = closure.matter
@@ -207,7 +243,7 @@ class MatterClosureService:
         if document_type == GeneratedClosingDocument.Type.CLOSING_LETTER:
             closure.closing_letter_prepared = True
             update_fields.append("closing_letter_prepared")
-        else:
+        elif document_type == GeneratedClosingDocument.Type.FINAL_CLIENT_STATEMENT:
             closure.final_client_account_prepared = True
             update_fields.append("final_client_account_prepared")
         closure.save(update_fields=update_fields)
@@ -219,6 +255,9 @@ class MatterClosureService:
     def approve_advocate(cls, *, user, closure_id):
         firm = GovernanceAccess.require_lawyer(user, LawyerPermission.APPROVE_MATTER_CLOSURE)
         closure = MatterClosure.objects.select_for_update().get(id=closure_id, firm=firm)
+        GovernanceAccess.matter(user, closure.matter_id)
+        if closure.status not in {MatterClosure.Status.DRAFT, MatterClosure.Status.PENDING_APPROVAL}:
+            raise ValidationError({"closure": "Only a pending closing review may be approved."})
         closure.responsible_advocate_approved_by = user
         closure.status = MatterClosure.Status.PENDING_APPROVAL
         closure.save(update_fields=["responsible_advocate_approved_by", "status", "updated_at"])
@@ -230,9 +269,13 @@ class MatterClosureService:
     def approve_finance(cls, *, user, closure_id):
         firm = GovernanceAccess.require_finance(user)
         closure = MatterClosure.objects.select_for_update().get(id=closure_id, firm=firm)
+        if closure.status not in {MatterClosure.Status.DRAFT, MatterClosure.Status.PENDING_APPROVAL}:
+            raise ValidationError({"closure": "Only a pending closing review may be approved."})
         ledger = MatterClientLedger.objects.select_for_update().filter(matter=closure.matter).first()
         if ledger and ledger.cleared_balance != 0:
             raise ValidationError({"client_money": "Finance cannot approve while the client-money balance is non-zero."})
+        if Invoice.objects.filter(matter=closure.matter).exclude(status__in=[Invoice.Status.PAID, Invoice.Status.CANCELLED, Invoice.Status.CREDITED]).exists():
+            raise ValidationError({"invoices": "Resolve outstanding invoices before financial clearance."})
         closure.finance_approved_by = user
         closure.financial_clearance_status = "CLEARED"
         closure.save(update_fields=["finance_approved_by", "financial_clearance_status", "updated_at"])
@@ -244,6 +287,9 @@ class MatterClosureService:
     def finalise(cls, *, user, closure_id):
         firm = GovernanceAccess.require_lawyer(user, LawyerPermission.APPROVE_MATTER_CLOSURE)
         closure = MatterClosure.objects.select_for_update().select_related("matter").get(id=closure_id, firm=firm)
+        GovernanceAccess.matter(user, closure.matter_id)
+        if closure.status not in {MatterClosure.Status.DRAFT, MatterClosure.Status.PENDING_APPROVAL}:
+            raise ValidationError({"closure": "Only a pending closing review may be finalised."})
         closure.administrative_approved_by = user
         closure.save(update_fields=["administrative_approved_by", "updated_at"])
         reasons = cls.blocking_reasons(closure)
@@ -286,6 +332,8 @@ class MatterClosureService:
 
 
 class ArchiveService:
+    CHECKLIST_FIELDS = ('intake', 'conflict', 'engagement', 'kyc_authority', 'correspondence',
+                        'legal_work', 'finance', 'closing_letter', 'document_return', 'retention_classification')
     @classmethod
     @transaction.atomic
     def access(cls, *, user, archive_id, purpose):
@@ -332,6 +380,21 @@ class ArchiveService:
         matter = Case.objects.select_for_update().get(id=matter_id, firm=firm)
         if matter.matter_status != Case.MatterStatus.CLOSED:
             raise ValidationError({"matter": "Only a formally closed matter may be archived."})
+        checklist = data.get('archive_checklist', {})
+        if any(checklist.get(key) is not True for key in cls.CHECKLIST_FIELDS):
+            raise ValidationError({'archive_checklist': 'Confirm every archive inventory check explicitly.'})
+        if data['closure_date'] > data['archive_date'] or data['retention_start_date'] > data['scheduled_review_date'] or data['scheduled_review_date'] < data['archive_date']:
+            raise ValidationError({'scheduled_review_date': 'Check closure, archive, retention-start and review dates.'})
+        destruction = data.get('proposed_destruction_date')
+        if destruction and (destruction < data['scheduled_review_date'] or data.get('permanent_preservation')):
+            raise ValidationError({'proposed_destruction_date': 'Destruction cannot precede review or be scheduled for permanent preservation.'})
+        custodian = data['responsible_custodian']
+        try:
+            custodian_firm = CaseService.get_user_firm(custodian)
+        except PermissionError:
+            custodian_firm = None
+        if not custodian.is_active or custodian.role not in {UserRole.ADMIN, UserRole.STAFF} or not custodian_firm or custodian_firm.pk != firm.pk:
+            raise ValidationError({'responsible_custodian': 'Select active staff of this firm.'})
         archive = MatterArchive(firm=firm, matter=matter, approved_by=user, **data)
         archive.full_clean()
         archive.save()

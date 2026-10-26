@@ -74,6 +74,7 @@ LOCAL_APPS = [
     "apps.audit_logs",
     "apps.portal",
     "apps.platform_admin",
+    "apps.tutorials",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -311,3 +312,6 @@ EMAIL_BACKEND = config(
     "EMAIL_BACKEND",
     default="apps.common.mail_backends.ReadableConsoleEmailBackend",
 )
+
+# Exact HTTPS hosts approved for direct tutorial playback; empty disables HTML5 sources.
+TUTORIAL_VIDEO_HOSTS = config("TUTORIAL_VIDEO_HOSTS", default="", cast=lambda v: [h.strip() for h in v.split(",") if h.strip()])

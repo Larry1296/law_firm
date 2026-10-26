@@ -18,6 +18,7 @@ class MatterClosureView(APIView):
 
     def get(self, request, case_id):
         firm = GovernanceAccess.firm(request.user)
+        GovernanceAccess.matter(request.user, case_id)
         records = MatterClosure.objects.filter(firm=firm, matter_id=case_id)
         return Response({"closures": MatterClosureSerializer(records, many=True).data})
 
@@ -26,6 +27,24 @@ class MatterClosureView(APIView):
         serializer.is_valid(raise_exception=True)
         closure = MatterClosureService.request(user=request.user, matter_id=case_id, data=serializer.validated_data)
         return Response({"closure": MatterClosureSerializer(closure).data}, status=status.HTTP_201_CREATED)
+
+    def patch(self, request, case_id):
+        serializer = MatterClosureSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        closure = MatterClosureService.update(user=request.user, matter_id=case_id, data=serializer.validated_data)
+        return Response({"closure": MatterClosureSerializer(closure).data})
+
+
+class FinanceClosingReviewView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        firm = GovernanceAccess.require_finance(request.user)
+        records = MatterClosure.objects.filter(firm=firm, status__in=[MatterClosure.Status.DRAFT, MatterClosure.Status.PENDING_APPROVAL]).select_related('matter')
+        return Response({'closing_reviews': [{
+            'id': row.id, 'matter_id': row.matter_id, 'matter_reference': row.matter.case_number,
+            'financial_clearance_status': row.financial_clearance_status,
+        } for row in records]})
 
 
 class MatterClosureActionView(APIView):

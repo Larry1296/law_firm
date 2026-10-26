@@ -130,6 +130,10 @@ class IntakePrivacyMigrationTests(TransactionTestCase):
         previous = [('clients', '0042_intakeprivacyconfig')]
         current = [('clients', '0043_remove_intakeprivacyconfig_is_active_and_more')]
         executor = MigrationExecutor(connection)
+        latest = executor.loader.graph.leaf_nodes()
+        # Restore the complete schema, not only migration 0043, before another
+        # TransactionTestCase (such as tenant deletion) uses current models.
+        self.addCleanup(lambda: MigrationExecutor(connection).migrate(latest))
         executor.migrate(previous)
         try:
             apps = executor.loader.project_state(previous).apps

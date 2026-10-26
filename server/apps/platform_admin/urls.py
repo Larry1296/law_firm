@@ -11,6 +11,7 @@ urlpatterns = [
     path("firms/<uuid:firm_id>/status/", views.FirmStatusView.as_view(), name="platform-firm-status"),
     path("firms/<uuid:firm_id>/subscription/", views.FirmSubscriptionView.as_view(), name="platform-firm-subscription"),
     path("firms/<uuid:firm_id>/owner-invitation/", views.FirmOwnerInvitationView.as_view(), name="platform-firm-owner-invitation"),
+    path("firms/<uuid:firm_id>/temporary-password/", views.FirmTemporaryPasswordView.as_view(), name="platform-firm-temporary-password"),
     path("firms/<uuid:firm_id>/logo/", views.FirmLogoUploadView.as_view(), name="platform-firm-logo"),
 
     path("plans/", views.PlanListCreateView.as_view(), name="platform-plans"),

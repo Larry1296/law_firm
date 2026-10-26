@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import Swal from '@/core/utils/themedSwal';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { formatKes, formatSubscriptionDate } from '@/modules/admin/subscription/utils/subscriptionFormatting';
 import platformService from '@/modules/platform/services/platformService';
@@ -39,21 +38,12 @@ export default function PlatformPaymentsPage() {
 
   const act = async (invoice, kind) => {
     const confirm = kind === 'confirm';
-    const answer = await Swal.fire({
-      icon: confirm ? 'question' : 'warning',
-      title: confirm ? `Confirm ${invoice.number}?` : `Void ${invoice.number}?`,
-      html: confirm
-        ? `Only confirm after finding M-Pesa code <strong>${invoice.mpesa_receipt || '—'}</strong> for <strong>${formatKes(invoice.total)}</strong> on the Paybill statement. The firm's subscription is extended immediately.`
-        : 'The firm will need a new invoice to pay.',
-      showCancelButton: true,
-      confirmButtonText: confirm ? 'Confirm payment' : 'Void invoice',
-    });
-    if (!answer.isConfirmed) return;
+
     setActionError(null);
     try {
       await (confirm ? platformService.confirmInvoice(invoice.id) : platformService.voidInvoice(invoice.id));
       queryClient.invalidateQueries({ queryKey: ['platform'] });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setActionError(getApiErrorMessage(error));
     }
   };
@@ -84,7 +74,7 @@ export default function PlatformPaymentsPage() {
       </div>
 
       <Panel bodyClassName='p-0'>
-        {invoices.error && <div className='p-4'><ErrorNotice error={invoices.error} /></div>}
+        {(invoices.error && !invoices.error?.isActionCancelled) && <div className='p-4'><ErrorNotice error={invoices.error} /></div>}
         {invoices.isLoading ? (
           <p role='status' className='p-5 text-sm text-text-muted-light'>Loading invoices…</p>
         ) : rows.length === 0 ? (

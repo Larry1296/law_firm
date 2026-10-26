@@ -858,9 +858,14 @@ class CaseLifecycleService:
             and case.court_stage == Case.CourtStage.AWAITING_RESPONSE
         ):
             # Order 10: judgment in default only after a request for judgment is filed.
-            from apps.cases.models import CaseFiling
+            from apps.cases.models import CaseFiling, MatterDeadline
 
-            return case.filings.filter(filing_type=CaseFiling.FilingType.REQUEST_FOR_JUDGMENT).exists()
+            response_dates = case.deadlines.filter(source__in=[f"APPEARANCE:{case.id}", f"DEFENCE:{case.id}"])
+            return (
+                case.filings.filter(filing_type=CaseFiling.FilingType.REQUEST_FOR_JUDGMENT).exclude(status__in=[CaseFiling.FilingStatus.REJECTED, CaseFiling.FilingStatus.WITHDRAWN]).exists()
+                and response_dates.filter(status=MatterDeadline.Status.OPEN, due_at__lt=timezone.now(), requires_review=False).exists()
+                and not response_dates.filter(status=MatterDeadline.Status.OPEN, requires_review=True).exists()
+            )
         if (
             dimension
             == CaseLifecycleTransition.Dimension.COURT_STAGE

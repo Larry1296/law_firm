@@ -27,7 +27,7 @@ export default function SessionLockScreen({ user, onUnlock, onSignOut }) {
       setPassword('');
       // Anything that failed while the screen was locked loads again.
       queryClient?.invalidateQueries();
-    } catch (err) {
+    } catch (err) { if (err?.isActionCancelled) return;
       setError(err.response ? getApiErrorMessage(err, 'Could not unlock.') : err.message);
     } finally {
       setUnlocking(false);

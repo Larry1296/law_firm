@@ -46,7 +46,7 @@ export default function PlatformUsersPage() {
     try {
       await platformService.setUserStatus(row.id, !row.is_active);
       queryClient.invalidateQueries({ queryKey: ['platform', 'users'] });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       setActionError(getApiErrorMessage(error));
     }
   };
@@ -81,7 +81,7 @@ export default function PlatformUsersPage() {
           </label>
         </div>
 
-        {users.error && <div className='p-4'><ErrorNotice error={users.error} /></div>}
+        {(users.error && !users.error?.isActionCancelled) && <div className='p-4'><ErrorNotice error={users.error} /></div>}
         {users.isLoading ? (
           <p role='status' className='p-5 text-sm text-text-muted-light'>Loading users…</p>
         ) : rows.length === 0 ? (

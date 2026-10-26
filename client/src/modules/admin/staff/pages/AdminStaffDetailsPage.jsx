@@ -81,13 +81,14 @@ const SingleStaffDetailsPage = () => {
     onSuccess: (result) => {
       const box = document.createElement('div');
       box.innerHTML = `
-        <p style="margin:0 0 10px">${result.detail}</p>
-        <p style="margin:0 0 6px;font-size:13px;color:var(--text-muted)">If the email does not reach them, send this link another way. It works once.</p>
+        <p style="margin:0 0 10px"></p>
+        <p style="margin:0 0 6px;font-size:13px;color:var(--text-muted)">This temporary link expires and works once. The current password remains valid until a new password is saved. You can copy and share the link below.</p>
         <div style="padding:12px;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text-primary);word-break:break-all;user-select:all;font-family:monospace;font-size:13px"></div>`;
+      box.firstElementChild.textContent = result.detail;
       box.lastElementChild.textContent = result.link;
-      Swal.fire({ icon: 'success', title: 'Sign-in link ready', html: box, confirmButtonText: 'Done' });
+      Swal.fire({ icon: result.email_sent === false ? 'warning' : 'success', title: 'Password reset link ready', html: box, confirmButtonText: 'Done' });
     },
-    onError: (err) => Swal.fire({ icon: 'error', title: 'No link was sent', text: getApiErrorMessage(err, 'Could not create a sign-in link.') }),
+    onError: (err) => { if (err?.isActionCancelled) return; return Swal.fire({ icon: 'error', title: 'No link was sent', text: getApiErrorMessage(err, 'Could not create a password reset link.') }); },
   });
 
   if (isLoading) return <div>Loading staff details...</div>;
@@ -160,7 +161,7 @@ const SingleStaffDetailsPage = () => {
           loadingText='Sending…'
           onClick={() => sendSignInLinkMutation.mutate(user.email)}
         >
-          Send sign-in link
+          Send password reset link
         </FormButton>
         <ResendTemporaryPasswordButton email={user.email} disabled={!user.email || !user.is_active} />
       </div>
@@ -194,7 +195,7 @@ const SingleStaffDetailsPage = () => {
           disabled={updatePermissionsMutation.isPending}
           onChange={setPermissionDraft}
         />
-        {updatePermissionsMutation.isError && (
+        {(updatePermissionsMutation.isError && !updatePermissionsMutation.error?.isActionCancelled) && (
           <p role='alert' className='text-sm text-error'>{getApiErrorMessage(updatePermissionsMutation.error)}</p>
         )}
         <div className='flex gap-3'>
@@ -225,7 +226,7 @@ const SingleStaffDetailsPage = () => {
             Designated receptionist account
           </label>
           <p className='text-sm'>An active receptionist with client-intake access handles preliminary intake. Without one, the secretary records arrival and the advocate asks the intake questions.</p>
-          {updateReceptionistMutation.isError && <p role='alert'>Unable to update reception duties. Please try again.</p>}
+          {(updateReceptionistMutation.isError && !updateReceptionistMutation.error?.isActionCancelled) && <p role='alert'>Unable to update reception duties. Please try again.</p>}
         </Card>
       )}
 
@@ -243,7 +244,7 @@ const SingleStaffDetailsPage = () => {
             disabled={updateAdvocatesMutation.isPending}
             onChange={setAdvocateDraft}
           />
-          {updateAdvocatesMutation.isError && (
+          {(updateAdvocatesMutation.isError && !updateAdvocatesMutation.error?.isActionCancelled) && (
             <p role='alert' className='text-sm text-error'>{getApiErrorMessage(updateAdvocatesMutation.error)}</p>
           )}
           <button

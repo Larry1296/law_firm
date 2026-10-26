@@ -99,7 +99,8 @@ class VisitSerializer(serializers.ModelSerializer):
 def record(visit, user, action):
     AuditService.record(firm=visit.firm, user=user, action=action, obj=visit,
         new={'status': visit.status, 'intake_handler': visit.intake_handler,
-             'advocate_id': str(visit.advocate_id), 'office_location': office_label(visit.advocate)})
+             'advocate_id': str(visit.advocate_id), 'client_id': str(visit.client_id) if visit.client_id else None,
+             'office_location': office_label(visit.advocate)})
 
 
 def serialize_visit(visit, role, profile, receptionist=None):
@@ -200,7 +201,22 @@ class ClientVisitActionView(APIView):
             raise PermissionDenied('This visit is assigned to another advocate.')
         action = request.data.get('action')
         permissions = serialize_visit(visit, role, profile)
-        if action == 'INTAKE':
+        if action == 'LINK_CLIENT':
+            if role not in {'ADMIN', 'SECRETARY', 'RECEPTIONIST'}:
+                raise PermissionDenied('Authorised intake staff link the client record.')
+            if set(request.data) - {'action', 'client'}:
+                raise ValidationError('Only the client reference may be linked.')
+            if visit.status not in {'IN_CONSULTATION', 'COMPLETED'} or not visit.intake_completed_at:
+                raise ValidationError('Complete preliminary intake and start consultation before linking the client.')
+            client_id = serializers.UUIDField().run_validation(request.data.get('client'))
+            client = get_object_or_404(Client, pk=client_id, firm=firm, is_active=True)
+            if client.lifecycle_status == 'ARCHIVED':
+                raise ValidationError({'client': 'Select an active client.'})
+            if visit.client_id and visit.client_id != client.pk:
+                raise ValidationError({'client': 'This visit is already linked to another client.'})
+            visit.client = client
+            visit.save(update_fields=['client', 'updated_at'])
+        elif action == 'INTAKE':
             if not permissions['can_record_intake']:
                 raise PermissionDenied('Only the designated intake handler can complete preliminary intake.')
             if set(request.data) - INTAKE_FIELDS - {'action'}:
@@ -264,6 +280,6 @@ class ClientVisitActionView(APIView):
             visit.closed_at = timezone.now()
             visit.save()
         else:
-            raise ValidationError({'action': 'Select INTAKE, CALL, USHER, START, COMPLETE or LEFT.'})
+            raise ValidationError({'action': 'Select INTAKE, CALL, USHER, START, COMPLETE, LINK_CLIENT or LEFT.'})
         record(visit, request.user, f'CLIENT_VISIT_{action}')
         return Response(serialize_visit(visit, role, profile))

@@ -34,7 +34,7 @@ export default function StaffSecurityPage({ config, submitPassword }) {
         title: 'Password updated',
         text: 'Your password has been changed successfully.',
       });
-    } catch (error) {
+    } catch (error) { if (error?.isActionCancelled) return;
       await Swal.fire({
         icon: 'error',
         title: 'Could not update password',
