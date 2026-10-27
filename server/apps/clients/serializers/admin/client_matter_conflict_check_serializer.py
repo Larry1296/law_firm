@@ -5,6 +5,7 @@ from apps.clients.models import (
     ClientMatterConflictCheck,
     ConflictCheckHistory,
     ConflictCheckParty,
+    ConflictSourceReview,
     FirmAcceptanceHistory,
     ProposedMatterJurisdiction,
     ProposedMatterJurisdictionHistory,
@@ -244,7 +245,35 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ConflictSourceReviewSerializer(serializers.ModelSerializer):
+    source_label = serializers.CharField(source="get_source_display", read_only=True)
+    reviewed_by_name = serializers.CharField(source="reviewed_by.full_name", read_only=True)
+
+    class Meta:
+        model = ConflictSourceReview
+        fields = [
+            "id", "source", "source_label", "outcome", "system_match_count", "matched_name",
+            "relationship_to_firm", "details", "reviewed_by_name", "reviewed_at",
+        ]
+        read_only_fields = fields
+
+
 class ClientMatterConflictCheckDetailSerializer(ClientMatterConflictCheckListSerializer):
+    source_reviews = ConflictSourceReviewSerializer(many=True, read_only=True)
+    search_checklist = serializers.SerializerMethodField()
+
+    def get_search_checklist(self, obj):
+        """The sources a guided check confirms, in order, with what the system found in each."""
+        from apps.clients.services.conflict import conflict_search
+
+        labels = dict(ConflictCheckSourceCategory.choices)
+        matches = (obj.system_search or {}).get("matches", [])
+        return [
+            {"source": source, "label": labels[source], "guidance": guidance,
+             "system_match_count": sum(1 for match in matches if match["source"] == source)}
+            for source, guidance in conflict_search.GUIDED_SOURCES
+        ]
+
     parties = ConflictCheckPartySerializer(many=True, read_only=True)
     history = ConflictCheckHistorySerializer(many=True, read_only=True)
     acceptance_history = FirmAcceptanceHistorySerializer(many=True, read_only=True)
@@ -295,6 +324,9 @@ class ClientMatterConflictCheckDetailSerializer(ClientMatterConflictCheckListSer
             "no_adverse_party_explanation",
             "jurisdiction_facts",
             "jurisdiction",
+            "system_search",
+            "source_reviews",
+            "search_checklist",
             "parties",
             "history",
             "acceptance_history",
@@ -356,6 +388,18 @@ class JurisdictionReopenSerializer(serializers.Serializer):
 
 class StartCheckSerializer(serializers.Serializer):
     summary = serializers.CharField(required=False, allow_blank=True)
+
+
+class RunSearchSerializer(serializers.Serializer):
+    pass
+
+
+class SourceReviewSerializer(serializers.Serializer):
+    source = serializers.ChoiceField(choices=ConflictCheckSourceCategory.choices)
+    outcome = serializers.ChoiceField(choices=ConflictSourceReview.Outcome.choices)
+    matched_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    relationship_to_firm = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    details = serializers.CharField(required=False, allow_blank=True)
 
 
 class RequestInformationSerializer(serializers.Serializer):

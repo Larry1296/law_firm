@@ -17,6 +17,8 @@ from apps.clients.serializers.admin.client_matter_conflict_check_serializer impo
     RequestInformationSerializer,
     ResumeCheckSerializer,
     StartCheckSerializer,
+    RunSearchSerializer,
+    SourceReviewSerializer,
     JurisdictionAdvocateDecisionSerializer,
     JurisdictionReopenSerializer,
     JurisdictionSuggestionInputSerializer,
@@ -169,6 +171,16 @@ class ClientMatterConflictCheckActionView(APIView):
 class ClientMatterConflictCheckStartView(ClientMatterConflictCheckActionView):
     serializer_class = StartCheckSerializer
     command = staticmethod(ClientMatterConflictService.start_check)
+
+
+class ClientMatterConflictCheckSearchView(ClientMatterConflictCheckActionView):
+    serializer_class = RunSearchSerializer
+    command = staticmethod(ClientMatterConflictService.run_search)
+
+
+class ClientMatterConflictCheckSourceReviewView(ClientMatterConflictCheckActionView):
+    serializer_class = SourceReviewSerializer
+    command = staticmethod(ClientMatterConflictService.review_source)
 
 
 class ClientMatterConflictCheckRequestInformationView(ClientMatterConflictCheckActionView):

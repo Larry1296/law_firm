@@ -1,4 +1,6 @@
+import json
 from datetime import date
+from unittest.mock import patch
 
 from django.urls import reverse
 from django.utils import timezone
@@ -10,11 +12,13 @@ from apps.clients.models import (
     ConflictCheckParty, EngagementRecord, ProposedMatterJurisdiction,
 )
 from apps.clients.serializers.admin.client_matter_conflict_check_serializer import ClientMatterConflictCheckListSerializer
+from apps.ai.services.llm_provider import AIProviderUnavailable, ProviderChoice
 from apps.clients.services.compliance_review_service import ClientComplianceReviewService
+from apps.clients.services.conflict import conflict_search
 from apps.clients.services.engagement_service import EngagementService
 from apps.clients.services.conflict.client_matter_conflict_service import ClientMatterConflictService
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
-from apps.firm.models import LawFirm
+from apps.firm.models import FirmSetting, LawFirm
 from apps.staff.models import Lawyer, LawyerPermission, LawyerPermissionGrant, Secretary
 from apps.users.models import User
 
@@ -365,70 +369,174 @@ class ClientMatterConflictCheckTests(APITestCase):
         self.client_record.refresh_from_db()
         self.assertFalse(self.client_record.cases.exists())
 
-    def test_automatic_search_blocks_direct_clearance_when_a_name_matches(self):
-        existing = Client.objects.create(
-            firm=self.firm,
-            full_name="Proposed Adverse Ltd",
-            email="existing-adverse@example.com",
-            phone_number="+254711100010",
-            client_type=Client.ClientType.COMPANY,
-            lifecycle_status=Client.LifecycleStatus.OFFICIAL,
-            is_active=True,
-        )
-        for index in range(2):
-            Client.objects.create(
-                firm=self.firm,
-                full_name=f"Search Corpus Client {index}",
-                email=f"corpus-{index}@example.com",
-                phone_number=f"+25471110002{index}",
-                client_type=Client.ClientType.COMPANY,
-                lifecycle_status=Client.LifecycleStatus.OFFICIAL,
-                is_active=True,
-            )
-        check = self.create_check()
-        self.client.post(
+    def start(self, check):
+        response = self.client.post(
             reverse("admin-client-conflict-check-start", kwargs={"client_id": self.client_record.id, "check_id": check.id}),
-            {},
-            format="json",
+            {}, format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        return response.data["conflict_check"]
+
+    def decide_cleared(self, check):
+        return self.client.post(
+            reverse("admin-client-conflict-check-decide", kwargs={"client_id": self.client_record.id, "check_id": check.id}),
+            {"decision": ConflictCheckStatus.CLEARED, "decision_confirmation": True}, format="json",
         )
 
-        response = self.client.post(
-            reverse("admin-client-conflict-check-decide", kwargs={"client_id": self.client_record.id, "check_id": check.id}),
-            {
-                "decision": ConflictCheckStatus.CLEARED,
-                "names_checked": [existing.full_name],
-                "source_categories_checked": [ConflictCheckSourceCategory.CURRENT_CLIENTS],
-                "result_summary": "No conflict identified.",
-                "decision_confirmation": True,
-            },
-            format="json",
+    def review(self, check, source, outcome="NO_MATCH", **finding):
+        return self.client.post(
+            reverse("admin-client-conflict-check-review-source", kwargs={"client_id": self.client_record.id, "check_id": check.id}),
+            {"source": source, "outcome": outcome, **finding}, format="json",
         )
+
+    def use_outside_records(self):
+        FirmSetting.objects.update_or_create(firm=self.firm, defaults={"conflict_records_scope": "INCLUDES_OUTSIDE_RECORDS"})
+
+    def test_automatic_search_blocks_direct_clearance_when_a_name_matches(self):
+        Client.objects.create(
+            firm=self.firm, full_name="Proposed Adverse Limited", email="existing-adverse@example.com",
+            phone_number="+254711100010", client_type=Client.ClientType.COMPANY,
+            lifecycle_status=Client.LifecycleStatus.OFFICIAL, is_active=True,
+        )
+        check = self.create_check()
+        started = self.start(check)
+        match = started["system_search"]["matches"][0]
+        self.assertEqual(match["matched_name"], "Proposed Adverse Limited")
+        self.assertTrue(match["conflict_risk"])
+
+        response = self.decide_cleared(check)
 
         self.assertEqual(response.status_code, 400, response.data)
-        self.assertIn("source_categories_checked", response.data["errors"])
+        self.assertIn("conflict_search", response.data["errors"])
         check.refresh_from_db()
         self.assertEqual(check.status, ConflictCheckStatus.IN_PROGRESS)
         self.assertFalse(check.decision_confirmation)
 
-    def test_automatic_search_threshold_switches_from_manual_to_automatic(self):
+    def test_new_firm_search_runs_at_once_and_clears_with_one_confirmation(self):
         check = self.create_check()
-        mode, count = ClientMatterConflictService._search_mode_for_firm(self.firm)
-        self.assertEqual(mode, "MANUAL")
-        self.assertLess(count, ClientMatterConflictService.AUTOMATIC_SEARCH_MINIMUM_RECORDS)
+        started = self.start(check)
+        self.assertEqual(started["system_search"]["mode"], "AUTOMATIC")
+        self.assertEqual(started["system_search"]["matches"], [])
 
-        for index in range(ClientMatterConflictService.AUTOMATIC_SEARCH_MINIMUM_RECORDS - count):
-            Client.objects.create(
-                firm=self.firm,
-                full_name=f"Threshold Client {index}",
-                email=f"threshold-{index}@example.com",
-                phone_number=f"+25473300{index:04d}",
-                client_type=Client.ClientType.COMPANY,
-                is_active=True,
-            )
-        mode, count = ClientMatterConflictService._search_mode_for_firm(self.firm)
-        self.assertEqual(mode, "AUTOMATIC")
-        self.assertGreaterEqual(count, ClientMatterConflictService.AUTOMATIC_SEARCH_MINIMUM_RECORDS)
-        self.assertIsNotNone(check.id)
+        response = self.decide_cleared(check)
+
+        self.assertEqual(response.status_code, 200, response.data)
+        check.refresh_from_db()
+        self.assertEqual(check.status, ConflictCheckStatus.CLEARED)
+        self.assertIn("Proposed Adverse Ltd", check.names_checked)
+        self.assertIn(ConflictCheckSourceCategory.FIRM_ADVOCATES_AND_STAFF, check.source_categories_checked)
+        self.assertIn("No conflict found", check.result_summary)
+
+    def test_acting_again_against_the_same_opponent_is_not_a_conflict(self):
+        self.clear_check(self.create_check())
+        check = self.create_check()
+        match = self.start(check)["system_search"]["matches"][0]
+        self.assertEqual(match["record_type"], "conflict_party")
+        self.assertFalse(match["conflict_risk"])
+        self.assertEqual(self.decide_cleared(check).status_code, 200)
+
+    def test_guided_firm_confirms_every_source_before_clearing(self):
+        self.use_outside_records()
+        check = self.create_check()
+        self.assertEqual(self.start(check)["system_search"]["mode"], "GUIDED")
+        refused = self.decide_cleared(check)
+        self.assertEqual(refused.status_code, 400, refused.data)
+        self.assertIn("source_reviews", refused.data["errors"])
+
+        for source in conflict_search.GUIDED_SOURCE_VALUES:
+            self.assertEqual(self.review(check, source).status_code, 200)
+        response = self.decide_cleared(check)
+
+        self.assertEqual(response.status_code, 200, response.data)
+        check.refresh_from_db()
+        self.assertEqual(set(check.source_categories_checked), set(conflict_search.GUIDED_SOURCE_VALUES))
+        self.assertTrue(ConflictCheckHistory.objects.filter(conflict_check=check, action="SOURCE_REVIEWED").count() == 7)
+
+    def test_outside_record_match_blocks_clearance_and_is_found_by_later_searches(self):
+        self.use_outside_records()
+        check = self.create_check()
+        self.start(check)
+        response = self.review(
+            check, ConflictCheckSourceCategory.FORMER_CLIENTS, "MATCH_FOUND",
+            matched_name="Proposed Adverse Ltd", relationship_to_firm="Former client (2019 paper register)",
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(check.source_reviews.get().missed_by_system)
+        for source in conflict_search.GUIDED_SOURCE_VALUES:
+            if source != ConflictCheckSourceCategory.FORMER_CLIENTS:
+                self.review(check, source)
+        refused = self.decide_cleared(check)
+        self.assertEqual(refused.status_code, 400, refused.data)
+        self.assertIn("source_reviews", refused.data["errors"])
+
+        later = self.create_check()
+        match = next(item for item in self.start(later)["system_search"]["matches"] if item["record_type"] == "outside_record")
+        self.assertEqual(match["relationship"], "Former client (2019 paper register) (found in records outside the system during "
+                         f"{check.reference_number})")
+        self.assertTrue(match["conflict_risk"])
+
+    def test_guided_firm_becomes_automatic_after_enough_clean_checks(self):
+        self.use_outside_records()
+        with patch.object(conflict_search, "GUIDED_CHECKS_TO_AUTOMATIC", 2):
+            for _ in range(2):
+                self.assertEqual(conflict_search.search_mode(self.firm)["mode"], "GUIDED")
+                check = self.create_check()
+                self.start(check)
+                for source in conflict_search.GUIDED_SOURCE_VALUES:
+                    self.review(check, source)
+                self.assertEqual(self.decide_cleared(check).status_code, 200)
+            mode = conflict_search.search_mode(self.firm)
+        self.assertEqual(mode["mode"], "AUTOMATIC")
+        self.assertEqual(mode["reason"], "LEARNED_FROM_GUIDED_CHECKS")
+
+    def test_names_are_compared_the_way_kenyan_names_vary(self):
+        same = [
+            ("Baraka Hardware Ltd", "Baraka Hardware (K) Limited"),
+            ("Otieno James", "James Otieno"),
+            ("J. Otieno", "James Otieno"),
+            ("Baraka Hardwere Ltd", "Baraka Hardware Limited"),
+            ("James Otieno", "James Otieno Ochieng"),
+        ]
+        for first, second in same:
+            self.assertIsNotNone(conflict_search.compare_names(first, second), (first, second))
+        for first, second in [("James Otieno", "James Kamau"), ("Otieno", "James Otieno"), ("Baraka Ltd", "Bahati Ltd")]:
+            self.assertIsNone(conflict_search.compare_names(first, second), (first, second))
+
+    def test_ai_adds_near_matches_and_unlisted_parties_only_when_the_firm_allows_it(self):
+        Client.objects.create(firm=self.firm, full_name="Propozed Adversary Company", client_type=Client.ClientType.COMPANY)
+        check = self.create_check()
+        provider = ProviderChoice("anthropic", "test-model")
+        reply = {"matches": [{"searched_name": "Proposed Adverse Ltd", "candidate_id": None, "reason": "Same company, misspelt"}],
+                 "unlisted_parties": [{"name": "Mary Achieng", "mentioned_as": "guarantor"}]}
+
+        def answer(instructions, prompt, **kwargs):
+            candidate = next(item for item in json.loads(prompt)["candidates"] if item["name"] == "Propozed Adversary Company")
+            return {**reply, "matches": [{**reply["matches"][0], "candidate_id": candidate["id"]}]}, provider
+
+        with patch("apps.ai.services.llm_provider.configured_provider", return_value=provider), \
+                patch("apps.ai.services.llm_provider.complete_json", side_effect=answer) as ai:
+            search = conflict_search.run(check)
+            self.assertFalse(ai.called)
+            self.assertFalse(search["ai"]["enabled"])
+
+            FirmSetting.objects.update_or_create(firm=self.firm, defaults={"conflict_ai_matching_enabled": True})
+            search = conflict_search.run(check)
+
+        self.assertTrue(search["ai"]["used"])
+        ai_match = next(match for match in search["matches"] if match["found_by"] == "AI")
+        self.assertEqual(ai_match["matched_name"], "Propozed Adversary Company")
+        self.assertTrue(ai_match["conflict_risk"])
+        self.assertEqual(search["unlisted_parties"], [{"name": "Mary Achieng", "mentioned_as": "guarantor"}])
+
+    def test_search_still_runs_when_the_ai_service_fails(self):
+        FirmSetting.objects.update_or_create(firm=self.firm, defaults={"conflict_ai_matching_enabled": True})
+        check = self.create_check()
+        with patch("apps.ai.services.llm_provider.configured_provider", return_value=ProviderChoice("anthropic", "test-model")), \
+                patch("apps.ai.services.llm_provider.complete_json", side_effect=AIProviderUnavailable("down")):
+            search = conflict_search.run(check)
+        self.assertTrue(search["ai"]["enabled"])
+        self.assertFalse(search["ai"]["used"])
+        self.assertEqual(search["matches"], [])
 
     def test_information_potential_escalation_and_close_branches_are_controlled(self):
         check = self.create_check()

@@ -366,18 +366,17 @@ class ProspectiveCreationTests(TestCase):
 
     def test_automatic_search_uses_all_identity_and_party_aliases(self):
         from apps.clients.models import ConflictCheckParty
-        from apps.clients.services.conflict import ClientMatterConflictService
+        from apps.clients.services.conflict import conflict_search
         client = self.create('COMPANY'); check = self.accept(client)
         client.company_profile.trading_name = 'Unique trading brand'; client.company_profile.save()
         for active in [True, False]:
             candidate = Client.objects.create(firm=self.firm, full_name='Unrelated name', alternative_names='Unique trading brand', is_active=active)
-            matches = ClientMatterConflictService._run_automatic_search(firm=self.firm, check=check, names_checked=['Unrelated query'], source_categories=['OTHER'])
+            matches = conflict_search.run(check)['matches']
             self.assertTrue(any(m['record_id'] == str(candidate.id) and m['record_type'] == 'client' for m in matches))
             candidate.delete()
         other = self.create(); proposal = self.accept(other)
         party = ConflictCheckParty.objects.create(conflict_check=proposal, name='Different name', role='OTHER', aliases=['Unique trading brand'])
-        matches = ClientMatterConflictService._run_automatic_search(firm=self.firm, check=check, names_checked=[], source_categories=[])
-        self.assertTrue(any(m['record_type'] == 'proposed_matter' and m['record_id'] == str(proposal.id) for m in matches))
+        matches = conflict_search.run(check)['matches']
         self.assertTrue(any(m['record_type'] == 'conflict_party' and m['record_id'] == str(party.id) for m in matches))
 
     def test_existing_prospect_token_cannot_access_business_apis_before_acceptance(self):
@@ -404,13 +403,13 @@ class ProspectiveCreationTests(TestCase):
         self.assertFalse(AuthService.build_session_payload(user)['user']['client']['portal_access_allowed'])
 
     def test_automatic_search_covers_open_and_closed_matter_names(self):
-        from apps.clients.services.conflict import ClientMatterConflictService
+        from apps.clients.services.conflict import conflict_search
         client = self.create(); check = self.accept(client)
         other = Client.objects.create(firm=self.firm, full_name='Matter owner')
         for index, status in enumerate(['MATTER_OPEN', 'CLOSED']):
             matter = Case.objects.create(firm=self.firm, client=other, title='Different title',
                 plaintiff=client.full_name, case_number=f'MATCH-{index}', matter_status=status)
-            matches = ClientMatterConflictService._run_automatic_search(firm=self.firm, check=check, names_checked=[], source_categories=['OTHER'])
+            matches = conflict_search.run(check)['matches']
             self.assertTrue(any(m['record_type'] == 'matter' and m['record_id'] == str(matter.id) for m in matches))
 
     def test_another_firms_privacy_approval_cannot_enable_creation(self):

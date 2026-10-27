@@ -24,6 +24,20 @@ class FirmSetting(TimestampedModel):
         choices=[('SHARED', 'Shared reception — all advocates'), ('ASSIGNED', 'Secretaries handle their assigned advocates')],
     )
 
+    # Whether every client and matter the firm has acted in is recorded here.
+    # A firm that also keeps records elsewhere checks conflicts with a guided
+    # checklist until its record of past checks is complete enough to search alone.
+    conflict_records_scope = models.CharField(
+        max_length=30, default='ALL_IN_SYSTEM',
+        choices=[
+            ('ALL_IN_SYSTEM', 'All our client and matter records are in this system'),
+            ('INCLUDES_OUTSIDE_RECORDS', 'We also keep client and matter records outside this system'),
+        ],
+    )
+
+    # Sends party names to the configured AI service to catch near-matches.
+    conflict_ai_matching_enabled = models.BooleanField(default=False)
+
     firm = models.OneToOneField(
         "firm.LawFirm",
         on_delete=models.CASCADE,

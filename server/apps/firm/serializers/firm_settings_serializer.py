@@ -7,6 +7,8 @@ class FirmSettingSerializer(serializers.ModelSerializer):
         model = FirmSetting
         fields = [
             "queue_reception_mode",
+            "conflict_records_scope",
+            "conflict_ai_matching_enabled",
             "timezone",
             "language",
             "currency",

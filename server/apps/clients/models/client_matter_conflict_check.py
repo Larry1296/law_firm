@@ -64,6 +64,8 @@ class ClientMatterConflictCheck(TimestampedModel):
     urgency_level = models.CharField(max_length=30, blank=True, default="")
     urgency_details = models.TextField(blank=True, default="")
     jurisdiction_facts = models.JSONField(default=dict, blank=True)
+    # The latest system conflict search: names searched, matches and the search mode.
+    system_search = models.JSONField(default=dict, blank=True)
     limitation_or_deadline_date = models.DateField(null=True, blank=True)
     status = models.CharField(
         max_length=40,
@@ -349,6 +351,50 @@ class ConflictCheckParty(TimestampedModel):
 
     def __str__(self):
         return f"{self.name} - {self.role}"
+
+
+class ConflictSourceReview(TimestampedModel):
+    """An advocate's confirmation of one source in a guided conflict check.
+
+    A match the system did not find is kept as a firm record, so later
+    searches find it and the firm moves toward fully automatic checks.
+    """
+
+    class Outcome(models.TextChoices):
+        NO_MATCH = "NO_MATCH", "No match"
+        MATCH_FOUND = "MATCH_FOUND", "Match found"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conflict_check = models.ForeignKey(
+        ClientMatterConflictCheck,
+        on_delete=models.CASCADE,
+        related_name="source_reviews",
+    )
+    source = models.CharField(max_length=40, choices=ConflictCheckSourceCategory.choices)
+    outcome = models.CharField(max_length=20, choices=Outcome.choices)
+    system_match_count = models.PositiveIntegerField(default=0)
+    matched_name = models.CharField(max_length=255, blank=True, default="")
+    relationship_to_firm = models.CharField(max_length=255, blank=True, default="")
+    details = models.TextField(blank=True, default="")
+    reviewed_by = models.ForeignKey(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="conflict_source_reviews",
+    )
+    reviewed_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "client_matter_conflict_source_reviews"
+        ordering = ["created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["conflict_check", "source"], name="unique_conflict_source_review"),
+        ]
+
+    @property
+    def missed_by_system(self):
+        return self.outcome == self.Outcome.MATCH_FOUND and self.system_match_count == 0
 
 
 class ConflictCheckHistory(TimestampedModel):
