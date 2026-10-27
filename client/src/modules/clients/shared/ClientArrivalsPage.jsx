@@ -12,6 +12,13 @@ import { useClientQueue, useQueueAction } from './useClientQueue';
 
 const emptyArrival = { visitor_name: '', client: '', advocate: '', urgency_flag: false, urgency_note: '' };
 const emptyIntake = { contact_details: '', acting_capacity: '', other_parties: '', broad_issue: '', deadline: '' };
+const ON_BEHALF = 'On behalf of: ';
+const actingOptions = [{ value: 'PERSONALLY', label: 'Personally' }, { value: 'ON_BEHALF', label: 'On behalf of someone else' }];
+// Acting capacity is stored as "Personally" or "On behalf of: <who and in what capacity>".
+const splitActing = (value = '') => (value === 'Personally' ? { acting_mode: 'PERSONALLY', acting_for: '' }
+  : value.startsWith(ON_BEHALF) ? { acting_mode: 'ON_BEHALF', acting_for: value.slice(ON_BEHALF.length) } : { acting_mode: '', acting_for: '' });
+const intakePayload = ({ acting_mode, acting_for, ...intake }) => ({ ...intake, deadline: intake.deadline || null,
+  acting_capacity: acting_mode === 'PERSONALLY' ? 'Personally' : acting_mode === 'ON_BEHALF' ? `${ON_BEHALF}${acting_for.trim()}` : '' });
 const intakeLabels = { contact_details: 'Contact details', acting_capacity: 'Acting personally or representing someone', other_parties: 'Other parties', broad_issue: 'Broad nature of enquiry', deadline: 'Known deadline' };
 const errorText = (error) => {
   const data = error?.response?.data;
@@ -112,7 +119,7 @@ export default function ClientArrivalsPage() {
             {Object.entries(intakeLabels).filter(([key]) => visit[key]).map(([key, label]) => <div key={key}><dt className='font-medium'>{label}</dt><dd>{visit[key]}</dd></div>)}
           </dl>}
           <div className='flex flex-wrap gap-3'>
-            {canConductConsultation && visit.can_record_intake && <Button3D variant='outlineLight' disabled={pending} onClick={() => { setSelected(visit.id); setIntake(Object.fromEntries(Object.keys(emptyIntake).map((key) => [key, visit[key] || '']))); }}>Record consultation intake</Button3D>}
+            {canConductConsultation && visit.can_record_intake && <Button3D variant='outlineLight' disabled={pending} onClick={() => { setSelected(visit.id); setIntake({ ...Object.fromEntries(Object.keys(emptyIntake).map((key) => [key, visit[key] || ''])), ...splitActing(visit.acting_capacity) }); }}>Record consultation intake</Button3D>}
             {data.role === 'ADMIN' && visit.status === 'WAITING' && <Button3D variant='outlineLight' disabled={pending || data.queues?.some((q) => q.advocate === visit.advocate && (q.current || q.called))} onClick={async () => {
 
               act(visit.id, 'CALL');
@@ -129,10 +136,13 @@ export default function ClientArrivalsPage() {
             <SelectInput name={`link-client-${visit.id}`} label='Client to link to this arrival' placeholder='Select the client record' options={data.clients} value={clientLinks[visit.id] || ''} onChange={(event) => setClientLinks({ ...clientLinks, [visit.id]: event.target.value })} />
             <Button3D disabled={pending || !clientLinks[visit.id]} onClick={() => mutation.mutate({ id: visit.id, payload: { action: 'LINK_CLIENT', client: clientLinks[visit.id] } })}>Link client record</Button3D>
           </div>}
-          {selected === visit.id && canConductConsultation && visit.can_record_intake && <form className='space-y-4 border-t border-[color:var(--border)] pt-4' onSubmit={(event) => { event.preventDefault(); mutation.mutate({ id: visit.id, payload: { action: 'INTAKE', ...intake, deadline: intake.deadline || null } }); }}>
+          {selected === visit.id && canConductConsultation && visit.can_record_intake && <form className='space-y-4 border-t border-[color:var(--border)] pt-4' onSubmit={(event) => { event.preventDefault(); mutation.mutate({ id: visit.id, payload: { action: 'INTAKE', ...intakePayload(intake) } }); }}>
             <p className='text-sm'>Keep this preliminary. Record detailed instructions through the existing matter and conflict-check workflow.</p>
             <fieldset disabled={pending} className='grid gap-4 md:grid-cols-2'>
-              {Object.entries(intakeLabels).map(([key, label]) => <TextInput key={key} name={`intake-${visit.id}-${key}`} label={label} type={key === 'deadline' ? 'date' : 'text'} required={key === 'broad_issue'} maxLength={key === 'other_parties' ? 1000 : key === 'broad_issue' ? 500 : 255} value={intake[key]} onChange={(event) => setIntake({ ...intake, [key]: event.target.value })} />)}
+              {Object.entries(intakeLabels).map(([key, label]) => key === 'acting_capacity' ? <div key={key} className='space-y-4'>
+                <SelectInput name={`intake-${visit.id}-acting-mode`} label={label} placeholder='Select' options={actingOptions} value={intake.acting_mode || ''} onChange={(event) => setIntake({ ...intake, acting_mode: event.target.value })} />
+                {intake.acting_mode === 'ON_BEHALF' && <TextInput name={`intake-${visit.id}-acting-for`} label='Specify who and in what capacity' required maxLength={255 - ON_BEHALF.length} help='For example: director of Baraka Homes Limited, or administrator of the estate of the late J. Kamau.' value={intake.acting_for || ''} onChange={(event) => setIntake({ ...intake, acting_for: event.target.value })} />}
+              </div> : <TextInput key={key} name={`intake-${visit.id}-${key}`} label={label} type={key === 'deadline' ? 'date' : 'text'} required={key === 'broad_issue'} maxLength={key === 'other_parties' ? 1000 : key === 'broad_issue' ? 500 : 255} value={intake[key]} onChange={(event) => setIntake({ ...intake, [key]: event.target.value })} />)}
             </fieldset>
             <div className='flex flex-wrap gap-3'>
               <Button3D type='submit' disabled={pending}>{mutation.isPending ? 'Saving…' : 'Save consultation intake'}</Button3D>

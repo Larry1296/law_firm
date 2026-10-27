@@ -44,7 +44,11 @@ class ClientVisitTests(TestCase):
         self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.action(pk, 'START').status_code, 200)
         self.assertEqual(self.action(pk, 'COMPLETE').status_code, 400)
-        self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt', other_parties='Other party').status_code, 200)
+        for capacity in ['Acting for my brother', 'On behalf of: ']:
+            self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt', acting_capacity=capacity).status_code, 400)
+        self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt', other_parties='Other party',
+            acting_capacity='On behalf of: director of Baraka Homes Limited').status_code, 200)
+        self.assertEqual(ClientVisit.objects.get(pk=pk).acting_capacity, 'On behalf of: director of Baraka Homes Limited')
         self.assertEqual(self.action(pk, 'COMPLETE').status_code, 200)
         self.assertEqual(self.action(pk, 'START').status_code, 400)
         self.api.force_authenticate(self.secretary.user)

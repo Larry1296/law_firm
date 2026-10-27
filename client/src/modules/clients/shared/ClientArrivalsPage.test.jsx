@@ -72,8 +72,13 @@ describe('client arrival staffing flows', () => {
       advocate: 'a1', status: 'IN_CONSULTATION', intake_handler: 'ADVOCATE', can_record_intake: true, can_consult: true }] });
     fireEvent.click(await screen.findByRole('button', { name: 'Record consultation intake' }));
     fireEvent.change(screen.getByLabelText(/Broad nature of enquiry/), { target: { value: 'Debt recovery' } });
+    expect(screen.queryByLabelText(/Specify who and in what capacity/)).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Acting personally or representing someone/), { target: { value: 'ON_BEHALF' } });
+    fireEvent.change(screen.getByLabelText(/Specify who and in what capacity/), { target: { value: ' director of Baraka Homes Limited ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save consultation intake' }));
-    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/v1/', expect.objectContaining({ action: 'INTAKE', broad_issue: 'Debt recovery' })));
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/v1/', expect.objectContaining({ action: 'INTAKE', broad_issue: 'Debt recovery',
+      acting_capacity: 'On behalf of: director of Baraka Homes Limited' })));
+    expect(axios.post.mock.calls[0][1]).not.toHaveProperty('acting_mode');
     expect(screen.queryByText('Record arrival')).toBeNull();
   });
   it('allows the assigned advocate to signal readiness for the next client', async () => {

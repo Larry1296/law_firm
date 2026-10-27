@@ -85,6 +85,12 @@ class VisitSerializer(serializers.ModelSerializer):
             'intake_completed_at', 'intake_completed_by', 'consultation_started_at', 'closed_at',
             'called_at', 'called_by', 'ushered_by', 'created_at', 'updated_at']
 
+    def validate_acting_capacity(self, value):
+        value = (value or '').strip()
+        if value and value != 'Personally' and not (value.startswith('On behalf of: ') and value[len('On behalf of: '):].strip()):
+            raise serializers.ValidationError('Select personally, or specify who the visitor is acting for.')
+        return value
+
     def validate(self, attrs):
         firm = self.context['firm']
         advocate = attrs.get('advocate')
