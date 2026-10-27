@@ -9,6 +9,7 @@ from .views.me_view import MeView
 from .views.register_view import RegisterFirmView
 from .views.recover_account_view import RecoverAccountView
 from .views.reset_password_view import ResetPasswordView
+from .views.unlock_pin_view import UnlockPinView, UnlockWithPinView
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
@@ -16,6 +17,8 @@ urlpatterns = [
     path("me/", MeView.as_view(), name="auth-me"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("logout/", LogoutView.as_view(), name="logout"),
+    path("unlock/", UnlockWithPinView.as_view(), name="unlock-with-pin"),
+    path("unlock-pin/", UnlockPinView.as_view(), name="unlock-pin"),
     path("change-password/", ChangePasswordView.as_view(), name="change-password"),
     path("forgot-password/", ForgotPasswordView.as_view(), name="forgot-password"),
     path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),

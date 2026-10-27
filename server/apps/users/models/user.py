@@ -63,6 +63,18 @@ class User(AbstractBaseUser, PermissionsMixin, TimestampedModel):
         default=False,
     )
 
+    # A 6-digit PIN that unlocks a locked workspace on a device that is still
+    # signed in. Hashed like a password; blank until the user sets one.
+    unlock_pin = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+    )
+
+    unlock_pin_failed_attempts = models.PositiveSmallIntegerField(
+        default=0,
+    )
+
     is_active = models.BooleanField(
         default=True,
     )

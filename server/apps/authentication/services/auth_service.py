@@ -1,4 +1,7 @@
+import re
+
 from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import update_last_login
 from django.contrib.auth.tokens import default_token_generator
 from django.conf import settings
@@ -15,6 +18,9 @@ from apps.common.choices import UserRole
 from apps.firm.models import LawFirm
 from apps.firm.models import LawFirmMember
 from apps.users.models import User
+
+UNLOCK_PIN_LENGTH = 6
+UNLOCK_PIN_MAX_ATTEMPTS = 3
 
 FIRM_SUSPENDED_MESSAGE = (
     "Your firm's account has been suspended. Please contact the platform administrator."
@@ -73,6 +79,7 @@ class AuthService:
                 "is_firm_owner": is_firm_owner,
                 "is_platform_admin": user.role == UserRole.PLATFORM_ADMIN,
                 "must_change_password": must_change_password,
+                "has_unlock_pin": bool(user.unlock_pin),
                 "client": client_payload,
                 "firm": firm_payload,
             },
@@ -240,6 +247,71 @@ class AuthService:
             return True, None
         except Exception:
             return False, "Invalid refresh token"
+
+    @staticmethod
+    def set_unlock_pin(*, user, current_password, pin):
+        """Set or replace the 6-digit PIN that unlocks a locked workspace."""
+        if not user.check_password(current_password):
+            return False, "Current password is incorrect."
+        if not re.fullmatch(r"\d{%d}" % UNLOCK_PIN_LENGTH, pin or ""):
+            return False, f"The PIN must be exactly {UNLOCK_PIN_LENGTH} digits."
+        if len(set(pin)) == 1 or pin in "0123456789" or pin in "9876543210":
+            return False, "Choose a PIN that is harder to guess than repeated or consecutive digits."
+
+        user.unlock_pin = make_password(pin)
+        user.unlock_pin_failed_attempts = 0
+        user.save(update_fields=["unlock_pin", "unlock_pin_failed_attempts"])
+        return True, None
+
+    @staticmethod
+    def remove_unlock_pin(user):
+        user.unlock_pin = ""
+        user.unlock_pin_failed_attempts = 0
+        user.save(update_fields=["unlock_pin", "unlock_pin_failed_attempts"])
+
+    @staticmethod
+    def unlock_with_pin(*, refresh_token, pin):
+        """
+        Unlock a locked workspace with the PIN. The PIN only works alongside the
+        device's own sign-in (its refresh token), so it cannot sign anyone in
+        from elsewhere. Too many wrong PINs remove the PIN and end that sign-in.
+
+        Returns (session, error, signed_out).
+        """
+        try:
+            token = RefreshToken(refresh_token)
+        except Exception:
+            return None, "Your sign-in has ended. Sign in again with your password.", True
+
+        user = User.objects.filter(id=token.get("user_id"), is_active=True).first()
+        if user is None:
+            return None, "Your sign-in has ended. Sign in again with your password.", True
+        if not user.unlock_pin:
+            return None, "Set an unlock PIN on your profile first, or unlock with your password.", False
+
+        if not check_password(pin or "", user.unlock_pin):
+            user.unlock_pin_failed_attempts += 1
+            if user.unlock_pin_failed_attempts >= UNLOCK_PIN_MAX_ATTEMPTS:
+                AuthService.remove_unlock_pin(user)
+                token.blacklist()
+                return None, "Too many wrong PINs. Sign in again with your password; your PIN has been removed.", True
+            user.save(update_fields=["unlock_pin_failed_attempts"])
+            remaining = UNLOCK_PIN_MAX_ATTEMPTS - user.unlock_pin_failed_attempts
+            return None, f"Wrong PIN. {remaining} {'try' if remaining == 1 else 'tries'} left.", False
+
+        firm = AuthService.user_firm(user)
+        if firm is not None and not firm.is_active:
+            return None, FIRM_SUSPENDED_MESSAGE, True
+
+        user.unlock_pin_failed_attempts = 0
+        user.save(update_fields=["unlock_pin_failed_attempts"])
+        token.blacklist()
+        refresh = RefreshToken.for_user(user)
+        return {
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            **AuthService.build_session_payload(user),
+        }, None, False
 
     @staticmethod
     def password_setup_link(user):

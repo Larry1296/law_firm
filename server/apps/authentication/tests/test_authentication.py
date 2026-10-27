@@ -271,3 +271,68 @@ class FirmPayloadContactTests(TestCase):
         self.assertEqual(contact, {"location": "Ngong Road, Nairobi, Nairobi", "phone_number": "+254722123456",
                                    "email": "info@kamauwanjiku.co.ke", "website": ""})
         self.assertIsNone(AuthService.firm_payload(None)["contact"])
+
+
+class UnlockPinTests(TestCase):
+    def setUp(self):
+        self.api = APIClient()
+        self.user = User.objects.create_user(
+            email="pin-owner@example.com", password="strong-pass123", first_name="Pin", last_name="Owner",
+            phone_number="+254733000081", national_id_number="733000081", role=UserRole.ADMIN,
+        )
+        LawFirm.objects.create(name="Pin Firm", registration_number="PIN-001", owner=self.user, is_active=True)
+        signed_in = self.api.post("/api/auth/login/", {"email": self.user.email, "password": "strong-pass123"}, format="json")
+        self.refresh = signed_in.data["refresh"]
+        self.assertFalse(signed_in.data["user"]["has_unlock_pin"])
+        self.api.credentials(HTTP_AUTHORIZATION=f"Bearer {signed_in.data['access']}")
+
+    def set_pin(self, pin, password="strong-pass123"):
+        return self.api.post("/api/auth/unlock-pin/", {"current_password": password, "pin": pin}, format="json")
+
+    def unlock(self, pin, refresh=None):
+        return APIClient().post("/api/auth/unlock/", {"refresh": refresh or self.refresh, "pin": pin}, format="json")
+
+    def test_pin_needs_the_password_and_six_hard_to_guess_digits(self):
+        self.assertEqual(self.set_pin("482915", password="wrong-pass").status_code, 400)
+        self.assertEqual(self.set_pin("4829").status_code, 400)
+        self.assertEqual(self.set_pin("111111").status_code, 400)
+        self.assertEqual(self.set_pin("123456").status_code, 400)
+        self.assertEqual(self.set_pin("482915").status_code, 200)
+        self.user.refresh_from_db()
+        self.assertNotEqual(self.user.unlock_pin, "482915")
+        self.assertTrue(self.api.get("/api/auth/me/").data["user"]["has_unlock_pin"])
+
+    def test_pin_unlocks_with_a_fresh_sign_in_and_retires_the_old_one(self):
+        self.set_pin("482915")
+
+        unlocked = self.unlock("482915")
+
+        self.assertEqual(unlocked.status_code, 200, unlocked.data)
+        self.assertEqual(unlocked.data["user"]["email"], self.user.email)
+        self.assertNotEqual(unlocked.data["refresh"], self.refresh)
+        self.assertEqual(self.unlock("482915").status_code, 401)
+        self.assertEqual(self.unlock("482915", refresh=unlocked.data["refresh"]).status_code, 200)
+
+    def test_pin_does_not_work_without_this_devices_sign_in(self):
+        self.set_pin("482915")
+        self.assertEqual(self.unlock("482915", refresh="not-a-token").status_code, 401)
+
+    def test_three_wrong_pins_remove_the_pin_and_end_the_sign_in(self):
+        self.set_pin("482915")
+
+        first = self.unlock("000001")
+        self.assertEqual(first.status_code, 400)
+        self.assertIn("2 tries left", first.data["detail"])
+        self.assertEqual(self.unlock("000002").status_code, 400)
+        third = self.unlock("000003")
+
+        self.assertEqual(third.status_code, 401)
+        self.assertTrue(third.data["signed_out"])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.unlock_pin, "")
+        self.assertEqual(self.unlock("482915").status_code, 401)
+
+    def test_pin_can_be_removed(self):
+        self.set_pin("482915")
+        self.assertEqual(self.api.delete("/api/auth/unlock-pin/").status_code, 200)
+        self.assertEqual(self.unlock("482915").status_code, 400)
