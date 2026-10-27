@@ -250,3 +250,24 @@ class TemporaryPasswordGateTests(TestCase):
         self.staff.refresh_from_db()
         self.assertFalse(self.staff.must_change_password)
         self.assertEqual(self.api.get("/api/cases/").status_code, 200)
+
+
+class FirmPayloadContactTests(TestCase):
+    def test_signed_in_members_get_their_firms_own_contact_details(self):
+        from apps.authentication.services.auth_service import AuthService
+
+        owner = User.objects.create_user(
+            email="contact-owner@example.com", password="strong-pass123", first_name="Contact", last_name="Owner",
+            phone_number="+254733000091", national_id_number="733000091", role=UserRole.ADMIN,
+        )
+        firm = LawFirm.objects.create(
+            name="Kamau & Wanjiku Advocates", registration_number="CONTACT-001", owner=owner,
+            physical_address="Ngong Road", town="Nairobi", county="Nairobi", phone_number="+254722123456",
+            email="info@kamauwanjiku.co.ke",
+        )
+
+        contact = AuthService.firm_payload(firm)["contact"]
+
+        self.assertEqual(contact, {"location": "Ngong Road, Nairobi, Nairobi", "phone_number": "+254722123456",
+                                   "email": "info@kamauwanjiku.co.ke", "website": ""})
+        self.assertIsNone(AuthService.firm_payload(None)["contact"])

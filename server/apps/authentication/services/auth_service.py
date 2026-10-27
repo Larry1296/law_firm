@@ -83,13 +83,15 @@ class AuthService:
 
     @staticmethod
     def firm_payload(firm):
-        """What every signed-in member needs to brand their dashboard with their firm."""
+        """What every signed-in member needs to brand their dashboard, and its footer, with their firm."""
         if firm is None:
-            return {"id": None, "name": None, "logo_url": None}
+            return {"id": None, "name": None, "logo_url": None, "contact": None}
         logo_url = None
         if firm.logo:
             logo_url = f"/firm-logo/{firm.id}/?v={int(firm.updated_at.timestamp())}"
-        return {"id": firm.id, "name": firm.name, "logo_url": logo_url}
+        location = ", ".join(part for part in (firm.physical_address, firm.town, firm.county) if part)
+        contact = {"location": location, "phone_number": firm.phone_number or "", "email": firm.email or "", "website": firm.website or ""}
+        return {"id": firm.id, "name": firm.name, "logo_url": logo_url, "contact": contact}
 
     @staticmethod
     def user_firm(user):

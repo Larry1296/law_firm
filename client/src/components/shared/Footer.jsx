@@ -1,11 +1,41 @@
-import { FaFacebook, FaTwitter, FaLinkedin } from "react-icons/fa";
-import { Mail, Phone, MapPin } from "lucide-react";
+import { useContext } from "react";
+import { Globe, Mail, Phone, MapPin } from "lucide-react";
 import Brand from "@/components/ui/Brand";
+import AuthContext from "@/core/store/AuthContext";
+
+// Inside a firm's workspace the footer shows that firm's own contact details,
+// as recorded on its firm profile; nothing is shown that the firm has not recorded.
+function FirmContact({ contact }) {
+  const rows = [
+    [<MapPin size={16} />, contact.location],
+    [<Phone size={16} />, contact.phone_number],
+    [<Mail size={16} />, contact.email],
+    [<Globe size={16} />, contact.website],
+  ].filter(([, value]) => value);
+  if (!rows.length) return null;
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-4 text-white dark:text-white/90">Contact</h3>
+      <div className="space-y-3 text-sm text-white dark:text-white/70">
+        {rows.map(([icon, value]) => (
+          <div key={value} className="flex items-center gap-2">
+            {icon}
+            <span>{value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Footer() {
+  const auth = useContext(AuthContext);
+  const contact = auth?.user?.firm?.contact;
+
   return (
     <footer className="mt-auto shell-surface">
-      <div className="max-w-7xl mx-auto px-6 py-12 grid md:grid-cols-3 gap-10">
+      <div className="max-w-7xl mx-auto px-6 py-12 grid md:grid-cols-2 gap-10">
         {/* LOGO / ABOUT */}
         <div>
           <Brand size="h-24 w-24" textSize="text-2xl" textColor="text-white" />
@@ -15,40 +45,7 @@ export default function Footer() {
           </p>
         </div>
 
-        {/* CONTACT */}
-        <div>
-          <h3 className="font-semibold mb-4 text-white dark:text-white/90">Contact</h3>
-          <div className="space-y-3 text-sm text-white dark:text-white/70">
-            <div className="flex items-center gap-2">
-              <MapPin size={16} />
-              <span>Nairobi, Kenya</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Phone size={16} />
-              <span>+254 700 000 000</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Mail size={16} />
-              <span>info@sheriadesk.com</span>
-            </div>
-          </div>
-        </div>
-
-        {/* SOCIAL */}
-        <div>
-          <h3 className="font-semibold mb-4 text-white dark:text-white/90">Follow Us</h3>
-          <div className="flex gap-4 text-white dark:text-white/80">
-            <a href="#" className="hover:text-white transition">
-              <FaFacebook />
-            </a>
-            <a href="#" className="hover:text-white transition">
-              <FaTwitter />
-            </a>
-            <a href="#" className="hover:text-white transition">
-              <FaLinkedin />
-            </a>
-          </div>
-        </div>
+        {contact && <FirmContact contact={contact} />}
       </div>
 
       {/* BOTTOM */}
