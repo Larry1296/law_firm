@@ -103,6 +103,8 @@ describe('creation safeguards', () => {
     expect(screen.getByText(/optional and is not consent/)).toBeInTheDocument();
     change(/Full legal name/, 'Jane'); change(/Alternative names/, 'Former Jane');
     fireEvent.click(screen.getByLabelText(/Portal-enabled/)); change(/Safe email/, 'jane@example.test'); fillPrivacy();
+    expect(screen.getByRole('option', {name: 'Paper copy'})).toBeInTheDocument();
+    expect(screen.queryByRole('option', {name: /portal/i})).toBeNull();
     fireEvent.click(screen.getByRole('button', {name: 'Create prospective client'}));
     await screen.findByText('Prospective client created');
     const payload = service.create.mock.calls[0][1];

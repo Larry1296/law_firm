@@ -25,7 +25,8 @@ class PreliminaryRepresentativeSerializer(StrictSerializer):
 
 class ProspectivePrivacySerializer(StrictSerializer):
     privacy_notice_delivered = serializers.BooleanField()
-    delivery_method = serializers.ChoiceField(choices=['PAPER', 'EMAIL', 'SMS', 'VERBAL', 'PORTAL'])
+    # No portal login exists yet when a prospective client is created, so the notice cannot go by portal.
+    delivery_method = serializers.ChoiceField(choices=['PAPER', 'EMAIL', 'SMS', 'VERBAL'])
     acknowledged = serializers.BooleanField(default=False)
     acknowledgement_reference = serializers.CharField(max_length=255, required=False, allow_blank=True)
 

@@ -137,6 +137,8 @@ class ProspectiveCreationTests(TestCase):
             self.assertEqual(self.api.post(self.url, payload, format='json').status_code, 400)
         payload = prospect_payload(); payload['privacy']['privacy_notice_delivered'] = False
         self.assertEqual(self.api.post(self.url, payload, format='json').status_code, 400)
+        payload = prospect_payload('INDIVIDUAL', 'PORTAL_ENABLED'); payload['privacy']['delivery_method'] = 'PORTAL'
+        self.assertEqual(self.api.post(self.url, payload, format='json').status_code, 400)
 
     def test_portal_requires_individual_email_or_organisation_contact(self):
         payload = prospect_payload(access='PORTAL_ENABLED'); payload.pop('email')

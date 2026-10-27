@@ -8,6 +8,13 @@ const ACCESS_OPTIONS = [
   { value: 'ASSISTED', id: 'FIRM_MANAGED', label: 'Firm-managed — no portal login' },
   { value: 'PORTAL_ENABLED', id: 'PORTAL_ENABLED', label: 'Portal-enabled — controlled client dashboard access' },
 ];
+// No portal login exists yet for a prospective client, so the notice cannot be delivered by portal.
+const DELIVERY_OPTIONS = [
+  { value: 'PAPER', label: 'Paper copy' },
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'SMS', label: 'SMS' },
+  { value: 'VERBAL', label: 'Read and explained verbally' },
+];
 
 export default function AdminCreateClientPage() {
   const location = useLocation();
@@ -98,7 +105,7 @@ export default function AdminCreateClientPage() {
           {!metadata.intake_privacy && <p role='alert' className='rounded-lg bg-amber-50 p-3 text-amber-900 sm:col-span-2'>An approved active firm intake-privacy configuration is required before creation. Ask your firm administrator to configure and approve it. Lawful basis and privacy notice version are filled automatically and cannot be typed here.</p>}
           <label className='block text-sm text-[color:var(--text-primary)]'><span className='mb-1 block font-medium'>Lawful basis</span><input className='form-control w-full' placeholder='No approved configuration' readOnly value={metadata.intake_privacy?.lawful_basis_label || ''} /></label>
           <label className='block text-sm text-[color:var(--text-primary)]'><span className='mb-1 block font-medium'>Privacy notice version</span><input className='form-control w-full' placeholder='No approved configuration' readOnly value={metadata.intake_privacy?.policy_version || ''} /></label>
-          <SelectField label='Delivery method' required options={['PAPER', 'EMAIL', 'SMS', 'VERBAL', 'PORTAL'].map(value => ({value, label: value}))} value={state.privacy.delivery_method} onChange={(delivery_method) => setObject('privacy', { delivery_method })} />
+          <SelectField label='Delivery method' required options={DELIVERY_OPTIONS} value={state.privacy.delivery_method} onChange={(delivery_method) => setObject('privacy', { delivery_method })} />
           <p>Acknowledgement is optional and is not consent. The delivering staff member and time are recorded automatically.</p>
           <Field label='Privacy notice delivered' type='checkbox' required value={state.privacy.privacy_notice_delivered} onChange={(privacy_notice_delivered) => setObject('privacy', { privacy_notice_delivered })} />
           <Field label='Acknowledged where appropriate' type='checkbox' value={state.privacy.acknowledged} onChange={(acknowledged) => setObject('privacy', { acknowledged })} />
