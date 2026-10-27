@@ -716,9 +716,10 @@ class ClientMatterConflictService:
                     raise ValidationError({
                         "source_reviews": f"A match was recorded in {', '.join(found)}. Record a potential conflict instead of clearing."
                     })
-            names_checked = cls._normalize_list(
-                [item["name"] for item in search["names_searched"]] + cls._normalize_list(data.get("names_checked"))
-            )
+            names_checked = {}
+            for name in [item["name"] for item in search["names_searched"]] + cls._normalize_list(data.get("names_checked")):
+                names_checked.setdefault(" ".join(conflict_search.name_tokens(name)), str(name).strip())
+            names_checked = list(names_checked.values())
             sources = list(reviews) if guided and reviews else search["sources_searched"]
             extra_sources = [item for item in cls._normalize_list(data.get("source_categories_checked")) if item not in sources]
             invalid_sources = [item for item in extra_sources if item not in ConflictCheckSourceCategory.values]

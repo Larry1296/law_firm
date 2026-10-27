@@ -423,7 +423,7 @@ class ClientMatterConflictCheckTests(APITestCase):
         self.assertEqual(response.status_code, 200, response.data)
         check.refresh_from_db()
         self.assertEqual(check.status, ConflictCheckStatus.CLEARED)
-        self.assertIn("Proposed Adverse Ltd", check.names_checked)
+        self.assertEqual(check.names_checked, ["Conflict Client Ltd", "Proposed Adverse Ltd"])
         self.assertIn(ConflictCheckSourceCategory.FIRM_ADVOCATES_AND_STAFF, check.source_categories_checked)
         self.assertIn("No conflict found", check.result_summary)
 
