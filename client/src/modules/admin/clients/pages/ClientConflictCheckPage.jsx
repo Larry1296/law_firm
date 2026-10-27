@@ -587,7 +587,7 @@ export default function ClientConflictCheckPage() {
           <p><strong>Instructions:</strong> {check.proposed_instructions}</p>
           <p><strong>Factual summary:</strong> {check.factual_summary || 'Not recorded'}</p>
           <p><strong>Desired outcome:</strong> {check.desired_outcome || 'Not recorded'}</p>
-          <p><strong>Adverse parties:</strong> {(check.adverse_parties || []).join(', ') || 'None recorded'}</p>
+          <p><strong>Parties:</strong> {(check.parties || []).map((party) => `${party.name} (${PARTY_ROLE_OPTIONS.find((option) => option.value === party.role)?.label || party.role})`).join(', ') || 'None recorded'}</p>
           {showFirstReviewerFindings && <p><strong>First-reviewer findings:</strong> {firstReviewerFindingsText}</p>}
           {showClearanceResult && <p><strong>Clearance result:</strong> {check.result_summary || 'Not recorded'}</p>}
           {showInternalConflictReason && <p><strong>Internal conflict reason:</strong> {check.internal_reason || 'Not recorded'}</p>}
