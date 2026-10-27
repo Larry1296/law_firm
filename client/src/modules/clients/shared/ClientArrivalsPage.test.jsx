@@ -42,13 +42,33 @@ describe('client arrival staffing flows', () => {
     await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ icon: 'error', text: 'Advocate is unavailable.' })));
     expect(screen.getByLabelText(/Visitor name/).value).toBe('A Visitor');
   });
-  it('shows receptionist intake and FIFO positions per advocate', async () => {
+  it('keeps reception on arrival duties even if stale data offers intake', async () => {
     show({ ...base, role: 'RECEPTIONIST', has_receptionist: true, visits: [1, 2].map((id) => ({ id: String(id), visitor_name: `Visitor ${id}`, advocate: 'a1', advocate_name: 'Advocate One', received_by_name: 'Reception', arrival_at: '2026-10-21T08:00:00Z', status: 'WAITING', intake_handler: 'RECEPTIONIST', can_record_intake: true, can_consult: false })) });
     await screen.findByText('Visitor 1');
     expect(screen.getByText(/Queue position 2/)).toBeTruthy();
-    fireEvent.click(screen.getAllByText('Record preliminary intake')[0]);
-    expect(screen.getByLabelText(/Broad nature of enquiry/)).toBeTruthy();
+    expect(screen.queryByText('Record consultation intake')).toBeNull();
+    expect(screen.queryByLabelText(/Broad nature of enquiry/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Complete consultation' })).toBeNull();
     expect(screen.queryByText('Call client / start consultation')).toBeNull();
+  });
+  it('does not offer consultation controls to an admin viewing another advocate’s queue', async () => {
+    const current = { id: 'v1', visitor_name: 'Visitor', advocate: 'a1', status: 'IN_CONSULTATION',
+      intake_handler: 'ADVOCATE', intake_completed_at: '2026-10-26T08:00:00Z', can_record_intake: false, can_consult: false };
+    show({ ...base, role: 'ADMIN', visits: [current], queues: [{ advocate: 'a1', advocate_name: 'Advocate One',
+      waiting_count: 0, current, called: null, next: null, can_call: true }] });
+    await screen.findByText('Waiting and consultations');
+    expect(screen.queryByRole('button', { name: 'Complete consultation' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Record consultation intake' })).toBeNull();
+  });
+  it('lets the assigned advocate record consultation intake', async () => {
+    axios.post.mockResolvedValue({ data: {} });
+    show({ ...base, role: 'ADVOCATE', can_receive: false, visits: [{ id: 'v1', visitor_name: 'Visitor',
+      advocate: 'a1', status: 'IN_CONSULTATION', intake_handler: 'ADVOCATE', can_record_intake: true, can_consult: true }] });
+    fireEvent.click(await screen.findByRole('button', { name: 'Record consultation intake' }));
+    fireEvent.change(screen.getByLabelText(/Broad nature of enquiry/), { target: { value: 'Debt recovery' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save consultation intake' }));
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/v1/', expect.objectContaining({ action: 'INTAKE', broad_issue: 'Debt recovery' })));
+    expect(screen.queryByText('Record arrival')).toBeNull();
   });
   it('allows the assigned advocate to signal readiness for the next client', async () => {
     axios.post.mockResolvedValue({ data: {} });

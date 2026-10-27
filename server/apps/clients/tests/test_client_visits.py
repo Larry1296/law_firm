@@ -67,18 +67,57 @@ class ClientVisitTests(TestCase):
         self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(other.pk)).status_code, 400)
         self.assertEqual(ClientVisit.objects.get(pk=pk).client_id, client.pk)
 
-    def test_receptionist_route_and_server_enforcement(self):
+    def test_receptionist_handles_arrival_but_only_advocate_handles_consultation(self):
         receptionist = self.receptionist()
-        pk = self.arrive()
-        self.assertEqual(ClientVisit.objects.get(pk=pk).intake_handler, 'RECEPTIONIST')
-        self.api.force_authenticate(self.lawyer.user)
-        self.assertEqual(self.action(pk, 'START').status_code, 400)
-        self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt').status_code, 403)
         self.api.force_authenticate(receptionist.user)
-        self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt').status_code, 200)
+        pk = self.arrive()
+        self.assertEqual(ClientVisit.objects.get(pk=pk).intake_handler, 'ADVOCATE')
+        for action in ['INTAKE', 'START', 'COMPLETE']:
+            self.assertEqual(self.action(pk, action, broad_issue='Debt').status_code, 403)
+        self.assertEqual(self.api.post(self.url, {'visitor_name': 'Visitor', 'advocate': str(self.lawyer.pk),
+            'broad_issue': 'Debt'}, format='json').status_code, 400)
         self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.action(pk, 'START').status_code, 200)
+        self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt', other_parties='Private party').status_code, 200)
+        self.api.force_authenticate(receptionist.user)
+        row = self.api.get(self.url).data['visits'][0]
+        self.assertFalse(row['can_record_intake'])
+        self.assertFalse(row['can_consult'])
+        self.assertNotIn('broad_issue', row)
+        self.assertNotIn('other_parties', row)
+        self.assertEqual(self.action(pk, 'COMPLETE').status_code, 403)
+        self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.action(pk, 'COMPLETE').status_code, 200)
+
+    def test_admin_cannot_consult_for_another_advocate(self):
+        pk = self.arrive()
+        self.api.force_authenticate(self.owner)
+        self.assertEqual(self.action(pk, 'START').status_code, 403)
+        self.api.force_authenticate(self.lawyer.user)
+        self.assertEqual(self.action(pk, 'START').status_code, 200)
+        self.api.force_authenticate(self.owner)
+        self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt').status_code, 403)
+        self.assertEqual(self.action(pk, 'COMPLETE').status_code, 403)
+
+    def test_owner_advocate_can_consult_own_assigned_visitor(self):
+        lawyer = Lawyer.objects.create(user=self.owner, law_firm=self.firm, staff_number='OWNER',
+            admission_number='OWNER', date_hired=date.today(), office_location='Partner office')
+        response = self.api.post(self.url, {'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json')
+        self.assertEqual(response.status_code, 201)
+        pk = response.data['id']
+        self.api.force_authenticate(self.owner)
+        self.assertEqual(self.action(pk, 'START').status_code, 200)
+        self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt').status_code, 200)
+        self.assertEqual(self.action(pk, 'COMPLETE').status_code, 200)
+
+    def test_legacy_reception_intake_does_not_block_advocate(self):
+        self.receptionist()
+        pk = self.arrive()
+        ClientVisit.objects.filter(pk=pk).update(intake_handler='RECEPTIONIST')
+        self.api.force_authenticate(self.lawyer.user)
+        self.assertEqual(self.action(pk, 'START').status_code, 200)
+        self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt').status_code, 200)
+        self.assertEqual(ClientVisit.objects.get(pk=pk).intake_handler, 'ADVOCATE')
 
     def test_inactive_receptionist_and_other_firm_do_not_change_route(self):
         receptionist = self.receptionist()
@@ -235,7 +274,7 @@ class ClientVisitTests(TestCase):
         FirmSetting.objects.update_or_create(firm=self.firm, defaults={'queue_reception_mode': 'ASSIGNED'})
         self.api.force_authenticate(receptionist.user)
         self.assertEqual(len(self.api.get(self.url).data['queues']), 2)
-        self.assertEqual(self.action(self.arrive(), 'INTAKE', broad_issue='Enquiry').status_code, 200)
+        self.assertEqual(self.action(self.arrive(), 'INTAKE', broad_issue='Enquiry').status_code, 403)
 
     def test_called_client_can_leave_and_next_client_can_be_called(self):
         self.set_office()

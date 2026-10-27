@@ -103,17 +103,18 @@ def record(visit, user, action):
              'office_location': office_label(visit.advocate)})
 
 
-def serialize_visit(visit, role, profile, receptionist=None):
+def serialize_visit(visit, role, profile):
     data = VisitSerializer(visit).data
     assigned = role in ['ADVOCATE', 'ADMIN'] and profile is not None and visit.advocate_id == profile.pk
-    receptionist = has_receptionist(visit.firm) if receptionist is None else receptionist
-    can_intake = ((role == 'RECEPTIONIST' and visit.intake_handler == 'RECEPTIONIST') or
-        (assigned and visit.status == 'IN_CONSULTATION' and (visit.intake_handler == 'ADVOCATE' or not receptionist)))
-    if not (can_intake or assigned):
+    # Legal intake belongs to the assigned advocate, including legacy reception visits.
+    can_intake = assigned and visit.status == 'IN_CONSULTATION'
+    if not assigned:
         for field in INTAKE_FIELDS:
             data.pop(field, None)
+    if not visit.intake_completed_at:
+        data['intake_handler'] = 'ADVOCATE'
     data['can_record_intake'] = bool(can_intake and not visit.intake_completed_at and visit.status in ACTIVE_STATUSES)
-    data['can_consult'] = bool(assigned or role == 'ADMIN')
+    data['can_consult'] = bool(assigned)
     data['can_call'] = bool(assigned or role == 'ADMIN')
     data['can_usher'] = role in ['ADMIN', 'SECRETARY', 'RECEPTIONIST'] and visit.status == 'CALLED'
     return data
@@ -141,7 +142,7 @@ class ClientVisitListView(APIView):
             .select_related('advocate__user', 'advocate__branch', 'received_by')
             .filter(Q(status__in=ACTIVE_STATUSES) | Q(closed_at__date=timezone.localdate())))
         receptionist = has_receptionist(firm)
-        rows = [serialize_visit(v, role, profile, receptionist) for v in visits]
+        rows = [serialize_visit(v, role, profile) for v in visits]
         queues = []
         for lawyer in lawyers:
             own = [row for row in rows if row['advocate'] == lawyer.pk or str(row['advocate']) == str(lawyer.pk)]
@@ -170,16 +171,15 @@ class ClientVisitListView(APIView):
         if role not in ['ADMIN', 'SECRETARY', 'RECEPTIONIST']:
             raise PermissionDenied('Reception or the secretary records arrivals.')
         LawFirm.objects.select_for_update().get(pk=firm.pk)
-        receptionist = has_receptionist(firm)
-        allowed = ARRIVAL_FIELDS | (INTAKE_FIELDS if role == 'RECEPTIONIST' and receptionist else set())
+        allowed = ARRIVAL_FIELDS
         if set(request.data) - allowed:
-            raise ValidationError('Only the designated intake handler may record preliminary intake fields.')
+            raise ValidationError('Record arrival details only. The assigned advocate records legal intake during consultation.')
         serializer = VisitSerializer(data=request.data, context={'firm': firm})
         serializer.is_valid(raise_exception=True)
         advocate = serializer.validated_data['advocate']
         if not visible_lawyers(firm, role, profile).filter(pk=advocate.pk).exists():
             raise PermissionDenied('This advocate is not assigned to you. Ask the admin to update secretary coverage.')
-        visit = serializer.save(firm=firm, received_by=request.user, intake_handler='RECEPTIONIST' if receptionist else 'ADVOCATE')
+        visit = serializer.save(firm=firm, received_by=request.user, intake_handler='ADVOCATE')
         record(visit, request.user, 'CLIENT_VISIT_ARRIVED')
         Notification.objects.create(firm=firm, recipient=visit.advocate.user, actor=request.user,
             title='Urgent client arrival' if visit.urgency_flag else 'Client waiting for consultation', message='A visitor has joined your waiting queue.',
@@ -218,7 +218,7 @@ class ClientVisitActionView(APIView):
             visit.save(update_fields=['client', 'updated_at'])
         elif action == 'INTAKE':
             if not permissions['can_record_intake']:
-                raise PermissionDenied('Only the designated intake handler can complete preliminary intake.')
+                raise PermissionDenied('Only the assigned advocate can record legal intake during consultation.')
             if set(request.data) - INTAKE_FIELDS - {'action'}:
                 raise ValidationError('Unsupported intake fields.')
             serializer = VisitSerializer(visit, data={k: v for k, v in request.data.items() if k != 'action'}, partial=True, context={'firm': firm})
@@ -226,13 +226,13 @@ class ClientVisitActionView(APIView):
             if not (serializer.validated_data.get('broad_issue', visit.broad_issue) or '').strip():
                 raise ValidationError({'broad_issue': 'Record the broad nature of the enquiry.'})
             serializer.save(intake_completed_at=timezone.now(), intake_completed_by=request.user,
-                intake_handler='RECEPTIONIST' if role == 'RECEPTIONIST' else 'ADVOCATE')
+                intake_handler='ADVOCATE')
         elif action in ['CALL', 'START', 'USHER']:
             if action == 'USHER':
                 if not permissions['can_usher']:
                     raise PermissionDenied('Only reception or the secretary can usher a called client in.')
-            elif not permissions['can_consult']:
-                raise PermissionDenied('The assigned advocate or admin calls the client.')
+            elif not permissions['can_call' if action == 'CALL' else 'can_consult']:
+                raise PermissionDenied('Only the assigned advocate conducts the consultation; an admin may manage calls.')
             if visit.status not in (['CALLED'] if action == 'USHER' else ['WAITING'] if action == 'CALL' else ['WAITING', 'CALLED']):
                 raise ValidationError('This visit is no longer waiting for that action. Refresh the queue.')
             if ClientVisit.objects.filter(advocate=visit.advocate, status__in=['CALLED', 'IN_CONSULTATION']).exclude(pk=visit.pk).exists():
@@ -243,10 +243,6 @@ class ClientVisitActionView(APIView):
                     raise ValidationError('Call the next client in arrival order. Only the admin may call out of order.')
             if action == 'CALL' and not office_label(visit.advocate):
                 raise ValidationError('Ask the admin to set this advocate’s office before calling a client.')
-            if visit.intake_handler == 'RECEPTIONIST' and not visit.intake_completed_at:
-                if has_receptionist(firm):
-                    raise ValidationError('Reception must complete preliminary intake first.')
-                visit.intake_handler = 'ADVOCATE'
             if action == 'CALL':
                 visit.status = 'CALLED'
                 visit.called_at = timezone.now()
@@ -267,7 +263,7 @@ class ClientVisitActionView(APIView):
                 })
         elif action == 'COMPLETE':
             if not permissions['can_consult']:
-                raise PermissionDenied('The assigned advocate completes the consultation.')
+                raise PermissionDenied('Only the assigned advocate completes the consultation.')
             if visit.status != 'IN_CONSULTATION' or not visit.intake_completed_at:
                 raise ValidationError('Start the consultation and complete preliminary intake first.')
             visit.status = 'COMPLETED'

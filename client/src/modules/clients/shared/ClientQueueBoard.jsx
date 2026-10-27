@@ -1,7 +1,6 @@
 import { BellRing, DoorOpen, Users } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button3D from '@/components/ui/Button3D';
-import Swal from '@/core/utils/themedSwal';
 
 export default function ClientQueueBoard({ data, pending = false, onAction }) {
   const queues = data.queues || [];
@@ -17,7 +16,6 @@ export default function ClientQueueBoard({ data, pending = false, onAction }) {
     <div className='grid gap-4 lg:grid-cols-2 xl:grid-cols-3'>
       {queues.map((queue) => {
         const waiting = (data.visits || []).filter((visit) => visit.advocate === queue.advocate && visit.status === 'WAITING');
-        const intakePending = queue.next?.intake_handler === 'RECEPTIONIST' && !queue.next?.intake_completed_at && data.has_receptionist;
         return <Card key={queue.advocate} className='flex flex-col gap-4 p-5'>
           <div className='flex items-start justify-between gap-3'>
             <div><h3 className='font-semibold'>{queue.advocate_name}</h3><p className='form-hint mt-1 flex items-center gap-1 text-sm'><DoorOpen size={15} aria-hidden='true' />{queue.office_location || 'Office not assigned'}</p></div>
@@ -44,16 +42,15 @@ export default function ClientQueueBoard({ data, pending = false, onAction }) {
             <p className='font-semibold'>{queue.called.visitor_name}</p>
             <p className='text-sm'>To {queue.advocate_name} · {queue.office_location}</p>
             {queue.called.can_usher && <Button3D size='sm' disabled={pending} onClick={() => onAction(queue.called.id, 'USHER')}>Client ushered in</Button3D>}
-            {queue.can_call && <Button3D variant='outlineLight' size='sm' disabled={pending} onClick={() => onAction(queue.called.id, 'START')}>Client is in office</Button3D>}
+            {queue.called.can_consult && <Button3D variant='outlineLight' size='sm' disabled={pending} onClick={() => onAction(queue.called.id, 'START')}>Client is in office</Button3D>}
           </div>}
           {queue.can_call && <div className='mt-auto space-y-2 border-t border-[color:var(--border)] pt-4'>
-            {queue.current ? <>
+            {queue.current ? queue.current.can_consult && <>
               <Button3D className='w-full' disabled={pending || !queue.current.intake_completed_at} onClick={() => onAction(queue.current.id, 'COMPLETE')}>Complete consultation</Button3D>
               {!queue.current.intake_completed_at && <p className='form-hint text-xs'>Record intake in Client arrivals before completing this consultation.</p>}
             </> : !queue.called && <>
-              <Button3D className='w-full gap-2' disabled={pending || !queue.next || !queue.office_location || intakePending} onClick={() => onAction(queue.next.id, 'CALL')}><BellRing size={17} aria-hidden='true' />Ready for next client</Button3D>
+              <Button3D className='w-full gap-2' disabled={pending || !queue.next || !queue.office_location} onClick={() => onAction(queue.next.id, 'CALL')}><BellRing size={17} aria-hidden='true' />Ready for next client</Button3D>
               {!queue.office_location && <p className='form-hint text-xs'>The admin must assign an office before a client can be called.</p>}
-              {intakePending && <p className='form-hint text-xs'>Reception must finish this client’s preliminary intake first.</p>}
             </>}
           </div>}
         </Card>;
