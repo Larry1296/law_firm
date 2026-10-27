@@ -110,7 +110,7 @@ class EndToEndLitigationTests(TestCase):
         self.ok(self.as_user(self.secretary_user).post(visit_url, {"action": "USHER"}, format="json"))
         self.ok(self.as_user(self.advocate_user).post(visit_url, {
             "action": "INTAKE", "broad_issue": "Recovery for unpaid hardware supplies",
-            "other_parties": "Baraka Builders Limited", "acting_capacity": "Company director",
+            "other_parties": "Baraka Builders Limited", "acting_capacity": "On behalf of: Kamau Hardware Limited, as company director",
         }, format="json"))
         self.ok(self.as_user(self.advocate_user).post(visit_url, {"action": "COMPLETE"}, format="json"))
         self.visit_id = arrival['id']
