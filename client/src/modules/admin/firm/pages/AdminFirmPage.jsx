@@ -31,6 +31,11 @@ const languageOptions = {
   Swahili: 'Swahili',
 };
 
+const conflictRecordsOptions = {
+  ALL_IN_SYSTEM: 'All our client and matter records are in this system',
+  INCLUDES_OUTSIDE_RECORDS: 'We also keep client and matter records outside this system',
+};
+
 const currencyOptions = {
   KES: 'KES',
   USD: 'USD',
@@ -363,6 +368,21 @@ export default function AdminFirmPage() {
     settingsMutation.mutate({
       [field]: !value,
     });
+  };
+
+  // Party names and the facts leave the firm for the AI service, so switching it on is confirmed.
+  const toggleConflictAiMatching = async (enabled) => {
+    if (!enabled) {
+      const result = await Swal.fire({
+        title: 'Use AI in conflict searches?',
+        text: 'Party names and the factual summary of each proposed matter are sent to the configured AI service to catch near-matches and parties missing from the list. The AI can add possible matches but never clears a conflict.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Switch on',
+      });
+      if (!result.isConfirmed) return;
+    }
+    settingsMutation.mutate({ conflict_ai_matching_enabled: !enabled });
   };
 
   const toggleFirmActive = async (firm) => {
@@ -998,6 +1018,25 @@ export default function AdminFirmPage() {
               parser: (newValue) => Number(newValue) || 60,
             })
           }
+        />
+        <FieldRow
+          label='Conflict Records'
+          value={conflictRecordsOptions[settings.conflict_records_scope]}
+          onUpdate={() =>
+            updateSettingField({
+              field: 'conflict_records_scope',
+              label: 'Conflict Records',
+              value: settings.conflict_records_scope,
+              input: 'select',
+              inputOptions: conflictRecordsOptions,
+            })
+          }
+        />
+        <FieldRow
+          label='AI Conflict Matching'
+          value={settings.conflict_ai_matching_enabled}
+          actionLabel={`${settings.conflict_ai_matching_enabled ? 'Disable' : 'Enable'} AI Conflict Matching`}
+          onUpdate={() => toggleConflictAiMatching(settings.conflict_ai_matching_enabled)}
         />
         {[
           ['work_on_saturday', 'Work On Saturday'],

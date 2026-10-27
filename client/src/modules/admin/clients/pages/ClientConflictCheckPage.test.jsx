@@ -101,15 +101,27 @@ function renderPage(conflictCheck = {}) {
   return user;
 }
 
-async function selectClearedOutcome(user) {
-  await screen.findByText('CC-2026-00001');
-  await user.click(screen.getByRole('button', { name: /select next outcome/i }));
-  await user.click(screen.getByRole('option', { name: 'Cleared' }));
-}
+const searchCheck = (search = {}, extra = {}) => ({
+  system_search: {
+    mode: 'AUTOMATIC', reason: 'ALL_RECORDS_IN_SYSTEM', clean_streak: null, required: 25,
+    ran_at: '2026-10-27T04:24:00Z', record_count: 12, sources_searched: ['CURRENT_CLIENTS', 'FORMER_CLIENTS'],
+    names_searched: [{ name: 'Jane Client', role: 'Prospective client' }, { name: 'Baraka Hardware Ltd', role: 'Proposed adverse party' }],
+    matches: [], unlisted_parties: [], ai: { enabled: false, used: false, provider: '' },
+    ...search,
+  },
+  source_reviews: [],
+  search_checklist: [
+    { source: 'CURRENT_CLIENTS', label: 'Current clients', guidance: 'Current clients, including any register kept outside this system.', system_match_count: 0 },
+    { source: 'FORMER_CLIENTS', label: 'Former clients', guidance: 'Former clients, including archived files.', system_match_count: 0 },
+  ],
+  ...extra,
+});
 
-function getNamesCheckedInput() {
-  return screen.getByLabelText(/Names checked, comma separated/i);
-}
+const riskMatch = {
+  searched_name: 'Baraka Hardware Ltd', searched_role: 'Proposed adverse party', matched_name: 'Baraka Hardware Limited',
+  source: 'CURRENT_CLIENTS', relationship: 'Current client', reference: 'KYC-001', record_type: 'client', record_id: 'c-9',
+  reason: 'Same name', found_by: 'SYSTEM', conflict_risk: true,
+};
 
 describe('ClientConflictCheckPage source checks', () => {
   beforeEach(() => {
@@ -126,71 +138,71 @@ describe('ClientConflictCheckPage source checks', () => {
     expect(screen.queryByPlaceholderText(/search by reference/i)).not.toBeInTheDocument();
   });
 
-  it('allows several sources to be checked and keeps them visibly checked', async () => {
-    const user = renderPage();
+  it('clears a clean automatic search with one confirmation', async () => {
+    const user = renderPage(searchCheck());
 
-    await selectClearedOutcome(user);
-    await user.click(screen.getByRole('checkbox', { name: 'Current clients' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Former clients' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Open matters' }));
-
-    expect(screen.getByRole('checkbox', { name: 'Current clients' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Former clients' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Open matters' })).toBeChecked();
-  });
-
-  it('unchecking one source preserves the other selected sources', async () => {
-    const user = renderPage();
-
-    await selectClearedOutcome(user);
-    await user.click(screen.getByRole('checkbox', { name: 'Current clients' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Former clients' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Current clients' }));
-
-    expect(screen.getByRole('checkbox', { name: 'Current clients' })).not.toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Former clients' })).toBeChecked();
-  });
-
-  it('submits the complete source_categories_checked array', async () => {
-    const user = renderPage();
-
-    await selectClearedOutcome(user);
-    await user.type(getNamesCheckedInput(), 'Jane Client, Former Tenant');
-    await user.click(screen.getByRole('checkbox', { name: 'Current clients' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Former clients' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Open matters' }));
-    await user.click(screen.getByRole('button', { name: /record outcome/i }));
+    expect(await screen.findByText('No conflict found')).toBeInTheDocument();
+    const confirm = screen.getByRole('button', { name: /confirm clearance/i });
+    expect(confirm).toBeDisabled();
+    await user.click(screen.getByRole('checkbox', { name: /I confirm this professional conflict decision/i }));
+    await user.click(confirm);
 
     await waitFor(() => expect(mocks.runConflictAction).toHaveBeenCalled());
-    expect(mocks.runConflictAction.mock.calls[0][3]).toMatchObject({
-      source_categories_checked: ['CURRENT_CLIENTS', 'FORMER_CLIENTS', 'OPEN_MATTERS'],
-    });
+    expect(mocks.runConflictAction.mock.calls[0][2]).toBe('decide');
+    expect(mocks.runConflictAction.mock.calls[0][3]).toMatchObject({ decision: 'CLEARED', decision_confirmation: true });
   });
 
-  it('shows validation and blocks a cleared decision when no source is checked', async () => {
-    const user = renderPage();
+  it('does not offer clearance from the outcome list while the search panel holds it', async () => {
+    const user = renderPage(searchCheck({}, {
+      permitted_next_statuses: [{ value: 'AWAITING_INFORMATION', label: 'Awaiting information' }, { value: 'CLEARED', label: 'Cleared' }],
+    }));
 
-    await selectClearedOutcome(user);
+    await screen.findByText('CC-2026-00001');
+    await user.click(screen.getByRole('button', { name: /select next outcome/i }));
+    expect(screen.getByRole('option', { name: 'Awaiting information' })).toBeInTheDocument();
 
-    expect(screen.getByText('Select at least one source checked before recording a cleared decision.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /record outcome/i })).toBeDisabled();
-    expect(mocks.runConflictAction).not.toHaveBeenCalled();
+    expect(screen.queryByRole('option', { name: 'Cleared' })).not.toBeInTheDocument();
   });
 
-  it('requires an other source description when OTHER is selected', async () => {
+  it('holds back clearance and prepares a potential conflict when the search finds a risk', async () => {
+    const user = renderPage(searchCheck({ matches: [riskMatch] }, {
+      permitted_next_statuses: [{ value: 'POTENTIAL_CONFLICT', label: 'Potential conflict' }],
+    }));
+
+    expect(await screen.findByText('Possible conflicts')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /confirm clearance/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /record potential conflict/i }));
+
+    expect(screen.getByLabelText(/first reviewer findings/i)).toHaveValue('Baraka Hardware Ltd matches Baraka Hardware Limited: Current client.');
+  });
+
+  it('shows a same-side match for information and still allows clearance', async () => {
+    renderPage(searchCheck({ matches: [{ ...riskMatch, relationship: 'Proposed adverse party in PMA/CONF/2026/0001', conflict_risk: false }] }));
+
+    expect(await screen.findByText(/For information: same side as before/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /confirm clearance/i })).toBeInTheDocument();
+  });
+
+  it('walks a guided firm through each source and shows its progress toward automatic searches', async () => {
+    const user = renderPage(searchCheck({ mode: 'GUIDED', reason: 'OUTSIDE_RECORDS', clean_streak: 3 }));
+
+    expect(await screen.findByText('3 of 25 clean checks')).toBeInTheDocument();
+    expect(screen.getByText('Confirm each source · 0 of 2 done')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /confirm clearance/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /no match in this source/i }));
+
+    await waitFor(() => expect(mocks.runConflictAction).toHaveBeenCalled());
+    expect(mocks.runConflictAction.mock.calls[0][2]).toBe('review-source');
+    expect(mocks.runConflictAction.mock.calls[0][3]).toEqual({ source: 'CURRENT_CLIENTS', outcome: 'NO_MATCH' });
+  });
+
+  it('offers to run the search for a check started before searches were stored', async () => {
     const user = renderPage();
 
-    await selectClearedOutcome(user);
-    await user.type(getNamesCheckedInput(), 'Jane Client');
-    await user.click(screen.getByRole('checkbox', { name: 'Other' }));
+    await user.click(await screen.findByRole('button', { name: /run the conflict search/i }));
 
-    const description = screen.getByLabelText(/other source description/i);
-    expect(description).toBeRequired();
-    expect(screen.getByRole('button', { name: /record outcome/i })).toBeDisabled();
-
-    await user.type(description, 'Manual archived paper index');
-
-    expect(screen.getByRole('button', { name: /record outcome/i })).not.toBeDisabled();
+    await waitFor(() => expect(mocks.runConflictAction).toHaveBeenCalled());
+    expect(mocks.runConflictAction.mock.calls[0][2]).toBe('search');
   });
 
   it('displays saved sources with friendly labels on the detail page', async () => {
