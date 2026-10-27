@@ -102,7 +102,8 @@ const emptyAcceptanceDraft = {
   decision: 'ACCEPTED',
   reason_category: '',
   internal_reason: '',
-  scope_confirmation: '',
+  // null until edited: the scope starts as the proposed instructions.
+  scope_confirmation: null,
   engagement_status: 'SENT_TO_CLIENT',
 };
 
@@ -252,6 +253,7 @@ export default function ClientConflictCheckPage() {
     queryFn: () => service.getConflictCheck(clientId, checkId),
     enabled: !isNew && !!clientId && !!checkId,
   });
+  const acceptanceScope = acceptanceDraft.scope_confirmation ?? check?.proposed_instructions ?? '';
   const { data: complianceReview } = useQuery({
     queryKey: ['client-compliance-review', clientId],
     queryFn: () => adminClientsService.getComplianceReview(clientId),
@@ -301,7 +303,7 @@ export default function ClientConflictCheckPage() {
 
   const acceptanceMutation = useMutation({
     onError: showRefusal,
-    mutationFn: async () => service.recordFirmAcceptance(clientId, checkId, acceptanceDraft),
+    mutationFn: async () => service.recordFirmAcceptance(clientId, checkId, { ...acceptanceDraft, scope_confirmation: acceptanceScope }),
     onSuccess: () => {
       setAcceptanceDraft(emptyAcceptanceDraft);
       queryClient.invalidateQueries({ queryKey: ['client-conflict-check', isLawyer, clientId, checkId] });
@@ -716,7 +718,7 @@ export default function ClientConflictCheckPage() {
             <Select3D label='Decision' value={acceptanceDraft.decision} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, decision: e.target.value }))} options={[{ value: 'ACCEPTED', label: 'Accept instructions' }, { value: 'DECLINED', label: 'Decline instructions' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }]} required />
             <Select3D label='Engagement preparation stage' value={acceptanceDraft.engagement_status} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, engagement_status: e.target.value }))} options={[{ value: 'DRAFTING', label: 'Drafting' }, { value: 'SENT_TO_CLIENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed document received (formal approval still required)' }, { value: 'FEE_ARRANGEMENT_CONFIRMED', label: 'Fee terms confirmed (formal approval still required)' }]} />
             {acceptanceDraft.decision !== 'ACCEPTED' && <Select3D label='Reason category' value={acceptanceDraft.reason_category} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, reason_category: e.target.value }))} options={[{ value: 'OUTSIDE_EXPERTISE', label: 'Outside expertise' }, { value: 'CAPACITY_CONSTRAINT', label: 'Capacity constraint' }, { value: 'COMMERCIAL_TERMS', label: 'Commercial terms' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }, { value: 'CDD_RESTRICTED', label: 'CDD restricted' }, { value: 'OTHER', label: 'Other' }]} required />}
-            <TextArea label='Scope confirmation' value={acceptanceDraft.scope_confirmation} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, scope_confirmation: value }))} required={acceptanceDraft.decision === 'ACCEPTED'} />
+            <TextArea label='Scope confirmation' value={acceptanceScope} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, scope_confirmation: value }))} required={acceptanceDraft.decision === 'ACCEPTED'} />
             {acceptanceDraft.decision !== 'ACCEPTED' && <TextArea label='Restricted internal reason' value={acceptanceDraft.internal_reason} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, internal_reason: value }))} required />}
             <Button3D type='submit' variant='primary' disabled={acceptanceMutation.isPending}>
               {acceptanceMutation.isPending ? 'Recording...' : 'Record Acceptance Decision'}

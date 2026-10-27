@@ -248,6 +248,23 @@ describe('ClientConflictCheckPage source checks', () => {
     expect(await screen.findByText('Formal Engagement')).toBeInTheDocument();
   });
 
+  it('starts the accepted scope from the proposed instructions and sends any edit', async () => {
+    mocks.recordFirmAcceptance.mockResolvedValue({});
+    const user = renderPage({ status: 'CLEARED', permitted_next_statuses: [] });
+
+    const scope = await screen.findByLabelText(/Scope confirmation/);
+    expect(scope).toHaveValue('Review and advise on lease dispute.');
+
+    await user.type(scope, ' Demand letter first.');
+    await user.click(screen.getByRole('button', { name: 'Record Acceptance Decision' }));
+
+    await waitFor(() => expect(mocks.recordFirmAcceptance).toHaveBeenCalled());
+    expect(mocks.recordFirmAcceptance.mock.calls[0][2]).toMatchObject({
+      decision: 'ACCEPTED',
+      scope_confirmation: 'Review and advise on lease dispute. Demand letter first.',
+    });
+  });
+
   it('does not display misleading findings for direct clearance', async () => {
     renderPage({
       status: 'CLEARED',
