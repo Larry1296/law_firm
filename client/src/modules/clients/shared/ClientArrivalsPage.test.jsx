@@ -59,6 +59,12 @@ describe('client arrival staffing flows', () => {
     await screen.findByText('Waiting and consultations');
     expect(screen.queryByRole('button', { name: 'Complete consultation' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Record consultation intake' })).toBeNull();
+    expect(screen.getByText('Following the advocate’s direction, create or select the client record and link this arrival.')).toBeTruthy();
+  });
+  it('words the client link for the owner when they are the assigned advocate', async () => {
+    show({ ...base, role: 'ADMIN', visits: [{ id: 'v1', visitor_name: 'Visitor', advocate: 'a1', status: 'COMPLETED',
+      intake_handler: 'ADVOCATE', intake_completed_at: '2026-10-26T08:00:00Z', can_record_intake: false, can_consult: true }] });
+    expect(await screen.findByText('Create or select the client record and link this arrival.')).toBeTruthy();
   });
   it('lets the assigned advocate record consultation intake', async () => {
     axios.post.mockResolvedValue({ data: {} });
