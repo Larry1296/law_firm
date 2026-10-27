@@ -746,7 +746,7 @@ export default function ClientConflictCheckPage() {
         </Card>
       )}
 
-      {!isLawyer && (
+      {!isLawyer && check.status === 'CLEARED' && (
         <Card id='engagement-management' className='scroll-mt-28 p-6'>
           <h3 className='mb-2 text-lg font-semibold'>Formal Engagement</h3>
           <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
@@ -829,7 +829,7 @@ export default function ClientConflictCheckPage() {
         </Card>
       )}
 
-      {!isLawyer && complianceReview && (
+      {!isLawyer && check.status === 'CLEARED' && complianceReview && (
         <Card id='client-compliance-review' className='scroll-mt-28 p-6'>
           <h3 className='mb-2 text-lg font-semibold'>KYC, Authority and Due-Diligence Review</h3>
           <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>

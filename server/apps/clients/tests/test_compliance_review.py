@@ -1,11 +1,11 @@
 from datetime import date
 
 from django.test import TestCase
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apps.clients.models import Client, ClientComplianceReview
+from apps.clients.models import Client, ClientComplianceReview, ClientMatterConflictCheck
 from apps.clients.services.compliance_review_service import ClientComplianceReviewService
-from apps.common.choices import UserRole
+from apps.common.choices import ConflictCheckStatus, UserRole
 from apps.firm.models import LawFirm
 from apps.staff.models import Lawyer, LawyerPermission, LawyerPermissionGrant
 from apps.users.models import User
@@ -35,6 +35,20 @@ class ClientComplianceReviewTests(TestCase):
             firm=self.firm, created_by=self.owner, full_name="Compliance Client Limited",
             client_type=Client.ClientType.COMPANY,
         )
+        self.check = ClientMatterConflictCheck.objects.create(
+            firm=self.firm, client=self.client, reference_number="COMP/2026/0001",
+            proposed_matter_title="Advisory instruction", proposed_instructions="Provide a legal opinion.",
+            responsible_lawyer=self.reviewer, created_by=self.owner, status=ConflictCheckStatus.CLEARED,
+        )
+
+    def test_kyc_review_cannot_be_recorded_before_conflict_clearance(self):
+        self.check.status = ConflictCheckStatus.IN_PROGRESS
+        self.check.save(update_fields=["status"])
+        with self.assertRaises(ValidationError):
+            ClientComplianceReviewService.record(
+                user=self.reviewer.user, client_id=self.client.id,
+                data={"identity_status": "VERIFIED", "reason": "Identity documents reviewed."},
+            )
 
     def test_company_opening_requires_identity_authority_beneficial_ownership_and_dd_clearance(self):
         review = ClientComplianceReviewService.record(

@@ -89,12 +89,6 @@ class CaseLifecycleFrameworkTests(TestCase):
             lifecycle_status=Client.LifecycleStatus.PROSPECT,
         )
         self.api.force_authenticate(user=self.admin)
-        ClientComplianceReviewService.record(
-            user=self.admin, client_id=self.client.id,
-            data={"identity_status": "VERIFIED", "authority_status": "VERIFIED",
-                  "beneficial_ownership_status": "VERIFIED", "due_diligence_status": "CLEARED",
-                  "source_of_funds_status": "NOT_APPLICABLE", "reason": "Lifecycle fixture review."},
-        )
 
     def cleared_conflict_check(self, title="Lakeview proposed matter"):
         index = ClientMatterConflictCheck.objects.count() + 1
@@ -146,6 +140,12 @@ class CaseLifecycleFrameworkTests(TestCase):
             action="FINAL_DECISION_RECORDED",
             summary=check.result_summary,
             actor=self.admin,
+        )
+        ClientComplianceReviewService.record(
+            user=self.admin, client_id=self.client.id,
+            data={"identity_status": "VERIFIED", "authority_status": "VERIFIED",
+                  "beneficial_ownership_status": "VERIFIED", "due_diligence_status": "CLEARED",
+                  "source_of_funds_status": "NOT_APPLICABLE", "reason": "Lifecycle fixture review."},
         )
         engagement = EngagementService.create(
             user=self.admin, proposed_matter=check,

@@ -222,6 +222,20 @@ describe('ClientConflictCheckPage source checks', () => {
     expect(screen.queryByText(/CHECK_STARTED/)).not.toBeInTheDocument();
   });
 
+  it('hides engagement and KYC review until the conflict check is cleared', async () => {
+    renderPage({ status: 'IN_PROGRESS' });
+
+    expect(await screen.findByText('CC-2026-00001')).toBeInTheDocument();
+    expect(screen.queryByText('Formal Engagement')).not.toBeInTheDocument();
+    expect(screen.queryByText('KYC, Authority and Due-Diligence Review')).not.toBeInTheDocument();
+  });
+
+  it('offers engagement once the conflict check is cleared', async () => {
+    renderPage({ status: 'CLEARED', permitted_next_statuses: [] });
+
+    expect(await screen.findByText('Formal Engagement')).toBeInTheDocument();
+  });
+
   it('does not display misleading findings for direct clearance', async () => {
     renderPage({
       status: 'CLEARED',

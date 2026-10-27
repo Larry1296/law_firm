@@ -4,7 +4,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.clients.models import ClientMatterConflictCheck, EngagementHistory, EngagementRecord
 from apps.audit_logs.services import AuditService
-from apps.common.choices import UserRole
+from apps.common.choices import ConflictCheckStatus, UserRole
 from apps.staff.models import LawyerPermission
 
 
@@ -52,6 +52,8 @@ class EngagementService:
         proposed_matter = ClientMatterConflictCheck.objects.select_for_update().get(
             id=proposed_matter.id, firm=firm
         )
+        if proposed_matter.status != ConflictCheckStatus.CLEARED:
+            raise ValidationError({"engagement": "Clear the conflict check before preparing engagement terms."})
         if cls.current_for(proposed_matter):
             raise ValidationError({"engagement": "Supersede the current engagement before creating another version."})
         advocate = data["responsible_advocate"]

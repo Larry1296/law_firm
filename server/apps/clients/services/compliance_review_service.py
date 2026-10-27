@@ -4,7 +4,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.clients.models import Client, ClientComplianceHistory, ClientComplianceReview
 from apps.audit_logs.services import AuditService
-from apps.common.choices import UserRole
+from apps.common.choices import ConflictCheckStatus, UserRole
 from apps.staff.models import LawyerPermission
 
 
@@ -53,6 +53,8 @@ class ClientComplianceReviewService:
         if not cls._can_review(user, firm):
             raise PermissionDenied("Client compliance review permission is required.")
         review = cls.get_for_client(user=user, client_id=client_id, lock=True)
+        if not review.client.matter_conflict_checks.filter(status=ConflictCheckStatus.CLEARED).exists():
+            raise ValidationError({"conflict_check": "Clear a conflict check for this client before recording the KYC review."})
         tracked = [
             "identity_status", "authority_status", "beneficial_ownership_status",
             "due_diligence_status", "source_of_funds_required", "source_of_funds_status",

@@ -1,11 +1,11 @@
 from datetime import date
 
 from django.test import TestCase
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.clients.models import Client, ClientMatterConflictCheck, EngagementRecord
 from apps.clients.services.engagement_service import EngagementService
-from apps.common.choices import UserRole
+from apps.common.choices import ConflictCheckStatus, UserRole
 from apps.firm.models import FirmSetting, LawFirm
 from apps.staff.models import Lawyer, LawyerPermission, LawyerPermissionGrant
 from apps.users.models import User
@@ -46,7 +46,7 @@ class EngagementWorkflowTests(TestCase):
         self.proposal = ClientMatterConflictCheck.objects.create(
             firm=self.firm, client=self.client, reference_number="ENG/2026/0001",
             proposed_matter_title="Advisory instruction", proposed_instructions="Provide a legal opinion.",
-            responsible_lawyer=self.owner_lawyer, created_by=self.owner,
+            responsible_lawyer=self.owner_lawyer, created_by=self.owner, status=ConflictCheckStatus.CLEARED,
         )
 
     def create_draft(self):
@@ -60,6 +60,14 @@ class EngagementWorkflowTests(TestCase):
                 "fee_arrangement_description": "KES 50,000 plus approved disbursements.",
             },
         )
+
+    def test_engagement_cannot_be_prepared_before_conflict_clearance(self):
+        self.proposal.status = ConflictCheckStatus.IN_PROGRESS
+        self.proposal.save(update_fields=["status"])
+        with self.assertRaises(ValidationError):
+            self.create_draft()
+        self.assertFalse(self.proposal.engagements.exists())
+
 
     def test_exception_requires_independent_authorised_checker_and_audit_history(self):
         record = self.create_draft()
