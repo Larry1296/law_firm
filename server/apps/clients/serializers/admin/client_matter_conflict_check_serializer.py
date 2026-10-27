@@ -151,7 +151,7 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
         engagement = EngagementService.current_for(obj)
         compliance_errors = ClientComplianceReviewService.opening_errors(obj.client)
         proposed_forum = (obj.jurisdiction_facts or {}).get("forum", "")
-        jurisdiction_required = proposed_forum not in {"", "NO_FORMAL_FORUM"}
+        jurisdiction_required = proposed_forum != "NO_FORMAL_FORUM"
         checks = [
             {
                 "code": "CONFLICT_CLEARED",

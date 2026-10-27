@@ -9,6 +9,7 @@ from apps.clients.models import (
     Client, ClientComplianceReview, ClientMatterConflictCheck, ConflictCheckHistory,
     ConflictCheckParty, EngagementRecord, ProposedMatterJurisdiction,
 )
+from apps.clients.serializers.admin.client_matter_conflict_check_serializer import ClientMatterConflictCheckListSerializer
 from apps.clients.services.compliance_review_service import ClientComplianceReviewService
 from apps.clients.services.engagement_service import EngagementService
 from apps.clients.services.conflict.client_matter_conflict_service import ClientMatterConflictService
@@ -227,6 +228,18 @@ class ClientMatterConflictCheckTests(APITestCase):
         self.assertIsNone(check.created_case_id)
         self.assertEqual(check.parties.count(), 2)
         self.assertTrue(ConflictCheckHistory.objects.filter(conflict_check=check, action="PROPOSED_MATTER_CREATED").exists())
+
+    def test_jurisdiction_review_is_outstanding_until_forum_is_known(self):
+        check = self.create_check()
+        readiness = ClientMatterConflictCheckListSerializer().get_opening_readiness(check)
+        jurisdiction = next(item for item in readiness["checks"] if item["code"] == "JURISDICTION_REVIEW")
+        self.assertFalse(jurisdiction["complete"])
+
+        check.jurisdiction_facts = {"forum": "NO_FORMAL_FORUM"}
+        readiness = ClientMatterConflictCheckListSerializer().get_opening_readiness(check)
+        jurisdiction = next(item for item in readiness["checks"] if item["code"] == "JURISDICTION_REVIEW")
+        self.assertTrue(jurisdiction["complete"])
+
 
     def test_one_client_can_have_many_independent_checks(self):
         first = self.create_check()
