@@ -129,7 +129,8 @@ describe('creation safeguards', () => {
     expect(screen.getByRole('option', {name: 'Other — classification review required'})).toBeInTheDocument();
   });
   it('retains proprietor, trading and representative names in preliminary payload', async () => {
-    service.create.mockResolvedValue({client: {id: 'new', access_type: 'ASSISTED'}});
+    service.create.mockResolvedValue({client: {id: 'new', access_type: 'ASSISTED', client_type: 'SOLE_PROPRIETORSHIP', full_name: 'Legal name',
+      kyc_drawer_reference: null, type_profile: {proprietor_name: 'Owner', registered_business_name: 'Legal name'}}});
     renderPage(); await selectCategory('SOLE_PROPRIETORSHIP');
     expect(screen.queryByLabelText(/Legal \/ registered name/)).toBeNull();
     expect(screen.getByLabelText(/Other trading name \(if different\)/)).not.toBeRequired();
@@ -140,5 +141,8 @@ describe('creation safeguards', () => {
     fillPrivacy(); fireEvent.click(screen.getByRole('button', {name: 'Create prospective client'}));
     await screen.findByText('Prospective client created');
     expect(service.create.mock.calls[0][1]).toMatchObject({full_name: 'Legal name', alternative_names: 'Alias', legal_profile: {proprietor_name: 'Owner', trading_name: 'Brand'}, representative: {full_legal_name: 'Agent'}});
+    expect(screen.getByText('Owner t/a Legal name')).toBeInTheDocument();
+    expect(screen.getByText('KYC file reference').nextSibling).toHaveTextContent('Not assigned');
+    expect(screen.queryByText('new')).toBeNull();
   });
 });

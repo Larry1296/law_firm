@@ -15,6 +15,9 @@ const DELIVERY_OPTIONS = [
   { value: 'SMS', label: 'SMS' },
   { value: 'VERBAL', label: 'Read and explained verbally' },
 ];
+// A sole proprietor is named as the person trading under the business name, as in the profile's own name.
+const legalName = (client) => client.client_type === 'SOLE_PROPRIETORSHIP' && client.type_profile?.proprietor_name
+  ? `${client.type_profile.proprietor_name} t/a ${client.type_profile.registered_business_name || client.full_name}` : client.full_name;
 
 export default function AdminCreateClientPage() {
   const location = useLocation();
@@ -55,7 +58,7 @@ export default function AdminCreateClientPage() {
   if (created) return <main className='mx-auto max-w-4xl space-y-5 p-4 md:p-8'>
     <h1 className='text-2xl font-bold'>Prospective client created</h1>
     <dl className='grid gap-4 rounded-xl border p-5 sm:grid-cols-2'>{[
-      ['Prospective-client reference', created.kyc_drawer_reference || created.id], ['Legal name', created.full_name],
+      ['KYC file reference', created.kyc_drawer_reference || 'Not assigned'], ['Legal name', legalName(created)],
       ['Legal client category', category?.label], ['Access type', ACCESS_OPTIONS.find((item) => item.value === created.access_type)?.label],
       ['Lifecycle', 'Prospective'], ['Portal status', created.access_type === 'ASSISTED' ? 'No login account or invitation' : 'Pending — invitation not sent'],
       ['Compliance status', 'Not started / pending'],
