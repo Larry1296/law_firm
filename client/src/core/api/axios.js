@@ -58,7 +58,8 @@ axiosInstance.interceptors.request.use(
 
     const isAuthEndpoint =
       config.url?.includes('/login') ||
-      config.url?.includes('/token/refresh');
+      config.url?.includes('/token/refresh') ||
+      config.url?.includes('/auth/unlock/');
 
     // An expired token is never renewed silently: the screen locks instead.
     if (token && !isAuthEndpoint && (isSessionLocked() || lockIfExpired(token))) {
@@ -118,7 +119,8 @@ axiosInstance.interceptors.response.use(
 
     const isAuthEndpoint =
       originalRequest?.url?.includes('/login') ||
-      originalRequest?.url?.includes('/token/refresh');
+      originalRequest?.url?.includes('/token/refresh') ||
+      originalRequest?.url?.includes('/auth/unlock/');
 
     const isAdminStaffEndpoint = originalRequest?.url?.includes('/admin/staff/');
     const storedUser = getStoredAuth().user;

@@ -23,6 +23,8 @@ export const getStoredAuth = () => {
 export const saveAuthSession = ({ user, access, refresh }, rememberMe = true) => {
   const mode = rememberMe ? 'local' : 'session';
 
+  clearWorkspaceLock();
+
   localStorage.setItem(STORAGE_MODE_KEY, mode);
 
   if (rememberMe) {
@@ -44,7 +46,20 @@ export const saveAuthSession = ({ user, access, refresh }, rememberMe = true) =>
   }
 };
 
+// Set when the user locks their workspace by hand, so a reload stays locked.
+const WORKSPACE_LOCK_KEY = 'workspaceLocked';
+
+export const markWorkspaceLocked = () => getAuthStorage().setItem(WORKSPACE_LOCK_KEY, '1');
+
+export const isWorkspaceLockedByUser = () => !!getAuthStorage().getItem(WORKSPACE_LOCK_KEY);
+
+const clearWorkspaceLock = () => {
+  localStorage.removeItem(WORKSPACE_LOCK_KEY);
+  sessionStorage.removeItem(WORKSPACE_LOCK_KEY);
+};
+
 export const clearAuthSession = () => {
+  clearWorkspaceLock();
   localStorage.removeItem(STORAGE_MODE_KEY);
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');

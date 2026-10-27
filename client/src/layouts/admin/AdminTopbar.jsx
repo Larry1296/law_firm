@@ -2,6 +2,7 @@ import { Menu, Sun, Moon } from 'lucide-react';
 import { useContext } from 'react';
 import ThemeContext from '@/core/store/ThemeContext';
 import AuthContext from '@/core/store/AuthContext';
+import LockWorkspaceButton from '@/components/ui/LockWorkspaceButton';
 import NotificationBellDropdown from '@/modules/notifications/components/NotificationBellDropdown';
 
 export default function AdminTopbar({ onMenuClick }) {
@@ -32,6 +33,7 @@ export default function AdminTopbar({ onMenuClick }) {
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
+        <LockWorkspaceButton className={`p-2 rounded ${hoverEffect}`} />
         <NotificationBellDropdown
           className={hoverEffect}
           fallbackPath='/admin/communication/notifications'

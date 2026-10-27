@@ -77,6 +77,24 @@ const authService = {
   },
 
   // =====================
+  // WORKSPACE UNLOCK PIN
+  // =====================
+  async unlockWithPin(payload) {
+    const { data } = await axiosInstance.post('/auth/unlock/', payload);
+    return data;
+  },
+
+  async setUnlockPin(payload) {
+    const { data } = await axiosInstance.post('/auth/unlock-pin/', payload);
+    return data;
+  },
+
+  async removeUnlockPin() {
+    const { data } = await axiosInstance.delete('/auth/unlock-pin/');
+    return data;
+  },
+
+  // =====================
   // LOGOUT
   // =====================
   async logout(payload, options = {}) {

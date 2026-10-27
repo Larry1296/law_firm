@@ -1,6 +1,7 @@
 import { Menu, Sun, Moon } from 'lucide-react';
 import { useContext } from 'react';
 import ThemeContext from '@/core/store/ThemeContext';
+import LockWorkspaceButton from '@/components/ui/LockWorkspaceButton';
 import NotificationBellDropdown from '@/modules/notifications/components/NotificationBellDropdown';
 
 export default function LawyerTopbar({ onMenuClick }) {
@@ -33,6 +34,7 @@ export default function LawyerTopbar({ onMenuClick }) {
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
+        <LockWorkspaceButton className={`p-2 rounded ${hoverEffect}`} />
         <NotificationBellDropdown
           className={hoverEffect}
           fallbackPath='/lawyer/notifications'

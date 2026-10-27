@@ -11,6 +11,7 @@ import {
 
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
+import UnlockPinCard from '@/modules/profile/components/UnlockPinCard';
 import { displayEnum, initials } from '@/core/utils/textFormatter';
 
 const safe = (value) =>
@@ -225,6 +226,8 @@ export default function LoggedInUserProfile({
             </div>
 
             <div className='space-y-6'>
+              <UnlockPinCard />
+
               {showPermissions && (
                 <Card className='p-6'>
                   <div className='mb-4 flex items-center gap-2'>

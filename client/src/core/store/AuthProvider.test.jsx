@@ -17,6 +17,7 @@ vi.mock('@/modules/auth/service/authService', () => ({
     logout: vi.fn(),
     me: vi.fn(),
     refreshToken: vi.fn(),
+    unlockWithPin: vi.fn(),
   },
 }));
 
@@ -28,16 +29,21 @@ const jwt = (expiresAt) => {
   return `${encode({ alg: 'HS256' })}.${encode({ exp: Math.floor(expiresAt / 1000) })}.signature`;
 };
 
-function signIn({ accessExpiresAt, refreshExpiresAt = START + 7 * 24 * 60 * 60 * 1000 }) {
+function signIn({ accessExpiresAt, refreshExpiresAt = START + 7 * 24 * 60 * 60 * 1000, account = user }) {
   localStorage.setItem('authStorageMode', 'local');
   localStorage.setItem('accessToken', jwt(accessExpiresAt));
   localStorage.setItem('refreshToken', jwt(refreshExpiresAt));
-  localStorage.setItem('user', JSON.stringify(user));
+  localStorage.setItem('user', JSON.stringify(account));
 }
 
 function SignOutProbe() {
-  const { logout } = useContext(AuthContext);
-  return <button onClick={() => logout({ redirect: false })}>Sign out securely</button>;
+  const { logout, lockWorkspace } = useContext(AuthContext);
+  return (
+    <>
+      <button onClick={() => logout({ redirect: false })}>Sign out securely</button>
+      <button onClick={lockWorkspace}>Lock now</button>
+    </>
+  );
 }
 
 const renderApp = () => render(
@@ -181,6 +187,55 @@ describe('session lock', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Unlock' })); });
 
     expect(screen.getByRole('alert')).toHaveTextContent('Sign in as the account that was locked');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('locks at once from the lock button and stays locked through a reload', () => {
+    signIn({ accessExpiresAt: START + 60 * 60 * 1000 });
+    renderApp();
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Lock now' })); });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // Both tokens are still valid, yet the hand-set lock holds.
+    advance(5 * 1000);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    cleanup();
+    document.getElementById('root')?.remove();
+    resetSessionLock();
+    renderApp();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('unlocks as soon as the sixth PIN digit is typed', async () => {
+    const pinUser = { ...user, has_unlock_pin: true };
+    const fresh = { access: jwt(START + 60 * 60 * 1000), refresh: jwt(START + 7 * 24 * 60 * 60 * 1000), user: pinUser };
+    authService.unlockWithPin.mockResolvedValue(fresh);
+    signIn({ accessExpiresAt: START + 60 * 60 * 1000, account: pinUser });
+    renderApp();
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Lock now' })); });
+    const storedRefresh = localStorage.getItem('refreshToken');
+
+    fireEvent.change(screen.getByLabelText('Unlock PIN'), { target: { value: '48291' } });
+    expect(authService.unlockWithPin).not.toHaveBeenCalled();
+    await act(async () => { fireEvent.change(screen.getByLabelText('Unlock PIN'), { target: { value: '482915' } }); });
+
+    expect(authService.unlockWithPin).toHaveBeenCalledWith({ refresh: storedRefresh, pin: '482915' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(localStorage.getItem('workspaceLocked')).toBeNull();
+  });
+
+  it('clears a wrong PIN and says how many tries are left', async () => {
+    const pinUser = { ...user, has_unlock_pin: true };
+    authService.unlockWithPin.mockRejectedValue({ response: { status: 400, data: { detail: 'Wrong PIN. 2 tries left.' } } });
+    signIn({ accessExpiresAt: START + 60 * 60 * 1000, account: pinUser });
+    renderApp();
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Lock now' })); });
+
+    await act(async () => { fireEvent.change(screen.getByLabelText('Unlock PIN'), { target: { value: '000001' } }); });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Wrong PIN. 2 tries left.');
+    expect(screen.getByLabelText('Unlock PIN')).toHaveValue('');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });

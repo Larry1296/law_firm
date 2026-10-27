@@ -19,6 +19,8 @@ import {
   getAuthStorage,
   getAuthStorageMode,
   getStoredAuth,
+  isWorkspaceLockedByUser,
+  markWorkspaceLocked,
   saveAuthSession,
 } from '@/core/utils/authStorage';
 
@@ -59,7 +61,11 @@ const AuthProvider = ({ children }) => {
     () => getStoredAuth().refreshToken,
   );
 
-  const [locked, setLocked] = useState(isSessionLocked);
+  const [locked, setLocked] = useState(() => {
+    // A workspace locked by hand stays locked through a reload.
+    if (isWorkspaceLockedByUser() && getStoredAuth().accessToken) lockSession();
+    return isSessionLocked();
+  });
 
   useEffect(() => subscribeToSessionLock(setLocked), []);
 
@@ -167,9 +173,9 @@ const AuthProvider = ({ children }) => {
     if (!stored.accessToken || !stored.refreshToken) return;
 
     if (isSessionLocked()) {
-      // Another tab unlocked this same account with the password: carry on here too.
-      // Only a fresh sign-in leaves both tokens valid; a lock always has one expired.
-      const renewed = !isExpired(stored.accessToken) && !isExpired(stored.refreshToken);
+      // Another tab unlocked this same account: carry on here too. Only a fresh
+      // sign-in leaves both tokens valid and the hand-set lock cleared.
+      const renewed = !isWorkspaceLockedByUser() && !isExpired(stored.accessToken) && !isExpired(stored.refreshToken);
       if (renewed && user && String(stored.user?.id) === String(user.id)) {
         setAccessToken(stored.accessToken);
         setRefreshToken(stored.refreshToken);
@@ -178,7 +184,7 @@ const AuthProvider = ({ children }) => {
       return;
     }
 
-    if (isExpired(stored.refreshToken)) lockSession();
+    if (isExpired(stored.refreshToken) || isWorkspaceLockedByUser()) lockSession();
     else lockIfExpired(stored.accessToken);
   }, [user]);
 
@@ -211,9 +217,26 @@ const AuthProvider = ({ children }) => {
     return () => { root.inert = false; };
   }, [showLock]);
 
-  /** Unlock with the signed-in user's password; a different account cannot take over the screen. */
-  const unlock = async (password) => {
-    const data = await authService.login({ email: user.email, password });
+  /** Lock the workspace now, as when stepping away from the desk. */
+  const lockWorkspace = () => {
+    markWorkspaceLocked();
+    lockSession();
+  };
+
+  /** Unlock with the signed-in user's password or PIN; a different account cannot take over the screen. */
+  const unlock = async ({ password, pin }) => {
+    let data;
+    if (pin) {
+      try {
+        data = await authService.unlockWithPin({ refresh: getStoredAuth().refreshToken, pin });
+      } catch (error) {
+        // Too many wrong PINs, or the sign-in has ended: only a full sign-in will do.
+        if (error.response?.data?.signed_out) clearSessionAndRedirect();
+        throw error;
+      }
+    } else {
+      data = await authService.login({ email: user.email, password });
+    }
     if (String(data?.user?.id) !== String(user.id)) {
       throw new Error('Sign in as the account that was locked, or sign out.');
     }
@@ -279,6 +302,8 @@ const AuthProvider = ({ children }) => {
 
     isAuthenticated: !!accessToken,
     isLocked: showLock,
+    lockWorkspace,
+    refreshUser: syncSessionUser,
 
     // roles
     role,
