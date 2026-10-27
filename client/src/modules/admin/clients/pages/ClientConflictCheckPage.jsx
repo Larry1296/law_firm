@@ -74,8 +74,28 @@ const emptyDraft = {
   responsible_lawyer_id: '',
   no_adverse_party_currently_known: false,
   no_adverse_party_explanation: '',
-  adverse_party_name: '',
+  parties: [],
 };
+
+// Mirrors ConflictCheckParty on the server; the prospective client is recorded separately.
+const PARTY_TYPE_OPTIONS = [
+  { value: 'PERSON', label: 'Person' },
+  { value: 'ORGANISATION', label: 'Organisation' },
+];
+const PARTY_ROLE_OPTIONS = [
+  { value: 'PROPOSED_ADVERSE_PARTY', label: 'Proposed adverse party' },
+  { value: 'CO_CLAIMANT', label: 'Co-claimant' },
+  { value: 'CO_RESPONDENT', label: 'Co-respondent' },
+  { value: 'INTERESTED_PARTY', label: 'Interested party' },
+  { value: 'DIRECTOR', label: 'Director' },
+  { value: 'SHAREHOLDER', label: 'Shareholder' },
+  { value: 'BENEFICIAL_OWNER', label: 'Beneficial owner' },
+  { value: 'GUARANTOR', label: 'Guarantor' },
+  { value: 'WITNESS', label: 'Witness' },
+  { value: 'RELATED_ENTITY', label: 'Related entity' },
+  { value: 'OTHER', label: 'Other' },
+];
+const emptyParty = { name: '', party_type: '', role: 'PROPOSED_ADVERSE_PARTY', relationship_to_party: '' };
 
 const emptyAcceptanceDraft = {
   decision: 'ACCEPTED',
@@ -161,14 +181,15 @@ const buildProposedMatterPayload = (draft) => {
   const deadlineDate = optionalValue(draft.limitation_or_deadline_date);
   if (deadlineDate) payload.limitation_or_deadline_date = deadlineDate;
 
-  const adversePartyName = optionalValue(draft.adverse_party_name);
-  if (adversePartyName) {
-    payload.parties = [{
-      name: adversePartyName,
-      party_type: 'ORGANISATION',
-      role: 'PROPOSED_ADVERSE_PARTY',
-    }];
-  }
+  const parties = draft.parties
+    .filter((party) => party.name.trim())
+    .map((party) => ({
+      name: party.name.trim(),
+      party_type: party.party_type,
+      role: party.role,
+      relationship_to_party: party.relationship_to_party.trim(),
+    }));
+  if (parties.length) payload.parties = parties;
 
   return payload;
 };
@@ -434,7 +455,14 @@ export default function ClientConflictCheckPage() {
       <div className='space-y-6 p-4 md:p-6'>
         <SectionHeading title='Start Proposed Matter' subtitle='Record proposed instructions before conflict checking' />
         <Card className='p-6'>
-          <form className='grid gap-5 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); createMutation.mutate(); }}>
+          <form className='grid gap-5 md:grid-cols-2' onSubmit={(event) => {
+            event.preventDefault();
+            if (draft.parties.some((party) => party.name.trim() && !party.party_type)) {
+              themedSwal.fire({ icon: 'error', title: 'Not recorded', text: 'Select person or organisation for each party.' });
+              return;
+            }
+            createMutation.mutate();
+          }}>
             <Input3D label='Proposed matter title' value={draft.proposed_matter_title} onChange={(e) => setDraft((v) => ({ ...v, proposed_matter_title: e.target.value }))} required />
             <Select3D label='Responsible advocate' value={draft.responsible_lawyer_id} onChange={(e) => setDraft((v) => ({ ...v, responsible_lawyer_id: e.target.value }))} options={lawyerOptions} placeholder='Firm default / current advocate' />
             <TextArea label='Proposed instructions' value={draft.proposed_instructions} onChange={(value) => setDraft((v) => ({ ...v, proposed_instructions: value }))} required />
@@ -452,8 +480,26 @@ export default function ClientConflictCheckPage() {
               ]}
             />
             <TextArea label='Urgency details' value={draft.urgency_details} onChange={(value) => setDraft((v) => ({ ...v, urgency_details: value }))} />
-            <Input3D label='Known adverse party' value={draft.adverse_party_name} onChange={(e) => setDraft((v) => ({ ...v, adverse_party_name: e.target.value }))} />
             <Input3D label='Limitation or deadline date' type='date' value={draft.limitation_or_deadline_date} onChange={(e) => setDraft((v) => ({ ...v, limitation_or_deadline_date: e.target.value }))} />
+            <fieldset className='space-y-4 md:col-span-2'>
+              <legend className='font-semibold'>Other parties</legend>
+              <p className='text-sm'>Record every party the conflict search must cover: the party the client is acting against, and anyone connected such as its directors or guarantors.</p>
+              {draft.parties.map((party, index) => {
+                const setParty = (changes) => setDraft((v) => ({ ...v, parties: v.parties.map((item, i) => (i === index ? { ...item, ...changes } : item)) }));
+                return (
+                  <div key={index} className='grid gap-4 rounded-lg border border-[color:var(--border)] p-4 md:grid-cols-2'>
+                    <Input3D name={`party-${index}-name`} label={`Party ${index + 1} name`} value={party.name} onChange={(e) => setParty({ name: e.target.value })} required />
+                    <Select3D name={`party-${index}-type`} label='Person or organisation' value={party.party_type} onChange={(e) => setParty({ party_type: e.target.value })} options={PARTY_TYPE_OPTIONS} placeholder='Select' required />
+                    <Select3D name={`party-${index}-role`} label='Role in the matter' value={party.role} onChange={(e) => setParty({ role: e.target.value })} options={PARTY_ROLE_OPTIONS} required />
+                    <Input3D name={`party-${index}-relationship`} label='Relationship to another party' value={party.relationship_to_party} onChange={(e) => setParty({ relationship_to_party: e.target.value })} maxLength={120} placeholder='e.g. Director of Baraka Homes Limited' />
+                    <div className='md:col-span-2'>
+                      <Button3D type='button' variant='secondary' onClick={() => setDraft((v) => ({ ...v, parties: v.parties.filter((_, i) => i !== index) }))}>Remove party</Button3D>
+                    </div>
+                  </div>
+                );
+              })}
+              <Button3D type='button' variant='secondary' onClick={() => setDraft((v) => ({ ...v, parties: [...v.parties, { ...emptyParty }] }))}>Add party</Button3D>
+            </fieldset>
             <label className='flex items-center gap-2 text-sm md:col-span-2'>
               <input type='checkbox' checked={draft.no_adverse_party_currently_known} onChange={(e) => setDraft((v) => ({ ...v, no_adverse_party_currently_known: e.target.checked }))} />
               No adverse party currently known

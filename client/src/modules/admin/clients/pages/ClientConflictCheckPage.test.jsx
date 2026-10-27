@@ -16,15 +16,18 @@ const mocks = vi.hoisted(() => ({
   generateJurisdictionSuggestion: vi.fn(),
   recordJurisdictionDecision: vi.fn(),
   confirmJurisdiction: vi.fn(),
+  createConflictCheck: vi.fn(),
+  swalFire: vi.fn(),
   navigate: vi.fn(),
+  params: { id: 'client-1', checkId: 'check-1' },
 }));
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mocks.navigate,
-  useParams: () => ({ id: 'client-1', checkId: 'check-1' }),
+  useParams: () => mocks.params,
 }));
 
-vi.mock('@/core/utils/themedSwal', () => ({ confirmAction: vi.fn(async () => true) }));
+vi.mock('@/core/utils/themedSwal', () => ({ default: { fire: mocks.swalFire }, confirmAction: vi.fn(async () => true) }));
 
 vi.mock('@/modules/admin/cases/hooks/useFirmLawyers', () => ({
   default: () => ({ lawyers: [] }),
@@ -39,6 +42,7 @@ vi.mock('@/modules/admin/clients/services/adminClientsService', () => ({
     generateJurisdictionSuggestion: mocks.generateJurisdictionSuggestion,
     recordJurisdictionDecision: mocks.recordJurisdictionDecision,
     confirmJurisdiction: mocks.confirmJurisdiction,
+    createConflictCheck: mocks.createConflictCheck,
   },
 }));
 
@@ -110,6 +114,7 @@ function getNamesCheckedInput() {
 describe('ClientConflictCheckPage source checks', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.params = { id: 'client-1', checkId: 'check-1' };
     window.history.pushState({}, '', '/admin/clients/client-1/conflict-checks/check-1');
   });
 
@@ -254,5 +259,51 @@ describe('ClientConflictCheckPage source checks', () => {
     expect(screen.getAllByText(/Small Claims Court/).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /record advocate decision/i })).toBeInTheDocument();
     expect(screen.queryByText(/Final jurisdiction confirmed/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('ClientConflictCheckPage proposed matter parties', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.params = { id: 'client-1' };
+    window.history.pushState({}, '', '/admin/clients/client-1/conflict-checks/new');
+  });
+
+  async function fillMatter(user) {
+    await user.type(screen.getByLabelText(/Proposed matter title/), 'Recovery of unpaid fees');
+    await user.type(screen.getByLabelText(/Proposed instructions/), 'Recover KES 1,450,000.');
+  }
+
+  it('records several parties, each as a person or organisation with its role', async () => {
+    mocks.createConflictCheck.mockResolvedValue({ id: 'new-check' });
+    const user = renderPage();
+    await fillMatter(user);
+    await user.click(screen.getByRole('button', { name: 'Add party' }));
+    await user.type(screen.getByLabelText(/Party 1 name/), 'Baraka Homes Limited');
+    await user.click(document.getElementById('party-0-type'));
+    await user.click(screen.getByRole('option', { name: 'Organisation' }));
+    await user.click(screen.getByRole('button', { name: 'Add party' }));
+    await user.type(screen.getByLabelText(/Party 2 name/), 'John Otieno Baraka');
+    await user.click(document.getElementById('party-1-type'));
+    await user.click(screen.getByRole('option', { name: 'Person' }));
+    await user.click(document.getElementById('party-1-role'));
+    await user.click(screen.getByRole('option', { name: 'Director' }));
+    await user.type(screen.getByLabelText(/Relationship to another party/, { selector: '#party-1-relationship' }), 'Director of Baraka Homes Limited');
+    await user.click(screen.getByRole('button', { name: 'Save Proposed Matter' }));
+    await waitFor(() => expect(mocks.createConflictCheck).toHaveBeenCalled());
+    expect(mocks.createConflictCheck.mock.calls[0][1].parties).toEqual([
+      { name: 'Baraka Homes Limited', party_type: 'ORGANISATION', role: 'PROPOSED_ADVERSE_PARTY', relationship_to_party: '' },
+      { name: 'John Otieno Baraka', party_type: 'PERSON', role: 'DIRECTOR', relationship_to_party: 'Director of Baraka Homes Limited' },
+    ]);
+  });
+
+  it('does not save a party until person or organisation is chosen', async () => {
+    const user = renderPage();
+    await fillMatter(user);
+    await user.click(screen.getByRole('button', { name: 'Add party' }));
+    await user.type(screen.getByLabelText(/Party 1 name/), 'Baraka Homes Limited');
+    await user.click(screen.getByRole('button', { name: 'Save Proposed Matter' }));
+    expect(mocks.swalFire).toHaveBeenCalledWith(expect.objectContaining({ text: 'Select person or organisation for each party.' }));
+    expect(mocks.createConflictCheck).not.toHaveBeenCalled();
   });
 });
