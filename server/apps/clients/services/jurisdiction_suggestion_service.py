@@ -24,6 +24,14 @@ class JurisdictionSuggestionService:
         "This is a system-generated jurisdiction suggestion. The responsible "
         "advocate must independently review and confirm the appropriate court or tribunal."
     )
+    # Civil pecuniary ceilings by magistrate grade, Magistrates' Courts Act 2015, s. 7(1).
+    MAGISTRATE_CEILINGS = (
+        ("RESIDENT_MAGISTRATE", Decimal("5000000"), "Resident Magistrate"),
+        ("SENIOR_RESIDENT_MAGISTRATE", Decimal("7000000"), "Senior Resident Magistrate"),
+        ("PRINCIPAL_MAGISTRATE", Decimal("10000000"), "Principal Magistrate"),
+        ("SENIOR_PRINCIPAL_MAGISTRATE", Decimal("15000000"), "Senior Principal Magistrate"),
+        ("CHIEF_MAGISTRATE", Decimal("20000000"), "Chief Magistrate"),
+    )
     CATALOGUE = {
         "SUPREME_COURT": {
             "forum": "COURT", "court_type": "SUPREME_COURT", "court_level": "SUPREME_COURT",
@@ -211,12 +219,11 @@ class JurisdictionSuggestionService:
             "reasons": reasons,
         }
         if key == "MAGISTRATES" and claim is not None:
-            suggestion["court_level"] = (
-                "RESIDENT_MAGISTRATE" if claim <= Decimal("5000000")
-                else "SENIOR_RESIDENT_MAGISTRATE" if claim <= Decimal("7000000")
-                else "PRINCIPAL_MAGISTRATE" if claim <= Decimal("10000000")
-                else "SENIOR_PRINCIPAL_MAGISTRATE" if claim <= Decimal("15000000")
-                else "CHIEF_MAGISTRATE"
+            level, ceiling, title = next(item for item in cls.MAGISTRATE_CEILINGS if claim <= item[1])
+            suggestion["court_level"] = level
+            reasons[0] = (
+                f"The recorded civil claim value is within the KES {ceiling:,.0f} pecuniary ceiling "
+                f"of a {title}, the lowest magistrate grade able to hear it."
             )
         alternatives = [
             {

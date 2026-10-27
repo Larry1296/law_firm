@@ -2,6 +2,7 @@ import json
 from datetime import date
 from unittest.mock import patch
 
+from django.test import SimpleTestCase
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APITestCase
@@ -845,3 +846,22 @@ class ClientMatterConflictCheckTests(APITestCase):
         self.assertEqual(case.jurisdiction_history.count(), 1)
         check.jurisdiction.refresh_from_db()
         self.assertEqual(check.jurisdiction.suggestion["court_type"], "SMALL_CLAIMS")
+
+
+class MagistrateLevelReasonTests(SimpleTestCase):
+    def test_reason_names_the_magistrate_grade_and_ceiling_it_suggests(self):
+        from types import SimpleNamespace
+
+        from apps.clients.services.jurisdiction_suggestion_service import JurisdictionSuggestionService
+
+        check = SimpleNamespace(proposed_matter_title="Recovery", proposed_instructions="Recover unpaid invoices",
+                                factual_summary="", desired_outcome="")
+        for claim, level, words in (
+            ("1250000", "RESIDENT_MAGISTRATE", "KES 5,000,000 pecuniary ceiling of a Resident Magistrate"),
+            ("18000000", "CHIEF_MAGISTRATE", "KES 20,000,000 pecuniary ceiling of a Chief Magistrate"),
+        ):
+            suggestion = JurisdictionSuggestionService._recommend(check, {
+                "practice_area": "CIVIL_COMMERCIAL_LITIGATION", "claim_value": claim, "cause_of_action_location": "Nairobi",
+            })[0]
+            self.assertEqual(suggestion["court_level"], level)
+            self.assertIn(words, suggestion["reasons"][0])
