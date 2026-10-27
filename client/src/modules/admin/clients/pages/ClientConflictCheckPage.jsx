@@ -120,6 +120,23 @@ const emptyActionDraft = {
   closure_reason: '',
 };
 
+// The categories the jurisdiction rules recognise (server: DISPUTE_CATEGORIES).
+const DISPUTE_CATEGORIES = [
+  { value: 'DEBT_RECOVERY', label: 'Debt recovery' },
+  { value: 'CONTRACT', label: 'Breach of contract' },
+  { value: 'TORT', label: 'Civil wrong (negligence, defamation, nuisance)' },
+  { value: 'PERSONAL_INJURY', label: 'Personal injury' },
+  { value: 'EMPLOYMENT', label: 'Employment and labour relations' },
+  { value: 'LAND', label: 'Land, environment or title' },
+  { value: 'CHILDREN', label: 'Children (custody, maintenance)' },
+  { value: 'MARRIAGE', label: 'Marriage' },
+  { value: 'DIVORCE', label: 'Divorce' },
+  { value: 'PERSONAL_STATUS', label: 'Personal status' },
+  { value: 'INHERITANCE', label: 'Inheritance and succession' },
+  { value: 'OTHER', label: 'Other' },
+];
+const DISPUTE_CATEGORY_VALUES = new Set(DISPUTE_CATEGORIES.map((option) => option.value));
+
 const emptyJurisdictionFacts = {
   dispute_category: '',
   practice_area: '',
@@ -279,9 +296,12 @@ export default function ClientConflictCheckPage() {
 
   useEffect(() => {
     if (check?.jurisdiction_facts) {
+      const facts = check.jurisdiction_facts;
+      // A category typed before the list existed is dropped so it can be chosen again.
+      const dispute_category = DISPUTE_CATEGORY_VALUES.has(facts.dispute_category) ? facts.dispute_category : '';
       // Synchronize an asynchronously loaded assessment into the editable form.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setJurisdictionFacts((current) => ({ ...current, ...check.jurisdiction_facts }));
+      setJurisdictionFacts((current) => ({ ...current, ...facts, dispute_category }));
     }
   }, [check?.jurisdiction_facts]);
 
@@ -622,7 +642,7 @@ export default function ClientConflictCheckPage() {
           </p>
           {!check.jurisdiction?.is_final && (
             <form className='mt-5 grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); jurisdictionSuggestionMutation.mutate(); }}>
-              <Input3D label='Dispute category' value={jurisdictionFacts.dispute_category} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, dispute_category: e.target.value }))} />
+              <Select3D label='Dispute category' value={jurisdictionFacts.dispute_category} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, dispute_category: e.target.value }))} options={DISPUTE_CATEGORIES} placeholder='Select what the dispute is about' />
               <Select3D label='Practice area' value={jurisdictionFacts.practice_area} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, practice_area: e.target.value }))} options={PRACTICE_AREAS} placeholder='Select the proposed matter practice area' required />
               <Input3D
                 label='Claim value (KES)'

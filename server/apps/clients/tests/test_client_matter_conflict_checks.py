@@ -865,3 +865,23 @@ class MagistrateLevelReasonTests(SimpleTestCase):
             })[0]
             self.assertEqual(suggestion["court_level"], level)
             self.assertIn(words, suggestion["reasons"][0])
+
+
+class DisputeCategoryTests(SimpleTestCase):
+    def test_only_listed_categories_are_accepted(self):
+        from apps.clients.serializers.admin.client_matter_conflict_check_serializer import JurisdictionSuggestionInputSerializer
+
+        self.assertTrue(JurisdictionSuggestionInputSerializer(data={"dispute_category": "DEBT_RECOVERY"}).is_valid())
+        self.assertFalse(JurisdictionSuggestionInputSerializer(data={"dispute_category": "Debt recovery: unpaid invoices"}).is_valid())
+
+    def test_a_small_debt_is_steered_to_the_small_claims_court(self):
+        from types import SimpleNamespace
+
+        from apps.clients.services.jurisdiction_suggestion_service import JurisdictionSuggestionService
+
+        check = SimpleNamespace(proposed_matter_title="Recovery", proposed_instructions="Recover unpaid invoices",
+                                factual_summary="", desired_outcome="")
+        suggestion = JurisdictionSuggestionService._recommend(check, {
+            "dispute_category": "DEBT_RECOVERY", "claim_value": "800000", "cause_of_action_location": "Nairobi",
+        })[0]
+        self.assertEqual(suggestion["rule_key"], "SMALL_CLAIMS")

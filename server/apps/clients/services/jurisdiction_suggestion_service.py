@@ -16,6 +16,23 @@ from apps.common.choices import ConflictCheckStatus
 from apps.staff.models import LawyerPermission
 
 
+# Dispute categories the jurisdiction rules recognise; the intake form offers exactly these.
+DISPUTE_CATEGORIES = (
+    ("DEBT_RECOVERY", "Debt recovery"),
+    ("CONTRACT", "Breach of contract"),
+    ("TORT", "Civil wrong (negligence, defamation, nuisance)"),
+    ("PERSONAL_INJURY", "Personal injury"),
+    ("EMPLOYMENT", "Employment and labour relations"),
+    ("LAND", "Land, environment or title"),
+    ("CHILDREN", "Children (custody, maintenance)"),
+    ("MARRIAGE", "Marriage"),
+    ("DIVORCE", "Divorce"),
+    ("PERSONAL_STATUS", "Personal status"),
+    ("INHERITANCE", "Inheritance and succession"),
+    ("OTHER", "Other"),
+)
+
+
 class JurisdictionSuggestionService:
     """Deterministic decision support; never a jurisdiction decision-maker."""
 

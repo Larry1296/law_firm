@@ -11,6 +11,7 @@ from apps.clients.models import (
     ProposedMatterJurisdictionHistory,
 )
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus
+from apps.clients.services.jurisdiction_suggestion_service import DISPUTE_CATEGORIES
 
 
 class ConflictCheckPartySerializer(serializers.ModelSerializer):
@@ -354,7 +355,7 @@ class ProposedMatterSerializer(serializers.Serializer):
 class JurisdictionSuggestionInputSerializer(serializers.Serializer):
     practice_area = serializers.CharField(required=False, allow_blank=True)
     matter_nature = serializers.CharField(required=False, allow_blank=True)
-    dispute_category = serializers.CharField(required=False, allow_blank=True)
+    dispute_category = serializers.ChoiceField(choices=DISPUTE_CATEGORIES, required=False, allow_blank=True)
     claim_value = serializers.DecimalField(max_digits=14, decimal_places=2, required=False, allow_null=True)
     relief_sought = serializers.CharField(required=False, allow_blank=True)
     legal_relationship = serializers.CharField(required=False, allow_blank=True)
