@@ -213,6 +213,15 @@ describe('ClientConflictCheckPage source checks', () => {
     expect(await screen.findByText(/Wanjiru Mwangi Architects \(Prospective client\), Baraka Hardware Ltd \(Proposed adverse party\), James Otieno \(Director\)/)).toBeInTheDocument();
   });
 
+  it('shows history actions as readable labels, not raw codes', async () => {
+    renderPage({
+      history: [{ id: 'h1', action: 'CHECK_STARTED', to_status: 'IN_PROGRESS', to_status_label: 'In progress', summary: 'Conflict check started.', actor_name: 'Grace Wanjiku', created_at: '2026-10-27T04:24:00Z' }],
+    });
+
+    expect(await screen.findByText('Check Started - In progress')).toBeInTheDocument();
+    expect(screen.queryByText(/CHECK_STARTED/)).not.toBeInTheDocument();
+  });
+
   it('does not display misleading findings for direct clearance', async () => {
     renderPage({
       status: 'CLEARED',

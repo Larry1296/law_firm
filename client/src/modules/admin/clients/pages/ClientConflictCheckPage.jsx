@@ -877,7 +877,7 @@ export default function ClientConflictCheckPage() {
         <div className='space-y-3'>
           {(check.history || []).map((item) => (
             <div key={item.id} className='rounded-lg border border-border-light p-3 text-sm dark:border-border-dark'>
-              <p className='font-semibold'>{item.action} - {item.to_status_label || enumLabel(item.to_status)}</p>
+              <p className='font-semibold'>{enumLabel(item.action)} - {item.to_status_label || enumLabel(item.to_status)}</p>
               <p>{item.summary}</p>
               <p className='text-text-muted-light dark:text-text-muted-dark'>{formatDateTime(item.created_at)} by {item.actor_name || 'System'}</p>
             </div>
