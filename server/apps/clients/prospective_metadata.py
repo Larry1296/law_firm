@@ -8,7 +8,7 @@ def field(key, label, required=False, options=None):
 
 PROSPECTIVE_PROFILES = {
     "INDIVIDUAL": {"name_field": None, "fields": [field("preferred_name", "Preferred / other names")]},
-    "SOLE_PROPRIETORSHIP": {"name_field": "registered_business_name", "fields": [field("proprietor_name", "Proprietor legal name", True), field("trading_name", "Business / trading name", True), field("business_registration_number", "Registration identifier (if available)")]},
+    "SOLE_PROPRIETORSHIP": {"name_field": "registered_business_name", "name_label": "Registered business name", "fields": [field("proprietor_name", "Proprietor legal name", True), field("trading_name", "Other trading name (if different)"), field("business_registration_number", "Registration identifier (if available)")]},
     "COMPANY": {"name_field": "company_name", "fields": [field("trading_name", "Trading name"), field("registration_number", "Company registration number (if available)"), field("country_of_incorporation", "Country of incorporation", True)]},
     "PARTNERSHIP": {"name_field": "partnership_name", "fields": [field("registration_number", "Registration number (if available)"), field("subtype", "Partnership type", True, [{"value": v, "label": l} for v, l in PartnershipClient.PartnershipSubtype.choices])]},
     "LIMITED_LIABILITY_PARTNERSHIP": {"name_field": "registered_name", "fields": [field("llp_registration_number", "LLP registration number (if available)")]},

@@ -79,6 +79,7 @@
     },
     "SOLE_PROPRIETORSHIP": {
       "name_field": "registered_business_name",
+      "name_label": "Registered business name",
       "fields": [
         {
           "key": "proprietor_name",
@@ -87,8 +88,8 @@
         },
         {
           "key": "trading_name",
-          "label": "Business / trading name",
-          "required": true
+          "label": "Other trading name (if different)",
+          "required": false
         },
         {
           "key": "business_registration_number",

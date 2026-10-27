@@ -74,7 +74,7 @@ export default function AdminCreateClientPage() {
       {schema && <>
         <StepPanel title='Preliminary identity' description='All details remain unverified. Optional fields may be completed later.'>
           <div className='grid gap-4 sm:grid-cols-2'>
-            <Field label={kind === 'INDIVIDUAL' ? 'Full legal name' : 'Legal / registered name'} required value={client.full_name} onChange={(full_name) => setObject('client', { full_name })} />
+            <Field label={kind === 'INDIVIDUAL' ? 'Full legal name' : schema?.name_label || 'Legal / registered name'} required value={client.full_name} onChange={(full_name) => setObject('client', { full_name })} />
             <Field label='Alternative names' value={client.alternative_names} onChange={(alternative_names) => setObject('client', { alternative_names })} />
             <Field label='Safe email' type='email' required={portal && kind === 'INDIVIDUAL'} value={client.email} onChange={(email) => setObject('client', { email })} />
             <Field label='Safe telephone' type='tel' value={client.phone_number} onChange={(phone_number) => setObject('client', { phone_number })} />

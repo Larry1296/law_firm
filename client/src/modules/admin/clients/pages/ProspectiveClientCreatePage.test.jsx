@@ -129,8 +129,10 @@ describe('creation safeguards', () => {
   it('retains proprietor, trading and representative names in preliminary payload', async () => {
     service.create.mockResolvedValue({client: {id: 'new', access_type: 'ASSISTED'}});
     renderPage(); await selectCategory('SOLE_PROPRIETORSHIP');
-    change(/Legal \/ registered name/, 'Legal name'); change(/Alternative names/, 'Alias');
-    change(/Proprietor legal name/, 'Owner'); change(/Business \/ trading name/, 'Brand');
+    expect(screen.queryByLabelText(/Legal \/ registered name/)).toBeNull();
+    expect(screen.getByLabelText(/Other trading name \(if different\)/)).not.toBeRequired();
+    change(/Registered business name/, 'Legal name'); change(/Alternative names/, 'Alias');
+    change(/Proprietor legal name/, 'Owner'); change(/Other trading name/, 'Brand');
     fireEvent.click(screen.getByRole('button', {name: 'Add representative / contact'}));
     change(/Representative name/, 'Agent'); change(/Representative capacity/, 'AUTHORIZED_AGENT'); change(/Role \/ capacity description/, 'Agent');
     fillPrivacy(); fireEvent.click(screen.getByRole('button', {name: 'Create prospective client'}));
