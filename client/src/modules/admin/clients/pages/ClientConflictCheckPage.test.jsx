@@ -204,12 +204,13 @@ describe('ClientConflictCheckPage source checks', () => {
   it('lists every saved party with its role, not only the adverse party', async () => {
     renderPage({
       parties: [
+        { id: 'p0', name: 'Wanjiru Mwangi Architects', party_type: 'ORGANISATION', role: 'PROSPECTIVE_CLIENT' },
         { id: 'p1', name: 'Baraka Hardware Ltd', party_type: 'ORGANISATION', role: 'PROPOSED_ADVERSE_PARTY' },
         { id: 'p2', name: 'James Otieno', party_type: 'PERSON', role: 'DIRECTOR' },
       ],
     });
 
-    expect(await screen.findByText(/Baraka Hardware Ltd \(Proposed adverse party\), James Otieno \(Director\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/Wanjiru Mwangi Architects \(Prospective client\), Baraka Hardware Ltd \(Proposed adverse party\), James Otieno \(Director\)/)).toBeInTheDocument();
   });
 
   it('does not display misleading findings for direct clearance', async () => {
