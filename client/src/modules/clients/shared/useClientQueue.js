@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from '@/core/api/axios';
 import Swal from '@/core/utils/themedSwal';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
@@ -18,7 +19,7 @@ export const OUTCOMES = { INSTRUCTING: 'Instructing the firm — open a file', E
 async function consultationOutcome() {
   const { isConfirmed, value } = await Swal.fire({
     title: 'Outcome of the consultation', input: 'radio', inputOptions: OUTCOMES,
-    text: 'If the visitor is instructing the firm, the secretary is asked to open the client file today.',
+    text: 'If the visitor is instructing the firm, create the prospective client record next so the conflict check can start.',
     inputValidator: (choice) => !choice && 'Select the outcome of the consultation.',
     showCancelButton: true, confirmButtonText: 'Complete consultation', cancelButtonText: 'Back',
   });
@@ -28,10 +29,16 @@ async function consultationOutcome() {
 
 export function useQueueAction() {
   const client = useQueryClient();
+  const navigate = useNavigate();
+  const workspace = useLocation().pathname.split('/')[1];
   return useMutation({
     mutationFn: async ({ id, action }) => (await axios.post(`/arrivals/${id}/`, action === 'COMPLETE' ? { action, outcome: await consultationOutcome() } : { action })).data,
-    onSuccess: (_data, { action }) => {
+    onSuccess: (data, { id, action }) => {
       client.invalidateQueries({ queryKey: ['client-arrivals'] });
+      if (action === 'COMPLETE' && data?.outcome === 'INSTRUCTING') {
+        navigate(`/${workspace}/clients/create?visit=${id}`);
+        return;
+      }
       const titles = { CALL: 'Reception notified — ready to usher in', USHER: 'Client ushered in', START: 'Consultation started', COMPLETE: 'Consultation completed', LEFT: 'Visitor marked as left' };
       Swal.fire({ icon: 'success', title: titles[action] || 'Queue updated', confirmButtonText: 'Done' });
     },

@@ -421,3 +421,36 @@ class ProspectiveCreationTests(TestCase):
         other = IntakePrivacyConfig.objects.create(firm=other_firm, policy_version='other-v1', notice_text='Other notice', lawful_basis='LEGITIMATE_INTERESTS')
         transition_config(firm=other_firm, user=other_admin, pk=other.pk, action='activate')
         self.assertEqual(self.api.post(self.url, prospect_payload(), format='json').status_code, 400)
+
+
+class AdvocateCreatesFromConsultationTests(TestCase):
+    def setUp(self):
+        from apps.clients.models import ClientVisit
+        from apps.staff.models import LawyerPermission, LawyerPermissionGrant
+        self.admin = person('visit-owner@example.test')
+        self.firm = LawFirm.objects.create(owner=self.admin, name='Visit Firm', registration_number='VISIT-CREATE')
+        IntakePrivacyConfig.objects.create(firm=self.firm, policy_version='2026.1', lawful_basis='LEGITIMATE_INTERESTS', notice_text='Approved notice', status='ACTIVE', approved_by=self.admin, approved_at=timezone.now(), activated_by=self.admin, activated_at=timezone.now())
+        self.lawyer = Lawyer.objects.create(user=person('visit-advocate@example.test', UserRole.STAFF), law_firm=self.firm,
+            staff_number='VA1', admission_number='VA1', date_hired=date(2026, 1, 1))
+        LawyerPermissionGrant.objects.create(lawyer=self.lawyer, code=LawyerPermission.CREATE_PROPOSED_MATTER, granted_by=self.admin)
+        self.other = Lawyer.objects.create(user=person('visit-other@example.test', UserRole.STAFF), law_firm=self.firm,
+            staff_number='VA2', admission_number='VA2', date_hired=date(2026, 1, 1))
+        LawyerPermissionGrant.objects.create(lawyer=self.other, code=LawyerPermission.CREATE_PROPOSED_MATTER, granted_by=self.admin)
+        self.visit = ClientVisit.objects.create(firm=self.firm, visitor_name='John Mutua Ndeti', visitor_phone='0722000111',
+            advocate=self.lawyer, received_by=self.admin, intake_handler='ADVOCATE', status='COMPLETED', outcome='INSTRUCTING',
+            intake_completed_at=timezone.now(), closed_at=timezone.now())
+        self.api = APIClient()
+        self.url = reverse('lawyer-prospective-create')
+
+    def test_only_the_consulting_advocate_creates_and_links_the_client(self):
+        self.api.force_authenticate(self.lawyer.user)
+        self.assertEqual(self.api.get(reverse('lawyer-client-onboarding-metadata')).status_code, 200)
+        self.assertEqual(self.api.post(self.url, prospect_payload(), format='json').status_code, 403)
+        self.api.force_authenticate(self.other.user)
+        self.assertEqual(self.api.post(self.url, {**prospect_payload(), 'visit': str(self.visit.pk)}, format='json').status_code, 403)
+        self.api.force_authenticate(self.lawyer.user)
+        response = self.api.post(self.url, {**prospect_payload(), 'visit': str(self.visit.pk)}, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.visit.refresh_from_db()
+        self.assertEqual(str(self.visit.client_id), response.data['client']['id'])
+        self.assertEqual(self.api.post(self.url, {**prospect_payload(), 'visit': str(self.visit.pk)}, format='json').status_code, 400)

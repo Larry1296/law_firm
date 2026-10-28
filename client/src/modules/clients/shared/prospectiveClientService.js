@@ -1,6 +1,6 @@
 import axios from '@/core/api/axios';
 
-const root = (workspace) => workspace === 'secretary' ? '/staff/secretary/clients' : '/admin/clients';
+const root = (workspace) => workspace === 'secretary' ? '/staff/secretary/clients' : workspace === 'lawyer' ? '/staff/lawyer/clients' : '/admin/clients';
 export const prospectiveClientService = {
   async metadata(workspace) { return (await axios.get(`${root(workspace)}/onboarding-metadata/`)).data; },
   async create(workspace, payload) { return (await axios.post(`${root(workspace)}/prospective/`, payload)).data; },
@@ -10,7 +10,6 @@ export const prospectiveClientService = {
   async options(workspace) { return (await axios.get(`${root(workspace)}/entry-options/`)).data; },
   async proposedMatter(workspace, payload) { return (await axios.post(`${root(workspace)}/proposed-matters/`, payload)).data; },
   async visit(id) { return (await axios.get('/arrivals/')).data.visits.find((visit) => visit.id === id) || null; },
-  async linkVisit(id, client) { return (await axios.post(`/arrivals/${id}/`, { action: 'LINK_CLIENT', client })).data; },
 };
 export const creationError = (error) => {
   if (error?.isActionCancelled) return '';

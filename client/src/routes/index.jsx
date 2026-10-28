@@ -880,6 +880,7 @@ const AppRoutes = () => {
           */}
           <Route path='clients/:id/conflict-checks/new' element={<ClientConflictCheckPage />} />
           <Route path='clients/:id/conflict-checks/:checkId' element={<ClientConflictCheckPage />} />
+          <Route path='clients/create' element={<AdminCreateClientPage />} />
           <Route path='clients/:id/conflict-checks/:checkId/open-matter' element={<LawyerCreateCase />} />
           <Route path='documents' element={<LawyerDocumentsPage />} />
           <Route path='documents/:id' element={<LawyerTemplatesPage />} />

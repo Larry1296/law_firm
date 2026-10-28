@@ -79,18 +79,6 @@ def office_label(lawyer):
     return room
 
 
-def notify_file_opening(visit, user):
-    staff = active_staff(Secretary).filter(law_firm=visit.firm, can_manage_client_intake=True)
-    if reception_mode(visit.firm) == 'ASSIGNED':
-        staff = staff.filter(Q(is_receptionist=True) | Q(assigned_lawyers=visit.advocate)).distinct()
-    for secretary in staff:
-        Notification.objects.update_or_create(recipient=secretary.user, event_key=f'visit-open-file:{visit.pk}', defaults={
-            'firm': visit.firm, 'actor': user, 'title': 'Open a client file today',
-            'message': f'{visit.advocate.user.full_name} is taking instructions from {visit.visitor_name}. Create the prospective client record.',
-            'action_url': '/secretary/arrivals',
-        })
-
-
 class VisitSerializer(serializers.ModelSerializer):
     advocate_name = serializers.CharField(source='advocate.user.full_name', read_only=True)
     received_by_name = serializers.CharField(source='received_by.full_name', read_only=True)
@@ -280,8 +268,8 @@ class ClientVisitActionView(APIView):
         action = request.data.get('action')
         permissions = serialize_visit(visit, role, profile)
         if action == 'LINK_CLIENT':
-            if not receives_visitors(firm, role, profile):
-                raise PermissionDenied('Authorised intake staff link the client record.')
+            if not permissions['can_consult']:
+                raise PermissionDenied('The advocate who held the consultation links the client record.')
             if set(request.data) - {'action', 'client'}:
                 raise ValidationError('Only the client reference may be linked.')
             if visit.status not in {'IN_CONSULTATION', 'COMPLETED'} or not visit.intake_completed_at:
@@ -355,8 +343,6 @@ class ClientVisitActionView(APIView):
             visit.outcome = outcome
             visit.closed_at = timezone.now()
             visit.save()
-            if outcome == 'INSTRUCTING':
-                notify_file_opening(visit, request.user)
         elif action == 'LEFT':
             if visit.status not in ['WAITING', 'CALLED']:
                 raise ValidationError('Only a waiting or called visitor can be marked as left.')

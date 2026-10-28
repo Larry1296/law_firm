@@ -33,9 +33,13 @@ from apps.ai.views import LawyerCaseAssessmentView, LawyerCasePriorityListView, 
 from apps.staff.views.lawyer.lawyer_tasks_view import LawyerTasksView
 from apps.staff.views.lawyer.lawyer_approvals_view import LawyerApprovalsView
 from apps.clients.views.proposed_matter_entry_view import ProposedMatterEntryView
+from apps.clients.views.onboarding_views import ClientOnboardingMetadataView
+from apps.clients.views.prospective_client_views import ProspectiveClientCreateView
 
 urlpatterns = [
     path("clients/proposed-matters/", ProposedMatterEntryView.as_view(), name="lawyer-proposed-matter-entry"),
+    path("clients/prospective/", ProspectiveClientCreateView.as_view(), name="lawyer-prospective-create"),
+    path("clients/onboarding-metadata/", ClientOnboardingMetadataView.as_view(), name="lawyer-client-onboarding-metadata"),
     path("ai/matters/", LawyerCasePriorityListView.as_view(), name="lawyer-ai-matters"),
     path("ai/matters/<uuid:case_id>/", LawyerCaseAssessmentView.as_view(), name="lawyer-ai-matter-detail"),
     path("ai/matters/<uuid:case_id>/assessments/", LawyerCaseAssessmentView.as_view(), name="lawyer-ai-matter-assessment-create"),

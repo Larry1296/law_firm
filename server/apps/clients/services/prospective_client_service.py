@@ -10,11 +10,20 @@ from apps.common.choices import UserRole
 from apps.staff.services.secretary import SecretaryClientService
 
 
-def prospective_firm(user):
+def consulting_advocate(user):
+    from apps.staff.models import Lawyer, LawyerPermission
+    lawyer = Lawyer.objects.filter(user=user, is_active=True, employment_status__in=['ACTIVE', 'PROBATION']).select_related('law_firm').first()
+    return lawyer if lawyer and lawyer.has_permission(LawyerPermission.CREATE_PROPOSED_MATTER) else None
+
+
+def prospective_firm(user, allow_advocate=False):
     if not user.is_active:
         raise PermissionDenied('An active account is required.')
     if user.role == UserRole.ADMIN and hasattr(user, 'owned_firm'):
         return user.owned_firm
+    # An advocate creates the prospective client from the consultation they held.
+    if allow_advocate and user.role == UserRole.STAFF and (lawyer := consulting_advocate(user)):
+        return lawyer.law_firm
     if user.role == UserRole.STAFF and hasattr(user, "secretary_profile"):
         try:
             return SecretaryClientService.ensure_can_manage_clients(user).law_firm
@@ -28,10 +37,22 @@ class ProspectiveClientService:
     @transaction.atomic
     def create(*, user, data):
         from apps.clients.serializers.prospective_client_serializer import ProspectiveClientCreateSerializer
-        firm = prospective_firm(user)
+        from apps.clients.models import ClientVisit
+        visit_id = data.get('visit')
+        data = {key: value for key, value in data.items() if key != 'visit'}
+        firm = prospective_firm(user, allow_advocate=True)
         # Serialize creation with privacy activation/retirement for this firm.
         from apps.firm.models import LawFirm
         LawFirm.objects.select_for_update().get(pk=firm.pk)
+        visit = None
+        if visit_id:
+            visit = ClientVisit.objects.select_for_update().filter(pk=visit_id, firm=firm).select_related('advocate').first()
+            if visit is None or visit.advocate.user_id != user.id:
+                raise PermissionDenied('Only the advocate who held the consultation creates the client record from it.')
+            if visit.outcome != 'INSTRUCTING' or visit.client_id:
+                raise ValidationError({'visit': 'This consultation has no client file awaiting creation.'})
+        elif user.role == UserRole.STAFF and not hasattr(user, 'secretary_profile'):
+            raise PermissionDenied('Create the client record from the consultation you held.')
         serializer = ProspectiveClientCreateSerializer(data=data)
         serializer.is_valid(raise_exception=True)
         values = dict(serializer.validated_data)
@@ -75,7 +96,11 @@ class ProspectiveClientService:
         ClientDueDiligence.objects.create(client=client, acting_for_self=acting_for_self if kind == 'INDIVIDUAL' else False)
         ClientPrivacyRecord.objects.create(client=client, delivered_by=user, delivered_at=timezone.now(), **privacy)
         AuditService.record(firm=firm, user=user, action='PROSPECTIVE_CLIENT_CREATED', obj=client,
-                            new={'lifecycle_status': client.lifecycle_status, 'access_type': client.access_type, 'client_type': kind})
+                            new={'lifecycle_status': client.lifecycle_status, 'access_type': client.access_type, 'client_type': kind,
+                                 'visit_id': str(visit.pk) if visit else None})
+        if visit:
+            visit.client = client
+            visit.save(update_fields=['client', 'updated_at'])
         return client
 
     @staticmethod

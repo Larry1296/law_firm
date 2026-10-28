@@ -48,7 +48,6 @@ export default function ClientArrivalsPage() {
   const [selected, setSelected] = useState(null);
   const [intake, setIntake] = useState(emptyIntake);
   const [error, setError] = useState('');
-  const [clientLinks, setClientLinks] = useState({});
   const [chosenVisitor, setChosenVisitor] = useState('');
   const { data, isLoading, isError } = useClientQueue();
   const register = useVisitorRegister(arrival, !!data?.can_receive);
@@ -88,6 +87,57 @@ export default function ClientArrivalsPage() {
   const positions = new Map();
   const counts = {};
   waiting.forEach((visit) => { counts[visit.advocate] = (counts[visit.advocate] || 0) + 1; positions.set(visit.id, counts[visit.advocate]); });
+  const visitCard = (visit) => <Card key={visit.id} className='space-y-3 p-5'>
+          <div className='flex flex-wrap items-center justify-between gap-2'><h3 className='font-semibold'>{visit.visitor_name}</h3><span>{visit.status === 'CALLED' ? 'Ready to usher in' : visit.status.replaceAll('_', ' ')}{positions.has(visit.id) ? ` · Queue position ${positions.get(visit.id)}` : ''}</span></div>
+          <p className='text-sm font-medium'>{visit.office_location || 'Office not assigned'}</p>
+          {visit.visitor_phone && <p className='text-sm'>{visit.visitor_phone} · {visit.previous_visit_count ? `Returning visitor · ${visit.previous_visit_count} previous ${visit.previous_visit_count === 1 ? 'visit' : 'visits'}` : 'First visit'}</p>}
+          <p className='text-sm'>{visit.advocate_name} · Arrived {new Date(visit.arrival_at).toLocaleString()} · Received by {visit.received_by_name}</p>
+          {visit.urgency_flag && <p className='text-amber-700 dark:text-amber-300'>Urgent issue mentioned: {visit.urgency_note || 'Advocate to assess'}</p>}
+          <p className='text-sm'>Intake: {visit.intake_completed_at ? 'Completed' : `Awaiting advocate`}</p>
+          {visit.outcome && <p className='text-sm font-medium'>Outcome: {OUTCOMES[visit.outcome]}</p>}
+          {visit.status === 'CALLED' && visit.called_at && <p className='text-sm'>Called {new Date(visit.called_at).toLocaleTimeString()}</p>}
+          {visit.status === 'IN_CONSULTATION' && visit.consultation_started_at && <p className='text-sm'>In office since {new Date(visit.consultation_started_at).toLocaleTimeString()}</p>}
+          {visit.file_due && <p className={`text-sm font-semibold ${visit.file_overdue ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}`}>{visit.file_overdue ? `Client file overdue — instructions taken on ${new Date(visit.closed_at).toLocaleDateString()}` : visit.can_consult ? 'Create the prospective client record today' : 'Advocate is opening the client file'}</p>}
+          {visit.intake_completed_at && visit.broad_issue && <dl className='grid gap-2 text-sm md:grid-cols-2'>
+            {Object.entries(intakeLabels).filter(([key]) => visit[key]).map(([key, label]) => <div key={key}><dt className='font-medium'>{label}</dt><dd>{visit[key]}</dd></div>)}
+          </dl>}
+          <div className='flex flex-wrap gap-3'>
+            {canConductConsultation && visit.can_record_intake && <Button3D variant='outlineLight' disabled={pending} onClick={() => { setSelected(visit.id); setIntake({ ...Object.fromEntries(Object.keys(emptyIntake).map((key) => [key, visit[key] || ''])), ...splitActing(visit.acting_capacity) }); }}>Record consultation intake</Button3D>}
+            {data.role === 'ADMIN' && visit.status === 'WAITING' && <Button3D variant='outlineLight' disabled={pending || data.queues?.some((q) => q.advocate === visit.advocate && (q.current || q.called))} onClick={async () => {
+
+              act(visit.id, 'CALL');
+            }}>Call this client</Button3D>}
+            {visit.can_usher && visit.status === 'CALLED' && <Button3D disabled={pending} onClick={() => act(visit.id, 'USHER')}>Client ushered in</Button3D>}
+            {visit.can_consult && visit.status === 'CALLED' && <Button3D variant='outlineLight' disabled={pending} onClick={() => act(visit.id, 'START')}>Client is in office</Button3D>}
+            {visit.can_consult && visit.status === 'IN_CONSULTATION' && <Button3D variant='outlineLight' disabled={pending} onClick={() => act(visit.id, 'COMPLETE')}>Complete consultation</Button3D>}
+            {['WAITING', 'CALLED'].includes(visit.status) && <Button3D variant='outlineLight' disabled={pending} onClick={() => act(visit.id, 'LEFT')}>Mark as left</Button3D>}
+          </div>
+          {visit.client && data.role === 'ADVOCATE' && <a className='inline-block text-sm font-semibold underline' href={`/lawyer/clients/${visit.client}/conflict-checks/new`}>Record proposed matter / Start conflict check</a>}
+          {visit.client && ['ADMIN', 'SECRETARY', 'RECEPTIONIST'].includes(data.role) && <a className='inline-block text-sm font-semibold underline' href={`/${data.role === 'ADMIN' ? 'admin' : 'secretary'}/clients/${visit.client}`}>Continue client onboarding and proposed matter</a>}
+          {visit.file_due && visit.can_consult && <div className='space-y-2 border-t pt-3'>
+            <p className='text-sm'>You took instructions. Create the prospective client record so the conflict check can start.</p>
+            <a className='inline-block text-sm font-semibold underline' href={`/${data.role === 'ADMIN' ? 'admin' : 'lawyer'}/clients/create?visit=${visit.id}`}>Create prospective client</a>
+          </div>}
+          {selected === visit.id && canConductConsultation && visit.can_record_intake && <form className='space-y-4 border-t border-[color:var(--border)] pt-4' onSubmit={(event) => { event.preventDefault(); mutation.mutate({ id: visit.id, payload: { action: 'INTAKE', ...intakePayload(intake) } }); }}>
+            <p className='text-sm'>Keep this preliminary. Record detailed instructions through the existing matter and conflict-check workflow.</p>
+            <fieldset disabled={pending} className='grid gap-4 md:grid-cols-2'>
+              {Object.entries(intakeLabels).map(([key, label]) => key === 'acting_capacity' ? <div key={key} className='space-y-4'>
+                <SelectInput name={`intake-${visit.id}-acting-mode`} label={label} placeholder='Select' options={actingOptions} value={intake.acting_mode || ''} onChange={(event) => setIntake({ ...intake, acting_mode: event.target.value })} />
+                {intake.acting_mode === 'ON_BEHALF' && <TextInput name={`intake-${visit.id}-acting-for`} label='Specify who and in what capacity' required maxLength={255 - ON_BEHALF.length} help='For example: director of Baraka Homes Limited, or administrator of the estate of the late J. Kamau.' value={intake.acting_for || ''} onChange={(event) => setIntake({ ...intake, acting_for: event.target.value })} />}
+              </div> : <TextInput key={key} name={`intake-${visit.id}-${key}`} label={label} type={key === 'deadline' ? 'date' : 'text'} required={key === 'broad_issue'} maxLength={key === 'other_parties' ? 1000 : key === 'broad_issue' ? 500 : 255} value={intake[key]} onChange={(event) => setIntake({ ...intake, [key]: event.target.value })} />)}
+            </fieldset>
+            <div className='flex flex-wrap gap-3'>
+              <Button3D type='submit' disabled={pending}>{mutation.isPending ? 'Saving…' : 'Save consultation intake'}</Button3D>
+              <Button3D variant='outlineLight' disabled={pending} onClick={() => setSelected(null)}>Cancel</Button3D>
+            </div>
+          </form>}
+  </Card>;
+  // Reception follows each visitor from arrival, through the advocate's office, to the end of the day.
+  const stages = [
+    ['Waiting', 'In arrival order for each advocate.', ['WAITING']],
+    ['With advocate', 'Called or ushered in. Details stay here until the advocate completes the consultation.', ['CALLED', 'IN_CONSULTATION']],
+    ['Seen today', 'Completed consultations and visitors who left, with the advocate’s outcome.', ['COMPLETED', 'LEFT']],
+  ];
   return (
     <div className='space-y-6 p-4 text-[color:var(--text-primary)] md:p-6'>
       <div><h1 className='text-2xl font-semibold'>Client arrivals & waiting queue</h1>
@@ -139,53 +189,10 @@ export default function ClientArrivalsPage() {
           {!data.advocates.length && <p className='form-hint'>Add an active advocate account before recording arrivals.</p>}
         </form>
       </Card>}
-      <section className='space-y-3'><h2 className='text-lg font-semibold'>Waiting and consultations</h2>
-        {!data.visits.length && <p>No visits in the queue or completed today.</p>}
-        {data.visits.map((visit) => <Card key={visit.id} className='space-y-3 p-5'>
-          <div className='flex flex-wrap items-center justify-between gap-2'><h3 className='font-semibold'>{visit.visitor_name}</h3><span>{visit.status === 'CALLED' ? 'Ready to usher in' : visit.status.replaceAll('_', ' ')}{positions.has(visit.id) ? ` · Queue position ${positions.get(visit.id)}` : ''}</span></div>
-          <p className='text-sm font-medium'>{visit.office_location || 'Office not assigned'}</p>
-          {visit.visitor_phone && <p className='text-sm'>{visit.visitor_phone} · {visit.previous_visit_count ? `Returning visitor · ${visit.previous_visit_count} previous ${visit.previous_visit_count === 1 ? 'visit' : 'visits'}` : 'First visit'}</p>}
-          <p className='text-sm'>{visit.advocate_name} · Arrived {new Date(visit.arrival_at).toLocaleString()} · Received by {visit.received_by_name}</p>
-          {visit.urgency_flag && <p className='text-amber-700 dark:text-amber-300'>Urgent issue mentioned: {visit.urgency_note || 'Advocate to assess'}</p>}
-          <p className='text-sm'>Intake: {visit.intake_completed_at ? 'Completed' : `Awaiting advocate`}</p>
-          {visit.outcome && <p className='text-sm font-medium'>Outcome: {OUTCOMES[visit.outcome]}</p>}
-          {visit.file_due && <p className={`text-sm font-semibold ${visit.file_overdue ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}`}>{visit.file_overdue ? `Client file overdue — directed on ${new Date(visit.closed_at).toLocaleDateString()}` : 'Open the client file today'}</p>}
-          {visit.intake_completed_at && visit.broad_issue && <dl className='grid gap-2 text-sm md:grid-cols-2'>
-            {Object.entries(intakeLabels).filter(([key]) => visit[key]).map(([key, label]) => <div key={key}><dt className='font-medium'>{label}</dt><dd>{visit[key]}</dd></div>)}
-          </dl>}
-          <div className='flex flex-wrap gap-3'>
-            {canConductConsultation && visit.can_record_intake && <Button3D variant='outlineLight' disabled={pending} onClick={() => { setSelected(visit.id); setIntake({ ...Object.fromEntries(Object.keys(emptyIntake).map((key) => [key, visit[key] || ''])), ...splitActing(visit.acting_capacity) }); }}>Record consultation intake</Button3D>}
-            {data.role === 'ADMIN' && visit.status === 'WAITING' && <Button3D variant='outlineLight' disabled={pending || data.queues?.some((q) => q.advocate === visit.advocate && (q.current || q.called))} onClick={async () => {
-
-              act(visit.id, 'CALL');
-            }}>Call this client</Button3D>}
-            {visit.can_usher && visit.status === 'CALLED' && <Button3D disabled={pending} onClick={() => act(visit.id, 'USHER')}>Client ushered in</Button3D>}
-            {visit.can_consult && visit.status === 'CALLED' && <Button3D variant='outlineLight' disabled={pending} onClick={() => act(visit.id, 'START')}>Client is in office</Button3D>}
-            {visit.can_consult && visit.status === 'IN_CONSULTATION' && <Button3D variant='outlineLight' disabled={pending} onClick={() => act(visit.id, 'COMPLETE')}>Complete consultation</Button3D>}
-            {['WAITING', 'CALLED'].includes(visit.status) && <Button3D variant='outlineLight' disabled={pending} onClick={() => act(visit.id, 'LEFT')}>Mark as left</Button3D>}
-          </div>
-          {visit.client && ['ADMIN', 'SECRETARY', 'RECEPTIONIST'].includes(data.role) && <a className='inline-block text-sm font-semibold underline' href={`/${data.role === 'ADMIN' ? 'admin' : 'secretary'}/clients/${visit.client}`}>Continue client onboarding and proposed matter</a>}
-          {visit.file_due && data.can_receive && <div className='space-y-3 border-t pt-3'>
-            <p className='text-sm'>{visit.can_consult ? 'Create or select the client record and link this arrival.' : 'Following the advocate’s direction, create or select the client record and link this arrival.'}</p>
-            <a className='inline-block text-sm font-semibold underline' href={`/${data.role === 'ADMIN' ? 'admin' : 'secretary'}/clients/create?visit=${visit.id}`}>Create prospective client</a>
-            <SelectInput name={`link-client-${visit.id}`} label='Client to link to this arrival' placeholder='Select the client record' options={data.clients} value={clientLinks[visit.id] || ''} onChange={(event) => setClientLinks({ ...clientLinks, [visit.id]: event.target.value })} />
-            <Button3D disabled={pending || !clientLinks[visit.id]} onClick={() => mutation.mutate({ id: visit.id, payload: { action: 'LINK_CLIENT', client: clientLinks[visit.id] } })}>Link client record</Button3D>
-          </div>}
-          {selected === visit.id && canConductConsultation && visit.can_record_intake && <form className='space-y-4 border-t border-[color:var(--border)] pt-4' onSubmit={(event) => { event.preventDefault(); mutation.mutate({ id: visit.id, payload: { action: 'INTAKE', ...intakePayload(intake) } }); }}>
-            <p className='text-sm'>Keep this preliminary. Record detailed instructions through the existing matter and conflict-check workflow.</p>
-            <fieldset disabled={pending} className='grid gap-4 md:grid-cols-2'>
-              {Object.entries(intakeLabels).map(([key, label]) => key === 'acting_capacity' ? <div key={key} className='space-y-4'>
-                <SelectInput name={`intake-${visit.id}-acting-mode`} label={label} placeholder='Select' options={actingOptions} value={intake.acting_mode || ''} onChange={(event) => setIntake({ ...intake, acting_mode: event.target.value })} />
-                {intake.acting_mode === 'ON_BEHALF' && <TextInput name={`intake-${visit.id}-acting-for`} label='Specify who and in what capacity' required maxLength={255 - ON_BEHALF.length} help='For example: director of Baraka Homes Limited, or administrator of the estate of the late J. Kamau.' value={intake.acting_for || ''} onChange={(event) => setIntake({ ...intake, acting_for: event.target.value })} />}
-              </div> : <TextInput key={key} name={`intake-${visit.id}-${key}`} label={label} type={key === 'deadline' ? 'date' : 'text'} required={key === 'broad_issue'} maxLength={key === 'other_parties' ? 1000 : key === 'broad_issue' ? 500 : 255} value={intake[key]} onChange={(event) => setIntake({ ...intake, [key]: event.target.value })} />)}
-            </fieldset>
-            <div className='flex flex-wrap gap-3'>
-              <Button3D type='submit' disabled={pending}>{mutation.isPending ? 'Saving…' : 'Save consultation intake'}</Button3D>
-              <Button3D variant='outlineLight' disabled={pending} onClick={() => setSelected(null)}>Cancel</Button3D>
-            </div>
-          </form>}
-        </Card>)}
-      </section>
+      {stages.map(([title, hint, statuses]) => { const rows = data.visits.filter((visit) => statuses.includes(visit.status));
+        return <section key={title} className='space-y-3'><div><h2 className='text-lg font-semibold'>{title} ({rows.length})</h2><p className='form-hint text-sm'>{hint}</p></div>
+          {rows.length ? rows.map(visitCard) : <p className='text-sm'>None.</p>}
+        </section>; })}
     </div>
   );
 }

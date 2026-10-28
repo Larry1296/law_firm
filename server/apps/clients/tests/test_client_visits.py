@@ -61,13 +61,14 @@ class ClientVisitTests(TestCase):
         client = Client.objects.create(firm=self.firm, created_by=self.owner, full_name='Visitor Client', client_type='INDIVIDUAL')
         other = Client.objects.create(firm=self.firm, created_by=self.owner, full_name='Another Client', client_type='INDIVIDUAL')
         pk = self.arrive()
-        self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 400)
         self.api.force_authenticate(self.lawyer.user)
+        self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 400)
         self.assertEqual(self.action(pk, 'START').status_code, 200)
         self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt').status_code, 200)
         self.assertEqual(self.action(pk, 'COMPLETE', outcome='INSTRUCTING').status_code, 200)
-        self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 403)
         self.api.force_authenticate(self.secretary.user)
+        self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 403)
+        self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 200)
         self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(other.pk)).status_code, 400)
         self.assertEqual(ClientVisit.objects.get(pk=pk).client_id, client.pk)
@@ -158,12 +159,15 @@ class ClientVisitTests(TestCase):
         self.assertEqual(self.action(pk, 'COMPLETE').status_code, 400)
         self.assertEqual(self.action(pk, 'COMPLETE', outcome='MAYBE').status_code, 400)
         self.assertEqual(self.action(pk, 'COMPLETE', outcome='INSTRUCTING').status_code, 200)
-        self.assertTrue(Notification.objects.filter(recipient=self.secretary.user, event_key=f'visit-open-file:{pk}').exists())
-        self.api.force_authenticate(self.secretary.user)
+        # The advocate opens the file; reception is not handed the data entry.
+        self.assertFalse(Notification.objects.filter(recipient=self.secretary.user, event_key=f'visit-open-file:{pk}').exists())
         ClientVisit.objects.filter(pk=pk).update(closed_at=timezone.now() - timedelta(days=1))
         row = self.api.get(self.url).data['visits'][0]
         self.assertEqual((row['outcome'], row['file_due'], row['file_overdue']), ('INSTRUCTING', True, True))
         client = Client.objects.create(firm=self.firm, created_by=self.owner, full_name='Visitor', client_type='INDIVIDUAL')
+        self.api.force_authenticate(self.secretary.user)
+        self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 403)
+        self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 200)
         self.assertEqual(self.api.get(self.url).data['visits'], [])
 
@@ -177,6 +181,7 @@ class ClientVisitTests(TestCase):
         self.api.force_authenticate(self.secretary.user)
         self.assertFalse(self.api.get(self.url).data['visits'][0]['file_due'])
         client = Client.objects.create(firm=self.firm, created_by=self.owner, full_name='Visitor', client_type='INDIVIDUAL')
+        self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 400)
 
     def test_legacy_reception_intake_does_not_block_advocate(self):

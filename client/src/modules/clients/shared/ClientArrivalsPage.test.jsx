@@ -3,22 +3,21 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from '@/core/api/axios';
 import Swal from '@/core/utils/themedSwal';
+import { MemoryRouter } from 'react-router-dom';
 import ClientArrivalsPage from './ClientArrivalsPage';
 vi.mock('@/core/api/axios', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 vi.mock('@/core/utils/themedSwal', () => ({ default: { fire: vi.fn() } }));
 const base = { role: 'SECRETARY', has_receptionist: false, can_receive: true, clients: [], advocates: [{ value: 'a1', label: 'Advocate One' }], visits: [] };
 function show(data) {
   axios.get.mockResolvedValue({ data });
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ClientArrivalsPage /></QueryClientProvider>);
+  return render(<MemoryRouter><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ClientArrivalsPage /></QueryClientProvider></MemoryRouter>);
 }
 beforeEach(() => vi.clearAllMocks());
 describe('client arrival staffing flows', () => {
-  it('links the completed arrival to the chosen client without opening a case', async () => {
-    axios.post.mockResolvedValue({ data: {} });
-    show({ ...base, clients: [{ value: 'c1', label: 'Kamau Hardware Limited' }], visits: [{ id: 'v1', visitor_name: 'Peter Kamau', advocate: 'a1', status: 'COMPLETED', intake_completed_at: '2026-10-26T08:00:00Z', intake_handler: 'ADVOCATE', outcome: 'INSTRUCTING', file_due: true }] });
-    fireEvent.change(await screen.findByLabelText('Client to link to this arrival'), { target: { value: 'c1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Link client record' }));
-    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/v1/', { action: 'LINK_CLIENT', client: 'c1' }));
+  it('sends the advocate who took instructions to create the prospective client', async () => {
+    show({ ...base, role: 'ADVOCATE', can_receive: false, visits: [{ id: 'v1', visitor_name: 'Peter Kamau', advocate: 'a1', status: 'COMPLETED', intake_completed_at: '2026-10-26T08:00:00Z', intake_handler: 'ADVOCATE', outcome: 'INSTRUCTING', file_due: true, can_consult: true }] });
+    expect(await screen.findByText('Create the prospective client record today')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Create prospective client' }).getAttribute('href')).toBe('/lawyer/clients/create?visit=v1');
   });
   it('secretary records only basic arrival and notifies the advocate', async () => {
     axios.post.mockResolvedValue({ data: {} });
@@ -37,7 +36,7 @@ describe('client arrival staffing flows', () => {
     axios.get.mockImplementation(async (url) => ({ data: url === '/arrivals/visitors/'
       ? [{ visitor_name: 'John Mutua Ndeti', visitor_phone: '0722000111', visit_count: 2, last_arrival_at: '2026-10-28T08:00:00Z', last_advocate_name: 'Grace Wanjiku', client: 'c1', client_name: 'John Mutua Ndeti' }]
       : { ...base, clients: [{ value: 'c1', label: 'John Mutua Ndeti' }] } }));
-    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ClientArrivalsPage /></QueryClientProvider>);
+    render(<MemoryRouter><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ClientArrivalsPage /></QueryClientProvider></MemoryRouter>);
     fireEvent.change(await screen.findByLabelText(/Phone number/), { target: { value: '0722' } });
     fireEvent.click(await screen.findByRole('button', { name: 'This is the visitor' }));
     expect(axios.get).toHaveBeenCalledWith('/arrivals/visitors/', { params: { q: '0722' } });
@@ -71,24 +70,27 @@ describe('client arrival staffing flows', () => {
       intake_handler: 'ADVOCATE', intake_completed_at: '2026-10-26T08:00:00Z', can_record_intake: false, can_consult: false };
     show({ ...base, role: 'ADMIN', visits: [current], queues: [{ advocate: 'a1', advocate_name: 'Advocate One',
       waiting_count: 0, current, called: null, next: null, can_call: true }] });
-    await screen.findByText('Waiting and consultations');
+    await screen.findByText('With advocate (1)');
     expect(screen.queryByRole('button', { name: 'Complete consultation' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Record consultation intake' })).toBeNull();
-    // Reception opens the file only after the advocate directs it at completion.
-    expect(screen.queryByText('Following the advocate’s direction, create or select the client record and link this arrival.')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Create prospective client' })).toBeNull();
   });
-  it('asks reception to open the file the advocate directed and flags it when overdue', async () => {
-    show({ ...base, visits: [{ id: 'v1', visitor_name: 'Visitor', advocate: 'a1', status: 'COMPLETED', closed_at: '2026-10-27T12:00:00Z',
-      intake_completed_at: '2026-10-27T08:00:00Z', outcome: 'INSTRUCTING', file_due: true, file_overdue: true }, { id: 'v2', visitor_name: 'Enquirer', advocate: 'a1',
-      status: 'COMPLETED', intake_completed_at: '2026-10-28T08:00:00Z', outcome: 'ENQUIRY_ONLY', file_due: false }] });
-    expect(await screen.findByText(/Client file overdue/)).toBeTruthy();
+  it('shows reception each stage and leaves the client file to the advocate', async () => {
+    show({ ...base, visits: [{ id: 'v0', visitor_name: 'In office', advocate: 'a1', status: 'IN_CONSULTATION', consultation_started_at: '2026-10-28T09:00:00Z' },
+      { id: 'v1', visitor_name: 'Instructing', advocate: 'a1', status: 'COMPLETED', closed_at: '2026-10-27T12:00:00Z',
+        intake_completed_at: '2026-10-27T08:00:00Z', outcome: 'INSTRUCTING', file_due: true, file_overdue: true }, { id: 'v2', visitor_name: 'Enquirer', advocate: 'a1',
+        status: 'COMPLETED', intake_completed_at: '2026-10-28T08:00:00Z', outcome: 'ENQUIRY_ONLY', file_due: false }] });
+    expect(await screen.findByText('With advocate (1)')).toBeTruthy();
+    expect(screen.getByText('Seen today (2)')).toBeTruthy();
+    expect(screen.getByText(/In office since/)).toBeTruthy();
+    expect(screen.getByText(/Client file overdue/)).toBeTruthy();
     expect(screen.getByText('Outcome: Enquiry only — no file')).toBeTruthy();
-    expect(screen.getAllByText('Following the advocate’s direction, create or select the client record and link this arrival.')).toHaveLength(1);
+    expect(screen.queryByRole('link', { name: 'Create prospective client' })).toBeNull();
   });
   it('words the client link for the owner when they are the assigned advocate', async () => {
     show({ ...base, role: 'ADMIN', visits: [{ id: 'v1', visitor_name: 'Visitor', advocate: 'a1', status: 'COMPLETED',
       intake_handler: 'ADVOCATE', intake_completed_at: '2026-10-26T08:00:00Z', can_record_intake: false, can_consult: true, outcome: 'INSTRUCTING', file_due: true }] });
-    expect(await screen.findByText('Create or select the client record and link this arrival.')).toBeTruthy();
+    expect((await screen.findByRole('link', { name: 'Create prospective client' })).getAttribute('href')).toBe('/admin/clients/create?visit=v1');
   });
   it('asks the advocate for the outcome before completing the consultation', async () => {
     axios.post.mockResolvedValue({ data: {} });

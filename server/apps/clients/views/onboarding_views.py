@@ -19,7 +19,8 @@ class ClientOnboardingMetadataView(APIView):
 
     def get(self, request):
         from apps.clients.models import IntakePrivacyConfig
-        config = IntakePrivacyConfig.active_for(onboarding_firm(request.user))
+        from apps.clients.services.prospective_client_service import prospective_firm
+        config = IntakePrivacyConfig.active_for(prospective_firm(request.user, allow_advocate=True))
         data = onboarding_metadata()
         data['intake_privacy'] = {'policy_version': config.policy_version, 'lawful_basis': config.lawful_basis,
                                   'lawful_basis_label': config.get_lawful_basis_display()} if config else None
