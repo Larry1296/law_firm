@@ -15,6 +15,8 @@ class ClientVisit(TimestampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     firm = models.ForeignKey('firm.LawFirm', on_delete=models.PROTECT)
     visitor_name = models.CharField(max_length=255)
+    # Reception's visitor register: the phone recognises a returning visitor.
+    visitor_phone = models.CharField(max_length=20, blank=True, db_index=True)
     client = models.ForeignKey('clients.Client', null=True, blank=True, on_delete=models.PROTECT)
     advocate = models.ForeignKey('staff.Lawyer', on_delete=models.PROTECT)
     received_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)

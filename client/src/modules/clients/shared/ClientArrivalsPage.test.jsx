@@ -26,17 +26,32 @@ describe('client arrival staffing flows', () => {
     await screen.findByText('Record arrival');
     expect(screen.queryByLabelText('Broad nature of enquiry')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Visitor name/), { target: { value: 'A Visitor' } });
+    fireEvent.change(screen.getByLabelText(/Phone number/), { target: { value: '0712345678' } });
     fireEvent.change(screen.getByLabelText(/^Advocate/), { target: { value: 'a1' } });
     fireEvent.click(screen.getByText('Add to queue & alert advocate'));
-    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/', { visitor_name: 'A Visitor', client: null, advocate: 'a1', urgency_flag: false, urgency_note: '' }));
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/', { visitor_name: 'A Visitor', visitor_phone: '0712345678', client: null, advocate: 'a1', urgency_flag: false, urgency_note: '' }));
     await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ icon: 'success', title: 'Added to queue' })));
     expect(screen.getByLabelText(/Visitor name/).value).toBe('');
+  });
+  it('offers a returning visitor from the register and fills the arrival', async () => {
+    axios.get.mockImplementation(async (url) => ({ data: url === '/arrivals/visitors/'
+      ? [{ visitor_name: 'John Mutua Ndeti', visitor_phone: '0722000111', visit_count: 2, last_arrival_at: '2026-10-28T08:00:00Z', last_advocate_name: 'Grace Wanjiku', client: 'c1', client_name: 'John Mutua Ndeti' }]
+      : { ...base, clients: [{ value: 'c1', label: 'John Mutua Ndeti' }] } }));
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ClientArrivalsPage /></QueryClientProvider>);
+    fireEvent.change(await screen.findByLabelText(/Phone number/), { target: { value: '0722' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'This is the visitor' }));
+    expect(axios.get).toHaveBeenCalledWith('/arrivals/visitors/', { params: { q: '0722' } });
+    expect(screen.getByLabelText(/Visitor name/).value).toBe('John Mutua Ndeti');
+    expect(screen.getByLabelText(/Phone number/).value).toBe('0722000111');
+    expect(screen.getByLabelText(/Client record/).value).toBe('c1');
+    expect(screen.queryByText('Returning visitor?')).toBeNull();
   });
   it('shows a save error without clearing the arrival details', async () => {
     axios.post.mockRejectedValue({ response: { data: { detail: 'Advocate is unavailable.' } } });
     show(base);
     await screen.findByText('Record arrival');
     fireEvent.change(screen.getByLabelText(/Visitor name/), { target: { value: 'A Visitor' } });
+    fireEvent.change(screen.getByLabelText(/Phone number/), { target: { value: '0712345678' } });
     fireEvent.change(screen.getByLabelText(/^Advocate/), { target: { value: 'a1' } });
     fireEvent.click(screen.getByText('Add to queue & alert advocate'));
     await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ icon: 'error', text: 'Advocate is unavailable.' })));

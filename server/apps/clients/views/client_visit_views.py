@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -14,10 +15,11 @@ from apps.common.choices import UserRole
 from apps.firm.models import FirmSetting, LawFirm
 from apps.notifications.models import Notification
 from apps.staff.models import Lawyer, Secretary
+from apps.users.validators.phone_number import normalize_phone_number
 
 ACTIVE_STATUSES = ['WAITING', 'CALLED', 'IN_CONSULTATION']
 INTAKE_FIELDS = {'contact_details', 'acting_capacity', 'other_parties', 'broad_issue', 'deadline'}
-ARRIVAL_FIELDS = {'visitor_name', 'client', 'advocate', 'urgency_flag', 'urgency_note'}
+ARRIVAL_FIELDS = {'visitor_name', 'visitor_phone', 'client', 'advocate', 'urgency_flag', 'urgency_note'}
 
 
 def active_staff(model):
@@ -81,6 +83,13 @@ class VisitSerializer(serializers.ModelSerializer):
     advocate_name = serializers.CharField(source='advocate.user.full_name', read_only=True)
     received_by_name = serializers.CharField(source='received_by.full_name', read_only=True)
     office_location = serializers.SerializerMethodField()
+    visitor_phone = serializers.CharField(max_length=20)
+
+    def validate_visitor_phone(self, value):
+        try:
+            return normalize_phone_number(value)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError(error.messages)
 
     def get_office_location(self, obj):
         return office_label(obj.advocate)
@@ -128,6 +137,8 @@ def serialize_visit(visit, role, profile, receives=None):
             data.pop(field, None)
     if not visit.intake_completed_at:
         data['intake_handler'] = 'ADVOCATE'
+    data['previous_visit_count'] = ClientVisit.objects.filter(firm=visit.firm, visitor_phone=visit.visitor_phone,
+        arrival_at__lt=visit.arrival_at).count() if visit.visitor_phone else 0
     data['can_record_intake'] = bool(can_intake and not visit.intake_completed_at and visit.status in ACTIVE_STATUSES)
     data['can_consult'] = bool(assigned)
     data['can_call'] = bool(assigned or role == 'ADMIN')
@@ -201,6 +212,42 @@ class ClientVisitListView(APIView):
             title='Urgent client arrival' if visit.urgency_flag else 'Client waiting for consultation', message='A visitor has joined your waiting queue.',
             action_url='/admin/arrivals' if visit.advocate.user.role == UserRole.ADMIN else '/lawyer/arrivals', event_key=f'visit-arrived:{visit.pk}')
         return Response(serialize_visit(visit, role, profile), status=201)
+
+
+class ReturningVisitorView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        firm, role, profile = visit_access(request.user)
+        if not receives_visitors(firm, role, profile):
+            raise PermissionDenied('Reception or the secretary looks up the visitor register.')
+        query = (request.query_params.get('q') or '').strip()
+        digits = ''.join(ch for ch in query if ch.isdigit())
+        if digits.startswith('254'):
+            digits = '0' + digits[3:]
+        if len(digits) >= 4:
+            match = Q(visitor_phone__contains=digits)
+        elif len(query) >= 3:
+            match = Q(visitor_name__icontains=query)
+        else:
+            return Response([])
+        visits = (ClientVisit.objects.filter(firm=firm).exclude(visitor_phone='').filter(match)
+            .select_related('advocate__user', 'client').order_by('-arrival_at'))
+        visitors = {}
+        for visit in visits[:200]:
+            entry = visitors.get(visit.visitor_phone)
+            if entry is None:
+                if len(visitors) == 8:
+                    continue
+                entry = visitors[visit.visitor_phone] = {
+                    'visitor_name': visit.visitor_name, 'visitor_phone': visit.visitor_phone, 'visit_count': 0,
+                    'last_arrival_at': visit.arrival_at, 'last_advocate_name': visit.advocate.user.full_name,
+                    'client': None, 'client_name': '',
+                }
+            entry['visit_count'] += 1
+            if visit.client_id and not entry['client'] and visit.client.is_active and visit.client.lifecycle_status != 'ARCHIVED':
+                entry['client'], entry['client_name'] = str(visit.client_id), visit.client.full_name
+        return Response(list(visitors.values()))
 
 
 class ClientVisitActionView(APIView):

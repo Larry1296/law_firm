@@ -25,7 +25,7 @@ class ClientVisitTests(TestCase):
         self.url = reverse('client-arrivals')
 
     def arrive(self):
-        response = self.api.post(self.url, {'visitor_name': 'Visitor', 'advocate': str(self.lawyer.pk)}, format='json')
+        response = self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Visitor', 'advocate': str(self.lawyer.pk)}, format='json')
         self.assertEqual(response.status_code, 201, response.data)
         return response.data['id']
 
@@ -78,7 +78,7 @@ class ClientVisitTests(TestCase):
         self.assertEqual(ClientVisit.objects.get(pk=pk).intake_handler, 'ADVOCATE')
         for action in ['INTAKE', 'START', 'COMPLETE']:
             self.assertEqual(self.action(pk, action, broad_issue='Debt').status_code, 403)
-        self.assertEqual(self.api.post(self.url, {'visitor_name': 'Visitor', 'advocate': str(self.lawyer.pk),
+        self.assertEqual(self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Visitor', 'advocate': str(self.lawyer.pk),
             'broad_issue': 'Debt'}, format='json').status_code, 400)
         self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.action(pk, 'START').status_code, 200)
@@ -106,7 +106,7 @@ class ClientVisitTests(TestCase):
     def test_owner_advocate_can_consult_own_assigned_visitor(self):
         lawyer = Lawyer.objects.create(user=self.owner, law_firm=self.firm, staff_number='OWNER',
             admission_number='OWNER', date_hired=date.today(), office_location='Partner office')
-        response = self.api.post(self.url, {'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json')
+        response = self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json')
         self.assertEqual(response.status_code, 201)
         pk = response.data['id']
         self.api.force_authenticate(self.owner)
@@ -119,9 +119,9 @@ class ClientVisitTests(TestCase):
             admission_number='OWNER', date_hired=date.today(), office_location='Partner office')
         self.api.force_authenticate(self.owner)
         self.assertFalse(self.api.get(self.url).data['can_receive'])
-        self.assertEqual(self.api.post(self.url, {'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json').status_code, 403)
+        self.assertEqual(self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json').status_code, 403)
         self.api.force_authenticate(self.secretary.user)
-        pk = self.api.post(self.url, {'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json').data['id']
+        pk = self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json').data['id']
         self.api.force_authenticate(self.owner)
         self.assertEqual(self.action(pk, 'CALL').status_code, 200)
         self.assertFalse(self.api.get(self.url).data['visits'][0]['can_usher'])
@@ -130,6 +130,24 @@ class ClientVisitTests(TestCase):
         self.secretary.save(update_fields=['can_manage_client_intake'])
         self.assertTrue(self.api.get(self.url).data['can_receive'])
         self.assertEqual(self.action(pk, 'USHER').status_code, 200)
+
+    def test_arrival_requires_kenyan_phone_and_recognises_returning_visitor(self):
+        payload = {'visitor_name': 'John Mutua', 'advocate': str(self.lawyer.pk)}
+        self.assertEqual(self.api.post(self.url, payload, format='json').status_code, 400)
+        self.assertEqual(self.api.post(self.url, {**payload, 'visitor_phone': '12345'}, format='json').status_code, 400)
+        first = self.api.post(self.url, {**payload, 'visitor_phone': '+254 722 000 111'}, format='json').data
+        self.assertEqual((first['visitor_phone'], first['previous_visit_count']), ('0722000111', 0))
+        client = Client.objects.create(firm=self.firm, created_by=self.owner, full_name='John Mutua', client_type='INDIVIDUAL')
+        ClientVisit.objects.filter(pk=first['id']).update(client=client)
+        lookup = reverse('client-arrival-visitors')
+        for query in ['0722000', '254722000111', 'mutua']:
+            rows = self.api.get(lookup, {'q': query}).data
+            self.assertEqual([(r['visitor_phone'], r['visit_count'], r['client']) for r in rows], [('0722000111', 1, str(client.pk))], query)
+        self.assertEqual(self.api.get(lookup, {'q': 'jo'}).data, [])
+        second = self.api.post(self.url, {**payload, 'visitor_phone': '0722000111', 'client': str(client.pk)}, format='json').data
+        self.assertEqual(second['previous_visit_count'], 1)
+        self.api.force_authenticate(self.lawyer.user)
+        self.assertEqual(self.api.get(lookup, {'q': 'mutua'}).status_code, 403)
 
     def test_legacy_reception_intake_does_not_block_advocate(self):
         self.receptionist()
@@ -158,7 +176,7 @@ class ClientVisitTests(TestCase):
         owner = self.user('foreign-owner', UserRole.ADMIN)
         firm = LawFirm.objects.create(owner=owner, name='Other', registration_number='FOREIGN')
         lawyer = Lawyer.objects.create(user=self.user('foreign-lawyer'), law_firm=firm, staff_number='A2', admission_number='A2', date_hired=date.today())
-        response = self.api.post(self.url, {'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json')
+        response = self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json')
         self.assertEqual(response.status_code, 400)
 
     def test_queue_order_and_one_consultation_at_a_time(self):
@@ -172,7 +190,7 @@ class ClientVisitTests(TestCase):
 
     def test_reject_secretary_sensitive_fields_and_unknown_fields(self):
         for field in ['broad_issue', 'intake_handler', 'status']:
-            payload = {'visitor_name': 'Visitor', 'advocate': str(self.lawyer.pk), field: 'Untrusted'}
+            payload = {'visitor_phone': '0712345678', 'visitor_name': 'Visitor', 'advocate': str(self.lawyer.pk), field: 'Untrusted'}
             self.assertEqual(self.api.post(self.url, payload, format='json').status_code, 400)
 
     def test_receptionist_deactivation_does_not_strand_queue(self):
@@ -258,7 +276,7 @@ class ClientVisitTests(TestCase):
         self.set_office()
         first = self.arrive()
         other = self.second_advocate()
-        second = self.api.post(self.url, {'visitor_name': 'Other visitor', 'advocate': str(other.pk)}, format='json').data['id']
+        second = self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Other visitor', 'advocate': str(other.pk)}, format='json').data['id']
         self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.action(first, 'CALL').status_code, 200)
         self.api.force_authenticate(other.user)
@@ -279,7 +297,7 @@ class ClientVisitTests(TestCase):
         self.assertEqual(data['visits'], [])
         self.assertEqual(len(data['queues']), 1)
         self.assertEqual(self.action(first, 'LEFT').status_code, 403)
-        self.assertEqual(self.api.post(self.url, {'visitor_name': 'Denied', 'advocate': str(self.lawyer.pk)}, format='json').status_code, 403)
+        self.assertEqual(self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Denied', 'advocate': str(self.lawyer.pk)}, format='json').status_code, 403)
         self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.action(first, 'CALL').status_code, 200)
         self.assertFalse(Notification.objects.filter(recipient=self.secretary.user, event_key=f'visit-called:{first}').exists())
@@ -352,7 +370,7 @@ class ClientVisitTests(TestCase):
         data = self.api.get(self.url).data
         self.assertEqual(len(data['queues']), 3)
         for lawyer in [self.lawyer, other, owner_lawyer]:
-            response = self.api.post(self.url, {'visitor_name': lawyer.user.first_name, 'advocate': str(lawyer.pk)}, format='json')
+            response = self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': lawyer.user.first_name, 'advocate': str(lawyer.pk)}, format='json')
             self.assertEqual(response.status_code, 201)
         data = self.api.get(self.url).data
         self.assertEqual(data['waiting_count'], 3)

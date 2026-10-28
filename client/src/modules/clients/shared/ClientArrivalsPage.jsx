@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from '@/core/api/axios';
-import { BellRing, Loader2, UserPlus } from 'lucide-react';
+import { BellRing, History, Loader2, UserPlus } from 'lucide-react';
 import { TextInput, SelectInput } from '@/components/forms';
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
@@ -10,7 +10,7 @@ import ClientQueueBoard from './ClientQueueBoard';
 import QueueConfiguration from './QueueConfiguration';
 import { useClientQueue, useQueueAction } from './useClientQueue';
 
-const emptyArrival = { visitor_name: '', client: '', advocate: '', urgency_flag: false, urgency_note: '' };
+const emptyArrival = { visitor_name: '', visitor_phone: '', client: '', advocate: '', urgency_flag: false, urgency_note: '' };
 const emptyIntake = { contact_details: '', acting_capacity: '', other_parties: '', broad_issue: '', deadline: '' };
 const ON_BEHALF = 'On behalf of: ';
 const actingOptions = [{ value: 'PERSONALLY', label: 'Personally' }, { value: 'ON_BEHALF', label: 'On behalf of someone else' }];
@@ -25,6 +25,23 @@ const errorText = (error) => {
   return typeof data === 'string' ? data : data ? Object.entries(data).map(([key, value]) => `${key === 'detail' ? '' : `${key}: `}${Array.isArray(value) ? value.join(', ') : value}`).join(' ') : 'Unable to save. Please try again.';
 };
 
+// The visitor register: every client starts as a visitor, so search past visits by phone, or by name.
+const registerQuery = ({ visitor_name, visitor_phone }) => {
+  const digits = visitor_phone.replace(/\D/g, '');
+  return digits.length >= 4 ? visitor_phone.trim() : visitor_name.trim().length >= 3 ? visitor_name.trim() : '';
+};
+
+function useVisitorRegister(arrival, enabled) {
+  const [term, setTerm] = useState('');
+  const next = registerQuery(arrival);
+  useEffect(() => { const timer = setTimeout(() => setTerm(next), 300); return () => clearTimeout(timer); }, [next]);
+  return useQuery({
+    queryKey: ['visitor-register', term],
+    queryFn: async () => (await axios.get('/arrivals/visitors/', { params: { q: term } })).data,
+    enabled: enabled && !!term,
+  });
+}
+
 export default function ClientArrivalsPage() {
   const queryClient = useQueryClient();
   const [arrival, setArrival] = useState(emptyArrival);
@@ -32,13 +49,16 @@ export default function ClientArrivalsPage() {
   const [intake, setIntake] = useState(emptyIntake);
   const [error, setError] = useState('');
   const [clientLinks, setClientLinks] = useState({});
+  const [chosenVisitor, setChosenVisitor] = useState('');
   const { data, isLoading, isError } = useClientQueue();
+  const register = useVisitorRegister(arrival, !!data?.can_receive);
+  const returning = chosenVisitor && chosenVisitor === arrival.visitor_phone ? [] : (registerQuery(arrival) && register.data) || [];
   const queueAction = useQueueAction();
   const mutation = useMutation({
     mutationFn: async ({ id, payload }) => (await axios.post(id ? `/arrivals/${id}/` : '/arrivals/', payload)).data,
     onSuccess: (_result, variables) => {
       setError('');
-      if (!variables.id) setArrival(emptyArrival);
+      if (!variables.id) { setArrival(emptyArrival); setChosenVisitor(''); }
       const messages = {
         LINK_CLIENT: ['Client linked', 'The arrival is now linked to the client record. Conflict clearance and matter opening remain separate.'],
         INTAKE: ['Intake saved', 'The preliminary intake details have been recorded.'],
@@ -86,11 +106,23 @@ export default function ClientArrivalsPage() {
           </div>
         </div>
         <form className='space-y-5 p-5 md:p-6' onSubmit={(event) => { event.preventDefault(); mutation.mutate({ payload: { ...arrival, client: arrival.client || null } }); }}>
-          <fieldset disabled={pending} className='grid gap-5 md:grid-cols-3'>
+          <fieldset disabled={pending} className='grid gap-5 md:grid-cols-2'>
             <TextInput name='visitor_name' label='Visitor name' required maxLength={255} placeholder='Enter the visitor’s full name' value={arrival.visitor_name} onChange={(event) => setArrival({ ...arrival, visitor_name: event.target.value })} />
+            <TextInput name='visitor_phone' label='Phone number' type='tel' required maxLength={20} placeholder='07XX XXX XXX' help='Recognises the visitor when they come back.' value={arrival.visitor_phone} onChange={(event) => setArrival({ ...arrival, visitor_phone: event.target.value })} />
             <SelectInput name='client' label='Client record' placeholder='New enquiry / no client record' options={data.clients} value={arrival.client} onChange={(event) => setArrival({ ...arrival, client: event.target.value })} />
             <SelectInput name='advocate' label='Advocate' required placeholder='Select advocate' options={data.advocates} value={arrival.advocate} onChange={(event) => setArrival({ ...arrival, advocate: event.target.value })} />
           </fieldset>
+          {returning.length > 0 && <div role='status' className='space-y-3 rounded-xl border border-[color:var(--border)] p-4'>
+            <p className='flex items-center gap-2 font-semibold'><History size={17} aria-hidden='true' />Returning visitor?</p>
+            <ul className='space-y-3'>
+              {returning.map((visitor) => <li key={visitor.visitor_phone} className='flex flex-wrap items-center justify-between gap-3 text-sm'>
+                <span><span className='font-medium'>{visitor.visitor_name}</span> · {visitor.visitor_phone}<br />
+                  <span className='form-hint'>{visitor.visit_count} previous {visitor.visit_count === 1 ? 'visit' : 'visits'} · last {new Date(visitor.last_arrival_at).toLocaleDateString()} with {visitor.last_advocate_name}{visitor.client_name ? ` · Client record: ${visitor.client_name}` : ''}</span></span>
+                <Button3D size='sm' variant='outlineLight' disabled={pending} onClick={() => { setChosenVisitor(visitor.visitor_phone);
+                  setArrival({ ...arrival, visitor_name: visitor.visitor_name, visitor_phone: visitor.visitor_phone, client: visitor.client && data.clients.some((c) => c.value === visitor.client) ? visitor.client : arrival.client }); }}>This is the visitor</Button3D>
+              </li>)}
+            </ul>
+          </div>}
           <div className='space-y-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--bg)] p-4'>
             <label className='flex cursor-pointer items-start gap-3 text-sm font-medium'>
               <input type='checkbox' className='mt-0.5 h-4 w-4 accent-[var(--form-primary)]' disabled={pending} checked={arrival.urgency_flag} onChange={(event) => setArrival({ ...arrival, urgency_flag: event.target.checked })} />Client has mentioned an urgent issue
@@ -112,6 +144,7 @@ export default function ClientArrivalsPage() {
         {data.visits.map((visit) => <Card key={visit.id} className='space-y-3 p-5'>
           <div className='flex flex-wrap items-center justify-between gap-2'><h3 className='font-semibold'>{visit.visitor_name}</h3><span>{visit.status === 'CALLED' ? 'Ready to usher in' : visit.status.replaceAll('_', ' ')}{positions.has(visit.id) ? ` · Queue position ${positions.get(visit.id)}` : ''}</span></div>
           <p className='text-sm font-medium'>{visit.office_location || 'Office not assigned'}</p>
+          {visit.visitor_phone && <p className='text-sm'>{visit.visitor_phone} · {visit.previous_visit_count ? `Returning visitor · ${visit.previous_visit_count} previous ${visit.previous_visit_count === 1 ? 'visit' : 'visits'}` : 'First visit'}</p>}
           <p className='text-sm'>{visit.advocate_name} · Arrived {new Date(visit.arrival_at).toLocaleString()} · Received by {visit.received_by_name}</p>
           {visit.urgency_flag && <p className='text-amber-700 dark:text-amber-300'>Urgent issue mentioned: {visit.urgency_note || 'Advocate to assess'}</p>}
           <p className='text-sm'>Intake: {visit.intake_completed_at ? 'Completed' : `Awaiting advocate`}</p>
