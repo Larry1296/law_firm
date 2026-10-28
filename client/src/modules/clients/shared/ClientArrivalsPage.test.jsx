@@ -15,7 +15,7 @@ beforeEach(() => vi.clearAllMocks());
 describe('client arrival staffing flows', () => {
   it('links the completed arrival to the chosen client without opening a case', async () => {
     axios.post.mockResolvedValue({ data: {} });
-    show({ ...base, clients: [{ value: 'c1', label: 'Kamau Hardware Limited' }], visits: [{ id: 'v1', visitor_name: 'Peter Kamau', advocate: 'a1', status: 'COMPLETED', intake_completed_at: '2026-10-26T08:00:00Z', intake_handler: 'ADVOCATE' }] });
+    show({ ...base, clients: [{ value: 'c1', label: 'Kamau Hardware Limited' }], visits: [{ id: 'v1', visitor_name: 'Peter Kamau', advocate: 'a1', status: 'COMPLETED', intake_completed_at: '2026-10-26T08:00:00Z', intake_handler: 'ADVOCATE', outcome: 'INSTRUCTING', file_due: true }] });
     fireEvent.change(await screen.findByLabelText('Client to link to this arrival'), { target: { value: 'c1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Link client record' }));
     await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/v1/', { action: 'LINK_CLIENT', client: 'c1' }));
@@ -74,12 +74,30 @@ describe('client arrival staffing flows', () => {
     await screen.findByText('Waiting and consultations');
     expect(screen.queryByRole('button', { name: 'Complete consultation' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Record consultation intake' })).toBeNull();
-    expect(screen.getByText('Following the advocate’s direction, create or select the client record and link this arrival.')).toBeTruthy();
+    // Reception opens the file only after the advocate directs it at completion.
+    expect(screen.queryByText('Following the advocate’s direction, create or select the client record and link this arrival.')).toBeNull();
+  });
+  it('asks reception to open the file the advocate directed and flags it when overdue', async () => {
+    show({ ...base, visits: [{ id: 'v1', visitor_name: 'Visitor', advocate: 'a1', status: 'COMPLETED', closed_at: '2026-10-27T12:00:00Z',
+      intake_completed_at: '2026-10-27T08:00:00Z', outcome: 'INSTRUCTING', file_due: true, file_overdue: true }, { id: 'v2', visitor_name: 'Enquirer', advocate: 'a1',
+      status: 'COMPLETED', intake_completed_at: '2026-10-28T08:00:00Z', outcome: 'ENQUIRY_ONLY', file_due: false }] });
+    expect(await screen.findByText(/Client file overdue/)).toBeTruthy();
+    expect(screen.getByText('Outcome: Enquiry only — no file')).toBeTruthy();
+    expect(screen.getAllByText('Following the advocate’s direction, create or select the client record and link this arrival.')).toHaveLength(1);
   });
   it('words the client link for the owner when they are the assigned advocate', async () => {
     show({ ...base, role: 'ADMIN', visits: [{ id: 'v1', visitor_name: 'Visitor', advocate: 'a1', status: 'COMPLETED',
-      intake_handler: 'ADVOCATE', intake_completed_at: '2026-10-26T08:00:00Z', can_record_intake: false, can_consult: true }] });
+      intake_handler: 'ADVOCATE', intake_completed_at: '2026-10-26T08:00:00Z', can_record_intake: false, can_consult: true, outcome: 'INSTRUCTING', file_due: true }] });
     expect(await screen.findByText('Create or select the client record and link this arrival.')).toBeTruthy();
+  });
+  it('asks the advocate for the outcome before completing the consultation', async () => {
+    axios.post.mockResolvedValue({ data: {} });
+    Swal.fire.mockResolvedValueOnce({ isConfirmed: true, value: 'INSTRUCTING' });
+    const current = { id: 'v1', visitor_name: 'Visitor', advocate: 'a1', status: 'IN_CONSULTATION', intake_completed_at: '2026-10-28T08:00:00Z', can_consult: true };
+    show({ ...base, role: 'ADVOCATE', can_receive: false, visits: [current], queues: [{ advocate: 'a1', advocate_name: 'Advocate One', office_location: 'Room 201', waiting_count: 0, current, called: null, next: null, can_call: true }] });
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Complete consultation' }))[0]);
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/v1/', { action: 'COMPLETE', outcome: 'INSTRUCTING' }));
+    expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ title: 'Outcome of the consultation', input: 'radio' }));
   });
   it('lets the assigned advocate record consultation intake', async () => {
     axios.post.mockResolvedValue({ data: {} });

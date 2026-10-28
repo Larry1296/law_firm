@@ -1,6 +1,7 @@
-from datetime import date
+from datetime import date, timedelta
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 from apps.clients.models import Client, ClientVisit
 from apps.common.choices import UserRole
@@ -49,7 +50,7 @@ class ClientVisitTests(TestCase):
         self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt', other_parties='Other party',
             acting_capacity='On behalf of: director of Baraka Homes Limited').status_code, 200)
         self.assertEqual(ClientVisit.objects.get(pk=pk).acting_capacity, 'On behalf of: director of Baraka Homes Limited')
-        self.assertEqual(self.action(pk, 'COMPLETE').status_code, 200)
+        self.assertEqual(self.action(pk, 'COMPLETE', outcome='INSTRUCTING').status_code, 200)
         self.assertEqual(self.action(pk, 'START').status_code, 400)
         self.api.force_authenticate(self.secretary.user)
         row = self.api.get(self.url).data['visits'][0]
@@ -64,7 +65,7 @@ class ClientVisitTests(TestCase):
         self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.action(pk, 'START').status_code, 200)
         self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt').status_code, 200)
-        self.assertEqual(self.action(pk, 'COMPLETE').status_code, 200)
+        self.assertEqual(self.action(pk, 'COMPLETE', outcome='INSTRUCTING').status_code, 200)
         self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 403)
         self.api.force_authenticate(self.secretary.user)
         self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 200)
@@ -91,7 +92,7 @@ class ClientVisitTests(TestCase):
         self.assertNotIn('other_parties', row)
         self.assertEqual(self.action(pk, 'COMPLETE').status_code, 403)
         self.api.force_authenticate(self.lawyer.user)
-        self.assertEqual(self.action(pk, 'COMPLETE').status_code, 200)
+        self.assertEqual(self.action(pk, 'COMPLETE', outcome='INSTRUCTING').status_code, 200)
 
     def test_admin_cannot_consult_for_another_advocate(self):
         pk = self.arrive()
@@ -112,7 +113,7 @@ class ClientVisitTests(TestCase):
         self.api.force_authenticate(self.owner)
         self.assertEqual(self.action(pk, 'START').status_code, 200)
         self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt').status_code, 200)
-        self.assertEqual(self.action(pk, 'COMPLETE').status_code, 200)
+        self.assertEqual(self.action(pk, 'COMPLETE', outcome='INSTRUCTING').status_code, 200)
 
     def test_owner_advocate_leaves_reception_to_intake_staff(self):
         lawyer = Lawyer.objects.create(user=self.owner, law_firm=self.firm, staff_number='OWNER',
@@ -148,6 +149,35 @@ class ClientVisitTests(TestCase):
         self.assertEqual(second['previous_visit_count'], 1)
         self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.api.get(lookup, {'q': 'mutua'}).status_code, 403)
+
+    def test_advocate_directs_file_opening_at_completion(self):
+        pk = self.arrive()
+        self.api.force_authenticate(self.lawyer.user)
+        self.action(pk, 'START')
+        self.action(pk, 'INTAKE', broad_issue='Boundary dispute')
+        self.assertEqual(self.action(pk, 'COMPLETE').status_code, 400)
+        self.assertEqual(self.action(pk, 'COMPLETE', outcome='MAYBE').status_code, 400)
+        self.assertEqual(self.action(pk, 'COMPLETE', outcome='INSTRUCTING').status_code, 200)
+        self.assertTrue(Notification.objects.filter(recipient=self.secretary.user, event_key=f'visit-open-file:{pk}').exists())
+        self.api.force_authenticate(self.secretary.user)
+        ClientVisit.objects.filter(pk=pk).update(closed_at=timezone.now() - timedelta(days=1))
+        row = self.api.get(self.url).data['visits'][0]
+        self.assertEqual((row['outcome'], row['file_due'], row['file_overdue']), ('INSTRUCTING', True, True))
+        client = Client.objects.create(firm=self.firm, created_by=self.owner, full_name='Visitor', client_type='INDIVIDUAL')
+        self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 200)
+        self.assertEqual(self.api.get(self.url).data['visits'], [])
+
+    def test_enquiry_only_visit_opens_no_file(self):
+        pk = self.arrive()
+        self.api.force_authenticate(self.lawyer.user)
+        self.action(pk, 'START')
+        self.action(pk, 'INTAKE', broad_issue='General question')
+        self.assertEqual(self.action(pk, 'COMPLETE', outcome='ENQUIRY_ONLY').status_code, 200)
+        self.assertFalse(Notification.objects.filter(event_key=f'visit-open-file:{pk}').exists())
+        self.api.force_authenticate(self.secretary.user)
+        self.assertFalse(self.api.get(self.url).data['visits'][0]['file_due'])
+        client = Client.objects.create(firm=self.firm, created_by=self.owner, full_name='Visitor', client_type='INDIVIDUAL')
+        self.assertEqual(self.action(pk, 'LINK_CLIENT', client=str(client.pk)).status_code, 400)
 
     def test_legacy_reception_intake_does_not_block_advocate(self):
         self.receptionist()
@@ -201,7 +231,7 @@ class ClientVisitTests(TestCase):
         self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.action(pk, 'START').status_code, 200)
         self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt').status_code, 200)
-        self.assertEqual(self.action(pk, 'COMPLETE').status_code, 200)
+        self.assertEqual(self.action(pk, 'COMPLETE', outcome='INSTRUCTING').status_code, 200)
 
     def test_unassigned_advocate_cannot_access_visit(self):
         pk = self.arrive()
@@ -246,7 +276,7 @@ class ClientVisitTests(TestCase):
         self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.action(second, 'CALL').status_code, 400)
         self.assertEqual(self.action(first, 'INTAKE', broad_issue='Enquiry').status_code, 200)
-        self.assertEqual(self.action(first, 'COMPLETE').status_code, 200)
+        self.assertEqual(self.action(first, 'COMPLETE', outcome='INSTRUCTING').status_code, 200)
         self.assertEqual(self.action(second, 'CALL').status_code, 200)
 
     def test_fifo_is_enforced_except_for_admin(self):

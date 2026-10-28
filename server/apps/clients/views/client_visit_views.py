@@ -79,6 +79,18 @@ def office_label(lawyer):
     return room
 
 
+def notify_file_opening(visit, user):
+    staff = active_staff(Secretary).filter(law_firm=visit.firm, can_manage_client_intake=True)
+    if reception_mode(visit.firm) == 'ASSIGNED':
+        staff = staff.filter(Q(is_receptionist=True) | Q(assigned_lawyers=visit.advocate)).distinct()
+    for secretary in staff:
+        Notification.objects.update_or_create(recipient=secretary.user, event_key=f'visit-open-file:{visit.pk}', defaults={
+            'firm': visit.firm, 'actor': user, 'title': 'Open a client file today',
+            'message': f'{visit.advocate.user.full_name} is taking instructions from {visit.visitor_name}. Create the prospective client record.',
+            'action_url': '/secretary/arrivals',
+        })
+
+
 class VisitSerializer(serializers.ModelSerializer):
     advocate_name = serializers.CharField(source='advocate.user.full_name', read_only=True)
     received_by_name = serializers.CharField(source='received_by.full_name', read_only=True)
@@ -137,6 +149,8 @@ def serialize_visit(visit, role, profile, receives=None):
             data.pop(field, None)
     if not visit.intake_completed_at:
         data['intake_handler'] = 'ADVOCATE'
+    data['file_due'] = visit.outcome == 'INSTRUCTING' and not visit.client_id
+    data['file_overdue'] = bool(data['file_due'] and visit.closed_at and timezone.localdate(visit.closed_at) < timezone.localdate())
     data['previous_visit_count'] = ClientVisit.objects.filter(firm=visit.firm, visitor_phone=visit.visitor_phone,
         arrival_at__lt=visit.arrival_at).count() if visit.visitor_phone else 0
     data['can_record_intake'] = bool(can_intake and not visit.intake_completed_at and visit.status in ACTIVE_STATUSES)
@@ -166,7 +180,8 @@ class ClientVisitListView(APIView):
         lawyers = list(visible_lawyers(firm, role, profile))
         visits = list(ClientVisit.objects.filter(firm=firm, advocate_id__in=[x.pk for x in lawyers])
             .select_related('advocate__user', 'advocate__branch', 'received_by')
-            .filter(Q(status__in=ACTIVE_STATUSES) | Q(closed_at__date=timezone.localdate())))
+            .filter(Q(status__in=ACTIVE_STATUSES) | Q(closed_at__date=timezone.localdate())
+                | Q(outcome='INSTRUCTING', client__isnull=True)))
         receptionist = has_receptionist(firm)
         receives = receives_visitors(firm, role, profile)
         rows = [serialize_visit(v, role, profile, receives) for v in visits]
@@ -271,6 +286,8 @@ class ClientVisitActionView(APIView):
                 raise ValidationError('Only the client reference may be linked.')
             if visit.status not in {'IN_CONSULTATION', 'COMPLETED'} or not visit.intake_completed_at:
                 raise ValidationError('Complete preliminary intake and start consultation before linking the client.')
+            if visit.outcome == 'ENQUIRY_ONLY':
+                raise ValidationError('The advocate recorded this visit as an enquiry only; no client file is opened.')
             client_id = serializers.UUIDField().run_validation(request.data.get('client'))
             client = get_object_or_404(Client, pk=client_id, firm=firm, is_active=True)
             if client.lifecycle_status == 'ARCHIVED':
@@ -329,9 +346,17 @@ class ClientVisitActionView(APIView):
                 raise PermissionDenied('Only the assigned advocate completes the consultation.')
             if visit.status != 'IN_CONSULTATION' or not visit.intake_completed_at:
                 raise ValidationError('Start the consultation and complete preliminary intake first.')
+            if set(request.data) - {'action', 'outcome'}:
+                raise ValidationError('Record only the outcome of the consultation.')
+            outcome = request.data.get('outcome')
+            if outcome not in ClientVisit.Outcome.values:
+                raise ValidationError({'outcome': 'State whether the visitor is instructing the firm or this was an enquiry only.'})
             visit.status = 'COMPLETED'
+            visit.outcome = outcome
             visit.closed_at = timezone.now()
             visit.save()
+            if outcome == 'INSTRUCTING':
+                notify_file_opening(visit, request.user)
         elif action == 'LEFT':
             if visit.status not in ['WAITING', 'CALLED']:
                 raise ValidationError('Only a waiting or called visitor can be marked as left.')

@@ -12,6 +12,10 @@ class ClientVisit(TimestampedModel):
         COMPLETED = 'COMPLETED', 'Completed'
         LEFT = 'LEFT', 'Left'
 
+    class Outcome(models.TextChoices):
+        INSTRUCTING = 'INSTRUCTING', 'Instructing the firm — open a file'
+        ENQUIRY_ONLY = 'ENQUIRY_ONLY', 'Enquiry only — no file'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     firm = models.ForeignKey('firm.LawFirm', on_delete=models.PROTECT)
     visitor_name = models.CharField(max_length=255)
@@ -37,6 +41,8 @@ class ClientVisit(TimestampedModel):
     called_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name='called_client_visits')
     ushered_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name='ushered_client_visits')
     closed_at = models.DateTimeField(null=True, blank=True)
+    # The advocate's direction at the end of the consultation; the secretary opens the file when instructing.
+    outcome = models.CharField(max_length=20, choices=Outcome.choices, blank=True)
 
     class Meta:
         ordering = ['arrival_at', 'id']

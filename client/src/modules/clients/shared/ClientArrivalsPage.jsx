@@ -8,7 +8,7 @@ import Card from '@/components/ui/Card';
 import Swal from '@/core/utils/themedSwal';
 import ClientQueueBoard from './ClientQueueBoard';
 import QueueConfiguration from './QueueConfiguration';
-import { useClientQueue, useQueueAction } from './useClientQueue';
+import { OUTCOMES, useClientQueue, useQueueAction } from './useClientQueue';
 
 const emptyArrival = { visitor_name: '', visitor_phone: '', client: '', advocate: '', urgency_flag: false, urgency_note: '' };
 const emptyIntake = { contact_details: '', acting_capacity: '', other_parties: '', broad_issue: '', deadline: '' };
@@ -148,6 +148,8 @@ export default function ClientArrivalsPage() {
           <p className='text-sm'>{visit.advocate_name} · Arrived {new Date(visit.arrival_at).toLocaleString()} · Received by {visit.received_by_name}</p>
           {visit.urgency_flag && <p className='text-amber-700 dark:text-amber-300'>Urgent issue mentioned: {visit.urgency_note || 'Advocate to assess'}</p>}
           <p className='text-sm'>Intake: {visit.intake_completed_at ? 'Completed' : `Awaiting advocate`}</p>
+          {visit.outcome && <p className='text-sm font-medium'>Outcome: {OUTCOMES[visit.outcome]}</p>}
+          {visit.file_due && <p className={`text-sm font-semibold ${visit.file_overdue ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}`}>{visit.file_overdue ? `Client file overdue — directed on ${new Date(visit.closed_at).toLocaleDateString()}` : 'Open the client file today'}</p>}
           {visit.intake_completed_at && visit.broad_issue && <dl className='grid gap-2 text-sm md:grid-cols-2'>
             {Object.entries(intakeLabels).filter(([key]) => visit[key]).map(([key, label]) => <div key={key}><dt className='font-medium'>{label}</dt><dd>{visit[key]}</dd></div>)}
           </dl>}
@@ -163,7 +165,7 @@ export default function ClientArrivalsPage() {
             {['WAITING', 'CALLED'].includes(visit.status) && <Button3D variant='outlineLight' disabled={pending} onClick={() => act(visit.id, 'LEFT')}>Mark as left</Button3D>}
           </div>
           {visit.client && ['ADMIN', 'SECRETARY', 'RECEPTIONIST'].includes(data.role) && <a className='inline-block text-sm font-semibold underline' href={`/${data.role === 'ADMIN' ? 'admin' : 'secretary'}/clients/${visit.client}`}>Continue client onboarding and proposed matter</a>}
-          {!visit.client && visit.intake_completed_at && ['IN_CONSULTATION', 'COMPLETED'].includes(visit.status) && data.can_receive && <div className='space-y-3 border-t pt-3'>
+          {visit.file_due && data.can_receive && <div className='space-y-3 border-t pt-3'>
             <p className='text-sm'>{visit.can_consult ? 'Create or select the client record and link this arrival.' : 'Following the advocate’s direction, create or select the client record and link this arrival.'}</p>
             <a className='inline-block text-sm font-semibold underline' href={`/${data.role === 'ADMIN' ? 'admin' : 'secretary'}/clients/create?visit=${visit.id}`}>Create prospective client</a>
             <SelectInput name={`link-client-${visit.id}`} label='Client to link to this arrival' placeholder='Select the client record' options={data.clients} value={clientLinks[visit.id] || ''} onChange={(event) => setClientLinks({ ...clientLinks, [visit.id]: event.target.value })} />
