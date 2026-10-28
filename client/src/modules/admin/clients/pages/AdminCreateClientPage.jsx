@@ -81,7 +81,7 @@ export default function AdminCreateClientPage() {
     <p>No matter has been opened. Portal access does not mean the firm has accepted instructions.</p>
     <div className='flex flex-wrap gap-3'>
       <button className='rounded-lg bg-blue-600 px-4 py-3 text-white' onClick={() => navigate(`/${workspace}/clients/${created.id}/conflict-checks/new`)}>Record proposed matter / Start conflict check</button>
-      {workspace === 'lawyer' ? <button className='rounded-lg border px-4 py-3' onClick={() => navigate('/lawyer/arrivals')}>Back to client arrivals</button> : <>
+      {workspace === 'lawyer' ? <button className='rounded-lg border px-4 py-3' onClick={() => navigate('/lawyer/arrivals')}>Back to my consultations</button> : <>
         <button className='rounded-lg border px-4 py-3' onClick={() => navigate(`/${workspace}/clients/${created.id}`)}>View prospective client</button>
         <button className='rounded-lg border px-4 py-3' onClick={() => navigate(`/${workspace}/clients`)}>Return to clients</button>
       </>}

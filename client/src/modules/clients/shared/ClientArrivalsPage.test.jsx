@@ -19,6 +19,13 @@ describe('client arrival staffing flows', () => {
     expect(await screen.findByText('Create the prospective client record today')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Create prospective client' }).getAttribute('href')).toBe('/lawyer/clients/create?visit=v1');
   });
+  it('shows a practising owner only their consultations, not the arrivals register', async () => {
+    show({ ...base, role: 'ADMIN', can_receive: false, visits: [{ id: 'v1', visitor_name: 'Waiting Visitor', advocate: 'a1', status: 'WAITING' }] });
+    expect(await screen.findByRole('heading', { name: 'My consultations' })).toBeTruthy();
+    expect(screen.getByText('Waiting for you (1)')).toBeTruthy();
+    expect(screen.queryByText('Record arrival')).toBeNull();
+    expect(screen.queryByText(/Office & queue/i)).toBeNull();
+  });
   it('secretary records only basic arrival and notifies the advocate', async () => {
     axios.post.mockResolvedValue({ data: {} });
     show(base);

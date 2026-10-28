@@ -47,7 +47,7 @@ export default function ClientQueueBoard({ data, pending = false, onAction }) {
           {queue.can_call && <div className='mt-auto space-y-2 border-t border-[color:var(--border)] pt-4'>
             {queue.current ? queue.current.can_consult && <>
               <Button3D className='w-full' disabled={pending || !queue.current.intake_completed_at} onClick={() => onAction(queue.current.id, 'COMPLETE')}>Complete consultation</Button3D>
-              {!queue.current.intake_completed_at && <p className='form-hint text-xs'>Record intake in Client arrivals before completing this consultation.</p>}
+              {!queue.current.intake_completed_at && <p className='form-hint text-xs'>Record the consultation intake before completing this consultation.</p>}
             </> : !queue.called && <>
               <Button3D className='w-full gap-2' disabled={pending || !queue.next || !queue.office_location} onClick={() => onAction(queue.next.id, 'CALL')}><BellRing size={17} aria-hidden='true' />Ready for next client</Button3D>
               {!queue.office_location && <p className='form-hint text-xs'>The admin must assign an office before a client can be called.</p>}

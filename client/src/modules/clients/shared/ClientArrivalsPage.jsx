@@ -7,7 +7,6 @@ import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
 import Swal from '@/core/utils/themedSwal';
 import ClientQueueBoard from './ClientQueueBoard';
-import QueueConfiguration from './QueueConfiguration';
 import { OUTCOMES, useClientQueue, useQueueAction } from './useClientQueue';
 
 const emptyArrival = { visitor_name: '', visitor_phone: '', client: '', advocate: '', urgency_flag: false, urgency_note: '' };
@@ -133,20 +132,24 @@ export default function ClientArrivalsPage() {
           </form>}
   </Card>;
   // Reception follows each visitor from arrival, through the advocate's office, to the end of the day.
-  const stages = [
+  // Reception keeps the arrivals register; an advocate sees only their own consultations.
+  const stages = data.can_receive ? [
     ['Waiting', 'In arrival order for each advocate.', ['WAITING']],
     ['With advocate', 'Called or ushered in. Details stay here until the advocate completes the consultation.', ['CALLED', 'IN_CONSULTATION']],
     ['Seen today', 'Completed consultations and visitors who left, with the advocate’s outcome.', ['COMPLETED', 'LEFT']],
+  ] : [
+    ['Waiting for you', 'Reception will usher in the next client when you are ready.', ['WAITING']],
+    ['In your office', 'Record the consultation intake, then complete the consultation.', ['CALLED', 'IN_CONSULTATION']],
+    ['Seen today and follow-ups', 'Completed consultations, and any client record still to be created.', ['COMPLETED', 'LEFT']],
   ];
   return (
     <div className='space-y-6 p-4 text-[color:var(--text-primary)] md:p-6'>
-      <div><h1 className='text-2xl font-semibold'>Client arrivals & waiting queue</h1>
-        <p className='mt-2 text-[color:var(--text-muted)]'>The secretary or receptionist records arrival, alerts the advocate and ushers the visitor in when called. Only the assigned advocate records legal intake and conducts and completes the consultation.</p>
+      <div><h1 className='text-2xl font-semibold'>{data.can_receive ? 'Client arrivals & waiting queue' : 'My consultations'}</h1>
+        <p className='mt-2 text-[color:var(--text-muted)]'>{data.can_receive ? 'The secretary or receptionist records arrival, alerts the advocate and ushers the visitor in when called. Only the assigned advocate records legal intake and conducts and completes the consultation.' : 'Clients waiting for you, the client in your office and your follow-ups. Reception records arrivals and ushers clients in.'}</p>
         {data.role === 'RECEPTIONIST' && <p className='mt-1 text-sm'>You are signed in as a designated receptionist.</p>}
       </div>
       {isError && <p role='alert' className='form-alert'>Queue updates are unavailable. Refresh before calling or receiving another client.</p>}
       {error && <p role='alert' className='form-alert'>{error}</p>}
-      {data.role === 'ADMIN' && <QueueConfiguration />}
       <ClientQueueBoard data={data} pending={pending} onAction={act} />
       {data.can_receive && <Card className='overflow-hidden'>
         <div className='flex items-start gap-3 border-b border-[color:var(--border)] p-5 md:p-6'>

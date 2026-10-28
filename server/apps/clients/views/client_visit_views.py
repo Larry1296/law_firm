@@ -54,7 +54,8 @@ def reception_mode(firm):
 
 def visible_lawyers(firm, role, profile):
     lawyers = active_staff(Lawyer).filter(law_firm=firm).select_related('user', 'branch')
-    if role == 'ADVOCATE':
+    # An advocate, including a practising owner whose firm has reception staff, sees only their own consultations.
+    if role == 'ADVOCATE' or (role == 'ADMIN' and profile and not receives_visitors(firm, role, profile)):
         return lawyers.filter(pk=profile.pk)
     if role == 'SECRETARY' and reception_mode(firm) == 'ASSIGNED':
         return lawyers.filter(assigned_secretaries=profile)

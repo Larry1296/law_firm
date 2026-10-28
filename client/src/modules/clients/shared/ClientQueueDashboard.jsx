@@ -16,7 +16,7 @@ function QueueContent({ path }) {
     {isPending ? <p className='form-hint'>Loading client queue…</p> : <>
       {isError && <p role='alert' className='form-alert'>Queue updates are unavailable. Refresh before calling a client.</p>}
       {data && <ClientQueueBoard data={data} pending={action.isPending || isError} onAction={(id, value) => action.mutate({ id, action: value })} />}
-      <Link className='btn btn-secondary' to={path}>Open client arrivals & intake</Link>
+      <Link className='btn btn-secondary' to={path}>{data && !data.can_receive ? 'Open my consultations' : 'Open client arrivals & intake'}</Link>
     </>}
   </div>;
 }

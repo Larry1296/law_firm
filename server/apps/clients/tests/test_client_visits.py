@@ -121,6 +121,7 @@ class ClientVisitTests(TestCase):
             admission_number='OWNER', date_hired=date.today(), office_location='Partner office')
         self.api.force_authenticate(self.owner)
         self.assertFalse(self.api.get(self.url).data['can_receive'])
+        self.assertEqual([q['advocate'] for q in self.api.get(self.url).data['queues']], [str(lawyer.pk)])
         self.assertEqual(self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json').status_code, 403)
         self.api.force_authenticate(self.secretary.user)
         pk = self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json').data['id']

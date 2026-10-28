@@ -28,7 +28,7 @@ import {
 
 //* ================= LAWYER NAVIGATION ================= */
 const links = [
-  { name: 'Client arrivals', path: '/lawyer/arrivals', icon: Calendar, section: 'Overview' },
+  { name: 'My consultations', path: '/lawyer/arrivals', icon: Calendar, section: 'Overview' },
   {
     name: 'Dashboard',
     path: '/lawyer/dashboard',

@@ -1,6 +1,8 @@
 import { HelpNavigation } from '@/modules/tutorials/HelpNavigation';
 import { X } from 'lucide-react';
 import { useContext } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import axios from '@/core/api/axios';
 
 import AuthContext from '@/core/store/AuthContext';
 import { User } from 'lucide-react';
@@ -37,7 +39,13 @@ export default function AdminSidebar({ onClose }) {
   const visibleLinks = adminSidebarLinks.filter(
     (link) => !link.ownerOnly || isFirmOwner,
   );
-  const sidebarGroups = groupLinks(visibleLinks);
+  // A practising owner whose firm has reception staff sees their consultations, not the arrivals register.
+  const { data: queue } = useQuery({
+    queryKey: ['client-arrivals'],
+    queryFn: async () => (await axios.get('/arrivals/')).data,
+    enabled: isFirmOwner, staleTime: 60000, retry: false,
+  });
+  const sidebarGroups = groupLinks(visibleLinks.map((link) => (link.path === '/admin/arrivals' && queue && !queue.can_receive ? { ...link, name: 'My consultations' } : link)));
 
   return (
     <aside className={`w-64 h-full ${bgSidebar} flex flex-col`}>
