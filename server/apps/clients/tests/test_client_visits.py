@@ -114,6 +114,23 @@ class ClientVisitTests(TestCase):
         self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt').status_code, 200)
         self.assertEqual(self.action(pk, 'COMPLETE').status_code, 200)
 
+    def test_owner_advocate_leaves_reception_to_intake_staff(self):
+        lawyer = Lawyer.objects.create(user=self.owner, law_firm=self.firm, staff_number='OWNER',
+            admission_number='OWNER', date_hired=date.today(), office_location='Partner office')
+        self.api.force_authenticate(self.owner)
+        self.assertFalse(self.api.get(self.url).data['can_receive'])
+        self.assertEqual(self.api.post(self.url, {'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json').status_code, 403)
+        self.api.force_authenticate(self.secretary.user)
+        pk = self.api.post(self.url, {'visitor_name': 'Visitor', 'advocate': str(lawyer.pk)}, format='json').data['id']
+        self.api.force_authenticate(self.owner)
+        self.assertEqual(self.action(pk, 'CALL').status_code, 200)
+        self.assertFalse(self.api.get(self.url).data['visits'][0]['can_usher'])
+        self.assertEqual(self.action(pk, 'USHER').status_code, 403)
+        self.secretary.can_manage_client_intake = False
+        self.secretary.save(update_fields=['can_manage_client_intake'])
+        self.assertTrue(self.api.get(self.url).data['can_receive'])
+        self.assertEqual(self.action(pk, 'USHER').status_code, 200)
+
     def test_legacy_reception_intake_does_not_block_advocate(self):
         self.receptionist()
         pk = self.arrive()

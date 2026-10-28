@@ -63,6 +63,13 @@ def has_receptionist(firm):
     return active_staff(Secretary).filter(law_firm=firm, is_receptionist=True, can_manage_client_intake=True).exists()
 
 
+def receives_visitors(firm, role, profile):
+    # An owner who also practises leaves reception to the firm's intake staff.
+    if role in ['SECRETARY', 'RECEPTIONIST']:
+        return True
+    return role == 'ADMIN' and not (profile and active_staff(Secretary).filter(law_firm=firm, can_manage_client_intake=True).exists())
+
+
 def office_label(lawyer):
     room = (lawyer.office_location or '').strip()
     if room and lawyer.branch_id:
@@ -109,7 +116,9 @@ def record(visit, user, action):
              'office_location': office_label(visit.advocate)})
 
 
-def serialize_visit(visit, role, profile):
+def serialize_visit(visit, role, profile, receives=None):
+    if receives is None:
+        receives = receives_visitors(visit.firm, role, profile)
     data = VisitSerializer(visit).data
     assigned = role in ['ADVOCATE', 'ADMIN'] and profile is not None and visit.advocate_id == profile.pk
     # Legal intake belongs to the assigned advocate, including legacy reception visits.
@@ -122,7 +131,7 @@ def serialize_visit(visit, role, profile):
     data['can_record_intake'] = bool(can_intake and not visit.intake_completed_at and visit.status in ACTIVE_STATUSES)
     data['can_consult'] = bool(assigned)
     data['can_call'] = bool(assigned or role == 'ADMIN')
-    data['can_usher'] = role in ['ADMIN', 'SECRETARY', 'RECEPTIONIST'] and visit.status == 'CALLED'
+    data['can_usher'] = receives and visit.status == 'CALLED'
     return data
 
 
@@ -148,7 +157,8 @@ class ClientVisitListView(APIView):
             .select_related('advocate__user', 'advocate__branch', 'received_by')
             .filter(Q(status__in=ACTIVE_STATUSES) | Q(closed_at__date=timezone.localdate())))
         receptionist = has_receptionist(firm)
-        rows = [serialize_visit(v, role, profile) for v in visits]
+        receives = receives_visitors(firm, role, profile)
+        rows = [serialize_visit(v, role, profile, receives) for v in visits]
         queues = []
         for lawyer in lawyers:
             own = [row for row in rows if row['advocate'] == lawyer.pk or str(row['advocate']) == str(lawyer.pk)]
@@ -161,10 +171,10 @@ class ClientVisitListView(APIView):
                 'current': current, 'called': called, 'next': waiting[0] if waiting else None,
                 'can_call': role == 'ADMIN' or (role == 'ADVOCATE' and lawyer.pk == profile.pk),
             })
-        clients = Client.objects.filter(firm=firm, is_active=True).exclude(lifecycle_status='ARCHIVED') if role != 'ADVOCATE' else Client.objects.none()
+        clients = Client.objects.filter(firm=firm, is_active=True).exclude(lifecycle_status='ARCHIVED') if receives else Client.objects.none()
         return Response({
             'has_receptionist': receptionist, 'role': role, 'reception_mode': reception_mode(firm),
-            'can_receive': role in ['ADMIN', 'SECRETARY', 'RECEPTIONIST'],
+            'can_receive': receives,
             'advocates': [{'value': str(x.pk), 'label': f'{x.user.full_name} — {office_label(x) or "Office not assigned"}'} for x in lawyers],
             'clients': [{'value': str(x.pk), 'label': x.full_name} for x in clients.order_by('full_name')],
             'visits': rows, 'queues': queues, 'waiting_count': sum(q['waiting_count'] for q in queues),
@@ -174,7 +184,7 @@ class ClientVisitListView(APIView):
     @transaction.atomic
     def post(self, request):
         firm, role, profile = visit_access(request.user)
-        if role not in ['ADMIN', 'SECRETARY', 'RECEPTIONIST']:
+        if not receives_visitors(firm, role, profile):
             raise PermissionDenied('Reception or the secretary records arrivals.')
         LawFirm.objects.select_for_update().get(pk=firm.pk)
         allowed = ARRIVAL_FIELDS
@@ -208,7 +218,7 @@ class ClientVisitActionView(APIView):
         action = request.data.get('action')
         permissions = serialize_visit(visit, role, profile)
         if action == 'LINK_CLIENT':
-            if role not in {'ADMIN', 'SECRETARY', 'RECEPTIONIST'}:
+            if not receives_visitors(firm, role, profile):
                 raise PermissionDenied('Authorised intake staff link the client record.')
             if set(request.data) - {'action', 'client'}:
                 raise ValidationError('Only the client reference may be linked.')
