@@ -9,6 +9,8 @@ export const prospectiveClientService = {
   async complete(workspace, id, payload) { return (await axios.put(`${root(workspace)}/${id}/complete-onboarding/`, payload)).data.client; },
   async options(workspace) { return (await axios.get(`${root(workspace)}/entry-options/`)).data; },
   async proposedMatter(workspace, payload) { return (await axios.post(`${root(workspace)}/proposed-matters/`, payload)).data; },
+  async visit(id) { return (await axios.get('/arrivals/')).data.visits.find((visit) => visit.id === id) || null; },
+  async linkVisit(id, client) { return (await axios.post(`/arrivals/${id}/`, { action: 'LINK_CLIENT', client })).data; },
 };
 export const creationError = (error) => {
   if (error?.isActionCancelled) return '';

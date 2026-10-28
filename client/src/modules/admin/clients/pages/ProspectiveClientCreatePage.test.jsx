@@ -8,7 +8,7 @@ import { prospectiveClientService as service } from '@/modules/clients/shared/pr
 import metadata from '../clientCreation/prospectiveMetadata.fixture.json';
 
 vi.mock('@/modules/clients/shared/prospectiveClientService', () => ({
-  prospectiveClientService: { metadata: vi.fn(), create: vi.fn(), options: vi.fn(), proposedMatter: vi.fn(), invite: vi.fn() },
+  prospectiveClientService: { metadata: vi.fn(), create: vi.fn(), visit: vi.fn(), linkVisit: vi.fn(), options: vi.fn(), proposedMatter: vi.fn(), invite: vi.fn() },
   creationError: (e) => e.message,
 }));
 afterEach(cleanup);
@@ -32,6 +32,20 @@ describe('single prospective-client creation page', () => {
     renderPage(); await selectCategory(value);
     for (const field of metadata.prospective_profiles[value].fields) expect(screen.getByLabelText(new RegExp(field.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create prospective client' })).toBeInTheDocument();
+  });
+  it('starts from the visitor register and links the arrival once created', async () => {
+    service.visit.mockResolvedValue({ id: 'v1', visitor_name: 'John Mutua Ndeti', visitor_phone: '0722000111', advocate_name: 'Grace Wanjiku', arrival_at: '2026-10-28T12:37:00Z' });
+    service.create.mockResolvedValue({ client: { id: 'c1', full_name: 'John Mutua Ndeti', client_type: 'INDIVIDUAL', access_type: 'ASSISTED' } });
+    service.linkVisit.mockResolvedValue({});
+    renderPage('/secretary/clients/create?visit=v1');
+    expect(await screen.findByText(/From the visitor register: John Mutua Ndeti · 0722000111 · seen by Grace Wanjiku/)).toBeInTheDocument();
+    await selectCategory('INDIVIDUAL');
+    expect(screen.getByLabelText(/Full legal name/)).toHaveValue('John Mutua Ndeti');
+    expect(screen.getByLabelText(/Safe telephone/)).toHaveValue('0722000111');
+    fillPrivacy();
+    fireEvent.click(screen.getByRole('button', { name: 'Create prospective client' }));
+    await waitFor(() => expect(service.linkVisit).toHaveBeenCalledWith('v1', 'c1'));
+    expect(await screen.findByText(/arrival of John Mutua Ndeti in the visitor register/)).toBeInTheDocument();
   });
   it('preserves Portal-enabled and shared fields when Company changes to Individual', async () => {
     renderPage(); await selectCategory('COMPANY');

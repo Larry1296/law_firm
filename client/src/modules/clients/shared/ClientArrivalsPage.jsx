@@ -165,7 +165,7 @@ export default function ClientArrivalsPage() {
           {visit.client && ['ADMIN', 'SECRETARY', 'RECEPTIONIST'].includes(data.role) && <a className='inline-block text-sm font-semibold underline' href={`/${data.role === 'ADMIN' ? 'admin' : 'secretary'}/clients/${visit.client}`}>Continue client onboarding and proposed matter</a>}
           {!visit.client && visit.intake_completed_at && ['IN_CONSULTATION', 'COMPLETED'].includes(visit.status) && data.can_receive && <div className='space-y-3 border-t pt-3'>
             <p className='text-sm'>{visit.can_consult ? 'Create or select the client record and link this arrival.' : 'Following the advocate’s direction, create or select the client record and link this arrival.'}</p>
-            <a className='inline-block text-sm font-semibold underline' href={`/${data.role === 'ADMIN' ? 'admin' : 'secretary'}/clients/create`}>Create prospective client</a>
+            <a className='inline-block text-sm font-semibold underline' href={`/${data.role === 'ADMIN' ? 'admin' : 'secretary'}/clients/create?visit=${visit.id}`}>Create prospective client</a>
             <SelectInput name={`link-client-${visit.id}`} label='Client to link to this arrival' placeholder='Select the client record' options={data.clients} value={clientLinks[visit.id] || ''} onChange={(event) => setClientLinks({ ...clientLinks, [visit.id]: event.target.value })} />
             <Button3D disabled={pending || !clientLinks[visit.id]} onClick={() => mutation.mutate({ id: visit.id, payload: { action: 'LINK_CLIENT', client: clientLinks[visit.id] } })}>Link client record</Button3D>
           </div>}

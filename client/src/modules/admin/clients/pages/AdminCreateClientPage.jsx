@@ -28,6 +28,19 @@ export default function AdminCreateClientPage() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState(null);
+  // A prospective client starts from the visitor register: prefill from the arrival and link it once saved.
+  const visitId = new URLSearchParams(location.search).get('visit');
+  const [visit, setVisit] = useState(null);
+  const [linkError, setLinkError] = useState('');
+  useEffect(() => {
+    if (!visitId) return undefined;
+    let active = true;
+    service.visit(visitId).then((found) => { if (!active || !found) return;
+      setVisit(found);
+      dispatch({ type: 'SET_SECTION', section: 'client', value: { full_name: found.visitor_name, phone_number: found.visitor_phone || '' } });
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [visitId]);
   useEffect(() => {
     let active = true;
     service.metadata(workspace).then((data) => { if (active) setMetadata(data); }).catch((e) => { if (e?.isActionCancelled) return;  if (active) setError(creationError(e)); });
@@ -51,7 +64,11 @@ export default function AdminCreateClientPage() {
     if (showRep && (!rep?.full_legal_name || !rep?.role_title || !rep?.representative_category)) return setError('Record the representative name and capacity.');
     if (portal && kind !== 'INDIVIDUAL' && (!rep?.is_portal_contact || !rep?.email)) return setError('Select an authorised portal contact and enter their email.');
     setSaving(true);
-    try { setCreated((await service.create(workspace, buildProspectivePayload(state, metadata))).client); }
+    try {
+      const saved = (await service.create(workspace, buildProspectivePayload(state, metadata))).client;
+      if (visit) await service.linkVisit(visit.id, saved.id).catch((e) => setLinkError(creationError(e) || 'Link this client from Client arrivals.'));
+      setCreated(saved);
+    }
     catch (e) { if (e?.isActionCancelled) return;  setError(creationError(e)); }
     finally { setSaving(false); }
   };
@@ -63,6 +80,8 @@ export default function AdminCreateClientPage() {
       ['Lifecycle', 'Prospective'], ['Portal status', created.access_type === 'ASSISTED' ? 'No login account or invitation' : 'Pending — invitation not sent'],
       ['Compliance status', 'Not started / pending'],
     ].map(([label, value]) => <div key={label}><dt className='text-sm'>{label}</dt><dd className='break-words font-semibold'>{value}</dd></div>)}</dl>
+    {visit && (linkError ? <p role='alert' className='rounded-lg bg-red-50 p-3 text-red-800'>The arrival of {visit.visitor_name} was not linked: {linkError}</p>
+      : <p>Linked to the {new Date(visit.arrival_at).toLocaleDateString()} arrival of {visit.visitor_name} in the visitor register.</p>)}
     <p>No matter has been opened. Portal access does not mean the firm has accepted instructions.</p>
     <div className='flex flex-wrap gap-3'>
       <button className='rounded-lg bg-blue-600 px-4 py-3 text-white' onClick={() => navigate(`/${workspace}/clients/${created.id}/conflict-checks/new`)}>Record proposed matter / Start conflict check</button>
@@ -73,6 +92,7 @@ export default function AdminCreateClientPage() {
   return <main className='mx-auto max-w-4xl space-y-5 p-4 md:p-8'>
     <header><h1 className='text-2xl font-bold'>Create prospective client</h1><p>Save an internal identity for proposed-matter conflict screening. Complete onboarding / KYC after conflict clearance.</p></header>
     {error && <p role='alert' className='rounded-lg bg-red-50 p-3 text-red-800'>{error}</p>}
+    {visit && <p className='rounded-lg border p-3'>From the visitor register: {visit.visitor_name}{visit.visitor_phone ? ` · ${visit.visitor_phone}` : ''} · seen by {visit.advocate_name}. Name and telephone are filled in from the arrival.</p>}
     {!metadata ? <p>Loading client categories…</p> : <form onSubmit={submit} className='space-y-5'>
       <StepPanel title='Client setup'>
         <fieldset><legend className='mb-2 font-semibold'>Access type</legend><div className='grid gap-3 sm:grid-cols-2'>{ACCESS_OPTIONS.map((option) => <label key={option.id} className='flex items-start gap-3 rounded-lg border p-4'>
