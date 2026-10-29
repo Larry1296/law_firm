@@ -64,7 +64,7 @@ function ReceiveForm({ item, originalsPlaces, onDone }) {
           </label>
         )}
       </div>
-      {error && <p role='alert' className='text-sm text-red-700'>{error}</p>}
+      {error && <p role='alert' className='text-sm text-red-700 dark:text-red-300'>{error}</p>}
       <button type='submit' disabled={!ready || receive.isPending} className='rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50 dark:bg-sky-600'>
         {receive.isPending ? 'Filing…' : 'Receive and file'}
       </button>
@@ -84,7 +84,7 @@ export default function DeliveriesExpected({ deliveries = [], originalsPlaces = 
         Documents clients said they will bring or send. When the paper arrives, check it and file it: the system gives it its
         reference in the client&apos;s KYC file or the matter file.
       </p>
-      {filed && <p role='status' className='mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900'>Filed as <strong>{filed}</strong>.</p>}
+      {filed && <p role='status' className='mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200'>Filed as <strong>{filed}</strong>.</p>}
       {!deliveries.length && <p className='mt-3 text-sm'>Nothing is on its way.</p>}
       <ul className='mt-3 space-y-3'>
         {deliveries.map((item) => (

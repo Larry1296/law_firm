@@ -24,9 +24,9 @@ export default function SectionHeading({
     left: "text-left",
   };
 
-  const titleColor = mode === "dark" ? "text-white" : "text-gray-900";
+  const titleColor = mode === "dark" ? "text-white" : "text-gray-900 dark:text-slate-200";
 
-  const subtitleColor = mode === "dark" ? "text-gray-300" : "text-gray-600";
+  const subtitleColor = mode === "dark" ? "text-gray-300" : "text-gray-600 dark:text-slate-400";
   const sizeStyles = {
     lg: {
       wrapper: "max-w-5xl mb-16",

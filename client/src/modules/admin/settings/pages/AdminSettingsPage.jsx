@@ -54,11 +54,11 @@ export default function AdminSettingsPage() {
     </section>
     <header><h2 className='text-xl font-bold'>Intake privacy notice</h2>
       <p>Manage the privacy notice used when creating prospective clients. Activated versions are preserved; changes require a new version.</p></header>
-    {error && <p role='alert' className='rounded-lg bg-red-50 p-3 text-red-800'>{error}</p>}
-    {message && <p role='status' className='rounded-lg bg-green-50 p-3 text-green-900'>{message}</p>}
+    {error && <p role='alert' className='rounded-lg bg-red-50 p-3 text-red-800 dark:bg-red-950/40 dark:text-red-200'>{error}</p>}
+    {message && <p role='status' className='rounded-lg bg-green-50 p-3 text-green-900 dark:bg-green-950/40 dark:text-green-200'>{message}</p>}
     {!data && !error && <p>Loading privacy configurations…</p>}
     {data && <>
-      {!data.results.some(config => config.status === 'ACTIVE') && <p className='rounded-lg bg-amber-50 p-3 text-amber-900'>No active approved configuration. Prospective-client creation is blocked until a version is approved and activated.</p>}
+      {!data.results.some(config => config.status === 'ACTIVE') && <p className='rounded-lg bg-amber-50 p-3 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200'>No active approved configuration. Prospective-client creation is blocked until a version is approved and activated.</p>}
       {!creating && <button type='button' className='rounded-lg bg-blue-600 px-4 py-2 text-white disabled:opacity-50' disabled={busy} onClick={openForm}>New privacy notice version</button>}
       {creating && <form onSubmit={create} className='space-y-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5'>
         <h2 className='text-xl font-semibold'>Create a new version</h2>

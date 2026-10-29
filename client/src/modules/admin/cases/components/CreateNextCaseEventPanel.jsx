@@ -273,7 +273,7 @@ export default function CreateNextCaseEventPanel({
             className={fieldClass}
             placeholder={titleIsCustom ? 'Describe the internal event' : selectedType?.label}
           />
-          {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title}</p>}
+          {errors.title && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{errors.title}</p>}
         </div>
 
         {/* Start Date */}
@@ -287,13 +287,13 @@ export default function CreateNextCaseEventPanel({
             onChange={(e) => setDraft((d) => ({ ...d, starts_at: e.target.value }))}
             className={fieldClass}
           />
-          {errors.starts_at && <p className="mt-1 text-xs text-red-500">{errors.starts_at}</p>}
+          {errors.starts_at && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{errors.starts_at}</p>}
           {daysRemaining && (
             <p className={`mt-1 text-xs font-medium ${
               daysRemaining === 'Today' || daysRemaining === 'Tomorrow'
                 ? 'text-amber-600 dark:text-amber-400'
                 : daysRemaining === 'Past due'
-                  ? 'text-red-500'
+                  ? 'text-red-500 dark:text-red-400'
                   : 'text-blue-600 dark:text-blue-400'
             }`}>
               {daysRemaining}
@@ -398,7 +398,7 @@ export default function CreateNextCaseEventPanel({
             id="is_client_visible"
             checked={draft.is_client_visible}
             onChange={(e) => setDraft((d) => ({ ...d, is_client_visible: e.target.checked }))}
-            className="h-4 w-4 rounded border-border-light"
+            className="h-4 w-4 rounded border-border-light dark:border-border-dark"
           />
           <label
             htmlFor="is_client_visible"

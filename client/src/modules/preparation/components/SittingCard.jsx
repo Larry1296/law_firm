@@ -4,7 +4,7 @@ import { formatDateTime } from '@/core/utils/dateFormatter';
 
 export default function SittingCard({ sitting, open, onToggle, actions = null, showReadiness = true, children }) {
   const { event, case: matter, brief } = sitting;
-  const tone = brief.readiness >= 80 ? 'bg-emerald-100 text-emerald-900' : brief.readiness >= 50 ? 'bg-amber-100 text-amber-900' : 'bg-red-100 text-red-900';
+  const tone = brief.readiness >= 80 ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200' : brief.readiness >= 50 ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200' : 'bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200';
   return (
     <article id={`sitting-${event.id}`} className={`rounded-xl border p-4 ${open ? 'border-brand-primary' : 'border-border-light dark:border-border-dark'}`}>
       <div className='flex flex-wrap items-start justify-between gap-3'>

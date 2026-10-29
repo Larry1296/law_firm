@@ -32,7 +32,7 @@ export default function AnnouncementInboxCard({ compact = false }) {
       </div>
 
       {isLoading && (
-        <p className='text-sm text-slate-500'>Loading announcements...</p>
+        <p className='text-sm text-slate-500 dark:text-slate-400'>Loading announcements...</p>
       )}
 
       {!isLoading && !visibleAnnouncements.length && (

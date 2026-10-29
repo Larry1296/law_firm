@@ -403,8 +403,6 @@ html:not(.dark) .app-main:has(.dashboard-grid) .dashboard-grid {
   --border-light: #D8D2C8;
   --text-primary-light: #1F2933;
   --text-muted-light: #5F6673;
-  --brand-primary: #12385A;
-  --brand-accent: #B88A2B;
 
   /* Semantic aliases */
   --background: var(--background-light);
@@ -421,8 +419,6 @@ html:not(.dark) .app-main:has(.dashboard-grid) .dashboard-grid {
   --border-dark: #1F2A44;
   --text-primary-dark: #E5E7EB;
   --text-muted-dark: #94A3B8;
-  --brand-primary: #12385A;
-  --brand-accent: #B88A2B;
 
   /* Semantic aliases */
   --background: var(--background-dark);
@@ -793,13 +789,37 @@ html:not(.dark) .shadow-xl {
   box-shadow: 0 8px 22px rgba(31, 41, 51, 0.1) !important;
 }
 
+/* Dark defaults for native controls and tables. Zero specificity, so any
+   explicit class on an element still wins; only the browser's white boxes are replaced. */
+:where(html.dark) {
+  color-scheme: dark;
+}
+
+:where(html.dark) :where(input:not([type='checkbox']):not([type='radio']):not(.form-control), select:not(.form-control), textarea:not(.form-control)) {
+  background-color: var(--surface-dark);
+  border-color: var(--border-dark);
+  color: var(--text-primary-dark);
+}
+
+:where(html.dark) :where(input, textarea)::placeholder {
+  color: #64748b;
+}
+
+:where(html.dark) :where(table thead th) {
+  color: #cbd5e1;
+}
+
+:where(html.dark) :where(table tbody tr:hover) {
+  background-color: rgba(148, 163, 184, 0.06);
+}
+
 /* Public home light theme */
 html:not(.dark) .public-home {
   background: var(--background);
   color: var(--text-primary);
 }
 
-html:not(.dark) .public-home > section:not(#home) section {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) section {
   background-color: var(--background-light) !important;
   color: var(--text-primary-light);
 }
@@ -808,88 +828,88 @@ html:not(.dark) .public-home > section:nth-of-type(even):not(#home) section {
   background-color: #e9e4db !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) [class*="bg-white/"],
-html:not(.dark) .public-home > section:not(#home) [class*="bg-white["] {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="bg-white/"],
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="bg-white["] {
   background-color: var(--surface-light) !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) [class*="from-white/"],
-html:not(.dark) .public-home > section:not(#home) [class*="to-white/"] {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="from-white/"],
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="to-white/"] {
   background-image: none !important;
   background-color: var(--surface-light) !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) [class*="border-white/"] {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="border-white/"] {
   border-color: #c8c0b4 !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) h1,
-html:not(.dark) .public-home > section:not(#home) h2,
-html:not(.dark) .public-home > section:not(#home) h3,
-html:not(.dark) .public-home > section:not(#home) h4,
-html:not(.dark) .public-home > section:not(#home) .text-white,
-html:not(.dark) .public-home > section:not(#home) .text-gray-200,
-html:not(.dark) .public-home > section:not(#home) .text-gray-900 {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) h1,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) h2,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) h3,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) h4,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) .text-white:not([class*="bg-brand-"]),
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) .text-gray-200,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) .text-gray-900 {
   color: #172231 !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) .text-gray-300,
-html:not(.dark) .public-home > section:not(#home) .text-gray-400,
-html:not(.dark) .public-home > section:not(#home) .text-gray-500 {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) .text-gray-300,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) .text-gray-400,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) .text-gray-500 {
   color: #4b5565 !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) .text-blue-100,
-html:not(.dark) .public-home > section:not(#home) .text-blue-200,
-html:not(.dark) .public-home > section:not(#home) .text-blue-300 {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) .text-blue-100,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) .text-blue-200,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) .text-blue-300 {
   color: var(--brand-primary) !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) p,
-html:not(.dark) .public-home > section:not(#home) li {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) p,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) li {
   color: #4b5565;
 }
 
-html:not(.dark) .public-home > section:not(#home) [class*="bg-blue-500/10"] {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="bg-blue-500/10"] {
   background-color: rgba(18, 56, 90, 0.09) !important;
   border-color: rgba(18, 56, 90, 0.22) !important;
   color: var(--brand-primary) !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) [class*="bg-gradient-to-r"][class*="bg-clip-text"],
-html:not(.dark) .public-home > section:not(#home) [class*="bg-gradient-to-br"][class*="bg-clip-text"] {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="bg-gradient-to-r"][class*="bg-clip-text"],
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="bg-gradient-to-br"][class*="bg-clip-text"] {
   background-image: linear-gradient(90deg, var(--brand-primary), #0f766e, #1f5f9f) !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) .text-transparent {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) .text-transparent {
   color: transparent !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) [class*="from-blue-"] .text-white,
-html:not(.dark) .public-home > section:not(#home) [class*="to-indigo-"] .text-white,
-html:not(.dark) .public-home > section:not(#home) [class*="bg-blue-"] .text-white,
-html:not(.dark) .public-home > section:not(#home) [class*="bg-indigo-"] .text-white {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="from-blue-"] .text-white,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="to-indigo-"] .text-white,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="bg-blue-"] .text-white,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="bg-indigo-"] .text-white {
   color: #ffffff !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) [class*="shadow-"] {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) [class*="shadow-"] {
   box-shadow: 0 14px 34px rgba(31, 41, 51, 0.13) !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) a:not([class*="text-white"]),
-html:not(.dark) .public-home > section:not(#home) button:not([class*="text-white"]) {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) a:not([class*="text-white"]),
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) button:not([class*="text-white"]) {
   color: var(--brand-primary);
 }
 
-html:not(.dark) .public-home > section:not(#home) input:not([type='checkbox']):not([type='radio']),
-html:not(.dark) .public-home > section:not(#home) textarea {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) input:not([type='checkbox']):not([type='radio']),
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) textarea {
   background-color: var(--surface-light) !important;
   border-color: #bdb4a7 !important;
   color: #172231 !important;
 }
 
-html:not(.dark) .public-home > section:not(#home) input::placeholder,
-html:not(.dark) .public-home > section:not(#home) textarea::placeholder {
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) input::placeholder,
+html:not(.dark) .public-home > section:not(#home):not(#legal-assistant) textarea::placeholder {
   color: #6b7280 !important;
 }
 

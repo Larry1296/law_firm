@@ -76,7 +76,7 @@ export default function PlatformPaymentsPage() {
       <Panel bodyClassName='p-0'>
         {(invoices.error && !invoices.error?.isActionCancelled) && <div className='p-4'><ErrorNotice error={invoices.error} /></div>}
         {invoices.isLoading ? (
-          <p role='status' className='p-5 text-sm text-text-muted-light'>Loading invoices…</p>
+          <p role='status' className='p-5 text-sm text-text-muted-light dark:text-text-muted-dark'>Loading invoices…</p>
         ) : rows.length === 0 ? (
           <EmptyState>No invoices here.</EmptyState>
         ) : (

@@ -35,7 +35,8 @@ export default {
 
         // Brand colors
         brand: {
-          primary: '#12385A',
+          // Navy in light mode, blue in dark mode (see theme.css).
+          primary: 'rgb(var(--brand-primary-rgb) / <alpha-value>)',
           accent: '#B88A2B',
         },
 

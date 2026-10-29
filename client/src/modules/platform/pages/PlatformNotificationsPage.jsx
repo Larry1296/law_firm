@@ -42,7 +42,7 @@ export default function PlatformNotificationsPage() {
       <Panel bodyClassName='p-0'>
         {(notifications.error && !notifications.error?.isActionCancelled) && <div className='p-4'><ErrorNotice error={notifications.error} /></div>}
         {notifications.isLoading ? (
-          <p role='status' className='p-5 text-sm text-text-muted-light'>Loading notifications…</p>
+          <p role='status' className='p-5 text-sm text-text-muted-light dark:text-text-muted-dark'>Loading notifications…</p>
         ) : rows.length === 0 ? (
           <EmptyState>No notifications yet.</EmptyState>
         ) : (

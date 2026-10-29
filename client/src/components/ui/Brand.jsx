@@ -40,7 +40,7 @@ export default function Brand({
         )}
         {showText && (
           <>
-            <span className={`mt-1 line-clamp-2 font-extrabold leading-tight ${textSize} text-yellow-600`}>{firm.name}</span>
+            <span className={`mt-1 line-clamp-2 font-extrabold leading-tight ${textSize} text-yellow-600 dark:text-yellow-400`}>{firm.name}</span>
             <span className='text-[10px] font-medium uppercase tracking-wider opacity-70'>on Sheria Master</span>
           </>
         )}
@@ -51,7 +51,7 @@ export default function Brand({
   return (
     <div className='flex w-full flex-col items-center justify-center text-center'>
       <img src={logo} alt='Sheria Master logo' className={`${size} object-contain`} />
-      {showText && <span className={`font-extrabold ${textSize} text-yellow-600`}>Sheria Master</span>}
+      {showText && <span className={`font-extrabold ${textSize} text-yellow-600 dark:text-yellow-400`}>Sheria Master</span>}
     </div>
   );
 }

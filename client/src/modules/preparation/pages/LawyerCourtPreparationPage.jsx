@@ -36,7 +36,7 @@ export default function LawyerCourtPreparationPage() {
         </div>
       </Card>
       {isLoading && <p className='text-sm'>Loading your sittings…</p>}
-      {error && <p role='alert' className='text-sm text-red-700'>{getApiErrorMessage(error, 'Court preparation could not be loaded.')}</p>}
+      {error && <p role='alert' className='text-sm text-red-700 dark:text-red-300'>{getApiErrorMessage(error, 'Court preparation could not be loaded.')}</p>}
       {!isLoading && !error && sittings.length === 0 && (
         <Card className='p-5'><p className='text-sm'>No court sittings in the next 14 days on your matters.</p></Card>
       )}

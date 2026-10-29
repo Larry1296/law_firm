@@ -27,7 +27,7 @@ const ChatInput = ({
   };
 
   return (
-    <div className="flex items-center gap-2 p-3 border-t bg-white">
+    <div className="flex items-center gap-2 p-3 border-t bg-white dark:bg-surface-dark">
       <AutoGrowTextarea maxRows={6}
         value={message}
         onChange={(e) => setMessage(e.target.value)}

@@ -131,7 +131,7 @@ export default function PlatformPlansPage() {
     }
   };
 
-  if (isLoading) return <p role='status' className='text-sm text-text-muted-light'>Loading plans…</p>;
+  if (isLoading) return <p role='status' className='text-sm text-text-muted-light dark:text-text-muted-dark'>Loading plans…</p>;
   if (error) return <ErrorNotice error={error} />;
 
   const features = data.features;
@@ -156,7 +156,7 @@ export default function PlatformPlansPage() {
         {data.plans.map((plan) => (
           <Panel
             key={plan.id}
-            title={<span className='flex items-center gap-2'>{plan.name} <span className='font-mono text-xs font-normal text-text-muted-light'>{plan.code}</span></span>}
+            title={<span className='flex items-center gap-2'>{plan.name} <span className='font-mono text-xs font-normal text-text-muted-light dark:text-text-muted-dark'>{plan.code}</span></span>}
             description={plan.tagline}
             actions={(
               <div className='flex gap-1'>

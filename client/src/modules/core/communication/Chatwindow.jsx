@@ -22,7 +22,7 @@ export default function ChatWindow({ title = "Chat", messages = [] }) {
   const card =
     theme === "dark"
       ? "bg-[color:var(--surface-dark)] border border-[color:var(--border-dark)] text-white"
-      : "bg-[color:var(--surface-light)] border border-[color:var(--border-light)] text-black";
+      : "bg-[color:var(--surface-light)] border border-[color:var(--border-light)] text-black dark:text-white";
 
   return (
     <div className={`rounded-2xl shadow-soft flex flex-col h-[500px] ${card}`}>
@@ -46,7 +46,7 @@ export default function ChatWindow({ title = "Chat", messages = [] }) {
 
       {/* INPUT */}
       <div className="p-4 flex items-center gap-2 border-t border-gray-200 dark:border-gray-700">
-        <button className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200">
+        <button className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-slate-800/60">
           <Paperclip size={18} />
         </button>
 

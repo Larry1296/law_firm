@@ -139,7 +139,7 @@ function PlanCard({ plan, cycle, current, onChoose, busy, subscription }) {
         {plan.features.map((feature) => (
           <li key={feature.code} className={`flex gap-2 ${feature.included ? '' : 'text-gray-400 dark:text-gray-500'}`}>
             {feature.included
-              ? <Check size={16} className='mt-0.5 shrink-0 text-green-600' aria-label='Included' />
+              ? <Check size={16} className='mt-0.5 shrink-0 text-green-600 dark:text-green-400' aria-label='Included' />
               : <Minus size={16} className='mt-0.5 shrink-0' aria-label='Not included' />}
             {feature.label}
           </li>
@@ -257,7 +257,7 @@ export default function AdminSubscriptionPage() {
             <ul className='mt-3 grid gap-2 text-sm sm:grid-cols-2'>
               {plansQuery.data.included_in_every_plan.map((line) => (
                 <li key={line} className='flex gap-2'>
-                  <Check size={16} className='mt-0.5 shrink-0 text-green-600' aria-hidden='true' />
+                  <Check size={16} className='mt-0.5 shrink-0 text-green-600 dark:text-green-400' aria-hidden='true' />
                   {line}
                 </li>
               ))}

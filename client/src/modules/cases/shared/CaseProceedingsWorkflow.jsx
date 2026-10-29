@@ -71,14 +71,14 @@ export default function CaseProceedingsWorkflow({ caseData }) {
       <section className={box}>
         <h2 className='text-lg font-semibold'>Case Lifecycle Summary</h2>
         <div className='mt-3 grid gap-3 md:grid-cols-4'>
-          <p><span className='text-xs text-text-muted-light'>Current stage</span><br />{summary.current_stage_label || caseData.lifecycle_stage_label}</p>
-          <p><span className='text-xs text-text-muted-light'>Last proceeding</span><br />{summary.last_completed_proceeding || 'None recorded'}</p>
-          <p><span className='text-xs text-text-muted-light'>Next event</span><br />{summary.next_event?.event_type_label || 'Not scheduled'}</p>
-          <p><span className='text-xs text-text-muted-light'>Official case number</span><br />{caseData.official_court_case_number || 'Not registered'}</p>
-          <p><span className='text-xs text-text-muted-light'>Court / station</span><br />{caseData.court_name || caseData.court_type || 'Not recorded'} — {caseData.court_station || 'station pending'}</p>
-          <p><span className='text-xs text-text-muted-light'>Responsible advocate</span><br />{caseData.assigned_lawyer?.full_name || 'Not assigned'}</p>
-          <p><span className='text-xs text-text-muted-light'>Next date</span><br />{summary.next_event?.starts_at ? formatDateTime(summary.next_event.starts_at) : 'Not scheduled'}</p>
-          <p><span className='text-xs text-text-muted-light'>Key deadline</span><br />{summary.key_pending_deadline?.title || 'None pending'}</p>
+          <p><span className='text-xs text-text-muted-light dark:text-text-muted-dark'>Current stage</span><br />{summary.current_stage_label || caseData.lifecycle_stage_label}</p>
+          <p><span className='text-xs text-text-muted-light dark:text-text-muted-dark'>Last proceeding</span><br />{summary.last_completed_proceeding || 'None recorded'}</p>
+          <p><span className='text-xs text-text-muted-light dark:text-text-muted-dark'>Next event</span><br />{summary.next_event?.event_type_label || 'Not scheduled'}</p>
+          <p><span className='text-xs text-text-muted-light dark:text-text-muted-dark'>Official case number</span><br />{caseData.official_court_case_number || 'Not registered'}</p>
+          <p><span className='text-xs text-text-muted-light dark:text-text-muted-dark'>Court / station</span><br />{caseData.court_name || caseData.court_type || 'Not recorded'} — {caseData.court_station || 'station pending'}</p>
+          <p><span className='text-xs text-text-muted-light dark:text-text-muted-dark'>Responsible advocate</span><br />{caseData.assigned_lawyer?.full_name || 'Not assigned'}</p>
+          <p><span className='text-xs text-text-muted-light dark:text-text-muted-dark'>Next date</span><br />{summary.next_event?.starts_at ? formatDateTime(summary.next_event.starts_at) : 'Not scheduled'}</p>
+          <p><span className='text-xs text-text-muted-light dark:text-text-muted-dark'>Key deadline</span><br />{summary.key_pending_deadline?.title || 'None pending'}</p>
         </div>
       </section>
 

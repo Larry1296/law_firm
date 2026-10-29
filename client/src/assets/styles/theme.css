@@ -18,11 +18,14 @@
      ========================= */
   --text-primary: #1f2933;
   --text-muted: #5f6673;
+  --text-secondary: var(--text-muted);
+  --surface-muted: #f1ede5;
 
   /* =========================
      BRAND (PRIMARY SYSTEM)
      ========================= */
   --brand-primary: #12385a; /* Soft navy */
+  --brand-primary-rgb: 18 56 90; /* The same navy, for Tailwind opacity steps */
   --brand-accent: #b88a2b; /* Muted gold */
 
   /* =========================
@@ -67,11 +70,14 @@
      ========================= */
   --text-primary: #e5e7eb;
   --text-muted: #94a3b8;
+  --text-secondary: var(--text-muted);
+  --surface-muted: #18243a;
 
   /* =========================
      BRAND (DARK MODE VARIANT)
      ========================= */
   --brand-primary: #3b82f6; /* Blue highlight for UI clarity */
+  --brand-primary-rgb: 59 130 246;
   --brand-accent: #d4af37; /* Brighter gold */
 
   /* =========================
@@ -441,4 +447,40 @@ body {
 .swal2-popup .swal2-icon.swal2-warning {
   border-color: var(--warning) !important;
   color: var(--warning) !important;
+}
+
+/* =========================================================
+   PRINTED SHEETS
+   A sheet mounted on <body> is the only thing sent to paper,
+   in black on white whatever the screen theme.
+   ========================================================= */
+.print-sheet {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    height: auto;
+  }
+
+  body > :not(.print-sheet) {
+    display: none !important;
+  }
+
+  .print-sheet {
+    display: block;
+  }
+
+  /* Paper is monochrome: no theme or link colour reaches the sheet. */
+  .print-sheet,
+  .print-sheet * {
+    color: #111827 !important;
+  }
 }

@@ -64,8 +64,8 @@ function SourceStep({ step, review, matches, active, editable, onOpen, onReview,
   const done = Boolean(review);
   const matchFound = review?.outcome === 'MATCH_FOUND';
   const icon = matchFound
-    ? <AlertTriangle size={18} className='text-amber-600' />
-    : done ? <CheckCircle2 size={18} className='text-emerald-600' /> : <span className={`grid h-5 w-5 place-items-center rounded-full border text-[10px] ${active ? 'border-brand-primary text-brand-primary' : 'border-border-light dark:border-border-dark'}`} />;
+    ? <AlertTriangle size={18} className='text-amber-600 dark:text-amber-400' />
+    : done ? <CheckCircle2 size={18} className='text-emerald-600 dark:text-emerald-400' /> : <span className={`grid h-5 w-5 place-items-center rounded-full border text-[10px] ${active ? 'border-brand-primary text-brand-primary' : 'border-border-light dark:border-border-dark'}`} />;
 
   const submitMatch = (event) => {
     event.preventDefault();
@@ -223,7 +223,7 @@ export default function ConflictSearchPanel({ check, onRunSearch, onReviewSource
 
       {readyToClear && (
         <form className='space-y-3 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm dark:border-emerald-800 dark:bg-emerald-950/30' onSubmit={(event) => { event.preventDefault(); onClear(summary.trim()); }}>
-          <p className='flex items-center gap-2 font-semibold'><CheckCircle2 size={18} className='text-emerald-600' />No conflict found{guided ? ' in the system or in the sources you confirmed' : ''}</p>
+          <p className='flex items-center gap-2 font-semibold'><CheckCircle2 size={18} className='text-emerald-600 dark:text-emerald-400' />No conflict found{guided ? ' in the system or in the sources you confirmed' : ''}</p>
           <Field label='Clearance note (optional; the system records what was searched)' value={summary} onChange={setSummary} />
           <label className='flex items-center gap-2'>
             <input type='checkbox' checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />

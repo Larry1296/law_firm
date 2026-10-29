@@ -169,7 +169,7 @@ export default function CourtroomLinkForm({ caseId }) {
           </label>
 
           {existingSession && (
-            <p className='rounded-lg bg-amber-50 p-3 text-sm text-amber-950 md:col-span-2'>
+            <p className='rounded-lg bg-amber-50 p-3 text-sm text-amber-950 md:col-span-2 dark:bg-amber-950/40 dark:text-amber-200'>
               A link is already attached to this court date. Saving replaces it and notifies everyone again.
             </p>
           )}
@@ -189,7 +189,7 @@ export default function CourtroomLinkForm({ caseId }) {
       {feedback && (
         <p
           role={feedback.tone === 'error' ? 'alert' : 'status'}
-          className={`mt-3 rounded-lg p-3 text-sm ${feedback.tone === 'error' ? 'bg-red-50 text-red-800' : 'bg-emerald-50 text-emerald-800'}`}
+          className={`mt-3 rounded-lg p-3 text-sm ${feedback.tone === 'error' ? 'bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-200' : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'}`}
         >
           {feedback.text}
         </p>

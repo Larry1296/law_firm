@@ -23,7 +23,7 @@ class SecretaryDocumentsView(SecretaryBaseView):
                 return Response(SecretaryDocumentService.propose_document_reference(request.user, request.data.get("client_id")), status=200)
             if request.data.get("action") == "create_receipt":
                 receipt = SecretaryDocumentService.create_receipt(request.user, request.data)
-                return Response({"receipt_number": receipt.receipt_number}, status=201)
+                return Response({"receipt_number": receipt.receipt_number, "receipt": DocumentWorkflowService.serialize_receipt(receipt)}, status=201)
             if request.data.get("action") != "register_physical":
                 return Response({"detail": "Document uploads are disabled. Record the physical KYC drawer entry."}, status=400)
             document = SecretaryDocumentService.register_physical_document(request.user, request.data)

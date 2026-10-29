@@ -621,7 +621,7 @@ export default function CaseCreateForm({
                 </button>
               ))}
             </div>
-            {errors.entry_route && <p className='text-sm text-red-500'>{errors.entry_route}</p>}
+            {errors.entry_route && <p className='text-sm text-red-500 dark:text-red-400'>{errors.entry_route}</p>}
           </Section>
         )}
 
@@ -709,13 +709,13 @@ export default function CaseCreateForm({
                 />
                 <Button3D type='button' variant='outlineLight' onClick={addParty}>Add Party</Button3D>
               </div>
-              {errors.parties && <p className='mt-1 text-sm text-red-500'>{errors.parties}</p>}
+              {errors.parties && <p className='mt-1 text-sm text-red-500 dark:text-red-400'>{errors.parties}</p>}
               {(formData.parties || []).length > 0 && (
                 <div className='mt-5 space-y-3'>
                   {formData.parties.map((party, index) => (
                     <div key={`${party.name}:${index}`} className='flex items-center justify-between rounded-lg border border-border-light px-3 py-2 text-sm dark:border-border-dark'>
                       <span>{party.name} - {party.role?.replaceAll('_', ' ')}</span>
-                      <button type='button' className='text-red-600' onClick={() => removeParty(index)}>Remove</button>
+                      <button type='button' className='text-red-600 dark:text-red-400' onClick={() => removeParty(index)}>Remove</button>
                     </div>
                   ))}
                 </div>

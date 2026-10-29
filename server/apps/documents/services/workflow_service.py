@@ -279,6 +279,26 @@ class DocumentWorkflowService:
         }
 
     @staticmethod
+    def serialize_receipt(receipt):
+        """A delivery receipt as issued, with the firm details frozen on it for the printed copy."""
+        from apps.authentication.services.auth_service import AuthService
+
+        current = AuthService.firm_payload(receipt.firm)
+        firm = {"name": current["name"], **(current["contact"] or {})}
+        firm.update({key: value for key, value in (receipt.firm_details_snapshot or {}).items() if value})
+        return {
+            "id": str(receipt.id), "receipt_number": receipt.receipt_number,
+            "client_name": receipt.client.full_name, "kyc_reference": receipt.kyc_reference_snapshot,
+            "received_from": receipt.received_from, "received_by": receipt.received_by.full_name,
+            "received_at": receipt.received_at, "firm": firm,
+            "documents": [{
+                "reference": line.document_reference_snapshot, "title": line.title_snapshot,
+                "copy_type": line.copy_type_snapshot, "page_count": line.page_count_snapshot,
+                "condition": line.condition_snapshot, "return_required": line.return_required_snapshot,
+            } for line in receipt.items.all()],
+        }
+
+    @staticmethod
     def serialize_document(document):
         references = list(document.matter_references.all())
         return {

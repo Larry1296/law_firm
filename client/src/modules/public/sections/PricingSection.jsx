@@ -16,7 +16,7 @@ export default function PricingSection({ plans, includedInEveryPlan, loading }) 
           text='Pay by M-Pesa, monthly or yearly. Prices exclude 16% VAT. Statutory compliance features come with every plan.'
         />
 
-        {loading && <p role='status' className='mt-10 text-center text-sm text-text-muted-light'>Loading plans…</p>}
+        {loading && <p role='status' className='mt-10 text-center text-sm text-text-muted-light dark:text-text-muted-dark'>Loading plans…</p>}
 
         <div className='mx-auto mt-12 grid max-w-4xl gap-6 md:grid-cols-2'>
           {plans.map((plan) => {

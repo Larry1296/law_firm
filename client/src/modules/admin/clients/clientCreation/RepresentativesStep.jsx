@@ -40,7 +40,7 @@ export default function RepresentativesStep({ state, metadata, setList }) {
         <Field label='Authorized to give instructions' help='This person may give legally relevant instructions to the firm for this client.' type='checkbox' value={representative.is_authorized_to_give_instructions} onChange={(value)=>update(index,{is_authorized_to_give_instructions:value})}/>
         <Field label='Client portal contact' help='Create or associate the client dashboard login with this representative.' type='checkbox' value={representative.is_portal_contact} onChange={(value)=>update(index,{is_portal_contact:value})}/>
       </fieldset>
-      <button type='button' className='text-left text-sm text-red-600' onClick={()=>setList(state.representatives.filter((_,position)=>position!==index))}>Remove representative</button>
+      <button type='button' className='text-left text-sm text-red-600 dark:text-red-400' onClick={()=>setList(state.representatives.filter((_,position)=>position!==index))}>Remove representative</button>
     </div>)}</div>
     <button type='button' className='rounded-lg bg-blue-600 px-4 py-2 text-white' onClick={addRepresentative}>Add representative</button>
   </StepPanel>;

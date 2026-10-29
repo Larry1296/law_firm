@@ -281,13 +281,9 @@ class ClientDetailSerializer(
         } for item in obj.kyc_reference_history.select_related("changed_by")]
 
     def get_document_receipts(self, obj):
-        return [{
-            "id": str(receipt.id), "receipt_number": receipt.receipt_number,
-            "received_from": receipt.received_from, "received_by": receipt.received_by.full_name,
-            "received_at": receipt.received_at,
-            "documents": [{
-                "reference": line.document_reference_snapshot, "title": line.title_snapshot,
-                "copy_type": line.copy_type_snapshot, "page_count": line.page_count_snapshot,
-                "condition": line.condition_snapshot, "return_required": line.return_required_snapshot,
-            } for line in receipt.items.all()],
-        } for receipt in obj.document_receipts.select_related("received_by").prefetch_related("items")]
+        from apps.documents.services.workflow_service import DocumentWorkflowService
+
+        return [
+            DocumentWorkflowService.serialize_receipt(receipt)
+            for receipt in obj.document_receipts.select_related("received_by", "client", "firm").prefetch_related("items")
+        ]

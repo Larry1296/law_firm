@@ -111,7 +111,7 @@ export default function Input({
         `}
         {...rest}
       />
-      {error && <p id={`${name}-error`} className='text-sm text-red-500'>{error}</p>}
+      {error && <p id={`${name}-error`} className='text-sm text-red-500 dark:text-red-400'>{error}</p>}
     </div>
   );
 }

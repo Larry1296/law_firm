@@ -271,7 +271,7 @@ export default function PlatformFirmDetailPage() {
     }
   };
 
-  if (firmQuery.isLoading) return <p role='status' className='text-sm text-text-muted-light'>Loading firm…</p>;
+  if (firmQuery.isLoading) return <p role='status' className='text-sm text-text-muted-light dark:text-text-muted-dark'>Loading firm…</p>;
   if (firmQuery.error) return <ErrorNotice error={firmQuery.error} />;
   const firm = firmQuery.data;
 
@@ -333,7 +333,7 @@ export default function PlatformFirmDetailPage() {
           <label className='group relative flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border border-border-light bg-surface-light dark:border-border-dark dark:bg-surface-dark' title='Upload logo'>
             {firm.logo_url
               ? <img src={apiAssetUrl(firm.logo_url)} alt={`${firm.name} logo`} className='h-full w-full object-cover' />
-              : <ImagePlus size={20} className='text-text-muted-light' aria-hidden='true' />}
+              : <ImagePlus size={20} className='text-text-muted-light dark:text-text-muted-dark' aria-hidden='true' />}
             <span className='sr-only'>Upload logo</span>
             <input type='file' accept='image/png,image/jpeg,image/webp' className='sr-only' onChange={uploadLogo} />
           </label>

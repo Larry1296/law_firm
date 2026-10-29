@@ -127,7 +127,7 @@ export default function DashboardTileBackdrop({ variant }) {
       <div className='absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent' />
       <div className='dashboard-tile-sheen absolute -inset-y-1/2 left-[-45%] w-1/3 rotate-12 bg-gradient-to-r from-transparent via-white/15 to-transparent blur-sm' />
 
-      <div className='absolute bottom-5 right-5 flex gap-1.5 rounded-full border border-white/20 bg-black/25 px-2.5 py-2 shadow-lg backdrop-blur-md'>
+      <div className='absolute left-1/2 top-3 flex -translate-x-1/2 gap-1.5 rounded-full border border-white/20 bg-black/25 px-2.5 py-2 shadow-lg backdrop-blur-md'>
         {SCENE_SETS.map((_, index) => (
           <span
             key={`${variant}-scene-${index}`}

@@ -43,7 +43,7 @@ export default function CompleteClientOnboardingPage() {
   return <main className='mx-auto max-w-5xl space-y-5 p-4 md:p-8'>
     <h1 className='text-2xl font-bold'>Complete onboarding / KYC</h1>
     <p>For an existing prospective client after conflict clearance. Saving evidence does not accept instructions or open a matter.</p>
-    {error && <p role='alert' className='rounded bg-red-50 p-3 text-red-800'>{error}</p>}
+    {error && <p role='alert' className='rounded bg-red-50 p-3 text-red-800 dark:bg-red-950/40 dark:text-red-200'>{error}</p>}
     {!metadata ? <p>Loading onboarding record…</p> : <form className='space-y-5' onSubmit={submit}>
       <LegalIdentityStep state={state} metadata={metadata} lockAccess setClient={(v) => setObject('client', v)} setProfile={(v) => setObject('legal_profile', v)} />
       <RegulatoryProfileStep state={state} metadata={metadata} setClient={(v) => setObject('client', v)} setEducation={(value) => dispatch({ type: 'SET_EDUCATION', value })} />

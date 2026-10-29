@@ -76,14 +76,14 @@ const buildMonthCells = (cursor) => {
 };
 
 const eventTone = (event) => {
-  if (event.virtual_courtroom_is_available) return 'border-emerald-500 bg-emerald-50 text-emerald-800';
+  if (event.virtual_courtroom_is_available) return 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200';
   if (event.event_type === 'HEARING' || event.event_type === 'MENTION') {
-    return 'border-blue-500 bg-blue-50 text-blue-800';
+    return 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200';
   }
   if (event.status === 'ADJOURNED' || event.status === 'CANCELLED') {
-    return 'border-amber-500 bg-amber-50 text-amber-800';
+    return 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200';
   }
-  return 'border-slate-400 bg-slate-50 text-slate-700';
+  return 'border-slate-400 bg-slate-50 text-slate-700 dark:bg-slate-800/60 dark:text-slate-200';
 };
 
 function EventRow({ event, caseBasePath, highlighted, secretaryMode, onAwareness, awarenessPending }) {
@@ -427,7 +427,7 @@ export default function EventsWorkspace({
 
       {error && (
         <Card className='p-5'>
-          <p className='text-sm text-red-600'>{error?.response?.data?.detail || 'Failed to load calendar events.'}</p>
+          <p className='text-sm text-red-600 dark:text-red-400'>{error?.response?.data?.detail || 'Failed to load calendar events.'}</p>
         </Card>
       )}
 
@@ -441,7 +441,7 @@ export default function EventsWorkspace({
                   {upcomingCount} upcoming from your visible event set
                 </p>
               </div>
-              <Bell className='text-blue-600' size={22} />
+              <Bell className='text-blue-600 dark:text-blue-400' size={22} />
             </div>
           </div>
 
@@ -465,7 +465,7 @@ export default function EventsWorkspace({
                   onClick={() => setSelectedDate(key)}
                   className={`min-h-[112px] border-b border-r border-border-light p-2 text-left transition dark:border-border-dark ${
                     active ? 'bg-blue-50 dark:bg-blue-950/40' : 'hover:bg-slate-50 dark:hover:bg-slate-900'
-                  } ${inMonth ? 'text-slate-900 dark:text-white' : 'text-slate-300 dark:text-slate-600'}`}
+                  } ${inMonth ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}
                 >
                   <span className={`inline-flex h-7 w-7 items-center justify-center rounded-lg text-sm font-bold ${
                     key === dateKey(new Date()) ? 'bg-blue-600 text-white' : ''

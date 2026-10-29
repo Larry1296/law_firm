@@ -62,7 +62,7 @@ export default function PlatformUsersPage() {
         <div className='flex flex-col gap-3 border-b border-border-light p-4 dark:border-border-dark md:flex-row'>
           <label className='relative flex-1'>
             <span className='sr-only'>Search users</span>
-            <Search size={16} className='pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted-light' aria-hidden='true' />
+            <Search size={16} className='pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted-light dark:text-text-muted-dark' aria-hidden='true' />
             <input type='search' value={filters.search} onChange={setFilter('search')} placeholder='Search by name, email or phone' className={`${inputClass} pl-9`} />
           </label>
           <label className='md:w-56'>
@@ -83,7 +83,7 @@ export default function PlatformUsersPage() {
 
         {(users.error && !users.error?.isActionCancelled) && <div className='p-4'><ErrorNotice error={users.error} /></div>}
         {users.isLoading ? (
-          <p role='status' className='p-5 text-sm text-text-muted-light'>Loading users…</p>
+          <p role='status' className='p-5 text-sm text-text-muted-light dark:text-text-muted-dark'>Loading users…</p>
         ) : rows.length === 0 ? (
           <EmptyState>No users match these filters.</EmptyState>
         ) : (

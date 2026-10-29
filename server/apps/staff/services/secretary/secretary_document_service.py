@@ -15,6 +15,7 @@ from apps.documents.models import (
     DocumentRequest, PhysicalDocumentReceipt, PhysicalDocumentReceiptItem,
     PhysicalDocumentReceiptSequence,
 )
+from apps.authentication.services.auth_service import AuthService
 from apps.communications.services import ChatService
 from apps.documents.services.workflow_service import DocumentWorkflowService
 from apps.firm.models import StorageLocation
@@ -374,6 +375,11 @@ class SecretaryDocumentService:
                 .order_by("fulfilled_at")
             ],
             "documents": [DocumentWorkflowService.serialize_document(item) for item in documents],
+            "receipts": [
+                DocumentWorkflowService.serialize_receipt(item)
+                for item in PhysicalDocumentReceipt.objects.filter(client_id=client_id, firm=firm)
+                .select_related("received_by", "client", "firm").prefetch_related("items").order_by("-received_at")
+            ] if client_id else [],
             "requests": [DocumentWorkflowService.serialize_request(item) for item in requests],
             "selected_client_id": client_id,
             "selection_error": selection_error,
@@ -690,7 +696,8 @@ class SecretaryDocumentService:
             received_from=received_from,
             received_by=user, received_at=received_at,
             kyc_reference_snapshot=client.kyc_drawer_reference,
-            firm_details_snapshot={"name": firm.name},
+            # The letterhead as it stood when the papers were received; the printed copy uses it.
+            firm_details_snapshot={"name": firm.name, **(AuthService.firm_payload(firm)["contact"] or {})},
         )
         for document in documents:
             PhysicalDocumentReceiptItem.objects.create(

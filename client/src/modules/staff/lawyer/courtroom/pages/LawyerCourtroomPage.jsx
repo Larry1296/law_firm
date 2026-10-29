@@ -14,7 +14,7 @@ export default function LawyerCourtroomPage() {
       <Card className='p-5'>
         <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
           <div className='flex items-center gap-3'>
-            <MonitorUp size={22} className='text-blue-600' />
+            <MonitorUp size={22} className='text-blue-600 dark:text-blue-400' />
             <div>
               <h1 className='text-xl font-bold text-slate-900 dark:text-white'>
                 Today’s Court Appearances

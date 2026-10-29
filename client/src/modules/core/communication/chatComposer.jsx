@@ -26,7 +26,7 @@ const ChatComposer = ({
   };
 
   return (
-    <div className="flex items-end gap-2 p-3 border-t bg-white">
+    <div className="flex items-end gap-2 p-3 border-t bg-white dark:bg-surface-dark">
       <AutoGrowTextarea maxRows={6}
         className="flex-1 resize-none rounded-lg border p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
         value={text}

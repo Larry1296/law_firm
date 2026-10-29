@@ -8,7 +8,7 @@ const ChatMessage = ({ message }) => {
     <div className={`flex mb-2 ${isUser ? "justify-end" : "justify-start"}`}>
       <div
         className={`px-3 py-2 rounded-xl max-w-[70%] text-sm shadow
-        ${isUser ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800"}`}
+        ${isUser ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800 dark:bg-slate-700 dark:text-slate-200"}`}
       >
         <p>{message.text}</p>
 

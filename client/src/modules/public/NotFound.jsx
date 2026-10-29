@@ -10,7 +10,7 @@ export default function NotFound() {
         {/* ICON */}
         <div className="flex justify-center mb-4">
           <div className="p-4 rounded-full bg-red-100 dark:bg-red-900/30">
-            <AlertTriangle className="text-red-500" size={32} />
+            <AlertTriangle className="text-red-500 dark:text-red-400" size={32} />
           </div>
         </div>
 

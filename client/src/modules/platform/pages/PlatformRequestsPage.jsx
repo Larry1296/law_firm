@@ -114,7 +114,7 @@ export default function PlatformRequestsPage() {
       <Panel bodyClassName='p-0'>
         {(requests.error && !requests.error?.isActionCancelled) && <div className='p-4'><ErrorNotice error={requests.error} /></div>}
         {requests.isLoading ? (
-          <p role='status' className='p-5 text-sm text-text-muted-light'>Loading requests…</p>
+          <p role='status' className='p-5 text-sm text-text-muted-light dark:text-text-muted-dark'>Loading requests…</p>
         ) : rows.length === 0 ? (
           <EmptyState>No requests here.</EmptyState>
         ) : (

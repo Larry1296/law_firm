@@ -164,7 +164,7 @@ export default function ClientCaseCommunicationPage() {
       </Card>
 
       {isLoading ? (
-        <Card className='p-6 text-sm text-slate-500'>Loading cases...</Card>
+        <Card className='p-6 text-sm text-slate-500 dark:text-slate-400'>Loading cases...</Card>
       ) : safeCases.length ? (
         <ChatWorkspace
           title={selectedCase ? selectedCase.case_number || 'Case Messages' : 'Messages'}

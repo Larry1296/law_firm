@@ -102,7 +102,7 @@ export default function SecretaryClients() {
   };
 
   const renderLifecycleStatus = (value) => (
-    <span className='px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800'>
+    <span className='px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200'>
       {value}
     </span>
   );

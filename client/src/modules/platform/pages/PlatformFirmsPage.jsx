@@ -58,7 +58,7 @@ export default function PlatformFirmsPage() {
         <div className='flex flex-col gap-3 border-b border-border-light p-4 dark:border-border-dark lg:flex-row'>
           <label className='relative flex-1'>
             <span className='sr-only'>Search firms</span>
-            <Search size={16} className='pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted-light' aria-hidden='true' />
+            <Search size={16} className='pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted-light dark:text-text-muted-dark' aria-hidden='true' />
             <input type='search' value={filters.search} onChange={setFilter('search')} placeholder='Search by firm, registration number, owner or county' className={`${inputClass} pl-9`} />
           </label>
           <label className='lg:w-44'>

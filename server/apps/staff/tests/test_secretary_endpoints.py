@@ -253,6 +253,11 @@ class SecretaryEndpointTests(TestCase):
         self.assertEqual(receipt.received_at, min(document.received_at, second_document.received_at))
         self.assertSetEqual(set(receipt.items.values_list("document_id", flat=True)), {document.id, second_document.id})
         self.assertTrue(document.physical_copy_retained)
+        # The printed copy carries the firm's letterhead as it stood and every document line.
+        printed = receipt_response.data["receipt"]
+        self.assertEqual(printed["firm"]["name"], self.firm.name)
+        self.assertEqual(printed["client_name"], "Document Client")
+        self.assertEqual([line["reference"] for line in printed["documents"]], ["KYC-2026-040/D1", "KYC-2026-040/D2"])
 
     def test_advocate_without_records_staff_keeps_their_clients_register(self):
         Lawyer.objects.create(

@@ -29,8 +29,8 @@ function Checks({ checks }) {
       {checks.map((item) => (
         <li key={item.key} className='flex gap-2 text-sm'>
           {item.passed
-            ? <CheckCircle2 size={18} className='mt-0.5 shrink-0 text-emerald-600' aria-label='Done' />
-            : <CircleAlert size={18} className='mt-0.5 shrink-0 text-amber-600' aria-label='Outstanding' />}
+            ? <CheckCircle2 size={18} className='mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400' aria-label='Done' />
+            : <CircleAlert size={18} className='mt-0.5 shrink-0 text-amber-600 dark:text-amber-400' aria-label='Outstanding' />}
           <span>
             <span className={item.passed ? '' : 'font-semibold'}>{item.label}</span>
             {!item.passed && item.detail && <span className='block text-text-muted-light dark:text-text-muted-dark'>{item.detail}</span>}

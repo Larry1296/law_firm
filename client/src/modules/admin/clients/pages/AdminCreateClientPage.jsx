@@ -89,7 +89,7 @@ export default function AdminCreateClientPage() {
   </main>;
   return <main className='mx-auto max-w-4xl space-y-5 p-4 md:p-8'>
     <header><h1 className='text-2xl font-bold'>Create prospective client</h1><p>Save an internal identity for proposed-matter conflict screening. Complete onboarding / KYC after conflict clearance.</p></header>
-    {error && <p role='alert' className='rounded-lg bg-red-50 p-3 text-red-800'>{error}</p>}
+    {error && <p role='alert' className='rounded-lg bg-red-50 p-3 text-red-800 dark:bg-red-950/40 dark:text-red-200'>{error}</p>}
     {visit && <p className='rounded-lg border p-3'>From the visitor register: {visit.visitor_name}{visit.visitor_phone ? ` · ${visit.visitor_phone}` : ''} · seen by {visit.advocate_name}. Name and telephone are filled in from the arrival; confirm the category, access type and privacy notice given.</p>}
     {!metadata ? <p>Loading client categories…</p> : <form onSubmit={submit} className='space-y-5'>
       <StepPanel title='Client setup'>
@@ -123,7 +123,7 @@ export default function AdminCreateClientPage() {
           {portal && kind !== 'INDIVIDUAL' && <Field type='checkbox' label='Use this authorised portal contact' required value={rep?.is_portal_contact} onChange={(is_portal_contact) => setRep({ is_portal_contact })} />}
         </div></StepPanel>}
         <StepPanel title='Privacy notice delivery'><div className='grid gap-4 sm:grid-cols-2'>
-          {!metadata.intake_privacy && <p role='alert' className='rounded-lg bg-amber-50 p-3 text-amber-900 sm:col-span-2'>An approved active firm intake-privacy configuration is required before creation. Ask your firm administrator to configure and approve it. Lawful basis and privacy notice version are filled automatically and cannot be typed here.</p>}
+          {!metadata.intake_privacy && <p role='alert' className='rounded-lg bg-amber-50 p-3 text-amber-900 sm:col-span-2 dark:bg-amber-950/40 dark:text-amber-200'>An approved active firm intake-privacy configuration is required before creation. Ask your firm administrator to configure and approve it. Lawful basis and privacy notice version are filled automatically and cannot be typed here.</p>}
           <label className='block text-sm text-[color:var(--text-primary)]'><span className='mb-1 block font-medium'>Lawful basis</span><input className='form-control w-full' placeholder='No approved configuration' readOnly value={metadata.intake_privacy?.lawful_basis_label || ''} /></label>
           <label className='block text-sm text-[color:var(--text-primary)]'><span className='mb-1 block font-medium'>Privacy notice version</span><input className='form-control w-full' placeholder='No approved configuration' readOnly value={metadata.intake_privacy?.policy_version || ''} /></label>
           <SelectField label='Delivery method' required options={DELIVERY_OPTIONS} value={state.privacy.delivery_method} onChange={(delivery_method) => setObject('privacy', { delivery_method })} />

@@ -174,7 +174,7 @@ export default function VideoPlayer({
       {tutorial.provider === 'youtube' ? <div className='h-full w-full' ref={host} /> : <video ref={html} className='h-full w-full' controls playsInline preload='metadata' onLoadedMetadata={() => setReady(true)} src={tutorial.video_reference} onError={() => setError('Unable to play this video.')} />}
     </div>}
     {enabled && !ready && !error && <p role='status'>Loading player…</p>}
-    {error && <p role='alert' className='text-red-600'>{error}</p>}
+    {error && <p role='alert' className='text-red-600 dark:text-red-400'>{error}</p>}
     {enabled && tutorial.provider === 'html5' && <label>Playback speed <select defaultValue='1' onChange={e => {
         html.current.playbackRate = Number(e.target.value);
       }}>{[.5, 1, 1.25, 1.5, 2].map(n => <option key={n} value={n}>{n}×</option>)}</select>

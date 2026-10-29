@@ -129,18 +129,18 @@ export default function AdminStaffPage() {
 
   const renderRole = (role) => {
     const styles = {
-      LAWYER: 'bg-blue-100 text-blue-800',
-      SECRETARY: 'bg-purple-100 text-purple-800',
-      ACCOUNTANT: 'bg-emerald-100 text-emerald-800',
-      HR: 'bg-amber-100 text-amber-800',
-      IT: 'bg-cyan-100 text-cyan-800',
-      ADMIN: 'bg-red-100 text-red-800',
+      LAWYER: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200',
+      SECRETARY: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200',
+      ACCOUNTANT: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
+      HR: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
+      IT: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-200',
+      ADMIN: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
     };
 
     return (
       <span
         className={`px-2 py-1 rounded-full text-xs font-semibold ${
-          styles[role] || 'bg-gray-100 text-gray-800'
+          styles[role] || 'bg-gray-100 text-gray-800 dark:bg-slate-800/60 dark:text-slate-200'
         }`}
       >
         {role}

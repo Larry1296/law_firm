@@ -75,7 +75,7 @@ export default function RecordsRoomSection() {
         </p>
         {data?.next_kyc_reference && <p className='mt-1 text-sm'>The next client KYC file will be <strong>{data.next_kyc_reference}</strong>.</p>}
       </div>
-      {error && <p role='alert' className='rounded-lg bg-red-50 p-3 text-sm text-red-800'>{error}</p>}
+      {error && <p role='alert' className='rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-200'>{error}</p>}
       {isLoading && <p role='status'>Loading the records room…</p>}
       {!isLoading && locations.length === 0 && <p className='text-sm'>Nothing laid out yet. Start with a room, such as the registry.</p>}
 

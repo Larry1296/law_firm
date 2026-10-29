@@ -912,7 +912,7 @@ export default function AdminFirmPage() {
                     <button
                       type='button'
                       onClick={() => revokeDelegatedAdmin(admin)}
-                      className='rounded-lg border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-600 hover:text-white'
+                      className='rounded-lg border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:text-white'
                     >
                       Revoke
                     </button>
@@ -1111,7 +1111,7 @@ export default function AdminFirmPage() {
                     <td className='px-4 py-3 text-gray-900 dark:text-white'>
                       {branch.name}
                       {branch.is_head_office ? (
-                        <span className='ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700'>
+                        <span className='ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'>
                           Head office
                         </span>
                       ) : null}
@@ -1126,8 +1126,8 @@ export default function AdminFirmPage() {
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${
                           branch.is_active
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-gray-200 text-gray-700'
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                            : 'bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-slate-200'
                         }`}
                       >
                         {branch.is_active ? 'Active' : 'Inactive'}
@@ -1151,14 +1151,14 @@ export default function AdminFirmPage() {
                               payload: { is_active: !branch.is_active },
                             })
                           }
-                          className='rounded-lg border border-yellow-600 px-3 py-1.5 text-xs font-semibold text-yellow-700 transition hover:bg-yellow-600 hover:text-white'
+                          className='rounded-lg border border-yellow-600 px-3 py-1.5 text-xs font-semibold text-yellow-700 transition hover:bg-yellow-600 hover:text-white dark:text-yellow-300 dark:hover:text-white'
                         >
                           {branch.is_active ? 'Disable' : 'Enable'}
                         </button>
                         <button
                           type='button'
                           onClick={() => deleteBranch(branch)}
-                          className='rounded-lg border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-600 hover:text-white'
+                          className='rounded-lg border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:text-white'
                         >
                           Delete
                         </button>
@@ -1170,7 +1170,7 @@ export default function AdminFirmPage() {
                 <tr>
                   <td
                     colSpan='5'
-                    className='px-4 py-8 text-center text-gray-500'
+                    className='px-4 py-8 text-center text-gray-500 dark:text-slate-400'
                   >
                     No branches yet. The firm can still operate as one main
                     office.
@@ -1233,8 +1233,8 @@ export default function AdminFirmPage() {
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-semibold ${
                             department.is_active
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-gray-200 text-gray-700'
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                              : 'bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-slate-200'
                           }`}
                         >
                           {department.is_active ? 'Active' : 'Inactive'}
@@ -1252,14 +1252,14 @@ export default function AdminFirmPage() {
                           <button
                             type='button'
                             onClick={() => toggleDepartmentStatus(department)}
-                            className='rounded-lg border border-yellow-600 px-3 py-1.5 text-xs font-semibold text-yellow-700 transition hover:bg-yellow-600 hover:text-white'
+                            className='rounded-lg border border-yellow-600 px-3 py-1.5 text-xs font-semibold text-yellow-700 transition hover:bg-yellow-600 hover:text-white dark:text-yellow-300 dark:hover:text-white'
                           >
                             {department.is_active ? 'Disable' : 'Enable'}
                           </button>
                           <button
                             type='button'
                             onClick={() => deleteDepartment(department)}
-                            className='rounded-lg border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-600 hover:text-white'
+                            className='rounded-lg border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:text-white'
                           >
                             Delete
                           </button>
@@ -1271,7 +1271,7 @@ export default function AdminFirmPage() {
                   <tr>
                     <td
                       colSpan='6'
-                      className='px-4 py-8 text-center text-gray-500'
+                      className='px-4 py-8 text-center text-gray-500 dark:text-slate-400'
                     >
                       No departments found.
                     </td>
@@ -1303,13 +1303,13 @@ export default function AdminFirmPage() {
                   <span className='font-medium text-gray-900 dark:text-white'>
                     {role.replace(/_/g, ' ')}
                   </span>
-                  <span className='rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700'>
+                  <span className='rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'>
                     {count}
                   </span>
                 </div>
               ))
             ) : (
-              <p className='rounded-xl border border-border-light px-4 py-6 text-center text-gray-500 dark:border-border-dark'>
+              <p className='rounded-xl border border-border-light px-4 py-6 text-center text-gray-500 dark:border-border-dark dark:text-slate-400'>
                 No role breakdown available.
               </p>
             )}

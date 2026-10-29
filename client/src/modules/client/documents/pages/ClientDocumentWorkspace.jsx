@@ -11,12 +11,12 @@ import documentsService from '@/modules/client/documents/services/documentsServi
 
 // What each request status means to the client. Only the first two wait for the client.
 const REQUEST_STATES = {
-  OPEN: { label: 'Waiting for you', tone: 'bg-amber-100 text-amber-900', awaitsClient: true },
-  REPLACEMENT_REQUIRED: { label: 'Replacement needed', tone: 'bg-red-100 text-red-900', awaitsClient: true },
-  PENDING_SECRETARY: { label: 'On its way to the firm', tone: 'bg-blue-100 text-blue-900' },
-  UPLOADED: { label: 'Received and filed, with your advocate', tone: 'bg-blue-100 text-blue-900' },
-  ACCEPTED: { label: 'Accepted', tone: 'bg-emerald-100 text-emerald-900' },
-  CANCELLED: { label: 'Cancelled', tone: 'bg-slate-100 text-slate-700' },
+  OPEN: { label: 'Waiting for you', tone: 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200', awaitsClient: true },
+  REPLACEMENT_REQUIRED: { label: 'Replacement needed', tone: 'bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200', awaitsClient: true },
+  PENDING_SECRETARY: { label: 'On its way to the firm', tone: 'bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200' },
+  UPLOADED: { label: 'Received and filed, with your advocate', tone: 'bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-200' },
+  ACCEPTED: { label: 'Accepted', tone: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200' },
+  CANCELLED: { label: 'Cancelled', tone: 'bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-200' },
 };
 
 const DELIVERY_METHODS = [
@@ -61,7 +61,7 @@ function DeliveryForm({ item, onDone }) {
           <AutoGrowTextarea maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} className='form-control mt-1 w-full' placeholder='For example, the courier and tracking number' />
         </label>
       </div>
-      {error && <p role='alert' className='text-sm text-red-700'>{error}</p>}
+      {error && <p role='alert' className='text-sm text-red-700 dark:text-red-300'>{error}</p>}
       <button type='submit' disabled={send.isPending} className='inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50'>
         <Truck size={16} aria-hidden='true' /> {send.isPending ? 'Sending…' : 'Tell the firm'}
       </button>
@@ -72,7 +72,7 @@ function DeliveryForm({ item, onDone }) {
 function RequestCard({ item, highlighted }) {
   const queryClient = useQueryClient();
   const [sent, setSent] = useState(false);
-  const state = REQUEST_STATES[item.status] || { label: item.status.replaceAll('_', ' '), tone: 'bg-slate-100 text-slate-700' };
+  const state = REQUEST_STATES[item.status] || { label: item.status.replaceAll('_', ' '), tone: 'bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-200' };
 
   return (
     <div id={`request-${item.id}`} className={`rounded-xl border p-4 ${highlighted ? 'border-brand-primary ring-2 ring-brand-primary/30' : 'border-border-light dark:border-border-dark'}`}>
@@ -88,7 +88,7 @@ function RequestCard({ item, highlighted }) {
       </div>
       {item.instructions && <p className='mt-2 text-sm'>{item.instructions}</p>}
       {item.status === 'REPLACEMENT_REQUIRED' && item.review_notes && (
-        <p className='mt-2 rounded-lg bg-red-50 p-3 text-sm text-red-900'>Why a replacement is needed: {item.review_notes}</p>
+        <p className='mt-2 rounded-lg bg-red-50 p-3 text-sm text-red-900 dark:bg-red-950/40 dark:text-red-200'>Why a replacement is needed: {item.review_notes}</p>
       )}
       {item.status === 'PENDING_SECRETARY' && item.delivery_note && <p className='mt-2 text-sm'>{item.delivery_note}</p>}
       {item.reference && item.status !== 'PENDING_SECRETARY' && (
@@ -97,12 +97,12 @@ function RequestCard({ item, highlighted }) {
       {state.awaitsClient && !sent && (
         <DeliveryForm item={item} onDone={() => { setSent(true); queryClient.invalidateQueries({ queryKey: ['client-documents'] }); }} />
       )}
-      {sent && <p role='status' className='mt-2 text-sm text-emerald-700'>Thank you. The firm will receive the paper, file it and let you know.</p>}
+      {sent && <p role='status' className='mt-2 text-sm text-emerald-700 dark:text-emerald-300'>Thank you. The firm will receive the paper, file it and let you know.</p>}
     </div>
   );
 }
 
-const STATUS_TONE = { filed: 'text-emerald-700', 'awaiting delivery to the firm': 'text-amber-700' };
+const STATUS_TONE = { filed: 'text-emerald-700 dark:text-emerald-300', 'awaiting delivery to the firm': 'text-amber-700 dark:text-amber-300' };
 
 export default function ClientDocumentWorkspace({ caseId = '', compact = false }) {
   const [searchParams] = useSearchParams();

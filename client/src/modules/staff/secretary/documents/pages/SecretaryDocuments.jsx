@@ -11,6 +11,8 @@ import Select3D from '@/components/ui/Select3D';
 import TableHeaderText from '@/components/ui/TableHeaderText';
 import Swal, { toneColor } from '@/core/utils/themedSwal';
 import secretaryDocumentsService from '../services/secretaryDocumentsService';
+import { formatDateTime } from '@/core/utils/dateFormatter';
+import PrintReceiptButton from '@/modules/clients/shared/DocumentReceiptPrint';
 import DeliveriesExpected from '../components/DeliveriesExpected';
 
 const TYPES = [
@@ -46,7 +48,7 @@ export default function SecretaryDocuments({ caseId = '', clientId: fileClientId
   const [advanced, setAdvanced] = useState(false);
   const [form, setForm] = useState(blankForm);
   const [receipt, setReceipt] = useState({ document_ids: [], received_from_contact: '' });
-  const [issuedReceipt, setIssuedReceipt] = useState('');
+  const [issuedReceipt, setIssuedReceipt] = useState(null);
   const [matterFileDraft, setMatterFileDraft] = useState({ case_id: '', storage_location_id: '', storage_zone: 'Active Matters', cabinet: '', shelf_or_drawer: '', location_detail: '', notes: '' });
   const params = caseId ? { case_id: caseId } : (clientId ? { client_id: clientId } : {});
   const { data, isLoading, isError } = useQuery({ queryKey: ['secretary-documents', caseId, clientId], queryFn: () => secretaryDocumentsService.getDocuments(params), retry: !fileClientId });
@@ -58,6 +60,7 @@ export default function SecretaryDocuments({ caseId = '', clientId: fileClientId
   const isPersonalIdentityDocument = ['NATIONAL_ID', 'PASSPORT', 'ALIEN_ID'].includes(form.subtype);
   const effectiveDocumentOwnerContact = form.document_owner_contact || receivedFromOptions[0]?.value || '';
   const documents = useMemo(() => data?.documents || [], [data?.documents]);
+  const receipts = data?.receipts || [];
   const kycDocuments = documents.filter((item) => item.classification === 'CLIENT_KYC');
   const matterEvidence = documents.filter((item) => item.classification === 'MATTER_SPECIFIC');
   const selectedMatterFile = data?.physical_file;
@@ -107,7 +110,7 @@ export default function SecretaryDocuments({ caseId = '', clientId: fileClientId
       client_id: selectedId,
       received_from_contact: receipt.received_from_contact || receivedFromOptions[0]?.value,
     }),
-    onSuccess: ({ receipt_number }) => { setIssuedReceipt(receipt_number); setReceipt({ document_ids: [], received_from_contact: '' }); refresh(); },
+    onSuccess: ({ receipt: issued }) => { setIssuedReceipt(issued); setReceipt({ document_ids: [], received_from_contact: '' }); refresh(); },
   });
   const removeDocument = useMutation({
     mutationFn: ({ documentId, reason, confirmation }) => withCriticalAction({ confirmation }, () => secretaryDocumentsService.removeFromRegister(documentId, reason)),
@@ -222,8 +225,9 @@ export default function SecretaryDocuments({ caseId = '', clientId: fileClientId
           <div className='rounded-xl border p-3 text-sm'><strong>Date and time received</strong><p className='mt-1 text-[color:var(--text-secondary)]'>Taken automatically from the selected documents’ recorded intake timestamp.</p></div>
         </div>
         {(createReceipt.error && !createReceipt.error?.isActionCancelled) && <p className='text-error'>{message(createReceipt.error)}</p>}
-        {issuedReceipt && <p className='rounded-lg bg-emerald-50 p-3 text-emerald-900'>Receipt issued: <strong>{issuedReceipt}</strong></p>}
+        {issuedReceipt && <div className='flex flex-wrap items-center justify-between gap-3 rounded-lg bg-emerald-50 p-3 text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200'><span>Receipt issued: <strong>{issuedReceipt.receipt_number}</strong>. Print it, sign it with whoever delivered the papers, and hand it over.</span><PrintReceiptButton receipt={issuedReceipt} /></div>}
         <Button3D disabled={!receipt.document_ids.length || !receivedFromOptions.length || createReceipt.isPending} onClick={() => createReceipt.mutate()}>Issue one receipt for selected documents</Button3D>
+        {receipts.length > 0 && <div className='mt-5 space-y-2'><p className='text-sm font-semibold'>Receipts issued</p>{receipts.map((item) => <div key={item.id} className='flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-light p-3 text-sm dark:border-border-dark'><span><strong>{item.receipt_number}</strong> · {formatDateTime(item.received_at)} · from {item.received_from} · {item.documents.length} document{item.documents.length === 1 ? '' : 's'}</span><PrintReceiptButton receipt={item} /></div>)}</div>}
       </FormSection>
     </>}
   </div>;

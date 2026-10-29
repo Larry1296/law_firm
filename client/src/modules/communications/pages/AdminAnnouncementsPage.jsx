@@ -184,7 +184,7 @@ export default function AdminAnnouncementsPage() {
 
                 <div className='mt-3 max-h-64 space-y-2 overflow-y-auto pr-1'>
                   {staffLoading && (
-                    <p className='text-sm text-slate-500'>Loading staff...</p>
+                    <p className='text-sm text-slate-500 dark:text-slate-400'>Loading staff...</p>
                   )}
                   {!staffLoading &&
                     activeStaff.map((member) => (
@@ -257,7 +257,7 @@ export default function AdminAnnouncementsPage() {
           </div>
 
           {isLoading && (
-            <p className='text-sm text-slate-500'>Loading announcements...</p>
+            <p className='text-sm text-slate-500 dark:text-slate-400'>Loading announcements...</p>
           )}
           {!isLoading && !announcements.length && (
             <p className='rounded-xl bg-slate-50 p-4 text-sm text-slate-500 dark:bg-slate-900 dark:text-slate-300'>
@@ -296,7 +296,7 @@ export default function AdminAnnouncementsPage() {
                       <p className='font-bold text-slate-900 dark:text-white'>
                         {announcement.recipient_count}
                       </p>
-                      <p className='text-slate-500'>Recipients</p>
+                      <p className='text-slate-500 dark:text-slate-400'>Recipients</p>
                     </div>
                     <div className='rounded-xl bg-green-50 px-3 py-2 dark:bg-green-950/40'>
                       <p className='font-bold text-green-700 dark:text-green-200'>

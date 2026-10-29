@@ -677,9 +677,9 @@ export default function ClientConflictCheckPage() {
               <p><strong>Completeness:</strong> {check.jurisdiction.completeness}%</p>
               {(check.jurisdiction.suggestion.reasons || []).map((reason) => <p key={reason} className='mt-2'>{reason}</p>)}
               {(check.jurisdiction.missing_information || []).length > 0 && (
-                <p className='mt-2 text-amber-700'><strong>Missing information:</strong> {check.jurisdiction.missing_information.map(enumLabel).join(', ')}</p>
+                <p className='mt-2 text-amber-700 dark:text-amber-300'><strong>Missing information:</strong> {check.jurisdiction.missing_information.map(enumLabel).join(', ')}</p>
               )}
-              {(check.jurisdiction.warnings || []).map((warning) => <p key={warning} className='mt-2 text-amber-700'>{warning}</p>)}
+              {(check.jurisdiction.warnings || []).map((warning) => <p key={warning} className='mt-2 text-amber-700 dark:text-amber-300'>{warning}</p>)}
               <p className='mt-2 text-xs'>Rules: {check.jurisdiction.rule_version}</p>
             </div>
           )}
@@ -722,7 +722,7 @@ export default function ClientConflictCheckPage() {
           )}
 
           {check.jurisdiction?.is_final && (
-            <div className='mt-5 rounded-xl border border-green-300 bg-green-50 p-4 text-green-900'>
+            <div className='mt-5 rounded-xl border border-green-300 bg-green-50 p-4 text-green-900 dark:bg-green-950/40 dark:text-green-200 dark:border-green-800'>
               <p><strong>Advocate-confirmed jurisdiction:</strong> {enumLabel(check.jurisdiction.final_court_type)}</p>
               <p>{enumLabel(check.jurisdiction.final_court_level)} · {check.jurisdiction.final_station || 'Station not recorded'}</p>
               <p>Confirmed by {check.jurisdiction.confirmed_by_name} on {formatDateTime(check.jurisdiction.confirmed_at)}</p>
@@ -759,7 +759,7 @@ export default function ClientConflictCheckPage() {
                 <div key={engagement.id} className='rounded-xl border border-border-light p-4 dark:border-border-dark'>
                   <div className='flex flex-wrap items-center justify-between gap-2'>
                     <p className='font-semibold'>Version {engagement.version} · {enumLabel(engagement.status)}</p>
-                    <span className={engagement.permits_opening ? 'text-green-700' : 'text-amber-700'}>{engagement.permits_opening ? 'Opening control satisfied' : 'Not approved for opening'}</span>
+                    <span className={engagement.permits_opening ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'}>{engagement.permits_opening ? 'Opening control satisfied' : 'Not approved for opening'}</span>
                   </div>
                   <p className='mt-2 text-sm'><strong>Scope:</strong> {engagement.scope_of_work}</p>
                   <p className='text-sm'><strong>Fee terms:</strong> {enumLabel(engagement.fee_arrangement_type)} — {engagement.fee_arrangement_description}</p>
@@ -866,7 +866,7 @@ export default function ClientConflictCheckPage() {
         </p>
         <div className='space-y-2'>
           {(check.opening_readiness?.checks || []).map((item) => (
-            <div key={item.code} className={`rounded-lg border p-3 text-sm ${item.complete ? 'border-green-300 bg-green-50 text-green-900' : 'border-amber-300 bg-amber-50 text-amber-900'}`}>
+            <div key={item.code} className={`rounded-lg border p-3 text-sm ${item.complete ? 'border-green-300 bg-green-50 text-green-900 dark:bg-green-950/40 dark:text-green-200 dark:border-green-800' : 'border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800'}`}>
               <strong>{item.complete ? 'Complete' : 'Blocked'}:</strong> {item.label}
             </div>
           ))}

@@ -33,7 +33,7 @@ export default function ProposedMatterEntryPage() {
   return <main className='mx-auto max-w-4xl space-y-5 p-4 md:p-8'>
     <h1 className='text-2xl font-bold'>Record proposed matter / Start conflict check</h1>
     <p>Record broad proposed instructions and party identities only. Do not include detailed confidential facts, evidence or strategy before clearance.</p>
-    {error && <p role='alert' className='rounded bg-red-50 p-3 text-red-800'>{error}</p>}
+    {error && <p role='alert' className='rounded bg-red-50 p-3 text-red-800 dark:bg-red-950/40 dark:text-red-200'>{error}</p>}
     {!options ? <p>Loading firm clients and advocates…</p> : <form className='space-y-5' onSubmit={submit}>
       <StepPanel title='Client / prospective client'>
         <SelectField label='Select existing client / prospect' required value={clientId} onChange={setClientId} options={options.clients} />
