@@ -25,7 +25,7 @@ class SubscriptionInvoiceSerializer(serializers.ModelSerializer):
         model = SubscriptionInvoice
         fields = [
             "id", "number", "plan_code", "plan_name", "billing_cycle", "status", "status_label",
-            "list_price", "proration_credit", "amount_excl_vat", "vat_rate", "vat_amount", "total",
+            "list_price", "proration_credit", "unused_value", "credit_balance_used", "credit_carried_forward", "amount_excl_vat", "vat_rate", "vat_amount", "total",
             "currency", "mpesa_receipt", "payer_phone", "payment_submitted_at", "confirmed_at",
             "etims_invoice_number", "created_at",
         ]

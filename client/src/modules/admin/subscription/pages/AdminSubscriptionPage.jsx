@@ -81,7 +81,7 @@ function PendingInvoice({ invoice, instructions, onPaid }) {
       </div>
       <dl className='mt-4 grid gap-3 text-sm sm:grid-cols-2'>
         <div><dt className='text-gray-500 dark:text-gray-400'>Plan</dt><dd className='font-medium'>{invoice.plan_name} ({invoice.billing_cycle.toLowerCase()})</dd></div>
-        <div><dt className='text-gray-500 dark:text-gray-400'>Amount excl. VAT</dt><dd className='font-medium'>{formatKes(invoice.amount_excl_vat)}{Number(invoice.proration_credit) > 0 && ` (after ${formatKes(invoice.proration_credit)} credit for unused time)`}</dd></div>
+        <div><dt className='text-gray-500 dark:text-gray-400'>Amount excl. VAT</dt><dd className='font-medium'>{formatKes(invoice.amount_excl_vat)}{Number(invoice.proration_credit) > 0 && ` (after ${formatKes(invoice.proration_credit)} credit for unused time${Number(invoice.credit_balance_used) > 0 ? ' and your credit balance' : ''})`}{Number(invoice.credit_carried_forward) > 0 && `; ${formatKes(invoice.credit_carried_forward)} stays as credit`}</dd></div>
         <div><dt className='text-gray-500 dark:text-gray-400'>VAT {Number(invoice.vat_rate)}%</dt><dd className='font-medium'>{formatKes(invoice.vat_amount)}</dd></div>
         <div><dt className='text-gray-500 dark:text-gray-400'>Total to pay</dt><dd className='text-base font-bold'>{formatKes(invoice.total)}</dd></div>
       </dl>
@@ -204,6 +204,7 @@ export default function AdminSubscriptionPage() {
             <p className='font-semibold'>{periodDate ? formatSubscriptionDate(periodDate) : 'No expiry'}</p>
             <p className='mt-1 text-gray-500 dark:text-gray-400'>{subscription.is_complimentary ? 'No subscription charge' : `Billed ${subscription.billing_cycle.toLowerCase()}`}</p>
             {!subscription.is_complimentary && <p className='font-medium'>{formatKes(subscription.billing_cycle === 'ANNUAL' ? subscription.effective_annual_price : subscription.effective_monthly_price)} excl. VAT</p>}
+            {Number(subscription.credit_balance) > 0 && <p className='mt-1 font-medium text-emerald-700 dark:text-emerald-300'>Credit {formatKes(subscription.credit_balance)}, used on your next invoice</p>}
           </div>
         </div>
         <div className='mt-6 grid gap-5 sm:grid-cols-2'>

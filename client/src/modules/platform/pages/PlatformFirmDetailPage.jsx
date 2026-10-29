@@ -3,6 +3,7 @@ import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import DeleteTrialFirmButton from '../components/DeleteTrialFirmButton';
+import PlanChangePanel from '../components/PlanChangePanel';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Copy, ImagePlus, KeyRound, Pause, Pencil, Play } from 'lucide-react';
 
@@ -255,6 +256,7 @@ export default function PlatformFirmDetailPage() {
 
   const refresh = (data) => {
     queryClient.setQueryData(['platform', 'firm', id], data);
+    queryClient.invalidateQueries({ queryKey: ['platform', 'firm', id, 'plan-change'] });
     queryClient.invalidateQueries({ queryKey: ['platform', 'firms'] });
     queryClient.invalidateQueries({ queryKey: ['platform', 'overview'] });
   };
@@ -398,6 +400,10 @@ export default function PlatformFirmDetailPage() {
         <div className='xl:col-span-2'>
           <SubscriptionPanel key={JSON.stringify(firm.subscription)} firm={firm} meta={meta.data} onSaved={refresh} />
         </div>
+      </div>
+
+      <div className='mt-6'>
+        <PlanChangePanel firmId={firm.id} onChanged={() => queryClient.invalidateQueries({ queryKey: ['platform', 'firm', id], exact: true })} />
       </div>
 
       <div className='mt-6 grid gap-6 xl:grid-cols-2'>

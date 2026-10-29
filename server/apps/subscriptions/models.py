@@ -69,6 +69,10 @@ class FirmSubscription(TimestampedModel):
         help_text="Blank on an active subscription means it does not lapse (complimentary or legacy).",
     )
     grace_period_days = models.PositiveIntegerField(default=7)
+    credit_balance = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)],
+        help_text="KES excl. VAT owed to the firm from unused paid time on an earlier plan; used on its next invoice.",
+    )
     is_complimentary = models.BooleanField(default=False)
     has_ever_subscribed = models.BooleanField(default=False, editable=False)
     custom_monthly_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)])
@@ -108,7 +112,13 @@ class SubscriptionInvoice(TimestampedModel):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ISSUED)
 
     list_price = models.DecimalField(max_digits=12, decimal_places=2)
-    proration_credit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    proration_credit = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text="Credit deducted from the list price: unused paid time plus any credit balance.",
+    )
+    unused_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    credit_balance_used = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    credit_carried_forward = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     amount_excl_vat = models.DecimalField(max_digits=12, decimal_places=2)
     vat_rate = models.DecimalField(max_digits=5, decimal_places=2)
     vat_amount = models.DecimalField(max_digits=12, decimal_places=2)

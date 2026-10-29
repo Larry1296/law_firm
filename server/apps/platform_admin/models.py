@@ -58,6 +58,7 @@ class PlatformActivity(models.Model):
         SUBSCRIPTION_UPDATED = "SUBSCRIPTION_UPDATED", "Subscription updated"
         OWNER_INVITED = "OWNER_INVITED", "Owner invitation sent"
         PAYMENT_CONFIRMED = "PAYMENT_CONFIRMED", "Payment confirmed"
+        PLAN_CHANGE_INVOICED = "PLAN_CHANGE_INVOICED", "Plan change invoiced"
         INVOICE_VOIDED = "INVOICE_VOIDED", "Invoice voided"
         PLAN_CREATED = "PLAN_CREATED", "Plan created"
         PLAN_UPDATED = "PLAN_UPDATED", "Plan updated"

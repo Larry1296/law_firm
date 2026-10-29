@@ -265,6 +265,82 @@ class SubscriptionService:
         price = paid.list_price if paid else cls.price_for(subscription)
         return (price * remaining / total).quantize(CENT, rounding=ROUND_HALF_UP)
 
+    @staticmethod
+    def is_paid_up(subscription, now=None):
+        """A paid period is running now (not a trial, complimentary access or a lapsed period)."""
+        now = now or timezone.now()
+        return bool(
+            subscription.status == FirmSubscription.Status.ACTIVE and not subscription.is_complimentary
+            and subscription.current_period_end and subscription.current_period_end > now
+        )
+
+    @classmethod
+    def change_kind(cls, subscription, plan, billing_cycle, now=None):
+        """SUBSCRIBE when no paid period is running; otherwise RENEWAL, CYCLE_CHANGE, UPGRADE or DOWNGRADE."""
+        if not cls.is_paid_up(subscription, now):
+            return "SUBSCRIBE"
+        current = subscription.plan
+        if plan.id == current.id:
+            return "RENEWAL" if billing_cycle == subscription.billing_cycle else "CYCLE_CHANGE"
+        higher = (plan.sort_order, plan.monthly_price) > (current.sort_order, current.monthly_price)
+        return "UPGRADE" if higher else "DOWNGRADE"
+
+    @classmethod
+    def limit_blockers(cls, firm, plan):
+        """The plan limits a firm is over, named without its usage figures, which stay private to the firm."""
+        usage = cls.usage(firm)
+        blockers = []
+        for resource in Limit.FIELDS:
+            limit = cls.limit_for(plan, resource)
+            if limit is not None and usage[resource] > limit:
+                blockers.append(
+                    f"{Limit.LABELS[resource]}: the firm has more than {plan.name} allows ({limit}). "
+                    "Its owner must reduce this first."
+                )
+        return blockers
+
+    @classmethod
+    def new_period(cls, subscription, plan, billing_cycle, now=None):
+        """The period a paid invoice buys: a renewal follows on from the current end, any change starts at once."""
+        now = now or timezone.now()
+        renewal = cls.change_kind(subscription, plan, billing_cycle, now) == "RENEWAL"
+        start = subscription.current_period_end if renewal else now
+        months = 12 if billing_cycle == FirmSubscription.BillingCycle.ANNUAL else 1
+        return start, add_months(start, months)
+
+    @classmethod
+    def quote(cls, firm, plan, billing_cycle, now=None):
+        """
+        What moving to this plan and billing cycle costs now. The unused value of
+        the current paid period and any credit balance come off the new period's
+        price; whatever is left over is kept as credit for the next invoice.
+        """
+        now = now or timezone.now()
+        subscription = cls.get(firm)
+        kind = cls.change_kind(subscription, plan, billing_cycle, now)
+        list_price = cls.price_for(subscription, billing_cycle, plan)
+        unused = cls.proration_credit(subscription, now) if kind in {"UPGRADE", "DOWNGRADE", "CYCLE_CHANGE"} else Decimal("0.00")
+        balance = subscription.credit_balance or Decimal("0.00")
+        applied = min(unused + balance, list_price)
+        amount = (list_price - applied).quantize(CENT)
+        vat_rate = Decimal(str(settings.SUBSCRIPTION_VAT_RATE))
+        vat = (amount * vat_rate / 100).quantize(CENT, rounding=ROUND_HALF_UP)
+        starts, ends = cls.new_period(subscription, plan, billing_cycle, now)
+        return {
+            "kind": kind,
+            "list_price": list_price,
+            "unused_value": unused,
+            "credit_balance_used": min(balance, list_price - min(unused, list_price)),
+            "credit_applied": applied,
+            "credit_carried_forward": (unused + balance - applied).quantize(CENT),
+            "amount_excl_vat": amount,
+            "vat_rate": vat_rate,
+            "vat_amount": vat,
+            "total": amount + vat,
+            "period_start": starts,
+            "period_end": ends,
+        }
+
     @classmethod
     @transaction.atomic
     def issue_invoice(cls, *, firm, plan_code, billing_cycle, user):
@@ -281,28 +357,28 @@ class SubscriptionService:
         subscription = cls.get(firm, lock=True)
         if subscription.is_complimentary:
             raise ValidationError({"subscription": "This firm has complimentary access. Contact the platform administrator to change its billing terms."})
+        if SubscriptionInvoice.objects.filter(firm=firm, status=SubscriptionInvoice.Status.PAYMENT_SUBMITTED).exists():
+            raise ValidationError({"invoice": "A payment is awaiting confirmation. Confirm or void it before issuing another invoice."})
         SubscriptionInvoice.objects.filter(firm=firm, status=SubscriptionInvoice.Status.ISSUED).update(
             status=SubscriptionInvoice.Status.VOID,
         )
 
         now = timezone.now()
-        list_price = cls.price_for(subscription, billing_cycle, plan)
-        changing = plan.id != subscription.plan_id or billing_cycle != subscription.billing_cycle
-        credit = min(cls.proration_credit(subscription, now), list_price) if changing else Decimal("0.00")
-        amount = (list_price - credit).quantize(CENT)
-        vat_rate = Decimal(str(settings.SUBSCRIPTION_VAT_RATE))
-        vat = (amount * vat_rate / 100).quantize(CENT, rounding=ROUND_HALF_UP)
+        quote = cls.quote(firm, plan, billing_cycle, now)
         return SubscriptionInvoice.objects.create(
             number=cls._next_invoice_number(now),
             firm=firm,
             plan=plan,
             billing_cycle=billing_cycle,
-            list_price=list_price,
-            proration_credit=credit,
-            amount_excl_vat=amount,
-            vat_rate=vat_rate,
-            vat_amount=vat,
-            total=amount + vat,
+            list_price=quote["list_price"],
+            proration_credit=quote["credit_applied"],
+            unused_value=quote["unused_value"],
+            credit_balance_used=quote["credit_balance_used"],
+            credit_carried_forward=quote["credit_carried_forward"],
+            amount_excl_vat=quote["amount_excl_vat"],
+            vat_rate=quote["vat_rate"],
+            vat_amount=quote["vat_amount"],
+            total=quote["total"],
             issued_by=user,
         )
 
@@ -334,29 +410,24 @@ class SubscriptionService:
         invoice = SubscriptionInvoice.objects.select_for_update().select_related("plan").get(pk=invoice.pk)
         if invoice.status not in {SubscriptionInvoice.Status.ISSUED, SubscriptionInvoice.Status.PAYMENT_SUBMITTED}:
             raise ValidationError({"invoice": "Only an unpaid invoice can be confirmed."})
-        problems = cls.overages(invoice.firm, invoice.plan)
+        problems = cls.limit_blockers(invoice.firm, invoice.plan)
         if problems:
             raise ValidationError({"invoice": problems})
 
         now = now or timezone.now()
         subscription = cls.get(invoice.firm, lock=True)
-        same_terms = (
-            subscription.status == FirmSubscription.Status.ACTIVE
-            and subscription.plan_id == invoice.plan_id
-            and subscription.billing_cycle == invoice.billing_cycle
-            and subscription.current_period_end
-            and subscription.current_period_end > now
-        )
-        start = subscription.current_period_end if same_terms else now
-        months = 12 if invoice.billing_cycle == FirmSubscription.BillingCycle.ANNUAL else 1
+        renewal = cls.change_kind(subscription, invoice.plan, invoice.billing_cycle, now) == "RENEWAL"
+        start, end = cls.new_period(subscription, invoice.plan, invoice.billing_cycle, now)
 
         subscription.plan = invoice.plan
         subscription.billing_cycle = invoice.billing_cycle
         subscription.status = FirmSubscription.Status.ACTIVE
         subscription.trial_ends_at = None
-        if not same_terms:
+        if not renewal:
             subscription.current_period_start = start
-        subscription.current_period_end = add_months(start, months)
+        subscription.current_period_end = end
+        # Credit the invoice did not use is kept for the next one.
+        subscription.credit_balance = invoice.credit_carried_forward
         subscription.save()
 
         invoice.status = SubscriptionInvoice.Status.PAID
@@ -396,6 +467,7 @@ class SubscriptionService:
             "writable": cls.is_writable(subscription),
             "billing_cycle": subscription.billing_cycle,
             "is_complimentary": subscription.is_complimentary,
+            "credit_balance": str(subscription.credit_balance),
             "custom_monthly_price": str(subscription.custom_monthly_price) if subscription.custom_monthly_price is not None else None,
             "custom_annual_price": str(subscription.custom_annual_price) if subscription.custom_annual_price is not None else None,
             "effective_monthly_price": str(cls.price_for(subscription, FirmSubscription.BillingCycle.MONTHLY)),

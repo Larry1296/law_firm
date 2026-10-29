@@ -276,3 +276,99 @@ class InvoiceAndPaymentTests(SubscriptionTestCase):
         self.api.force_authenticate(staff)
         self.assertEqual(self.api.get("/api/subscription/").status_code, 200)
         self.assertEqual(self.api.get("/api/subscription/invoices/").status_code, 403)
+
+
+class PlanChangeTests(SubscriptionTestCase):
+    """A firm part-way through a paid period moves plan, priced on the time it has left."""
+
+    def setUp(self):
+        super().setUp()
+        self.platform_admin = User.objects.create_platform_admin(
+            email="platform@saas.test", password="Strong-pass-123", first_name="Platform", last_name="Admin",
+            phone_number="+254744000099", national_id_number="44000099",
+        )
+        self.api.force_authenticate(self.platform_admin)
+        self.url = f"/api/platform/firms/{self.firm.id}/plan-change/"
+
+    def paid_period(self, code, cycle, *, days_used, days_total):
+        start = timezone.now() - timedelta(days=days_used)
+        self.put_on(
+            code, status=FirmSubscription.Status.ACTIVE, trial_ends_at=None, billing_cycle=cycle,
+            current_period_start=start, current_period_end=start + timedelta(days=days_total),
+        )
+
+    def option(self, data, code, cycle):
+        return next(item for item in data["options"] if item["plan"]["code"] == code and item["billing_cycle"] == cycle)
+
+    def test_annual_solo_halfway_through_upgrades_to_pro_paying_the_difference(self):
+        self.paid_period("SOLO", "ANNUAL", days_used=182, days_total=364)
+        data = self.api.get(self.url).data
+        self.assertEqual(data["current"]["plan"]["code"], "SOLO")
+        pro = self.option(data, "PRO", "ANNUAL")
+        self.assertEqual(pro["kind"], "UPGRADE")
+        self.assertTrue(pro["eligible"])
+        unused = Decimal(pro["quote"]["unused_value"])
+        self.assertAlmostEqual(unused, Decimal("7500.00"), delta=Decimal("50"))
+        self.assertEqual(Decimal(pro["quote"]["amount_excl_vat"]), Decimal("95000.00") - unused)
+        self.assertEqual(self.option(data, "SOLO", "ANNUAL")["kind"], "RENEWAL")
+        self.assertEqual(self.option(data, "SOLO", "MONTHLY")["kind"], "CYCLE_CHANGE")
+
+        response = self.api.post(self.url, {"plan_code": "PRO", "billing_cycle": "ANNUAL"}, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        invoice = SubscriptionInvoice.objects.get(id=response.data["invoice"]["id"])
+        self.assertEqual(invoice.status, SubscriptionInvoice.Status.ISSUED)
+        self.assertEqual(invoice.unused_value, invoice.proration_credit)
+        self.assertEqual(self.firm.subscription.plan.code, "SOLO")
+
+        SubscriptionService.confirm_payment(invoice=invoice, confirmed_by=self.platform_admin)
+        subscription = FirmSubscription.objects.get(firm=self.firm)
+        self.assertEqual(subscription.plan.code, "PRO")
+        self.assertEqual(subscription.credit_balance, Decimal("0.00"))
+        self.assertAlmostEqual(
+            (subscription.current_period_end - subscription.current_period_start).days, 365, delta=1,
+        )
+
+    def test_downgrade_keeps_unused_value_as_credit_for_the_next_invoice(self):
+        self.paid_period("FIRM", "ANNUAL", days_used=30, days_total=365)
+        quote = self.option(self.api.get(self.url).data, "BASIC", "MONTHLY")
+        self.assertEqual(quote["kind"], "DOWNGRADE")
+        self.assertEqual(quote["quote"]["total"], "0.00")
+        carried = Decimal(quote["quote"]["credit_carried_forward"])
+        self.assertGreater(carried, Decimal("200000"))
+
+        response = self.api.post(self.url, {"plan_code": "BASIC", "billing_cycle": "MONTHLY"}, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["invoice"]["status"], "PAID")
+        subscription = FirmSubscription.objects.get(firm=self.firm)
+        self.assertEqual(subscription.plan.code, "BASIC")
+        self.assertAlmostEqual(subscription.credit_balance, carried, delta=Decimal("5"))
+
+        renewal = SubscriptionService.issue_invoice(firm=self.firm, plan_code="BASIC", billing_cycle="MONTHLY", user=self.owner)
+        self.assertEqual(renewal.credit_balance_used, Decimal("2500.00"))
+        self.assertEqual(renewal.total, Decimal("0.00"))
+
+    def test_platform_sees_which_limit_blocks_a_plan_but_not_the_firms_figures(self):
+        for n in range(3):
+            user = make_user(f"adv{n}@saas.test", UserRole.STAFF, f"+25474400040{n}")
+            Lawyer.objects.create(user=user, law_firm=self.firm, staff_number=f"ADV-X{n}",
+                                  admission_number=f"P.105/7{n}/22", date_hired=date(2022, 1, 1))
+        data = self.api.get(self.url).data
+        basic = self.option(data, "BASIC", "MONTHLY")
+        self.assertFalse(basic["eligible"])
+        self.assertEqual(basic["blockers"], [
+            "Advocates: the firm has more than Basic allows (3). Its owner must reduce this first.",
+        ])
+        self.assertNotIn("4", " ".join(basic["blockers"]))
+        response = self.api.post(self.url, {"plan_code": "BASIC", "billing_cycle": "MONTHLY"}, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn("4 in use", str(response.data))
+
+    def test_no_new_invoice_while_a_payment_awaits_confirmation(self):
+        self.paid_period("BASIC", "MONTHLY", days_used=10, days_total=30)
+        invoice = SubscriptionService.issue_invoice(firm=self.firm, plan_code="PRO", billing_cycle="MONTHLY", user=self.owner)
+        SubscriptionService.submit_payment(invoice=invoice, mpesa_receipt="SIB7XK2LQ9", user=self.owner)
+        data = self.api.get(self.url).data
+        self.assertTrue(data["blockers"])
+        self.assertFalse(any(item["eligible"] for item in data["options"]))
+        response = self.api.post(self.url, {"plan_code": "FIRM", "billing_cycle": "MONTHLY"}, format="json")
+        self.assertEqual(response.status_code, 400)

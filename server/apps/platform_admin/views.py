@@ -1,5 +1,6 @@
 import json
 import secrets
+from decimal import Decimal
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -305,6 +306,117 @@ class FirmSubscriptionView(PlatformView):
                 f"Updated the subscription of {firm.name}: {', '.join(changes)}.", firm=firm,
             )
         return Response(firm_detail_payload(firm))
+
+
+def money(value):
+    return str(value.quantize(Decimal("0.01")))
+
+
+def plan_change_payload(firm):
+    """
+    Every plan and billing cycle the firm could move to, what each costs today
+    and whether the firm qualifies. Limits are named without the firm's usage.
+    """
+    subscription = SubscriptionService.get(firm)
+    now = timezone.now()
+    open_invoice = SubscriptionInvoice.objects.filter(
+        firm=firm, status__in=[SubscriptionInvoice.Status.ISSUED, SubscriptionInvoice.Status.PAYMENT_SUBMITTED],
+    ).select_related("plan").first()
+    payment_pending = bool(open_invoice and open_invoice.status == SubscriptionInvoice.Status.PAYMENT_SUBMITTED)
+    general = []
+    if subscription.is_complimentary:
+        general.append("The firm has complimentary access. Return it to paid billing in Subscription before changing its plan.")
+    if payment_pending:
+        general.append(f"A payment for {open_invoice.number} is awaiting confirmation. Confirm or void it first.")
+
+    options = []
+    for plan in Plan.objects.filter(is_active=True):
+        blockers = SubscriptionService.limit_blockers(firm, plan)
+        for cycle in FirmSubscription.BillingCycle.values:
+            quote = SubscriptionService.quote(firm, plan, cycle, now)
+            options.append({
+                "plan": SubscriptionService.plan_payload(plan),
+                "billing_cycle": cycle,
+                "kind": quote["kind"],
+                "is_current": plan.id == subscription.plan_id and cycle == subscription.billing_cycle,
+                "eligible": not blockers and not general,
+                "blockers": blockers,
+                "quote": {
+                    **{key: money(quote[key]) for key in (
+                        "list_price", "unused_value", "credit_balance_used", "credit_applied",
+                        "credit_carried_forward", "amount_excl_vat", "vat_amount", "total",
+                    )},
+                    "vat_rate": str(quote["vat_rate"]),
+                    "period_start": quote["period_start"],
+                    "period_end": quote["period_end"],
+                },
+            })
+    paid_up = SubscriptionService.is_paid_up(subscription, now)
+    return {
+        "current": {
+            "plan": SubscriptionService.plan_payload(subscription.plan),
+            "billing_cycle": subscription.billing_cycle,
+            "effective_status": SubscriptionService.effective_status(subscription, now),
+            "is_complimentary": subscription.is_complimentary,
+            "period_start": subscription.current_period_start if paid_up else None,
+            "period_end": subscription.current_period_end if paid_up else None,
+            "trial_ends_at": subscription.trial_ends_at,
+            "days_left": max(0, (subscription.current_period_end - now).days) if paid_up else None,
+            "unused_value": money(SubscriptionService.proration_credit(subscription, now)),
+            "credit_balance": money(subscription.credit_balance),
+        },
+        "open_invoice": SubscriptionInvoiceSerializer(open_invoice).data if open_invoice else None,
+        "blockers": general,
+        "options": options,
+    }
+
+
+class FirmPlanChangeView(PlatformView):
+    """GET: the firm's plan options and their cost today. POST: invoice the chosen one."""
+
+    def get(self, request, firm_id):
+        return Response(plan_change_payload(get_object_or_404(LawFirm, id=firm_id)))
+
+    @transaction.atomic
+    def post(self, request, firm_id):
+        firm = get_object_or_404(LawFirm.objects.select_for_update(), id=firm_id)
+        plan = Plan.objects.filter(code=request.data.get("plan_code"), is_active=True).first()
+        if plan is None:
+            raise ValidationError({"plan_code": "Choose an available plan."})
+        billing_cycle = request.data.get("billing_cycle")
+        if billing_cycle not in FirmSubscription.BillingCycle.values:
+            raise ValidationError({"billing_cycle": "Choose monthly or annual billing."})
+        # Refuse here so the firm's usage figures never reach the platform in an error.
+        blockers = SubscriptionService.limit_blockers(firm, plan)
+        if blockers:
+            raise ValidationError({"plan_code": blockers})
+        invoice = SubscriptionService.issue_invoice(firm=firm, plan_code=plan.code, billing_cycle=billing_cycle, user=request.user)
+        cycle = invoice.get_billing_cycle_display().lower()
+        PlatformActivity.record(
+            request.user, Action.PLAN_CHANGE_INVOICED,
+            f"Issued {invoice.number} to move {firm.name} to {plan.name} ({cycle}): KES {invoice.total}.", firm=firm,
+        )
+        if invoice.total == 0:
+            # Credit covers the whole period, so there is nothing to pay: the change applies at once.
+            invoice = SubscriptionService.confirm_payment(invoice=invoice, confirmed_by=request.user)
+            message = f"Your firm is now on {plan.name} ({cycle}). Unused credit covered the full price."
+        else:
+            message = (
+                f"Invoice {invoice.number} moves your firm to {plan.name} ({cycle}). Pay KES {invoice.total} "
+                f"(VAT included) by M-Pesa Paybill {settings.SUBSCRIPTION_MPESA_PAYBILL}, account {invoice.number}, "
+                "then enter the M-Pesa code on your Subscription page."
+            )
+        NotificationService.notify_firm_owner(
+            firm=firm, actor=request.user,
+            title=f"Plan change: {plan.name}",
+            message=message,
+            action_url="/admin/subscription",
+            event_key=f"SUBSCRIPTION_PLAN_CHANGE:{invoice.id}",
+        )
+        return Response({
+            "invoice": SubscriptionInvoiceSerializer(invoice).data,
+            **plan_change_payload(firm),
+        }, status=status.HTTP_201_CREATED)
 
 
 class FirmOwnerInvitationView(PlatformView):
