@@ -93,7 +93,7 @@ export default function AdminCreateClientPage() {
     {visit && <p className='rounded-lg border p-3'>From the visitor register: {visit.visitor_name}{visit.visitor_phone ? ` · ${visit.visitor_phone}` : ''} · seen by {visit.advocate_name}. Name and telephone are filled in from the arrival; confirm the category, access type and privacy notice given.</p>}
     {!metadata ? <p>Loading client categories…</p> : <form onSubmit={submit} className='space-y-5'>
       <StepPanel title='Client setup'>
-        <fieldset><legend className='mb-2 font-semibold'>Access type</legend><div className='grid gap-3 sm:grid-cols-2'>{ACCESS_OPTIONS.map((option) => <label key={option.id} className='flex items-start gap-3 rounded-lg border p-4'>
+        <fieldset><legend className='mb-2 font-semibold'>Access type</legend><div className='grid gap-3 sm:grid-cols-2'>{ACCESS_OPTIONS.filter((option) => metadata.access_types.some((item) => item.value === option.value)).map((option) => <label key={option.id} className='flex items-start gap-3 rounded-lg border p-4'>
           <input type='radio' name='access_type' value={option.id} checked={client.access_type === option.value} onChange={() => dispatch({ type: 'SET_ACCESS_TYPE', value: option.value })} />{option.label}
         </label>)}</div></fieldset>
         <SelectField label='Legal client category' required value={kind} options={metadata.legal_client_types} onChange={(value) => dispatch({ type: 'SET_CLIENT_TYPE', value })} />

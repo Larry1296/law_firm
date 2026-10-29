@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.clients.models import Client
 from apps.clients.onboarding_metadata import onboarding_metadata
 from apps.clients.serializers.client_detail_serializer import ClientDetailSerializer
 from apps.clients.serializers.onboarding_serializers import ClientOnboardingCreateSerializer
@@ -20,8 +21,14 @@ class ClientOnboardingMetadataView(APIView):
     def get(self, request):
         from apps.clients.models import IntakePrivacyConfig
         from apps.clients.services.prospective_client_service import prospective_firm
-        config = IntakePrivacyConfig.active_for(prospective_firm(request.user, allow_advocate=True))
+        from apps.subscriptions.catalog import Feature
+        from apps.subscriptions.services import SubscriptionService
+        firm = prospective_firm(request.user, allow_advocate=True)
+        config = IntakePrivacyConfig.active_for(firm)
         data = onboarding_metadata()
+        # Without the client portal in the plan, every client is firm-managed.
+        if not SubscriptionService.has_feature(firm, Feature.CLIENT_PORTAL):
+            data['access_types'] = [item for item in data['access_types'] if item['value'] != Client.AccessType.PORTAL_ENABLED]
         data['intake_privacy'] = {'policy_version': config.policy_version, 'lawful_basis': config.lawful_basis,
                                   'lawful_basis_label': config.get_lawful_basis_display()} if config else None
         return Response(data)

@@ -143,8 +143,14 @@ class AuthService:
         """Self-registration for the firm resolved from the public site, never a guessed firm."""
         if firm is None or not firm.is_active:
             return None, "Registration is not available on this site."
+        from apps.subscriptions.catalog import Feature
+        from apps.subscriptions.services import SubscriptionService
+
         settings_ = getattr(firm, "settings", None)
-        if settings_ is None or not settings_.allow_client_registration:
+        if (
+            settings_ is None or not settings_.allow_client_registration
+            or not SubscriptionService.has_feature(firm, Feature.CLIENT_PORTAL)
+        ):
             return None, "This firm does not accept online client registration."
 
         first_name, last_name = AuthService._split_name(validated_data["full_name"])

@@ -10,6 +10,14 @@ from apps.common.choices import UserRole
 from apps.staff.services.secretary import SecretaryClientService
 
 
+def require_portal_in_plan(firm, access_type):
+    """A client can be portal-enabled only when the firm's plan includes the client portal."""
+    from apps.subscriptions.catalog import Feature
+    from apps.subscriptions.services import SubscriptionService
+    if access_type == Client.AccessType.PORTAL_ENABLED and not SubscriptionService.has_feature(firm, Feature.CLIENT_PORTAL):
+        raise ValidationError({'access_type': "Your firm's plan does not include the client portal. Choose firm-managed."})
+
+
 def consulting_advocate(user):
     from apps.staff.models import Lawyer, LawyerPermission
     lawyer = Lawyer.objects.filter(user=user, is_active=True, employment_status__in=['ACTIVE', 'PROBATION']).select_related('law_firm').first()
@@ -56,6 +64,7 @@ class ProspectiveClientService:
         serializer = ProspectiveClientCreateSerializer(data=data)
         serializer.is_valid(raise_exception=True)
         values = dict(serializer.validated_data)
+        require_portal_in_plan(firm, values['access_type'])
         privacy = values.pop('privacy')
         from apps.clients.models import IntakePrivacyConfig
         config = IntakePrivacyConfig.active_for(firm)

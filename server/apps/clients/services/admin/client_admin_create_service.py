@@ -271,6 +271,8 @@ class ClientAdminCreateService:
     def _create_portal_user(client, base_data, contact_data):
         if client.access_type != Client.AccessType.PORTAL_ENABLED:
             return None, None
+        from apps.clients.services.prospective_client_service import require_portal_in_plan
+        require_portal_in_plan(client.firm, client.access_type)
 
         portal_email = base_data.get("email") or client.email
         if User.objects.filter(email__iexact=portal_email).exists():

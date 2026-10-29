@@ -28,6 +28,13 @@ describe('single prospective-client creation page', () => {
     expect(service.metadata).toHaveBeenCalledWith('admin');
     for (const category of metadata.legal_client_types) expect(screen.getByRole('option', { name: category.label })).toBeInTheDocument();
   });
+  it('offers only Firm-managed when the firm plan has no client portal', async () => {
+    service.metadata.mockResolvedValue({...metadata, access_types: metadata.access_types.filter((item) => item.value === 'ASSISTED')});
+    renderPage(); await screen.findByLabelText(/Legal client category/);
+    expect(screen.getAllByRole('radio')).toHaveLength(1);
+    expect(screen.getByLabelText(/Firm-managed/)).toBeChecked();
+    expect(screen.queryByLabelText(/Portal-enabled/)).not.toBeInTheDocument();
+  });
   it.each(metadata.legal_client_types)('renders the backend fields for $value', async ({ value }) => {
     renderPage(); await selectCategory(value);
     for (const field of metadata.prospective_profiles[value].fields) expect(screen.getByLabelText(new RegExp(field.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))).toBeInTheDocument();

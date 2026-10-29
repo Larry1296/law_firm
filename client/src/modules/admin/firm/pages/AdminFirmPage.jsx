@@ -20,6 +20,7 @@ import TableHeaderText from '@/components/ui/TableHeaderText';
 import Swal from "@/core/utils/themedSwal";
 import { autoGrow } from '@/components/ui/autoGrow';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
+import useSubscription from '@/modules/subscription/hooks/useSubscription';
 
 const timezoneOptions = {
   'Africa/Nairobi': 'Africa/Nairobi',
@@ -42,6 +43,9 @@ const currencyOptions = {
   EUR: 'EUR',
   GBP: 'GBP',
 };
+
+// Client self-service settings only apply on a plan with the client portal.
+const CLIENT_PORTAL_SETTINGS = ['allow_client_registration', 'allow_client_document_upload', 'allow_client_case_tracking'];
 
 function formatValue(value) {
   if (value === true) return 'Yes';
@@ -92,6 +96,7 @@ function FieldRow({
 }
 
 export default function AdminFirmPage() {
+  const { hasFeature } = useSubscription();
   const queryClient = useQueryClient();
 
   const firmQuery = useQuery({
@@ -1055,7 +1060,7 @@ export default function AdminFirmPage() {
           // ['enable_ai_case_suggestions', 'AI Case Suggestions'],
           // ['enable_ai_deadline_reminders', 'AI Deadline Reminders'],
           ['is_active', 'Firm Settings Active'],
-        ].map(([field, label]) => (
+        ].filter(([field]) => hasFeature('CLIENT_PORTAL') || !CLIENT_PORTAL_SETTINGS.includes(field)).map(([field, label]) => (
           <FieldRow
             key={field}
             label={label}

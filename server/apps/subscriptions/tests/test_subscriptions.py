@@ -204,6 +204,19 @@ class LapseAndFeatureTests(SubscriptionTestCase):
         self.assertNotEqual(self.api.get("/api/client/dashboard/").status_code, 403)
 
 
+    def test_online_client_registration_needs_the_client_portal(self):
+        from apps.authentication.services.auth_service import AuthService
+        from apps.firm.models import FirmSetting
+        FirmSetting.objects.update_or_create(firm=self.firm, defaults={"allow_client_registration": True})
+        self.firm.refresh_from_db()
+        self.put_on("SOLO")
+        details = {"full_name": "Jane Wambui", "email": "jane@saas.test", "password": "Strong-pass-123", "phone_number": "+254744000030"}
+        user, error = AuthService.register_client(details, firm=self.firm)
+        self.assertIsNone(user)
+        self.assertEqual(error, "This firm does not accept online client registration.")
+        self.assertFalse(User.objects.filter(email="jane@saas.test").exists())
+
+
 class InvoiceAndPaymentTests(SubscriptionTestCase):
     def test_invoice_adds_16_percent_vat(self):
         invoice = SubscriptionService.issue_invoice(firm=self.firm, plan_code="BASIC", billing_cycle="MONTHLY", user=self.owner)

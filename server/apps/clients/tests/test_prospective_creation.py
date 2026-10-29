@@ -165,6 +165,19 @@ class ProspectiveCreationTests(TestCase):
                 self.assertIn('/reset-password?', mail.outbox[-1].body)
                 self.assertEqual(self.api.post(reverse('admin-prospective-invite', args=[client.id])).status_code, 400)
 
+    def test_plan_without_client_portal_offers_and_accepts_only_firm_managed_clients(self):
+        from apps.subscriptions.models import Plan
+        subscription = self.firm.subscription
+        subscription.plan = Plan.objects.get(code='SOLO')
+        subscription.save()
+        access = [x['value'] for x in self.api.get(reverse('client-onboarding-metadata')).data['access_types']]
+        self.assertEqual(access, ['ASSISTED'])
+        response = self.api.post(self.url, prospect_payload(access='PORTAL_ENABLED'), format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('client portal', str(response.data))
+        self.assertFalse(Client.objects.filter(firm=self.firm).exists())
+        self.create()
+
     def test_assisted_invitation_is_rejected(self):
         client = self.create()
         self.assertEqual(self.api.post(reverse('admin-prospective-invite', args=[client.id])).status_code, 400)

@@ -447,5 +447,17 @@
       "label": "Multiple applicable lawful bases",
       "description": ""
     }
+  ],
+  "access_types": [
+    {
+      "value": "ASSISTED",
+      "label": "Firm-managed \u2014 no portal login",
+      "description": ""
+    },
+    {
+      "value": "PORTAL_ENABLED",
+      "label": "Portal-enabled \u2014 controlled client dashboard access",
+      "description": ""
+    }
   ]
 }
