@@ -46,7 +46,7 @@ describe('critical action coverage across workspaces', () => {
 
   it.each([
     ['get', '/cases/'], ['get', '/documents/1/download/'],
-    ['post', '/auth/login/'], ['post', 'auth/token/refresh/'],
+    ['post', '/auth/login/'], ['post', 'auth/token/refresh/'], ['post', '/auth/unlock/'],
     ['post', '/knowledge-base/ask/'], ['post', '/assistant/advocate/'],
     ['post', '/notifications/notice-1/read/'], ['post', '/notifications/mark-all-read/'],
     ['post', '/communications/announcements/notice-1/read/'],

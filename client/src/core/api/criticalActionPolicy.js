@@ -21,7 +21,7 @@ export function criticalAction(config) {
   const path = requestPath(config);
   const data = requestBody(config);
   if (method === 'post' && (
-    /^\/auth\/(login|token\/refresh)$/.test(path)
+    /^\/auth\/(login|token\/refresh|unlock)$/.test(path)
     || /^\/knowledge-base\/ask$/.test(path)
     || /^\/assistant\/(client|advocate|firm|platform)$/.test(path)
     || /^\/notifications\/([^/]+\/read|mark-all-read)$/.test(path)
