@@ -6,6 +6,7 @@ import Footer from "@/components/shared/Footer";
 import ThemeContext from "@/core/store/ThemeContext";
 import DashboardAssistant from "@/components/ai/DashboardAssistant";
 import PageBackBar from '@/components/navigation/PageBackBar';
+import SubscriptionBanner from '@/components/shared/SubscriptionBanner';
 
 export default function LawyerLayout() {
   const { theme } = useContext(ThemeContext);
@@ -42,6 +43,7 @@ export default function LawyerLayout() {
       {/* MAIN COLUMN */}
       <div className="flex flex-col flex-1 min-w-0 min-h-screen">
         <LawyerTopbar onMenuClick={() => setSidebarOpen(true)} />
+        <SubscriptionBanner audience='staff' />
 
         {/* SCROLLABLE CONTENT */}
         <main

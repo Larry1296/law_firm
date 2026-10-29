@@ -21,7 +21,8 @@ from apps.subscriptions.services import (
     firm_for_user,
 )
 
-EXEMPT_VIEW_PREFIXES = ("apps.authentication.", "apps.subscriptions.")
+# Signing in, billing and marking notifications read stay open while a firm is lapsed.
+EXEMPT_VIEW_PREFIXES = ("apps.authentication.", "apps.subscriptions.", "apps.notifications.views.mark_")
 SUSPENSION_EXEMPT_VIEW_PREFIXES = ("apps.authentication.views.logout_view.",)
 
 FEATURE_VIEW_PREFIXES = {

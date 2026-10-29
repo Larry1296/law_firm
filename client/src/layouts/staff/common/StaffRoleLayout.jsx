@@ -7,6 +7,7 @@ import DashboardAssistant from '@/components/ai/DashboardAssistant';
 import StaffSidebar from '@/layouts/staff/common/StaffSidebar';
 import StaffTopbar from '@/layouts/staff/common/StaffTopbar';
 import PageBackBar from '@/components/navigation/PageBackBar';
+import SubscriptionBanner from '@/components/shared/SubscriptionBanner';
 
 export default function StaffRoleLayout({ config }) {
   const { theme } = useContext(ThemeContext);
@@ -41,6 +42,8 @@ export default function StaffRoleLayout({ config }) {
 
       <div className='flex flex-col flex-1 min-w-0 min-h-screen'>
         <StaffTopbar config={config} onMenuClick={() => setSidebarOpen(true)} />
+        {/* The platform console belongs to no firm and has no subscription. */}
+        {config.basePath !== '/platform' && <SubscriptionBanner audience='staff' />}
 
         <main
           className={`app-main flex-1 flex flex-col ${

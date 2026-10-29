@@ -7,6 +7,7 @@ import {
   getStoredAuth,
 } from '@/core/utils/authStorage';
 import { attachApiErrorMessage } from '@/core/utils/errorMessages';
+import Swal from '@/core/utils/themedSwal';
 import {
   isSessionLocked,
   isTokenExpired,
@@ -21,6 +22,21 @@ const cleanBaseURL = import.meta.env.VITE_API_BASE_URL?.trim().replace(
   /\/$/,
   '',
 );
+
+let pausedDialogOpen = false;
+const showChangesPaused = async (data) => {
+  if (pausedDialogOpen) return;
+  pausedDialogOpen = true;
+  const isOwner = getStoredAuth().user?.role === 'ADMIN';
+  await Swal.fire({
+    icon: 'warning',
+    title: 'Changes are paused',
+    text: `${data?.detail || data?.message || "The firm's subscription has lapsed."} ${isOwner
+      ? 'Renew from Subscription to continue.'
+      : 'Ask the firm owner to renew the subscription.'}`,
+    confirmButtonText: 'OK',
+  }).finally(() => { pausedDialogOpen = false; });
+};
 
 const axiosInstance = axios.create({
   baseURL: cleanBaseURL,
@@ -121,6 +137,15 @@ axiosInstance.interceptors.response.use(
       originalRequest?.url?.includes('/login') ||
       originalRequest?.url?.includes('/token/refresh') ||
       originalRequest?.url?.includes('/auth/unlock/');
+
+    // A lapsed firm keeps its records viewable but pauses changes until it renews.
+    if (status === 402 && error.response?.data?.code === 'subscription_inactive') {
+      releaseCriticalAction(originalRequest);
+      showChangesPaused(error.response.data);
+      // The dialog explains it, so pages do not show the refusal again.
+      error.isActionCancelled = true;
+      return Promise.reject(error);
+    }
 
     const isAdminStaffEndpoint = originalRequest?.url?.includes('/admin/staff/');
     const storedUser = getStoredAuth().user;

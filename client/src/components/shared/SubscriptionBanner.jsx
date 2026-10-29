@@ -11,8 +11,9 @@ function daysUntil(value) {
   return Math.ceil((new Date(value).getTime() - Date.now()) / 86400000);
 }
 
-function bannerFor(subscription) {
-  if (!subscription) return null;
+const RENEWAL_WARNING_DAYS = 14;
+
+function ownerBanner(subscription) {
   const status = subscription.effective_status;
 
   if (status === 'EXPIRED' || status === 'SUSPENDED' || status === 'CANCELLED') {
@@ -36,7 +37,41 @@ function bannerFor(subscription) {
       };
     }
   }
+  if (status === 'ACTIVE' && !subscription.is_complimentary) {
+    const days = daysUntil(subscription.current_period_end);
+    if (days !== null && days <= RENEWAL_WARNING_DAYS) {
+      return {
+        tone: 'info',
+        text: `Your ${subscription.plan.name} subscription is paid until ${formatSubscriptionDate(subscription.current_period_end)} (${Math.max(days, 0)} day${days === 1 ? '' : 's'}). Renew to keep working without interruption.`,
+      };
+    }
+  }
   return null;
+}
+
+// Staff cannot renew, so they are told what is paused and who renews it.
+function staffBanner(subscription) {
+  const status = subscription.effective_status;
+  const owner = subscription.owner_name || 'the firm owner';
+
+  if (status === 'EXPIRED' || status === 'SUSPENDED' || status === 'CANCELLED') {
+    return {
+      tone: 'danger',
+      text: `The firm's subscription has lapsed. Records are view-only; changes are paused until ${owner} renews it.`,
+    };
+  }
+  if (status === 'GRACE') {
+    return {
+      tone: 'warning',
+      text: `The firm's subscription period has ended. Unless ${owner} renews it by ${formatSubscriptionDate(subscription.grace_ends_at)}, the firm becomes view-only.`,
+    };
+  }
+  return null;
+}
+
+function bannerFor(subscription, audience) {
+  if (!subscription) return null;
+  return audience === 'staff' ? staffBanner(subscription) : ownerBanner(subscription);
 }
 
 const toneClasses = {
@@ -45,9 +80,9 @@ const toneClasses = {
   info: 'border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-500/40 dark:bg-blue-950/60 dark:text-blue-100',
 };
 
-export default function SubscriptionBanner({ manageLink = '/admin/subscription' }) {
+export default function SubscriptionBanner({ audience = 'owner', manageLink = audience === 'owner' ? '/admin/subscription' : null }) {
   const { subscription } = useSubscription();
-  const banner = bannerFor(subscription);
+  const banner = bannerFor(subscription, audience);
   if (!banner) return null;
 
   const Icon = banner.tone === 'info' ? Clock : AlertTriangle;

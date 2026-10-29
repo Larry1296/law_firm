@@ -31,3 +31,22 @@ it('shows nothing for an active subscription', () => {
   renderWith({effective_status: 'ACTIVE', plan: {name: 'Solo'}});
   expect(screen.queryByRole('status')).toBeNull();
 });
+
+it('reminds the owner in the last two weeks of a paid period', () => {
+  renderWith({effective_status: 'ACTIVE', current_period_end: inDays(7), plan: {name: 'Wakili Solo'}});
+  expect(screen.getByRole('status')).toHaveTextContent('Wakili Solo subscription is paid until');
+  cleanup();
+  renderWith({effective_status: 'ACTIVE', current_period_end: inDays(60), plan: {name: 'Wakili Solo'}});
+  expect(screen.queryByRole('status')).toBeNull();
+});
+
+it('tells staff who renews a lapsed firm, without a link to billing', () => {
+  useSubscription.mockReturnValue({subscription: {effective_status: 'EXPIRED', owner_name: 'Daniel Mutiso', plan: {name: 'Wakili Solo'}}});
+  render(<MemoryRouter><SubscriptionBanner audience='staff' /></MemoryRouter>);
+  expect(screen.getByRole('status')).toHaveTextContent('changes are paused until Daniel Mutiso renews it');
+  expect(screen.queryByRole('link')).toBeNull();
+  cleanup();
+  useSubscription.mockReturnValue({subscription: {effective_status: 'ACTIVE', current_period_end: inDays(3), plan: {name: 'Wakili Solo'}}});
+  render(<MemoryRouter><SubscriptionBanner audience='staff' /></MemoryRouter>);
+  expect(screen.queryByRole('status')).toBeNull();
+});
