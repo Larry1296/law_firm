@@ -69,6 +69,7 @@ class GenericStaffAdminService:
         validated_data,
         created_by,
     ):
+        SubscriptionService.check_support_role(law_firm, model)
         SubscriptionService.check_limit(
             law_firm, Limit.ADVOCATES if model is Lawyer else Limit.SUPPORT_STAFF,
         )

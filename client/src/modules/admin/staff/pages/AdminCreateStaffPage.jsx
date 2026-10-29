@@ -16,6 +16,7 @@ import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
 import { useAdminStaff } from '@/modules/admin/staff/hooks/useAdminStaff';
 import StaffPermissionPicker from '@/modules/admin/staff/components/StaffPermissionPicker';
 import AdvocateChecklist from '@/modules/admin/staff/components/AdvocateChecklist';
+import useSubscription from '@/modules/subscription/hooks/useSubscription';
 
 const STAFF_ROLE_OPTIONS = [
   { value: 'LAWYER', label: 'Lawyer', defaultJobTitle: 'Lawyer' },
@@ -24,6 +25,9 @@ const STAFF_ROLE_OPTIONS = [
   { value: 'HR', label: 'Human Resource', defaultJobTitle: 'Human Resource Officer' },
   { value: 'IT', label: 'IT Support', defaultJobTitle: 'IT Support' },
 ];
+
+// A one-advocate plan is the advocate alone or with a secretary.
+const SOLE_PRACTICE_ROLES = ['LAWYER', 'SECRETARY'];
 
 const ROLE_DEFAULT_WORK_OPTIONS = {
   LAWYER: [
@@ -70,6 +74,8 @@ const SERVER_FIELD_TO_FORM = {
 
 export default function AdminCreateStaffPage() {
   const navigate = useNavigate();
+  const { subscription } = useSubscription();
+  const solePractice = subscription?.plan?.limits?.advocates === 1;
 
   const { createStaff } = useAdminStaff();
   const { lawyers } = useFirmLawyers();
@@ -269,8 +275,13 @@ export default function AdminCreateStaffPage() {
               value={formData.firm_role}
               onChange={(e) => handleRoleChange(e.target.value)}
               wrapperClassName='mb-0'
-              options={STAFF_ROLE_OPTIONS}
+              options={solePractice ? STAFF_ROLE_OPTIONS.filter((option) => SOLE_PRACTICE_ROLES.includes(option.value)) : STAFF_ROLE_OPTIONS}
             />
+            {solePractice && (
+              <p className='mt-1.5 text-xs text-[color:var(--text-muted)]'>
+                {subscription.plan.name} is for an advocate practising alone or with a secretary. Upgrade to Basic to add an accountant, HR or IT officer.
+              </p>
+            )}
           </div>
 
           <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>

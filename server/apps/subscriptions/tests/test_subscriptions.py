@@ -151,6 +151,27 @@ class LimitTests(SubscriptionTestCase):
         with self.assertRaises(PlanLimitReached):
             AdminLawyerStatusService.activate_lawyer(lawyer=inactive, updated_by=self.owner)
 
+    def test_wakili_solo_is_the_advocate_alone_or_with_one_secretary(self):
+        from apps.staff.models import HR, IT, Accountant, Secretary
+
+        self.put_on("SOLO")
+        self.assertEqual(Plan.objects.get(code="SOLO").max_support_staff, 1)
+        for model in (Accountant, HR, IT):
+            with self.assertRaisesMessage(PlanLimitReached, "its staff seat is for a secretary"):
+                SubscriptionService.check_support_role(self.firm, model)
+        SubscriptionService.check_support_role(self.firm, Secretary)
+        SubscriptionService.check_limit(self.firm, Limit.SUPPORT_STAFF)
+
+        Secretary.objects.create(
+            user=make_user("secretary@saas.test", UserRole.STAFF, "+254744000004"),
+            law_firm=self.firm, staff_number="SEC-1", date_hired=date(2024, 1, 1),
+        )
+        with self.assertRaises(PlanLimitReached):
+            SubscriptionService.check_limit(self.firm, Limit.SUPPORT_STAFF)
+
+        self.put_on("BASIC")
+        SubscriptionService.check_support_role(self.firm, Accountant)
+
     def test_branch_limit_is_enforced_through_the_api(self):
         self.put_on("BASIC")
         self.api.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(self.owner).access_token}")

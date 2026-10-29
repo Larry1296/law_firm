@@ -19,6 +19,9 @@ vi.mock('@/modules/admin/firm/services/adminFirmService', () => ({
 vi.mock('@/modules/admin/staff/components/StaffPermissionPicker', () => ({ default: () => null }));
 vi.mock('@/modules/admin/staff/components/AdvocateChecklist', () => ({ default: () => null }));
 
+const subscription = { current: undefined };
+vi.mock('@/modules/subscription/hooks/useSubscription', () => ({ default: () => ({ subscription: subscription.current }) }));
+
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -30,6 +33,7 @@ function renderPage() {
 
 describe('AdminCreateStaffPage', () => {
   beforeEach(() => {
+    subscription.current = undefined;
     vi.mocked(Swal.fire).mockReset();
     createStaff.mockReset().mockRejectedValue({
       message: 'Request failed with status code 400',
@@ -71,5 +75,16 @@ describe('AdminCreateStaffPage', () => {
     // Correcting a field clears its mark.
     await user.type(email, 'x');
     expect(email).toHaveAttribute('aria-invalid', 'false');
+  });
+
+  it('offers only a secretary beside the advocate on Wakili Solo', async () => {
+    const user = userEvent.setup();
+    subscription.current = { plan: { name: 'Wakili Solo', limits: { advocates: 1 } } };
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: /Lawyer/ }));
+
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Lawyer', 'Secretary']);
+    expect(screen.getByText(/alone or with a secretary/)).toBeInTheDocument();
   });
 });

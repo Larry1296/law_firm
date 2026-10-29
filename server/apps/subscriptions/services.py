@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.exceptions import APIException, ValidationError
 
-from apps.subscriptions.catalog import PLANS_BY_CODE, PRO, Feature, Limit
+from apps.subscriptions.catalog import PLANS_BY_CODE, PRO, SOLE_PRACTICE_SUPPORT_NOTE, Feature, Limit, is_sole_practice
 from apps.subscriptions.models import FirmSubscription, Plan, SubscriptionInvoice
 from apps.firm.models import LawFirm
 
@@ -210,6 +210,17 @@ class SubscriptionService:
             )
 
     @classmethod
+    def check_support_role(cls, firm, model):
+        """On a sole-practice plan the only staff account is a secretary."""
+        from apps.staff.models import Lawyer, Secretary
+
+        if model in (Lawyer, Secretary):
+            return
+        plan = cls.get(firm).plan
+        if is_sole_practice(plan):
+            raise PlanLimitReached(SOLE_PRACTICE_SUPPORT_NOTE.format(plan=plan.name))
+
+    @classmethod
     def check_staff_seat(cls, staff):
         """Reactivating an inactive advocate or staff member takes a seat again."""
         from apps.staff.models import Lawyer
@@ -217,6 +228,7 @@ class SubscriptionService:
         if staff.is_active:
             return
         resource = Limit.ADVOCATES if isinstance(staff, Lawyer) else Limit.SUPPORT_STAFF
+        cls.check_support_role(staff.law_firm, type(staff))
         cls.check_limit(staff.law_firm, resource)
 
     @classmethod

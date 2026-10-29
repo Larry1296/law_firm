@@ -55,6 +55,18 @@ class Limit:
     }
 
 
+# A sole practitioner's one staff seat is for a secretary: the advocate keeps the
+# books personally (Advocates (Accounts) Rules) and has no HR or IT department.
+SOLE_PRACTICE_SUPPORT_NOTE = (
+    "{plan} is for an advocate practising alone or with a secretary, so its staff seat is for a secretary. "
+    "Upgrade to Basic to add an accountant, HR or IT officer."
+)
+
+
+def is_sole_practice(plan):
+    return plan.max_advocates == 1
+
+
 INCLUDED_IN_EVERY_PLAN = [
     "Walk-in intake, conflict checks and instruction acceptance",
     "KYC, beneficial ownership and source-of-funds records (POCAMLA)",
@@ -77,11 +89,11 @@ PLANS = [
     {
         "code": SOLO,
         "name": "Wakili Solo",
-        "tagline": "For an advocate practising on their own account.",
+        "tagline": "For an advocate practising on their own account, alone or with a secretary.",
         "monthly_price": Decimal("1500.00"),
         "annual_price": Decimal("15000.00"),
         "max_advocates": 1,
-        "max_support_staff": 2,
+        "max_support_staff": 1,
         "max_active_matters": 75,
         "max_branches": 1,
         "features": [],
