@@ -103,7 +103,7 @@ class EndToEndLitigationTests(TestCase):
     # ------------------------------------------------------------------ steps
     def step_reception_records_walk_in(self):
         arrival = self.ok(self.as_user(self.secretary_user).post("/api/arrivals/", {
-            "visitor_name": "Peter Kamau for Kamau Hardware Limited", "advocate": str(self.advocate.pk),
+            "visitor_phone": "0712345678", "visitor_name": "Peter Kamau for Kamau Hardware Limited", "advocate": str(self.advocate.pk),
         }, format="json"), 201)
         visit_url = f"/api/arrivals/{arrival['id']}/"
         self.ok(self.as_user(self.advocate_user).post(visit_url, {"action": "CALL"}, format="json"))
@@ -112,10 +112,11 @@ class EndToEndLitigationTests(TestCase):
             "action": "INTAKE", "broad_issue": "Recovery for unpaid hardware supplies",
             "other_parties": "Baraka Builders Limited", "acting_capacity": "On behalf of: Kamau Hardware Limited, as company director",
         }, format="json"))
-        self.ok(self.as_user(self.advocate_user).post(visit_url, {"action": "COMPLETE"}, format="json"))
+        self.ok(self.as_user(self.advocate_user).post(visit_url, {"action": "COMPLETE", "outcome": "INSTRUCTING"}, format="json"))
         self.visit_id = arrival['id']
-        data = self.ok(self.as_user(self.secretary_user).post("/api/staff/secretary/clients/prospective/", {
-            "full_name": "Kamau Hardware Limited", "client_type": "COMPANY", "access_type": "PORTAL_ENABLED",
+        # The advocate who took instructions creates the prospective client, linked to the visit.
+        data = self.ok(self.as_user(self.advocate_user).post("/api/staff/lawyer/clients/prospective/", {
+            "visit": self.visit_id, "full_name": "Kamau Hardware Limited", "client_type": "COMPANY", "access_type": "PORTAL_ENABLED",
             "email": "accounts@kamauhardware.test", "phone_number": "+254722000100",
             "privacy": {"privacy_notice_delivered": True, "delivery_method": "PAPER"},
             "legal_profile": self.company_profile(),
@@ -128,10 +129,6 @@ class EndToEndLitigationTests(TestCase):
         client = Client.objects.get(pk=data["client"]["id"])
         self.assertEqual(client.lifecycle_status, Client.LifecycleStatus.PROSPECTIVE)
         self.assertFalse(client.cases.exists())
-        linked = self.ok(self.as_user(self.secretary_user).post(visit_url, {
-            "action": "LINK_CLIENT", "client": str(client.pk),
-        }, format="json"))
-        self.assertEqual(str(linked["client"]), str(client.pk))
         self.assertEqual(ClientVisit.objects.get(pk=self.visit_id).client_id, client.pk)
         return client
 
