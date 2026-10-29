@@ -317,6 +317,86 @@ body {
   color: var(--text-muted);
 }
 
+/* Radio choices in a dialog read as option cards: one per line, the chosen one highlighted. */
+.swal2-popup .swal2-radio {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch !important;
+  gap: 10px;
+  margin: 1.25rem 1.5rem 0.25rem;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.swal2-popup .swal2-radio label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.swal2-popup .swal2-radio label:hover {
+  border-color: color-mix(in srgb, var(--form-primary), transparent 45%);
+}
+
+.swal2-popup .swal2-radio label:has(input:checked) {
+  border-color: var(--form-primary);
+  background: color-mix(in srgb, var(--form-primary), transparent 91%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--form-primary), transparent 82%);
+}
+
+.swal2-popup .swal2-radio input[type='radio'] {
+  appearance: none;
+  display: grid;
+  place-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-raised);
+  transition: border-color 0.15s ease;
+}
+
+.swal2-popup .swal2-radio input[type='radio']::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--form-primary);
+  transform: scale(0);
+  transition: transform 0.15s ease;
+}
+
+.swal2-popup .swal2-radio input[type='radio']:checked {
+  border-color: var(--form-primary);
+}
+
+.swal2-popup .swal2-radio input[type='radio']:checked::before {
+  transform: scale(1);
+}
+
+.swal2-popup .swal2-radio input[type='radio']:focus-visible {
+  outline: 2px solid var(--form-primary);
+  outline-offset: 2px;
+}
+
+.swal2-popup .swal2-radio .swal2-label {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 .app-swal-validation {
   background: color-mix(in srgb, var(--error), transparent 88%) !important;
   color: var(--error) !important;

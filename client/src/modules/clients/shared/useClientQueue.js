@@ -19,6 +19,8 @@ export const OUTCOMES = { INSTRUCTING: 'Instructing the firm — open a file', E
 async function consultationOutcome() {
   const { isConfirmed, value } = await Swal.fire({
     title: 'Outcome of the consultation', input: 'radio', inputOptions: OUTCOMES,
+    // Wide enough for each outcome on one line, never wider than a phone screen.
+    width: 'min(38rem, calc(100vw - 32px))',
     text: 'If the visitor is instructing the firm, create the prospective client record next so the conflict check can start.',
     inputValidator: (choice) => !choice && 'Select the outcome of the consultation.',
     showCancelButton: true, confirmButtonText: 'Complete consultation', cancelButtonText: 'Back',
