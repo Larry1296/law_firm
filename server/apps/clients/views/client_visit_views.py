@@ -66,11 +66,24 @@ def has_receptionist(firm):
     return active_staff(Secretary).filter(law_firm=firm, is_receptionist=True, can_manage_client_intake=True).exists()
 
 
+def reception_covers(firm, lawyer):
+    """Whether a secretary or receptionist receives this advocate's walk-ins."""
+    staff = active_staff(Secretary).filter(law_firm=firm, can_manage_client_intake=True)
+    if reception_mode(firm) == 'ASSIGNED':
+        staff = staff.filter(Q(is_receptionist=True) | Q(assigned_lawyers=lawyer))
+    return staff.exists()
+
+
 def receives_visitors(firm, role, profile):
-    # An owner who also practises leaves reception to the firm's intake staff.
+    # Reception belongs to the firm's intake staff. Where no secretary covers an
+    # advocate (a sole practitioner, or a secretary on leave), the advocate
+    # receives their own walk-ins rather than leave clients unrecorded; an owner
+    # who does not practise always keeps the register.
     if role in ['SECRETARY', 'RECEPTIONIST']:
         return True
-    return role == 'ADMIN' and not (profile and active_staff(Secretary).filter(law_firm=firm, can_manage_client_intake=True).exists())
+    if role == 'ADMIN':
+        return not (profile and reception_covers(firm, profile))
+    return role == 'ADVOCATE' and profile is not None and not reception_covers(firm, profile)
 
 
 def office_label(lawyer):
@@ -190,6 +203,8 @@ class ClientVisitListView(APIView):
         return Response({
             'has_receptionist': receptionist, 'role': role, 'reception_mode': reception_mode(firm),
             'can_receive': receives,
+            # A practising advocate with no secretary covering them receives their own walk-ins.
+            'self_reception': receives and role in ['ADVOCATE', 'ADMIN'] and profile is not None,
             'advocates': [{'value': str(x.pk), 'label': f'{x.user.full_name} — {office_label(x) or "Office not assigned"}'} for x in lawyers],
             'clients': [{'value': str(x.pk), 'label': x.full_name} for x in clients.order_by('full_name')],
             'visits': rows, 'queues': queues, 'waiting_count': sum(q['waiting_count'] for q in queues),
@@ -209,7 +224,8 @@ class ClientVisitListView(APIView):
         serializer.is_valid(raise_exception=True)
         advocate = serializer.validated_data['advocate']
         if not visible_lawyers(firm, role, profile).filter(pk=advocate.pk).exists():
-            raise PermissionDenied('This advocate is not assigned to you. Ask the admin to update secretary coverage.')
+            raise PermissionDenied('Record arrivals for your own consultations only.' if role == 'ADVOCATE'
+                else 'This advocate is not assigned to you. Ask the admin to update secretary coverage.')
         visit = serializer.save(firm=firm, received_by=request.user, intake_handler='ADVOCATE')
         record(visit, request.user, 'CLIENT_VISIT_ARRIVED')
         Notification.objects.create(firm=firm, recipient=visit.advocate.user, actor=request.user,

@@ -145,7 +145,7 @@ export default function ClientArrivalsPage() {
   return (
     <div className='space-y-6 p-4 text-[color:var(--text-primary)] md:p-6'>
       <div><h1 className='text-2xl font-semibold'>{data.can_receive ? 'Client arrivals & waiting queue' : 'My consultations'}</h1>
-        <p className='mt-2 text-[color:var(--text-muted)]'>{data.can_receive ? 'The secretary or receptionist records arrival, alerts the advocate and ushers the visitor in when called. Only the assigned advocate records legal intake and conducts and completes the consultation.' : 'Clients waiting for you, the client in your office and your follow-ups. Reception records arrivals and ushers clients in.'}</p>
+        <p className='mt-2 text-[color:var(--text-muted)]'>{data.self_reception ? 'No secretary covers reception for you, so record each walk-in here yourself, then call them in when you are ready. When the firm adds a secretary, reception passes to them.' : data.can_receive ? 'The secretary or receptionist records arrival, alerts the advocate and ushers the visitor in when called. Only the assigned advocate records legal intake and conducts and completes the consultation.' : 'Clients waiting for you, the client in your office and your follow-ups. Reception records arrivals and ushers clients in.'}</p>
         {data.role === 'RECEPTIONIST' && <p className='mt-1 text-sm'>You are signed in as a designated receptionist.</p>}
       </div>
       {isError && <p role='alert' className='form-alert'>Queue updates are unavailable. Refresh before calling or receiving another client.</p>}

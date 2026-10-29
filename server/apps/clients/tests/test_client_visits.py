@@ -194,6 +194,37 @@ class ClientVisitTests(TestCase):
         self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Debt').status_code, 200)
         self.assertEqual(ClientVisit.objects.get(pk=pk).intake_handler, 'ADVOCATE')
 
+    def test_advocate_receives_own_walk_ins_when_no_secretary_covers_them(self):
+        self.secretary.is_active = False
+        self.secretary.save(update_fields=['is_active'])
+        other = Lawyer.objects.create(user=self.user('second-lawyer'), law_firm=self.firm, staff_number='A2', admission_number='A2', date_hired=date.today())
+        self.api.force_authenticate(self.lawyer.user)
+        data = self.api.get(self.url).data
+        self.assertTrue(data['can_receive'])
+        self.assertTrue(data['self_reception'])
+        self.assertEqual([q['advocate'] for q in data['queues']], [str(self.lawyer.pk)])
+        pk = self.arrive()
+        self.assertEqual(ClientVisit.objects.get(pk=pk).received_by, self.lawyer.user)
+        refused = self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Visitor', 'advocate': str(other.pk)}, format='json')
+        self.assertEqual(refused.status_code, 403)
+        self.assertEqual(self.action(pk, 'START').status_code, 200)
+        # Once a secretary covers reception again, it passes back to them.
+        self.secretary.is_active = True
+        self.secretary.save(update_fields=['is_active'])
+        self.assertFalse(self.api.get(self.url).data['can_receive'])
+        self.assertEqual(self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Visitor', 'advocate': str(self.lawyer.pk)}, format='json').status_code, 403)
+
+    def test_assigned_mode_advocate_without_a_secretary_receives_own_walk_ins(self):
+        from apps.firm.models import FirmSetting
+        FirmSetting.objects.update_or_create(firm=self.firm, defaults={'queue_reception_mode': 'ASSIGNED'})
+        covered = Lawyer.objects.create(user=self.user('covered'), law_firm=self.firm, staff_number='A2', admission_number='A2', date_hired=date.today())
+        self.secretary.assigned_lawyers.add(covered)
+        self.api.force_authenticate(covered.user)
+        self.assertFalse(self.api.get(self.url).data['can_receive'])
+        self.api.force_authenticate(self.lawyer.user)
+        self.assertTrue(self.api.get(self.url).data['can_receive'])
+        self.arrive()
+
     def test_inactive_receptionist_and_other_firm_do_not_change_route(self):
         receptionist = self.receptionist()
         receptionist.user.is_active = False
