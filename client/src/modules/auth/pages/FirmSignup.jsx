@@ -1,5 +1,5 @@
 import { useContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Building2 } from 'lucide-react';
@@ -10,7 +10,7 @@ import FloatingInput from '@/components/ui/FloatingInput';
 import AuthFormCard from '@/modules/auth/components/AuthFormCard';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import subscriptionService from '@/modules/subscription/services/subscriptionService';
-import { formatKes } from '@/modules/admin/subscription/utils/subscriptionFormatting';
+import PlanOptions from '@/modules/subscription/components/PlanOptions';
 
 const emptyFirm = {
   name: '',
@@ -37,7 +37,9 @@ export default function FirmSignup() {
   const { login: authLogin } = useContext(AuthContext);
   const [firm, setFirm] = useState(emptyFirm);
   const [admin, setAdmin] = useState(emptyAdmin);
-  const [planCode, setPlanCode] = useState('PRO');
+  // The pricing section links here with the plan the visitor picked.
+  const [searchParams] = useSearchParams();
+  const [planCode, setPlanCode] = useState(() => searchParams.get('plan') || 'PRO');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -87,26 +89,7 @@ export default function FirmSignup() {
         <>
           <fieldset className='grid gap-3'>
             <legend className='mb-2 text-base font-semibold'>Plan</legend>
-            <div className='grid gap-3 sm:grid-cols-2'>
-              {plans.map((plan) => (
-                <label
-                  key={plan.code}
-                  className={`cursor-pointer rounded-[9px] border p-4 text-sm ${planCode === plan.code ? 'border-[color:var(--form-primary)] bg-[color:var(--form-primary-soft)]' : 'border-[color:var(--border)]'}`}
-                >
-                  <input
-                    type='radio'
-                    name='plan'
-                    value={plan.code}
-                    checked={planCode === plan.code}
-                    onChange={() => setPlanCode(plan.code)}
-                    className='sr-only'
-                  />
-                  <span className='block font-semibold'>{plan.name}</span>
-                  <span className='block text-[color:var(--text-muted)]'>{formatKes(plan.monthly_price)} / month{plan.pricing_basis === 'ADVOCATE' ? ' per advocate' : ' per firm'} + VAT</span>
-                  <span className='form-hint mt-1 block'>{plan.tagline}</span>
-                </label>
-              ))}
-            </div>
+            <PlanOptions plans={plans} value={planCode} onChange={setPlanCode} includedInEveryPlan={plansQuery.data?.included_in_every_plan} />
           </fieldset>
 
           <hr className='form-divider' />

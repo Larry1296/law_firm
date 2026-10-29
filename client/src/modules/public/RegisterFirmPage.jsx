@@ -7,9 +7,9 @@ import { Building2, CheckCircle2, Plus, X } from 'lucide-react';
 import { KENYAN_COUNTIES } from '@/core/constants/kenyanCounties';
 import Button3D from '@/components/ui/Button3D';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
-import { formatKes } from '@/modules/admin/subscription/utils/subscriptionFormatting';
 import AuthFormCard from '@/modules/auth/components/AuthFormCard';
 import platformService from '@/modules/platform/services/platformService';
+import PlanOptions from '@/modules/subscription/components/PlanOptions';
 import subscriptionService from '@/modules/subscription/services/subscriptionService';
 
 const FirmSignup = lazy(() => import('@/modules/auth/pages/FirmSignup'));
@@ -81,7 +81,7 @@ function RequestSent({ form }) {
   );
 }
 
-function OnboardingRequestForm({ plans, onSent }) {
+function OnboardingRequestForm({ plans, includedInEveryPlan, onSent }) {
   const [searchParams] = useSearchParams();
   const [form, setForm] = useState(EMPTY);
   const [extra, setExtra] = useState({ advocates_count: '', preferred_plan: searchParams.get('plan') || '', message: '' });
@@ -245,12 +245,18 @@ function OnboardingRequestForm({ plans, onSent }) {
       </Section>
 
       <Section title='Plan'>
-        <Field label='Plan you are interested in' error={err('preferred_plan')}>
-          <select name='preferred_plan' value={extra.preferred_plan} onChange={setExtraField('preferred_plan')} className={inputClass}>
-            <option value=''>Not sure yet</option>
-            {plans.map((plan) => <option key={plan.code} value={plan.code}>{plan.name} ({formatKes(plan.monthly_price)} / month{plan.pricing_basis === 'ADVOCATE' ? ' per advocate' : ' per firm'})</option>)}
-          </select>
-        </Field>
+        <fieldset className='sm:col-span-2'>
+          <legend className='mb-2 text-sm font-medium'>Plan you are interested in</legend>
+          <PlanOptions
+            plans={plans}
+            value={extra.preferred_plan}
+            onChange={(code) => setExtra((current) => ({ ...current, preferred_plan: code }))}
+            name='preferred_plan'
+            noneLabel='Not sure yet'
+            includedInEveryPlan={includedInEveryPlan}
+          />
+          {err('preferred_plan') && <p role='alert' className='mt-2 text-sm text-error'>{err('preferred_plan')}</p>}
+        </fieldset>
         <Field label='Number of advocates' error={err('advocates_count')}>
           <input name='advocates_count' type='number' min='1' value={extra.advocates_count} onChange={setExtraField('advocates_count')} className={inputClass} />
         </Field>
@@ -286,5 +292,5 @@ export default function RegisterFirmPage() {
   if (plansQuery.data?.firm_signup_enabled) return <FirmSignup />;
   if (sent) return <RequestSent form={sent} />;
 
-  return <OnboardingRequestForm plans={plansQuery.data?.plans || []} onSent={setSent} />;
+  return <OnboardingRequestForm plans={plansQuery.data?.plans || []} includedInEveryPlan={plansQuery.data?.included_in_every_plan || []} onSent={setSent} />;
 }

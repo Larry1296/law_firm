@@ -5,7 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, ImagePlus, Plus, X } from 'lucide-react';
 
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
-import { formatKes, formatLimit, LIMIT_LABELS } from '@/modules/admin/subscription/utils/subscriptionFormatting';
+import { formatKes } from '@/modules/admin/subscription/utils/subscriptionFormatting';
+import PlanOptions from '@/modules/subscription/components/PlanOptions';
 import platformService from '@/modules/platform/services/platformService';
 import {
   Button,
@@ -547,31 +548,11 @@ export default function PlatformRegisterFirmPage() {
             <div className='space-y-6'>
               <fieldset>
                 <legend className='mb-3 text-sm font-medium'>Plan</legend>
-                <div className='grid gap-4 md:grid-cols-2'>
-                  {plans.map((plan) => {
-                    const selected = form.subscription.plan_code === plan.code;
-                    return (
-                      <label key={plan.code} className={`cursor-pointer rounded-xl border p-4 transition ${selected ? 'border-brand-primary ring-2 ring-brand-primary dark:border-sky-500 dark:ring-sky-500' : 'border-border-light hover:bg-background-light dark:border-border-dark dark:hover:bg-background-dark'}`}>
-                        <input type='radio' name='plan' value={plan.code} checked={selected} onChange={set('subscription', 'plan_code')} className='sr-only' />
-                        <span className='flex items-baseline justify-between gap-2'>
-                          <span className='text-base font-bold'>{plan.name}</span>
-                          <span className='text-sm font-semibold tabular-nums'>{formatKes(plan.monthly_price)}<span className='font-normal text-text-muted-light dark:text-text-muted-dark'> / month{plan.pricing_basis === 'ADVOCATE' ? ' per advocate' : ' per firm'}</span></span>
-                        </span>
-                        <span className='mt-1 block text-xs text-text-muted-light dark:text-text-muted-dark'>{plan.tagline}</span>
-                        <ul className='mt-3 space-y-1 text-xs'>
-                          {Object.entries(plan.limits).map(([key, value]) => (
-                            <li key={key}>{LIMIT_LABELS[key]}: <strong>{formatLimit(value)}</strong></li>
-                          ))}
-                          {plan.features.map((feature) => (
-                            <li key={feature.code} className={feature.included ? '' : 'text-text-muted-light line-through dark:text-text-muted-dark'}>
-                              {feature.included ? '✓' : '✗'} {feature.label}
-                            </li>
-                          ))}
-                        </ul>
-                      </label>
-                    );
-                  })}
-                </div>
+                <PlanOptions
+                  plans={plans}
+                  value={form.subscription.plan_code}
+                  onChange={(code) => set('subscription', 'plan_code')({ target: { value: code } })}
+                />
                 {err('subscription.plan_code') && <p role='alert' className='mt-2 text-sm text-error'>{err('subscription.plan_code')}</p>}
               </fieldset>
 
