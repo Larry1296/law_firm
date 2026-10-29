@@ -254,6 +254,42 @@ class SecretaryEndpointTests(TestCase):
         self.assertSetEqual(set(receipt.items.values_list("document_id", flat=True)), {document.id, second_document.id})
         self.assertTrue(document.physical_copy_retained)
 
+    def test_advocate_without_records_staff_keeps_their_clients_register(self):
+        Lawyer.objects.create(
+            user=self.admin_user, law_firm=self.firm, staff_number="ADV-SOLO-001",
+            admission_number="ADV/SOLO/001", date_hired=date(2026, 7, 6),
+        )
+        client = Client.objects.create(
+            firm=self.firm, created_by=self.admin_user, full_name="Solo Client",
+            phone_number="+254711000030", client_type=Client.ClientType.INDIVIDUAL,
+            access_type=Client.AccessType.ASSISTED,
+        )
+        self.client.force_authenticate(user=self.admin_user)
+
+        drawer = self.client.post(reverse("secretary-documents"), {
+            "action": "assign_drawer", "client_id": str(client.id), "cabinet_location": "Cabinet A / Drawer 1",
+        }, format="json")
+        self.assertEqual(drawer.status_code, 200, drawer.data)
+        client.refresh_from_db()
+        letter = self.client.post(reverse("secretary-documents"), {
+            "action": "register_physical", "client_id": str(client.id),
+            "title": "Engagement letter / retainer agreement", "subtype": "ENGAGEMENT_LETTER",
+            "document_type": "LEGAL", "category": "OTHER", "source_copy_type": "ORIGINAL",
+            "automatic_reference": True,
+        }, format="json")
+        self.assertEqual(letter.status_code, 201, letter.data)
+        self.assertEqual(ClientDocument.objects.get(client=client).received_by, self.admin_user)
+
+        # Once the firm has records staff, the register is theirs again.
+        secretary_user = User.objects.create_user(
+            email="solo-secretary@example.com", password="strong-pass123", first_name="Sec",
+            last_name="Solo", phone_number="+254711000031", national_id_number="711000031",
+            role=UserRole.STAFF,
+        )
+        Secretary.objects.create(user=secretary_user, law_firm=self.firm, staff_number="SEC-SOLO-001", date_hired=date(2026, 7, 31))
+        refused = self.client.get(reverse("secretary-documents"), {"client_id": str(client.id)})
+        self.assertNotEqual(refused.status_code, 200)
+
     def test_secretary_cannot_assign_a_second_kyc_drawer_to_client(self):
         secretary_user = User.objects.create_user(
             email="secretary-drawer@example.com",

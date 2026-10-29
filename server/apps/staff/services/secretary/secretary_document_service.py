@@ -18,14 +18,46 @@ from apps.documents.models import (
 from apps.communications.services import ChatService
 from apps.documents.services.workflow_service import DocumentWorkflowService
 from apps.firm.models import StorageLocation
+from apps.staff.models import Secretary
 from apps.firm.services.records_room_service import RecordsRoomService, location_or_error
-from apps.cases.models import CaseAttachment, MatterPhysicalFile
+from apps.cases.models import Case, CaseAttachment, MatterPhysicalFile
 from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
 
 
 class SecretaryDocumentService:
     DRAWER_REFERENCE_PATTERN = re.compile(r"^KYC-\d{4}-\d{3,}$")
     DOCUMENT_REFERENCE_PATTERN = re.compile(r"^KYC-\d{4}-\d{3,}/[A-Z0-9][A-Z0-9._/-]{0,39}$")
+
+    @staticmethod
+    def records_keeper(user, refusal):
+        """The firm whose physical client register this user keeps.
+
+        Authorised records staff keep it. Where the firm has none (an advocate
+        practising without a secretary), the advocate keeps their own clients'
+        papers rather than leave them unrecorded, as at reception.
+        """
+        secretary = getattr(user, "secretary_profile", None)
+        if secretary:
+            if secretary.is_active and secretary.can_receive_documents:
+                return secretary.law_firm
+            raise ValidationError({"detail": refusal})
+        lawyer = getattr(user, "lawyer_profile", None)
+        if lawyer and lawyer.is_active and not SecretaryDocumentService.records_staff(lawyer.law_firm).exists():
+            return lawyer.law_firm
+        raise ValidationError({"detail": refusal})
+
+    @staticmethod
+    def records_staff(firm):
+        return Secretary.objects.filter(
+            law_firm=firm, is_active=True, user__is_active=True, can_receive_documents=True,
+            employment_status__in=["ACTIVE", "PROBATION"],
+        )
+
+    @staticmethod
+    def records_cases(user, firm):
+        if getattr(user, "secretary_profile", None):
+            return DocumentWorkflowService.accessible_cases_for_secretary(user)
+        return Case.objects.filter(firm=firm, is_active=True, assigned_lawyer=user.lawyer_profile)
 
     @staticmethod
     def received_from_options(client):
@@ -103,11 +135,9 @@ class SecretaryDocumentService:
     @staticmethod
     @transaction.atomic
     def assign_kyc_drawer(user, data):
-        secretary = getattr(user, "secretary_profile", None)
-        if not secretary or not secretary.is_active or not secretary.can_receive_documents:
-            raise ValidationError({"detail": "Only active secretaries can assign KYC drawers."})
+        firm = SecretaryDocumentService.records_keeper(user, "Only active secretaries can assign KYC drawers.")
         try:
-            client = Client.objects.select_for_update().get(id=data.get("client_id"), firm=secretary.law_firm)
+            client = Client.objects.select_for_update().get(id=data.get("client_id"), firm=firm)
         except (Client.DoesNotExist, ValueError, TypeError) as exc:
             raise ValidationError({"client_id": "Select a client file."}) from exc
         if client.kyc_drawer_reference:
@@ -123,12 +153,12 @@ class SecretaryDocumentService:
         # files across may type the number already written on the folder.
         reference = (data.get("kyc_drawer_reference") or "").strip().upper()
         if not reference:
-            reference = RecordsRoomService.allocate_kyc_reference(secretary.law_firm)
+            reference = RecordsRoomService.allocate_kyc_reference(firm)
         elif not SecretaryDocumentService.DRAWER_REFERENCE_PATTERN.fullmatch(reference):
             raise ValidationError({"kyc_drawer_reference": "Use the physical drawer format KYC-2026-039."})
-        if Client.objects.exclude(id=client.id).filter(firm=secretary.law_firm, kyc_drawer_reference=reference).exists():
+        if Client.objects.exclude(id=client.id).filter(firm=firm, kyc_drawer_reference=reference).exists():
             raise ValidationError({"kyc_drawer_reference": "This physical KYC drawer number is already assigned."})
-        place = location_or_error(secretary.law_firm, data.get("location_id"), purposes=[StorageLocation.Purpose.KYC])
+        place = location_or_error(firm, data.get("location_id"), purposes=[StorageLocation.Purpose.KYC])
         cabinet_location = place.path if place else (data.get("cabinet_location") or "").strip()
         if not cabinet_location:
             raise ValidationError({"location_id": "Choose the drawer or shelf where this KYC file is kept."})
@@ -168,11 +198,9 @@ class SecretaryDocumentService:
     @staticmethod
     @transaction.atomic
     def propose_document_reference(user, client_id):
-        secretary = getattr(user, "secretary_profile", None)
-        if not secretary or not secretary.is_active or not secretary.can_receive_documents:
-            raise ValidationError({"detail": "Only active authorised records staff can propose references."})
+        firm = SecretaryDocumentService.records_keeper(user, "Only active authorised records staff can propose references.")
         try:
-            client = Client.objects.select_for_update().get(id=client_id, firm=secretary.law_firm)
+            client = Client.objects.select_for_update().get(id=client_id, firm=firm)
         except Client.DoesNotExist as exc:
             raise ValidationError({"client_id": "Select a client file."}) from exc
         if not client.kyc_drawer_reference:
@@ -298,17 +326,15 @@ class SecretaryDocumentService:
 
     @staticmethod
     def workspace(user, params):
-        secretary = getattr(user, "secretary_profile", None)
-        if not secretary or not secretary.is_active or not secretary.can_receive_documents:
-            raise ValidationError({"detail": "Only active secretaries can access this document workspace."})
-        cases = DocumentWorkflowService.accessible_cases_for_secretary(user)
+        firm = SecretaryDocumentService.records_keeper(user, "Only active secretaries can access this document workspace.")
+        cases = SecretaryDocumentService.records_cases(user, firm)
         client_id = params.get("client_id")
         case_id = params.get("case_id")
         if case_id and not client_id:
             case = cases.filter(id=case_id).only("client_id").first()
             client_id = str(case.client_id) if case else None
 
-        clients = Client.objects.filter(firm=secretary.law_firm).order_by("full_name")
+        clients = Client.objects.filter(firm=firm).order_by("full_name")
         selection_error = ""
         if client_id:
             try:
@@ -336,11 +362,11 @@ class SecretaryDocumentService:
             documents, requests = [], []
             scoped_cases = cases.none()
         return {
-            "next_kyc_reference": RecordsRoomService.preview_kyc_reference(secretary.law_firm),
-            "kyc_places": RecordsRoomService.filing_places(secretary.law_firm, [StorageLocation.Purpose.KYC]),
-            "originals_places": RecordsRoomService.filing_places(secretary.law_firm, [StorageLocation.Purpose.ORIGINALS]),
-            "matter_places": RecordsRoomService.filing_places(secretary.law_firm, [StorageLocation.Purpose.MATTER]),
-            # Papers clients have said they are bringing or sending, across this secretary's matters.
+            "next_kyc_reference": RecordsRoomService.preview_kyc_reference(firm),
+            "kyc_places": RecordsRoomService.filing_places(firm, [StorageLocation.Purpose.KYC]),
+            "originals_places": RecordsRoomService.filing_places(firm, [StorageLocation.Purpose.ORIGINALS]),
+            "matter_places": RecordsRoomService.filing_places(firm, [StorageLocation.Purpose.MATTER]),
+            # Papers clients have said they are bringing or sending, across this keeper's matters.
             "deliveries_expected": [
                 DocumentWorkflowService.serialize_request(item)
                 for item in DocumentRequest.objects.filter(case__in=cases, status=DocumentRequest.Status.PENDING_SECRETARY)
@@ -376,8 +402,8 @@ class SecretaryDocumentService:
                 status__in=[MatterPhysicalFile.Status.REQUESTED, MatterPhysicalFile.Status.AWAITING_PREPARATION],
             ).select_related("matter__client", "matter__assigned_lawyer__user").order_by("matter__created_at")],
             "physical_file": (
-                MatterPhysicalFileService.serialize(MatterPhysicalFile.objects.get(matter_id=case_id, firm=secretary.law_firm), include_history=False)
-                if case_id and MatterPhysicalFile.objects.filter(matter_id=case_id, firm=secretary.law_firm).exists()
+                MatterPhysicalFileService.serialize(MatterPhysicalFile.objects.get(matter_id=case_id, firm=firm), include_history=False)
+                if case_id and MatterPhysicalFile.objects.filter(matter_id=case_id, firm=firm).exists()
                 else None
             ),
         }
@@ -385,9 +411,7 @@ class SecretaryDocumentService:
     @staticmethod
     @transaction.atomic
     def register_physical_document(user, data):
-        secretary = getattr(user, "secretary_profile", None)
-        if not secretary or not secretary.is_active or not secretary.can_receive_documents:
-            raise ValidationError({"detail": "Only active secretaries can register physical client documents."})
+        firm = SecretaryDocumentService.records_keeper(user, "Only active secretaries can register physical client documents.")
 
         request = None
         request_id = data.get("request_id")
@@ -395,7 +419,7 @@ class SecretaryDocumentService:
             try:
                 request = DocumentRequest.objects.select_for_update().select_related("case", "client").get(
                     id=request_id,
-                    firm=secretary.law_firm,
+                    firm=firm,
                 )
             except DocumentRequest.DoesNotExist as exc:
                 raise ValidationError({"request_id": "The document request is not accessible."}) from exc
@@ -405,7 +429,7 @@ class SecretaryDocumentService:
         else:
             client_id = data.get("client_id")
             try:
-                client = Client.objects.select_for_update().get(id=client_id, firm=secretary.law_firm)
+                client = Client.objects.select_for_update().get(id=client_id, firm=firm)
             except (Client.DoesNotExist, ValueError, TypeError) as exc:
                 raise ValidationError({"client_id": "Select a client file."}) from exc
 
@@ -559,10 +583,8 @@ class SecretaryDocumentService:
     @staticmethod
     @transaction.atomic
     def correct_document_reference(user, document_id, data):
-        secretary = getattr(user, "secretary_profile", None)
-        if not secretary or not secretary.is_active or not secretary.can_receive_documents:
-            raise ValidationError({"detail": "Only authorised records staff can correct physical references."})
-        document = ClientDocument.objects.select_for_update().select_related("client").get(id=document_id, firm=secretary.law_firm)
+        firm = SecretaryDocumentService.records_keeper(user, "Only authorised records staff can correct physical references.")
+        document = ClientDocument.objects.select_for_update().select_related("client").get(id=document_id, firm=firm)
         corrected = (data.get("corrected_reference") or "").strip().upper()
         reason = (data.get("reason") or "").strip()
         if not reason:
@@ -584,12 +606,10 @@ class SecretaryDocumentService:
     @staticmethod
     @transaction.atomic
     def remove_from_register(user, document_id, data):
-        secretary = getattr(user, "secretary_profile", None)
-        if not secretary or not secretary.is_active or not secretary.can_receive_documents:
-            raise ValidationError({"detail": "Only authorised records staff can remove physical register entries."})
+        firm = SecretaryDocumentService.records_keeper(user, "Only authorised records staff can remove physical register entries.")
         try:
             document = ClientDocument.objects.select_for_update().get(
-                id=document_id, firm=secretary.law_firm, archived_at__isnull=True
+                id=document_id, firm=firm, archived_at__isnull=True
             )
         except ClientDocument.DoesNotExist as exc:
             raise ValidationError({"document": "This active physical document entry was not found."}) from exc
@@ -607,10 +627,8 @@ class SecretaryDocumentService:
     @staticmethod
     @transaction.atomic
     def record_custody_movement(user, document_id, data):
-        secretary = getattr(user, "secretary_profile", None)
-        if not secretary or not secretary.is_active or not secretary.can_receive_documents:
-            raise ValidationError({"detail": "Only authorised records staff can record custody movements."})
-        document = ClientDocument.objects.select_for_update().get(id=document_id, firm=secretary.law_firm)
+        firm = SecretaryDocumentService.records_keeper(user, "Only authorised records staff can record custody movements.")
+        document = ClientDocument.objects.select_for_update().get(id=document_id, firm=firm)
         destination = (data.get("to_location_or_custodian") or "").strip()
         purpose = (data.get("purpose") or "").strip()
         if not destination or not purpose:
@@ -634,13 +652,11 @@ class SecretaryDocumentService:
     @staticmethod
     @transaction.atomic
     def create_receipt(user, data):
-        secretary = getattr(user, "secretary_profile", None)
-        if not secretary or not secretary.is_active or not secretary.can_receive_documents:
-            raise ValidationError({"detail": "Only authorised records staff can issue document receipts."})
-        client = Client.objects.select_for_update().get(id=data.get("client_id"), firm=secretary.law_firm)
+        firm = SecretaryDocumentService.records_keeper(user, "Only authorised records staff can issue document receipts.")
+        client = Client.objects.select_for_update().get(id=data.get("client_id"), firm=firm)
         requested_ids = {str(item) for item in (data.get("document_ids") or [])}
         documents = list(ClientDocument.objects.select_for_update().filter(
-            id__in=requested_ids, client=client, firm=secretary.law_firm,
+            id__in=requested_ids, client=client, firm=firm,
             archived_at__isnull=True,
         ))
         if not documents:
@@ -660,21 +676,21 @@ class SecretaryDocumentService:
         received_at = min(received_timestamps)
         year = timezone.now().year
         sequence, _ = PhysicalDocumentReceiptSequence.objects.get_or_create(
-            firm=secretary.law_firm, defaults={"year": year, "next_number": 1}
+            firm=firm, defaults={"year": year, "next_number": 1}
         )
-        sequence = PhysicalDocumentReceiptSequence.objects.select_for_update().get(firm=secretary.law_firm)
+        sequence = PhysicalDocumentReceiptSequence.objects.select_for_update().get(firm=firm)
         if sequence.year != year:
             sequence.year, sequence.next_number = year, 1
         number = sequence.next_number
         sequence.next_number += 1
         sequence.save(update_fields=["year", "next_number", "updated_at"])
         receipt = PhysicalDocumentReceipt.objects.create(
-            firm=secretary.law_firm, client=client,
+            firm=firm, client=client,
             receipt_number=f"REC-{timezone.now().year}-{number:05d}",
             received_from=received_from,
             received_by=user, received_at=received_at,
             kyc_reference_snapshot=client.kyc_drawer_reference,
-            firm_details_snapshot={"name": secretary.law_firm.name},
+            firm_details_snapshot={"name": firm.name},
         )
         for document in documents:
             PhysicalDocumentReceiptItem.objects.create(

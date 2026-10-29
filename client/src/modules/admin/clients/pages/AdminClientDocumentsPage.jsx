@@ -8,6 +8,7 @@ import TableHeaderText from '@/components/ui/TableHeaderText';
 import { enumLabel } from '@/core/utils/textFormatter';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import adminClientsService from '../services/adminClientsService';
+import SecretaryDocuments from '@/modules/staff/secretary/documents/pages/SecretaryDocuments';
 
 const tabs = ['KYC and client documents', 'Proposed matters', 'Accepted matters', 'Originals / custody', 'Document receipts', 'Audit history'];
 
@@ -30,6 +31,7 @@ export default function AdminClientDocumentsPage() {
         <p><strong>Cabinet location</strong><br />{client.kyc_cabinet_location || 'Not recorded'}</p>
       </div>
     </Card>
+    <SecretaryDocuments clientId={id} compact />
     <div className='flex gap-2 overflow-x-auto border-b border-border-light dark:border-border-dark'>
       {tabs.map((tab) => <button key={tab} className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold ${active === tab ? 'border-brand-primary text-brand-primary' : 'border-transparent'}`} onClick={() => setActive(tab)}>{tab}</button>)}
     </div>

@@ -36,9 +36,9 @@ const message = (error) => {
   return 'The record could not be saved.';
 };
 
-export default function SecretaryDocuments({ caseId = '', compact = false }) {
+export default function SecretaryDocuments({ caseId = '', clientId: fileClientId = '', compact = false }) {
   const queryClient = useQueryClient();
-  const [clientId, setClientId] = useState('');
+  const [clientId, setClientId] = useState(fileClientId);
   const [drawerReference, setDrawerReference] = useState('');
   const [cabinetLocation, setCabinetLocation] = useState('');
   const [kycPlaceId, setKycPlaceId] = useState('');
@@ -49,7 +49,7 @@ export default function SecretaryDocuments({ caseId = '', compact = false }) {
   const [issuedReceipt, setIssuedReceipt] = useState('');
   const [matterFileDraft, setMatterFileDraft] = useState({ case_id: '', storage_location_id: '', storage_zone: 'Active Matters', cabinet: '', shelf_or_drawer: '', location_detail: '', notes: '' });
   const params = caseId ? { case_id: caseId } : (clientId ? { client_id: clientId } : {});
-  const { data, isLoading } = useQuery({ queryKey: ['secretary-documents', caseId, clientId], queryFn: () => secretaryDocumentsService.getDocuments(params) });
+  const { data, isLoading, isError } = useQuery({ queryKey: ['secretary-documents', caseId, clientId], queryFn: () => secretaryDocumentsService.getDocuments(params), retry: !fileClientId });
   const selectedId = data?.selected_client_id || clientId;
   const clients = data?.clients || [];
   const client = clients.find((item) => String(item.id) === String(selectedId));
@@ -78,12 +78,16 @@ export default function SecretaryDocuments({ caseId = '', compact = false }) {
     }));
   }, [receiptSelectionKey, unreceiptedDocuments]);
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['secretary-documents'] });
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['secretary-documents'] });
+    // The client's file (and the engagement letter choices on its proposed matters) reads the same register.
+    if (fileClientId) ['admin-client', 'admin-client-document-workspace'].forEach((key) => queryClient.invalidateQueries({ queryKey: [key, fileClientId] }));
+  };
   // A blank number takes the next KYC number; the drawer comes from the firm's records-room layout.
   const assign = useMutation({ mutationFn: () => secretaryDocumentsService.assignDrawer({ client_id: selectedId, kyc_drawer_reference: drawerReference, location_id: kycPlaceId || null, cabinet_location: cabinetLocation }), onSuccess: refresh });
   const kycPlaces = data?.kyc_places || [];
   const matterPlaces = data?.matter_places || [];
-  const deliveries = (data?.deliveries_expected || []).filter((item) => !caseId || String(item.case_id) === String(caseId));
+  const deliveries = (data?.deliveries_expected || []).filter((item) => (!caseId || String(item.case_id) === String(caseId)) && (!fileClientId || String(item.client_id) === String(fileClientId)));
   const assignMatterFile = useMutation({
     mutationFn: () => secretaryDocumentsService.assignMatterFile(matterFileDraft.case_id, matterFileDraft),
     onSuccess: () => { setMatterFileDraft({ case_id: '', storage_location_id: '', storage_zone: 'Active Matters', cabinet: '', shelf_or_drawer: '', location_detail: '', notes: '' }); refresh(); },
@@ -141,6 +145,9 @@ export default function SecretaryDocuments({ caseId = '', compact = false }) {
     const [, label, document_type, category] = TYPES.find(([value]) => value === subtype);
     setForm((v) => ({ ...v, subtype, document_type, category, title: subtype === 'OTHER' ? '' : label }));
   };
+
+  // Inside a client's file the register shows only to whoever keeps it: records staff, or an advocate practising without them.
+  if (fileClientId && isError) return null;
 
   return <div className={compact ? 'space-y-4' : 'space-y-6 p-4 md:p-6'}>
     {!compact && <SectionHeading title='Physical client records' subtitle='Index exactly what is filed in each client’s physical KYC file.' />}

@@ -88,6 +88,18 @@ class EngagementWorkflowTests(TestCase):
         self.assertEqual(record.exception_approved_by, self.checker.user)
         self.assertTrue(record.history.filter(action="EXCEPTION_APPROVED").exists())
 
+    def test_advocate_practising_alone_approves_their_own_exception(self):
+        # Independence needs a second advocate; a sole practitioner has no one else to approve.
+        self.checker.is_active = False
+        self.checker.save(update_fields=["is_active"])
+        record = EngagementService.approve_exception(
+            user=self.owner, engagement_id=self.create_draft().id, proposed_matter_id=self.proposal.id,
+            status=EngagementRecord.Status.WAIVED, reason="Urgent protective filing.",
+            policy_basis="Firm urgent-instructions policy section 4.",
+        )
+
+        self.assertEqual(record.exception_approved_by, self.owner)
+
     def test_supersession_preserves_old_version_and_allows_new_version(self):
         first = self.create_draft()
         EngagementService.supersede(

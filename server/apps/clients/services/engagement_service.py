@@ -5,7 +5,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from apps.clients.models import ClientMatterConflictCheck, EngagementHistory, EngagementRecord
 from apps.audit_logs.services import AuditService
 from apps.common.choices import ConflictCheckStatus, UserRole
-from apps.staff.models import LawyerPermission
+from apps.staff.models import Lawyer, LawyerPermission
 
 
 class EngagementService:
@@ -29,6 +29,13 @@ class EngagementService:
             return True
         lawyer = getattr(user, "lawyer_profile", None)
         return bool(lawyer and lawyer.law_firm_id == firm.id and lawyer.is_active and lawyer.has_permission(code))
+
+    @staticmethod
+    def _practises_alone(firm, user):
+        # Independent approval needs a second advocate; one practising alone has no one to ask.
+        if firm.owner_id != user.id:
+            return False
+        return not Lawyer.objects.filter(law_firm=firm, is_active=True, user__is_active=True).exclude(user=user).exists()
 
     @staticmethod
     def _history(record, actor, action, previous, reason=""):
@@ -115,7 +122,8 @@ class EngagementService:
             not settings or settings.require_signed_engagement_for_matter_opening
         ):
             raise ValidationError({"status": "Firm policy requires a signed engagement; NOT_REQUIRED is unavailable."})
-        if settings and settings.require_independent_engagement_waiver_approval and record.created_by_id == user.id:
+        if (settings and settings.require_independent_engagement_waiver_approval and record.created_by_id == user.id
+                and not cls._practises_alone(record.firm, user)):
             raise PermissionDenied("The engagement maker cannot approve their own exception.")
         previous = {"status": record.status}
         record.status = status
