@@ -150,7 +150,6 @@ export default function ClientArrivalsPage() {
       </div>
       {isError && <p role='alert' className='form-alert'>Queue updates are unavailable. Refresh before calling or receiving another client.</p>}
       {error && <p role='alert' className='form-alert'>{error}</p>}
-      <ClientQueueBoard data={data} pending={pending} onAction={act} />
       {data.can_receive && <Card className='overflow-hidden'>
         <div className='flex items-start gap-3 border-b border-[color:var(--border)] p-5 md:p-6'>
           <span className='rounded-xl bg-[color:var(--form-primary-soft)] p-3 text-[color:var(--form-primary)]'><UserPlus size={22} aria-hidden='true' /></span>
@@ -192,6 +191,7 @@ export default function ClientArrivalsPage() {
           {!data.advocates.length && <p className='form-hint'>Add an active advocate account before recording arrivals.</p>}
         </form>
       </Card>}
+      <ClientQueueBoard data={data} pending={pending} onAction={act} />
       {stages.map(([title, hint, statuses]) => { const rows = data.visits.filter((visit) => statuses.includes(visit.status));
         return <section key={title} className='space-y-3'><div><h2 className='text-lg font-semibold'>{title} ({rows.length})</h2><p className='form-hint text-sm'>{hint}</p></div>
           {rows.length ? rows.map(visitCard) : <p className='text-sm'>None.</p>}
