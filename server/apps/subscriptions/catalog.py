@@ -27,7 +27,7 @@ class Feature:
     LABELS = {
         CLIENT_PORTAL: "Client portal (matter tracking, document requests, virtual court join)",
         PUBLIC_AI_ASSISTANT: "Website legal information assistant",
-        AI_CASE_ANALYSIS: "AI case analysis and court preparation",
+        AI_CASE_ANALYSIS: "AI case analysis, court preparation and dashboard assistants",
         COURTROOM_ADVANCED: "Courtroom recordings, attendance analytics and cause-list sync",
     }
 

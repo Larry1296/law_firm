@@ -230,6 +230,23 @@ class DashboardAssistantTests(TestCase):
         self.api.force_authenticate(self.advocate_user)
         self.assertFalse(self.api.get("/api/assistant/firm/").data["available"])
 
+    def test_firm_advocate_and_client_assistants_need_ai_case_analysis_in_the_plan(self):
+        from apps.subscriptions.models import Plan
+        subscription = self.firm.subscription
+        subscription.plan = Plan.objects.get(code="SOLO")
+        subscription.save()
+        for user, kind in ((self.owner, "firm"), (self.advocate_user, "advocate"), (self.client_user, "client")):
+            with self.subTest(kind=kind):
+                self.api.force_authenticate(user)
+                described = self.api.get(f"/api/assistant/{kind}/").data
+                self.assertFalse(described["available"])
+                self.assertEqual(described["reason"], "The assistant is not included in your firm's plan.")
+                self.assertEqual(self.api.post(f"/api/assistant/{kind}/", {"question": "hi"}, format="json").status_code, 403)
+        subscription.plan = Plan.objects.get(code="PRO")
+        subscription.save()
+        self.api.force_authenticate(self.owner)
+        self.assertTrue(self.api.get("/api/assistant/firm/").data["available"])
+
     # ------------------------------------------------------------------ platform
     def test_platform_assistant_sees_firm_accounts_but_never_their_staff_clients_or_matters(self):
         response, prompt = self.ask(self.platform_user, "platform", "How is Assist Firm Advocates doing?")

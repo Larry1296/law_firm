@@ -31,6 +31,7 @@ class ClientAssistant(DashboardAssistant):
     """
 
     audience = AssistantUsage.Audience.CLIENT
+    plan_feature = Feature.AI_CASE_ANALYSIS
     title = "Your matter assistant"
     subtitle = "Answers from your own matters with the firm"
     welcome = (

@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from apps.ai.models import AssistantUsage
 from apps.ai.services.llm_provider import AIProviderUnavailable, complete_json
+from apps.subscriptions.services import SubscriptionService
 
 SHARED_RULES = """
 Rules that always apply:
@@ -56,6 +57,8 @@ class DashboardAssistant:
     app_guide = {}
     # Generous: an answer cut off mid-way is unreadable JSON and falls back to the records summary.
     max_tokens = 2000
+    # The plan feature the user's firm needs for this assistant; None when it is not sold by plan.
+    plan_feature = None
 
     # ------------------------------------------------------------ per audience
     def check_access(self, user):
@@ -85,9 +88,14 @@ class DashboardAssistant:
         return len(records.get("matters", []))
 
     # ------------------------------------------------------------ shared flow
+    def check_plan_and_access(self, user):
+        self.check_access(user)
+        if self.plan_feature and not SubscriptionService.has_feature(self.firm_for(user), self.plan_feature):
+            raise Unavailable("The assistant is not included in your firm's plan.")
+
     def describe(self, user):
         try:
-            self.check_access(user)
+            self.check_plan_and_access(user)
         except Unavailable as exc:
             return {"available": False, "reason": str(exc)}
         return {
@@ -114,7 +122,7 @@ class DashboardAssistant:
         )
 
     def answer(self, user, question, history):
-        self.check_access(user)
+        self.check_plan_and_access(user)
         records = self.records(user)
         sources = self.sources(user, question)
         outcome, provider, model = AssistantUsage.Outcome.ANSWERED, "", ""

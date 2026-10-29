@@ -186,6 +186,7 @@ class AdvocateAssistant(DashboardAssistant):
     """
 
     audience = AssistantUsage.Audience.ADVOCATE
+    plan_feature = Feature.AI_CASE_ANALYSIS
     title = "Advocate assistant"
     subtitle = "Your assigned matters, sittings and deadlines"
     welcome = (
@@ -271,6 +272,7 @@ class FirmOwnerAssistant(DashboardAssistant):
     """The firm owner's oversight assistant across every matter in their firm."""
 
     audience = AssistantUsage.Audience.FIRM
+    plan_feature = Feature.AI_CASE_ANALYSIS
     title = "Firm assistant"
     subtitle = "Oversight across your firm's matters"
     welcome = (
