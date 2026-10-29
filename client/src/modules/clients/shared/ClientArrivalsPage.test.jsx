@@ -39,6 +39,18 @@ describe('client arrival staffing flows', () => {
     await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ icon: 'success', title: 'Added to queue' })));
     expect(screen.getByLabelText(/Visitor name/).value).toBe('');
   });
+  it('lets a solo advocate record a walk-in and start the consultation, with no queue to call from', async () => {
+    axios.post.mockResolvedValue({ data: { status: 'IN_CONSULTATION' } });
+    show({ ...base, role: 'ADMIN', self_reception: true, queues: [{ advocate: 'a1', advocate_name: 'Advocate One' }] });
+    expect(await screen.findByRole('heading', { name: 'Walk-in consultations' })).toBeTruthy();
+    expect(screen.queryByLabelText(/^Advocate/)).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Visitor name/), { target: { value: 'Peter Kioko' } });
+    fireEvent.change(screen.getByLabelText(/Phone number/), { target: { value: '0722456789' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Start consultation' }));
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/', expect.objectContaining({ visitor_name: 'Peter Kioko', advocate: 'a1' })));
+    await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ title: 'Consultation started' })));
+    expect(screen.queryByText(/Call this client|Client ushered in/)).toBeNull();
+  });
   it('offers a returning visitor from the register and fills the arrival', async () => {
     axios.get.mockImplementation(async (url) => ({ data: url === '/arrivals/visitors/'
       ? [{ visitor_name: 'John Mutua Ndeti', visitor_phone: '0722000111', visit_count: 2, last_arrival_at: '2026-10-28T08:00:00Z', last_advocate_name: 'Grace Wanjiku', client: 'c1', client_name: 'John Mutua Ndeti' }]

@@ -47,7 +47,7 @@ export default function AdminSidebar({ onClose }) {
     queryFn: async () => (await axios.get('/arrivals/')).data,
     enabled: isFirmOwner, staleTime: 60000, retry: false,
   });
-  const sidebarGroups = groupLinks(visibleLinks.map((link) => (link.path === '/admin/arrivals' && queue && !queue.can_receive ? { ...link, name: 'My consultations' } : link)));
+  const sidebarGroups = groupLinks(visibleLinks.map((link) => (link.path === '/admin/arrivals' && queue && (queue.self_reception || !queue.can_receive) ? { ...link, name: queue.self_reception ? 'Walk-in consultations' : 'My consultations' } : link)));
 
   return (
     <aside className={`w-64 h-full ${bgSidebar} flex flex-col`}>

@@ -203,11 +203,21 @@ class ClientVisitTests(TestCase):
         self.assertTrue(data['can_receive'])
         self.assertTrue(data['self_reception'])
         self.assertEqual([q['advocate'] for q in data['queues']], [str(self.lawyer.pk)])
+        # The visitor is in front of the advocate: the consultation starts at once, with no alert to themself.
         pk = self.arrive()
-        self.assertEqual(ClientVisit.objects.get(pk=pk).received_by, self.lawyer.user)
+        visit = ClientVisit.objects.get(pk=pk)
+        self.assertEqual(visit.received_by, self.lawyer.user)
+        self.assertEqual(visit.status, 'IN_CONSULTATION')
+        self.assertIsNotNone(visit.consultation_started_at)
+        self.assertFalse(Notification.objects.filter(event_key=f'visit-arrived:{pk}').exists())
         refused = self.api.post(self.url, {'visitor_phone': '0712345678', 'visitor_name': 'Visitor', 'advocate': str(other.pk)}, format='json')
         self.assertEqual(refused.status_code, 403)
-        self.assertEqual(self.action(pk, 'START').status_code, 200)
+        # Someone arriving mid-consultation waits, then goes straight in without being called.
+        second = self.arrive()
+        self.assertEqual(ClientVisit.objects.get(pk=second).status, 'WAITING')
+        self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Land sale').status_code, 200)
+        self.assertEqual(self.action(pk, 'COMPLETE', outcome='INSTRUCTING').status_code, 200)
+        self.assertEqual(self.action(second, 'START').status_code, 200)
         # Once a secretary covers reception again, it passes back to them.
         self.secretary.is_active = True
         self.secretary.save(update_fields=['is_active'])

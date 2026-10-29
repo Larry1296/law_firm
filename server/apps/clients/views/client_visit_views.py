@@ -86,6 +86,12 @@ def receives_visitors(firm, role, profile):
     return role == 'ADVOCATE' and profile is not None and not reception_covers(firm, profile)
 
 
+def is_own_reception(role, profile, receives, lawyers):
+    """An advocate who receives only their own clients: no calling or ushering, the visitor is in front of them."""
+    return bool(receives and role in ['ADVOCATE', 'ADMIN'] and profile is not None
+        and [lawyer.pk for lawyer in lawyers] == [profile.pk])
+
+
 def office_label(lawyer):
     room = (lawyer.office_location or '').strip()
     if room and lawyer.branch_id:
@@ -203,8 +209,8 @@ class ClientVisitListView(APIView):
         return Response({
             'has_receptionist': receptionist, 'role': role, 'reception_mode': reception_mode(firm),
             'can_receive': receives,
-            # A practising advocate with no secretary covering them receives their own walk-ins.
-            'self_reception': receives and role in ['ADVOCATE', 'ADMIN'] and profile is not None,
+            # A practising advocate with no secretary covering them is their own reception.
+            'self_reception': is_own_reception(role, profile, receives, lawyers),
             'advocates': [{'value': str(x.pk), 'label': f'{x.user.full_name} — {office_label(x) or "Office not assigned"}'} for x in lawyers],
             'clients': [{'value': str(x.pk), 'label': x.full_name} for x in clients.order_by('full_name')],
             'visits': rows, 'queues': queues, 'waiting_count': sum(q['waiting_count'] for q in queues),
@@ -228,6 +234,16 @@ class ClientVisitListView(APIView):
                 else 'This advocate is not assigned to you. Ask the admin to update secretary coverage.')
         visit = serializer.save(firm=firm, received_by=request.user, intake_handler='ADVOCATE')
         record(visit, request.user, 'CLIENT_VISIT_ARRIVED')
+        if advocate.user_id == request.user.id:
+            # The advocate received the visitor personally: the consultation starts now unless
+            # they are with another client, in which case the visitor waits for them.
+            busy = ClientVisit.objects.filter(advocate=advocate, status__in=['CALLED', 'IN_CONSULTATION']).exclude(pk=visit.pk).exists()
+            if not busy:
+                visit.status = 'IN_CONSULTATION'
+                visit.consultation_started_at = timezone.now()
+                visit.save(update_fields=['status', 'consultation_started_at', 'updated_at'])
+                record(visit, request.user, 'CLIENT_VISIT_START')
+            return Response(serialize_visit(visit, role, profile), status=201)
         Notification.objects.create(firm=firm, recipient=visit.advocate.user, actor=request.user,
             title='Urgent client arrival' if visit.urgency_flag else 'Client waiting for consultation', message='A visitor has joined your waiting queue.',
             action_url='/admin/arrivals' if visit.advocate.user.role == UserRole.ADMIN else '/lawyer/arrivals', event_key=f'visit-arrived:{visit.pk}')

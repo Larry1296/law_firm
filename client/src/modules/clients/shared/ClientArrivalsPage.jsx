@@ -54,7 +54,7 @@ export default function ClientArrivalsPage() {
   const queueAction = useQueueAction();
   const mutation = useMutation({
     mutationFn: async ({ id, payload }) => (await axios.post(id ? `/arrivals/${id}/` : '/arrivals/', payload)).data,
-    onSuccess: (_result, variables) => {
+    onSuccess: (result, variables) => {
       setError('');
       if (!variables.id) { setArrival(emptyArrival); setChosenVisitor(''); }
       const messages = {
@@ -66,6 +66,8 @@ export default function ClientArrivalsPage() {
       };
       const [title, text] = variables.id
         ? (messages[variables.payload.action] || ['Visit updated', 'Your changes have been saved.'])
+        : result?.status === 'IN_CONSULTATION' ? ['Consultation started', `${variables.payload.visitor_name} is with you. Record the consultation intake as you go.`]
+        : data?.self_reception ? ['Waiting for you', `${variables.payload.visitor_name} will wait until you finish with your current client.`]
         : ['Added to queue', `${variables.payload.visitor_name} is in the waiting queue. The advocate has been alerted.`];
       Swal.fire({ icon: 'success', title, text, confirmButtonText: 'Done' });
       if (variables.payload.action === 'INTAKE') setSelected(null);
@@ -88,7 +90,7 @@ export default function ClientArrivalsPage() {
   waiting.forEach((visit) => { counts[visit.advocate] = (counts[visit.advocate] || 0) + 1; positions.set(visit.id, counts[visit.advocate]); });
   const visitCard = (visit) => <Card key={visit.id} className='space-y-3 p-5'>
           <div className='flex flex-wrap items-center justify-between gap-2'><h3 className='font-semibold'>{visit.visitor_name}</h3><span>{visit.status === 'CALLED' ? 'Ready to usher in' : visit.status.replaceAll('_', ' ')}{positions.has(visit.id) ? ` · Queue position ${positions.get(visit.id)}` : ''}</span></div>
-          <p className='text-sm font-medium'>{visit.office_location || 'Office not assigned'}</p>
+          {!data.self_reception && <p className='text-sm font-medium'>{visit.office_location || 'Office not assigned'}</p>}
           {visit.visitor_phone && <p className='text-sm'>{visit.visitor_phone} · {visit.previous_visit_count ? `Returning visitor · ${visit.previous_visit_count} previous ${visit.previous_visit_count === 1 ? 'visit' : 'visits'}` : 'First visit'}</p>}
           <p className='text-sm'>{visit.advocate_name} · Arrived {new Date(visit.arrival_at).toLocaleString()} · Received by {visit.received_by_name}</p>
           {visit.urgency_flag && <p className='text-amber-700 dark:text-amber-300'>Urgent issue mentioned: {visit.urgency_note || 'Advocate to assess'}</p>}
@@ -102,7 +104,8 @@ export default function ClientArrivalsPage() {
           </dl>}
           <div className='flex flex-wrap gap-3'>
             {canConductConsultation && visit.can_record_intake && <Button3D variant='outlineLight' disabled={pending} onClick={() => { setSelected(visit.id); setIntake({ ...Object.fromEntries(Object.keys(emptyIntake).map((key) => [key, visit[key] || ''])), ...splitActing(visit.acting_capacity) }); }}>Record consultation intake</Button3D>}
-            {data.role === 'ADMIN' && visit.status === 'WAITING' && <Button3D variant='outlineLight' disabled={pending || data.queues?.some((q) => q.advocate === visit.advocate && (q.current || q.called))} onClick={async () => {
+            {data.self_reception && visit.can_consult && visit.status === 'WAITING' && <Button3D disabled={pending || data.visits.some((v) => ['CALLED', 'IN_CONSULTATION'].includes(v.status))} onClick={() => act(visit.id, 'START')}>Start consultation</Button3D>}
+            {!data.self_reception && data.role === 'ADMIN' && visit.status === 'WAITING' && <Button3D variant='outlineLight' disabled={pending || data.queues?.some((q) => q.advocate === visit.advocate && (q.current || q.called))} onClick={async () => {
 
               act(visit.id, 'CALL');
             }}>Call this client</Button3D>}
@@ -133,7 +136,12 @@ export default function ClientArrivalsPage() {
   </Card>;
   // Reception follows each visitor from arrival, through the advocate's office, to the end of the day.
   // Reception keeps the arrivals register; an advocate sees only their own consultations.
-  const stages = data.can_receive ? [
+  // An advocate who is their own reception has no calling or ushering: the visitor is in front of them.
+  const stages = data.self_reception ? [
+    ['With you', 'Record the consultation intake, then complete the consultation.', ['IN_CONSULTATION', 'CALLED']],
+    ['Waiting for you', 'Arrived while you were with another client.', ['WAITING']],
+    ['Seen today and follow-ups', 'Completed consultations, and any client record still to be created.', ['COMPLETED', 'LEFT']],
+  ] : data.can_receive ? [
     ['Waiting', 'In arrival order for each advocate.', ['WAITING']],
     ['With advocate', 'Called or ushered in. Details stay here until the advocate completes the consultation.', ['CALLED', 'IN_CONSULTATION']],
     ['Seen today', 'Completed consultations and visitors who left, with the advocate’s outcome.', ['COMPLETED', 'LEFT']],
@@ -144,8 +152,8 @@ export default function ClientArrivalsPage() {
   ];
   return (
     <div className='space-y-6 p-4 text-[color:var(--text-primary)] md:p-6'>
-      <div><h1 className='text-2xl font-semibold'>{data.can_receive ? 'Client arrivals & waiting queue' : 'My consultations'}</h1>
-        <p className='mt-2 text-[color:var(--text-muted)]'>{data.self_reception ? 'No secretary covers reception for you, so record each walk-in here yourself, then call them in when you are ready. When the firm adds a secretary, reception passes to them.' : data.can_receive ? 'The secretary or receptionist records arrival, alerts the advocate and ushers the visitor in when called. Only the assigned advocate records legal intake and conducts and completes the consultation.' : 'Clients waiting for you, the client in your office and your follow-ups. Reception records arrivals and ushers clients in.'}</p>
+      <div><h1 className='text-2xl font-semibold'>{data.self_reception ? 'Walk-in consultations' : data.can_receive ? 'Client arrivals & waiting queue' : 'My consultations'}</h1>
+        <p className='mt-2 text-[color:var(--text-muted)]'>{data.self_reception ? 'You receive your own clients. Record who has come in and the consultation starts straight away; anyone who arrives while you are with a client waits for you. If the firm adds a secretary, reception passes to them.' : data.can_receive ? 'The secretary or receptionist records arrival, alerts the advocate and ushers the visitor in when called. Only the assigned advocate records legal intake and conducts and completes the consultation.' : 'Clients waiting for you, the client in your office and your follow-ups. Reception records arrivals and ushers clients in.'}</p>
         {data.role === 'RECEPTIONIST' && <p className='mt-1 text-sm'>You are signed in as a designated receptionist.</p>}
       </div>
       {isError && <p role='alert' className='form-alert'>Queue updates are unavailable. Refresh before calling or receiving another client.</p>}
@@ -153,16 +161,16 @@ export default function ClientArrivalsPage() {
       {data.can_receive && <Card className='overflow-hidden'>
         <div className='flex items-start gap-3 border-b border-[color:var(--border)] p-5 md:p-6'>
           <span className='rounded-xl bg-[color:var(--form-primary-soft)] p-3 text-[color:var(--form-primary)]'><UserPlus size={22} aria-hidden='true' /></span>
-          <div><h2 className='text-lg font-semibold'>Record arrival</h2>
-            <p className='form-hint mt-1'>Record basic arrival details here. Arrival does not accept instructions or open a case.</p>
+          <div><h2 className='text-lg font-semibold'>{data.self_reception ? 'Record walk-in' : 'Record arrival'}</h2>
+            <p className='form-hint mt-1'>{data.self_reception ? 'Kept in the visitor register as the attendance record. It does not accept instructions or open a file.' : 'Record basic arrival details here. Arrival does not accept instructions or open a case.'}</p>
           </div>
         </div>
-        <form className='space-y-5 p-5 md:p-6' onSubmit={(event) => { event.preventDefault(); mutation.mutate({ payload: { ...arrival, client: arrival.client || null } }); }}>
+        <form className='space-y-5 p-5 md:p-6' onSubmit={(event) => { event.preventDefault(); mutation.mutate({ payload: { ...arrival, client: arrival.client || null, advocate: data.self_reception ? data.advocates[0].value : arrival.advocate } }); }}>
           <fieldset disabled={pending} className='grid gap-5 md:grid-cols-2'>
             <TextInput name='visitor_name' label='Visitor name' required maxLength={255} placeholder='Enter the visitor’s full name' value={arrival.visitor_name} onChange={(event) => setArrival({ ...arrival, visitor_name: event.target.value })} />
             <TextInput name='visitor_phone' label='Phone number' type='tel' required maxLength={20} placeholder='07XX XXX XXX' help='Recognises the visitor when they come back.' value={arrival.visitor_phone} onChange={(event) => setArrival({ ...arrival, visitor_phone: event.target.value })} />
             <SelectInput name='client' label='Client record' placeholder='New enquiry / no client record' options={data.clients} value={arrival.client} onChange={(event) => setArrival({ ...arrival, client: event.target.value })} />
-            <SelectInput name='advocate' label='Advocate' required placeholder='Select advocate' options={data.advocates} value={arrival.advocate} onChange={(event) => setArrival({ ...arrival, advocate: event.target.value })} />
+            {!data.self_reception && <SelectInput name='advocate' label='Advocate' required placeholder='Select advocate' options={data.advocates} value={arrival.advocate} onChange={(event) => setArrival({ ...arrival, advocate: event.target.value })} />}
           </fieldset>
           {returning.length > 0 && <div role='status' className='space-y-3 rounded-xl border border-[color:var(--border)] p-4'>
             <p className='flex items-center gap-2 font-semibold'><History size={17} aria-hidden='true' />Returning visitor?</p>
@@ -182,16 +190,16 @@ export default function ClientArrivalsPage() {
             {arrival.urgency_flag && <TextInput name='urgency_note' label='Urgency mentioned' maxLength={500} disabled={pending} value={arrival.urgency_note} onChange={(event) => setArrival({ ...arrival, urgency_note: event.target.value })} />}
           </div>
           <div className='flex flex-col gap-3 border-t border-[color:var(--border)] pt-5 sm:flex-row sm:items-center sm:justify-between'>
-            <p className='form-hint text-sm'>The selected advocate will be notified of this arrival.</p>
+            <p className='form-hint text-sm'>{data.self_reception ? 'If you are with another client, the visitor waits for you instead.' : 'The selected advocate will be notified of this arrival.'}</p>
             <Button3D type='submit' size='lg' className='w-full gap-2 shadow-[var(--form-shadow)] sm:w-auto' disabled={pending || !data.advocates.length}>
               {mutation.isPending ? <Loader2 size={18} className='animate-spin' aria-hidden='true' /> : <BellRing size={18} aria-hidden='true' />}
-              {mutation.isPending ? 'Adding to queue…' : 'Add to queue & alert advocate'}
+              {mutation.isPending ? 'Saving…' : data.self_reception ? 'Start consultation' : 'Add to queue & alert advocate'}
             </Button3D>
           </div>
           {!data.advocates.length && <p className='form-hint'>Add an active advocate account before recording arrivals.</p>}
         </form>
       </Card>}
-      <ClientQueueBoard data={data} pending={pending} onAction={act} />
+      {!data.self_reception && <ClientQueueBoard data={data} pending={pending} onAction={act} />}
       {stages.map(([title, hint, statuses]) => { const rows = data.visits.filter((visit) => statuses.includes(visit.status));
         return <section key={title} className='space-y-3'><div><h2 className='text-lg font-semibold'>{title} ({rows.length})</h2><p className='form-hint text-sm'>{hint}</p></div>
           {rows.length ? rows.map(visitCard) : <p className='text-sm'>None.</p>}
