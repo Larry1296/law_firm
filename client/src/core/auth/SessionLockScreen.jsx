@@ -1,4 +1,4 @@
-import { useContext, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LockKeyhole } from 'lucide-react';
 import { QueryClientContext } from '@tanstack/react-query';
@@ -13,16 +13,30 @@ export const UNLOCK_PIN_LENGTH = 6;
  * Covers every signed-in page when its session token expires or the user locks
  * the workspace. The page underneath keeps its state but is fully hidden, so
  * client and case details cannot be read off the screen until the user unlocks.
- * Users with an unlock PIN unlock the moment the last digit is typed.
+ * Users with an unlock PIN unlock the moment the last digit is typed, but only
+ * while the session is still live: once it has expired, the password is asked for.
  */
-export default function SessionLockScreen({ user, onUnlock, onSignOut }) {
+export default function SessionLockScreen({ user, canUsePin = () => true, onUnlock, onSignOut }) {
   const queryClient = useContext(QueryClientContext);
-  const [usePin, setUsePin] = useState(!!user.has_unlock_pin);
+  const [pinAllowed, setPinAllowed] = useState(() => !!user.has_unlock_pin && canUsePin());
+  const [usePin, setUsePin] = useState(pinAllowed);
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState(null);
   const [unlocking, setUnlocking] = useState(false);
   const pinInput = useRef(null);
+
+  // The session can expire while the lock screen is up; the PIN goes with it.
+  useEffect(() => {
+    if (!pinAllowed) return undefined;
+    const intervalId = window.setInterval(() => {
+      if (canUsePin()) return;
+      setPinAllowed(false);
+      setUsePin(false);
+      setPin('');
+    }, 5 * 1000);
+    return () => window.clearInterval(intervalId);
+  }, [pinAllowed, canUsePin]);
 
   const attemptUnlock = async (credentials) => {
     setUnlocking(true);
@@ -74,7 +88,9 @@ export default function SessionLockScreen({ user, onUnlock, onSignOut }) {
         <p className='form-lead'>
           {usePin
             ? 'Enter your 6-digit PIN to carry on where you left off; nothing on this page is lost.'
-            : 'Enter your password to carry on where you left off; nothing on this page is lost.'}
+            : user.has_unlock_pin && !pinAllowed
+              ? 'Your session has expired, so enter your password rather than your PIN. Nothing on this page is lost.'
+              : 'Enter your password to carry on where you left off; nothing on this page is lost.'}
         </p>
         {error && <p role='alert' className='form-alert'>{error}</p>}
 
@@ -133,7 +149,7 @@ export default function SessionLockScreen({ user, onUnlock, onSignOut }) {
           </>
         )}
 
-        {user.has_unlock_pin && (
+        {pinAllowed && (
           <button
             type='button'
             className='text-sm font-medium text-[color:var(--brand-primary)] hover:underline'

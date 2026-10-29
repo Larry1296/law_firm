@@ -11,7 +11,7 @@ from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from apps.clients.models import Client
 from apps.common.choices import UserRole
@@ -276,11 +276,13 @@ class AuthService:
         user.save(update_fields=["unlock_pin", "unlock_pin_failed_attempts"])
 
     @staticmethod
-    def unlock_with_pin(*, refresh_token, pin):
+    def unlock_with_pin(*, refresh_token, access_token, pin):
         """
         Unlock a locked workspace with the PIN. The PIN only works alongside the
         device's own sign-in (its refresh token), so it cannot sign anyone in
-        from elsewhere. Too many wrong PINs remove the PIN and end that sign-in.
+        from elsewhere, and only while that session has not expired: an expired
+        session takes the password. Too many wrong PINs remove the PIN and end
+        that sign-in.
 
         Returns (session, error, signed_out).
         """
@@ -288,6 +290,12 @@ class AuthService:
             token = RefreshToken(refresh_token)
         except Exception:
             return None, "Your sign-in has ended. Sign in again with your password.", True
+        try:
+            session = AccessToken(access_token)
+        except Exception:
+            session = None
+        if session is None or str(session.get("user_id")) != str(token.get("user_id")):
+            return None, "Your session has expired. Unlock with your password.", False
 
         user = User.objects.filter(id=token.get("user_id"), is_active=True).first()
         if user is None:

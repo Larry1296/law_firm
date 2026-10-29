@@ -223,12 +223,15 @@ const AuthProvider = ({ children }) => {
     lockSession();
   };
 
+  /** The PIN unlocks a workspace locked by hand; once the session has expired only the password will do. */
+  const canUsePin = useCallback(() => !isExpired(getStoredAuth().accessToken), []);
+
   /** Unlock with the signed-in user's password or PIN; a different account cannot take over the screen. */
   const unlock = async ({ password, pin }) => {
     let data;
     if (pin) {
       try {
-        data = await authService.unlockWithPin({ refresh: getStoredAuth().refreshToken, pin });
+        data = await authService.unlockWithPin({ refresh: getStoredAuth().refreshToken, access: getStoredAuth().accessToken, pin });
       } catch (error) {
         // Too many wrong PINs, or the sign-in has ended: only a full sign-in will do.
         if (error.response?.data?.signed_out) clearSessionAndRedirect();
@@ -326,7 +329,7 @@ const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      {showLock && <SessionLockScreen user={user} onUnlock={unlock} onSignOut={() => logout()} />}
+      {showLock && <SessionLockScreen user={user} canUsePin={canUsePin} onUnlock={unlock} onSignOut={() => logout()} />}
     </AuthContext.Provider>
   );
 };

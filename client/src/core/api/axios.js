@@ -43,9 +43,9 @@ const axiosInstance = axios.create({
 });
 captureConfirmationOptions(axiosInstance);
 
-// A locked screen sends nothing until the user unlocks it with their password.
+// A locked screen sends nothing until the user unlocks it.
 const sessionLockedError = () => {
-  const error = new Error('Your session is locked. Enter your password to continue.');
+  const error = new Error('Your session is locked. Unlock it to continue.');
   error.isSessionLocked = true;
   error.userMessage = error.message;
   return error;

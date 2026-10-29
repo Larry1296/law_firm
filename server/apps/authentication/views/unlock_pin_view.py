@@ -35,6 +35,7 @@ class UnlockWithPinView(APIView):
     def post(self, request):
         result, error, signed_out = AuthService.unlock_with_pin(
             refresh_token=request.data.get("refresh", ""),
+            access_token=request.data.get("access", ""),
             pin=str(request.data.get("pin", "")),
         )
         if error:

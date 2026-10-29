@@ -215,14 +215,41 @@ describe('session lock', () => {
     renderApp();
     act(() => { fireEvent.click(screen.getByRole('button', { name: 'Lock now' })); });
     const storedRefresh = localStorage.getItem('refreshToken');
+    const storedAccess = localStorage.getItem('accessToken');
 
     fireEvent.change(screen.getByLabelText('Unlock PIN'), { target: { value: '48291' } });
     expect(authService.unlockWithPin).not.toHaveBeenCalled();
     await act(async () => { fireEvent.change(screen.getByLabelText('Unlock PIN'), { target: { value: '482915' } }); });
 
-    expect(authService.unlockWithPin).toHaveBeenCalledWith({ refresh: storedRefresh, pin: '482915' });
+    expect(authService.unlockWithPin).toHaveBeenCalledWith({ refresh: storedRefresh, access: storedAccess, pin: '482915' });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(localStorage.getItem('workspaceLocked')).toBeNull();
+  });
+
+  it('asks for the password, not the PIN, once the session has expired', () => {
+    const pinUser = { ...user, has_unlock_pin: true };
+    signIn({ accessExpiresAt: START + 90 * 1000, account: pinUser });
+    renderApp();
+
+    advance(95 * 1000);
+
+    expect(screen.getByRole('dialog', { name: 'Welcome back' })).toHaveTextContent('Your session has expired, so enter your password');
+    expect(screen.queryByLabelText('Unlock PIN')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Use my PIN instead' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password/)).toBeInTheDocument();
+  });
+
+  it('drops the PIN if the session expires while locked by hand', () => {
+    const pinUser = { ...user, has_unlock_pin: true };
+    signIn({ accessExpiresAt: START + 60 * 1000, account: pinUser });
+    renderApp();
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Lock now' })); });
+    expect(screen.getByLabelText('Unlock PIN')).toBeInTheDocument();
+
+    advance(65 * 1000);
+
+    expect(screen.queryByLabelText('Unlock PIN')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password/)).toBeInTheDocument();
   });
 
   it('clears a wrong PIN and says how many tries are left', async () => {

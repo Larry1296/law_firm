@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.clients.models import Client
 from apps.common.choices import UserRole
@@ -283,14 +286,17 @@ class UnlockPinTests(TestCase):
         LawFirm.objects.create(name="Pin Firm", registration_number="PIN-001", owner=self.user, is_active=True)
         signed_in = self.api.post("/api/auth/login/", {"email": self.user.email, "password": "strong-pass123"}, format="json")
         self.refresh = signed_in.data["refresh"]
+        self.access = signed_in.data["access"]
         self.assertFalse(signed_in.data["user"]["has_unlock_pin"])
         self.api.credentials(HTTP_AUTHORIZATION=f"Bearer {signed_in.data['access']}")
 
     def set_pin(self, pin, password="strong-pass123"):
         return self.api.post("/api/auth/unlock-pin/", {"current_password": password, "pin": pin}, format="json")
 
-    def unlock(self, pin, refresh=None):
-        return APIClient().post("/api/auth/unlock/", {"refresh": refresh or self.refresh, "pin": pin}, format="json")
+    def unlock(self, pin, refresh=None, access=None):
+        return APIClient().post(
+            "/api/auth/unlock/", {"refresh": refresh or self.refresh, "access": access or self.access, "pin": pin}, format="json",
+        )
 
     def test_pin_needs_the_password_and_six_hard_to_guess_digits(self):
         self.assertEqual(self.set_pin("482915", password="wrong-pass").status_code, 400)
@@ -311,11 +317,27 @@ class UnlockPinTests(TestCase):
         self.assertEqual(unlocked.data["user"]["email"], self.user.email)
         self.assertNotEqual(unlocked.data["refresh"], self.refresh)
         self.assertEqual(self.unlock("482915").status_code, 401)
-        self.assertEqual(self.unlock("482915", refresh=unlocked.data["refresh"]).status_code, 200)
+        self.assertEqual(
+            self.unlock("482915", refresh=unlocked.data["refresh"], access=unlocked.data["access"]).status_code, 200,
+        )
 
     def test_pin_does_not_work_without_this_devices_sign_in(self):
         self.set_pin("482915")
         self.assertEqual(self.unlock("482915", refresh="not-a-token").status_code, 401)
+
+    def test_an_expired_session_takes_the_password_not_the_pin(self):
+        self.set_pin("482915")
+        expired = AccessToken.for_user(self.user)
+        expired.set_exp(lifetime=-timedelta(seconds=1))
+
+        refused = self.unlock("482915", access=str(expired))
+
+        self.assertEqual(refused.status_code, 400)
+        self.assertFalse(refused.data["signed_out"])
+        self.assertIn("Unlock with your password", refused.data["detail"])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.unlock_pin_failed_attempts, 0)
+        self.assertEqual(self.unlock("482915").status_code, 200)
 
     def test_three_wrong_pins_remove_the_pin_and_end_the_sign_in(self):
         self.set_pin("482915")
