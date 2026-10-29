@@ -90,6 +90,18 @@ describe('client arrival staffing flows', () => {
     expect(screen.getByText('Existing client, no appointment today')).toBeTruthy();
     expect(screen.getByLabelText(/Phone number/).value).toBe('0733000444');
   });
+  it('stops an existing client being recorded as a stranger when their name is typed', async () => {
+    axios.get.mockImplementation(async (url) => ({ data: url === '/arrivals/visitors/'
+      ? [{ visitor_name: 'Mary Njeri', visitor_phone: '+254733000444', visit_count: 0, last_arrival_at: null, last_advocate_name: '', client: 'c3', client_name: 'Mary Njeri' }]
+      : base }));
+    render(<MemoryRouter><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ClientArrivalsPage /></QueryClientProvider></MemoryRouter>);
+    fireEvent.change(await screen.findByLabelText(/Visitor name/), { target: { value: 'Mary' } });
+    expect(await screen.findByText('Returning visitor or existing client?')).toBeTruthy();
+    expect(screen.getByText('Client record · no walk-in visit recorded yet')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'This is the client' }));
+    expect(screen.getByText('Client record: Mary Njeri')).toBeTruthy();
+    expect(screen.getByLabelText(/Phone number/).value).toBe('+254733000444');
+  });
   it('shows a save error without clearing the arrival details', async () => {
     axios.post.mockRejectedValue({ response: { data: { detail: 'Advocate is unavailable.' } } });
     show(base);

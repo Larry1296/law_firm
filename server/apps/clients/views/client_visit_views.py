@@ -283,6 +283,18 @@ class ClientVisitListView(APIView):
         return Response(serialize_visit(visit, role, profile), status=201)
 
 
+def phone_fragment(query):
+    """The digits to look for in a stored number, whether it was saved as 07…, 2547… or +2547…."""
+    digits = ''.join(ch for ch in query if ch.isdigit())
+    if digits.startswith('254'):
+        digits = digits[3:]
+    return digits[1:] if digits.startswith('0') else digits
+
+
+def receivable_clients(firm):
+    return Client.objects.filter(firm=firm, is_active=True).exclude(lifecycle_status='ARCHIVED')
+
+
 def mask(value):
     value = (value or '').strip()
     return f'••••{value[-4:]}' if len(value) > 4 else value
@@ -303,13 +315,10 @@ class ArrivalClientSearchView(APIView):
         match = (Q(full_name__icontains=query) | Q(alternative_names__icontains=query) | Q(email__iexact=query)
             | Q(national_id__iexact=query) | Q(passport_number__iexact=query) | Q(kra_pin__iexact=query)
             | Q(kyc_drawer_reference__iexact=query))
-        digits = ''.join(ch for ch in query if ch.isdigit())
-        if digits.startswith('254'):
-            digits = '0' + digits[3:]
-        if len(digits) >= 4:
-            match |= Q(phone_number__contains=digits[-9:])
-        clients = (Client.objects.filter(firm=firm, is_active=True).exclude(lifecycle_status='ARCHIVED')
-            .filter(match).order_by('full_name')[:8])
+        fragment = phone_fragment(query)
+        if len(fragment) >= 3:
+            match |= Q(phone_number__contains=fragment)
+        clients = receivable_clients(firm).filter(match).order_by('full_name')[:8]
         # Reception confirms who is standing there; full identity numbers stay on the client file.
         return Response([{
             'value': str(client.pk), 'label': client.full_name, 'phone': client.phone_number,
@@ -331,8 +340,10 @@ class ReturningVisitorView(APIView):
             digits = '0' + digits[3:]
         if len(digits) >= 4:
             match = Q(visitor_phone__contains=digits)
+            client_match = Q(phone_number__contains=phone_fragment(query))
         elif len(query) >= 3:
             match = Q(visitor_name__icontains=query)
+            client_match = Q(full_name__icontains=query) | Q(alternative_names__icontains=query)
         else:
             return Response([])
         visits = (ClientVisit.objects.filter(firm=firm).exclude(visitor_phone='').filter(match)
@@ -351,6 +362,16 @@ class ReturningVisitorView(APIView):
             entry['visit_count'] += 1
             if visit.client_id and not entry['client'] and visit.client.is_active and visit.client.lifecycle_status != 'ARCHIVED':
                 entry['client'], entry['client_name'] = str(visit.client_id), visit.client.full_name
+        # A client whose file was opened without a walk-in is not in the register yet; offer the record
+        # too, so an existing client is never received as a stranger.
+        linked = {entry['client'] for entry in visitors.values() if entry['client']}
+        for client in receivable_clients(firm).filter(client_match).order_by('full_name')[:8]:
+            if str(client.pk) in linked or len(visitors) == 8:
+                continue
+            visitors[f'client:{client.pk}'] = {
+                'visitor_name': client.full_name, 'visitor_phone': client.phone_number, 'visit_count': 0,
+                'last_arrival_at': None, 'last_advocate_name': '', 'client': str(client.pk), 'client_name': client.full_name,
+            }
         return Response(list(visitors.values()))
 
 

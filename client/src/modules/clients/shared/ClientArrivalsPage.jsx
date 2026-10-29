@@ -184,15 +184,15 @@ export default function ClientArrivalsPage() {
             {!data.self_reception && <SelectInput name='advocate' label='Advocate' required placeholder='Select advocate' options={data.advocates} value={arrival.advocate} onChange={(event) => setArrival({ ...arrival, advocate: event.target.value })} />}
           </fieldset>
           {!arrival.client && returning.length > 0 && <div role='status' className='space-y-3 rounded-xl border border-[color:var(--border)] p-4'>
-            <p className='flex items-center gap-2 font-semibold'><History size={17} aria-hidden='true' />Returning visitor?</p>
+            <p className='flex items-center gap-2 font-semibold'><History size={17} aria-hidden='true' />Returning visitor or existing client?</p>
             <ul className='space-y-3'>
-              {returning.map((visitor) => <li key={visitor.visitor_phone} className='flex flex-wrap items-center justify-between gap-3 text-sm'>
+              {returning.map((visitor) => <li key={visitor.visit_count ? visitor.visitor_phone : `client-${visitor.client}`} className='flex flex-wrap items-center justify-between gap-3 text-sm'>
                 <span><span className='font-medium'>{visitor.visitor_name}</span> · {visitor.visitor_phone}<br />
-                  <span className='form-hint'>{visitor.visit_count} previous {visitor.visit_count === 1 ? 'visit' : 'visits'} · last {new Date(visitor.last_arrival_at).toLocaleDateString()} with {visitor.last_advocate_name}{visitor.client_name ? ` · Client record: ${visitor.client_name}` : ''}</span></span>
+                  <span className='form-hint'>{visitor.visit_count ? `${visitor.visit_count} previous ${visitor.visit_count === 1 ? 'visit' : 'visits'} · last ${new Date(visitor.last_arrival_at).toLocaleDateString()} with ${visitor.last_advocate_name}${visitor.client_name ? ` · Client record: ${visitor.client_name}` : ''}` : 'Client record · no walk-in visit recorded yet'}</span></span>
                 <Button3D size='sm' variant='outlineLight' disabled={pending} onClick={() => {
                   if (visitor.client) chooseClient({ client: visitor.client, appointment: '', label: visitor.client_name, phone: visitor.visitor_phone, detail: 'Existing client, found in the visitor register' });
                   else { setChosenVisitor(visitor.visitor_phone); setArrival({ ...arrival, visitor_name: visitor.visitor_name, visitor_phone: visitor.visitor_phone }); }
-                }}>This is the visitor</Button3D>
+                }}>{visitor.visit_count ? 'This is the visitor' : 'This is the client'}</Button3D>
               </li>)}
             </ul>
           </div>}

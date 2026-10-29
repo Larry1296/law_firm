@@ -274,6 +274,17 @@ class ClientVisitTests(TestCase):
         self.api.force_authenticate(self.lawyer.user)
         self.assertEqual(self.api.get(reverse('client-arrival-clients'), {'q': 'Mary'}).status_code, 403)
 
+    def test_visitor_register_also_offers_a_client_who_never_walked_in(self):
+        mary = Client.objects.create(firm=self.firm, created_by=self.owner, full_name='Mary Njeri', client_type='INDIVIDUAL', phone_number='+254733000444')
+        register = lambda q: self.api.get(reverse('client-arrival-visitors'), {'q': q}).data
+        for query in ['Njeri', '0733', '0733000444']:
+            rows = register(query)
+            self.assertEqual([(row['client'], row['visit_count']) for row in rows], [(str(mary.pk), 0)], query)
+        # Once she has walked in with her record linked, she appears once, as a returning visitor.
+        self.api.post(self.url, {'visitor_phone': '0733000444', 'visitor_name': 'Mary Njeri', 'advocate': str(self.lawyer.pk), 'client': str(mary.pk)}, format='json')
+        rows = register('Njeri')
+        self.assertEqual([(row['client'], row['visit_count']) for row in rows], [(str(mary.pk), 1)])
+
     def test_inactive_receptionist_and_other_firm_do_not_change_route(self):
         receptionist = self.receptionist()
         receptionist.user.is_active = False
