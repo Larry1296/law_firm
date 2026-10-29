@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useContext } from 'react';
 import AuthContext from '@/core/store/AuthContext';
 import useLawyerDashboard from '@/modules/staff/lawyer/dashboard/hooks/useLawyerDashboard';
+import useSubscription from '@/modules/subscription/hooks/useSubscription';
 
 import LogoutButton from '@/components/ui/LogoutButton';
 import SidebarNavLink from '@/components/ui/SidebarNavlink';
@@ -61,6 +62,7 @@ const links = [
     path: '/lawyer/court-preparation',
     icon: Scale,
     section: 'Cases',
+    feature: 'AI_CASE_ANALYSIS',
   },
 
   {
@@ -137,7 +139,9 @@ export default function LawyerSidebar({ onClose }) {
   const systemRole = user?.role || 'User';
   const { data: dashboardData } = useLawyerDashboard();
   const permissions = (dashboardData?.permissions || []).map((item) => String(item).toUpperCase());
-  const visibleLinks = links.filter((link) => !link.permission || permissions.includes(link.permission));
+  const { hasFeature } = useSubscription();
+  const visibleLinks = links.filter((link) => (!link.permission || permissions.includes(link.permission))
+    && (!link.feature || hasFeature(link.feature)));
 
   const bgSidebar = 'shell-surface';
   const sidebarGroups = groupLinks(visibleLinks);

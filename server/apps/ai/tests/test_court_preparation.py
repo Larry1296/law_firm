@@ -117,6 +117,25 @@ class CourtPreparationTests(TestCase):
         self.assertIn("in 3 days", advocate_note.title)
         self.assertIn("readiness", advocate_note.message)
 
+    def test_plan_without_ai_case_analysis_gets_no_briefs_notices_or_assistant_preparation(self):
+        from apps.ai.assistants.staff import current_briefs
+        from apps.subscriptions.models import Plan
+        subscription = self.firm.subscription
+        subscription.plan = Plan.objects.get(code="CHAMBERS")
+        subscription.save()
+        self.assertEqual(CourtPreparationService.process_due(), 0)
+        self.assertFalse(self.hearing.preparation_briefs.exists())
+        self.assertIsNone(current_briefs(Case.objects.filter(pk=self.case.pk), self.firm))
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from apps.common.choices import FirmRole
+        from apps.firm.models import LawFirmMember
+        LawFirmMember.objects.create(firm=self.firm, user=self.advocate_user, role=FirmRole.LAWYER, created_by=self.owner)
+        api = APIClient()
+        api.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(self.advocate_user).access_token}")
+        response = api.get("/api/staff/lawyer/ai/court-preparation/")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data["code"], "plan_upgrade_required")
+
     def test_tailoring_sends_no_names_and_only_validated_fields_are_kept(self):
         checks = CourtPreparationService.advocate_checks(self.hearing)
         context = CourtPreparationService.minimised_context(self.hearing, checks)

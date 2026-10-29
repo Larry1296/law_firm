@@ -14,6 +14,8 @@ from apps.clients.models import Client
 from apps.cases.models import Case, CaseEvent, MatterDeadline
 from apps.common.choices import UserRole
 from apps.firm.models import LawFirmMember
+from apps.subscriptions.catalog import Feature
+from apps.subscriptions.services import SubscriptionService
 from apps.staff.models import LawyerPermission
 from apps.subscriptions.catalog import Limit
 from apps.subscriptions.services import SubscriptionService
@@ -87,7 +89,7 @@ def matter_view(case, now, *, briefs, with_billing):
             "where": event.court_station or event.court or event.physical_venue or None,
             "judicial_officer": event.judicial_officer or None, "attendance": event.get_hearing_mode_display(),
         }
-        if event.event_type in KIND_BY_EVENT_TYPE and event.starts_at <= now + timedelta(days=PREPARATION_DAYS):
+        if briefs is not None and event.event_type in KIND_BY_EVENT_TYPE and event.starts_at <= now + timedelta(days=PREPARATION_DAYS):
             checks = CourtPreparationService.advocate_checks(event)
             item["readiness_percent"] = round(100 * sum(check["passed"] for check in checks) / len(checks)) if checks else 100
             item["outstanding_preparation"] = [check["label"] for check in checks if not check["passed"]]
@@ -134,8 +136,13 @@ def clients_view(cases):
     return list(clients.values())
 
 
-def current_briefs(cases):
-    """Stored advocate briefs only: reading them never triggers a new AI call."""
+def current_briefs(cases, firm):
+    """Stored advocate briefs only: reading them never triggers a new AI call.
+
+    None when the firm's plan has no court preparation, so matters leave it out.
+    """
+    if not SubscriptionService.has_feature(firm, Feature.AI_CASE_ANALYSIS):
+        return None
     return {
         brief.event_id: brief
         for brief in CourtPreparationBrief.objects.filter(
@@ -227,7 +234,7 @@ Boundaries:
         now = timezone.now()
         with_billing = lawyer.has_permission(LawyerPermission.VIEW_BILLING)
         cases = load_matters(Case.objects.filter(firm=lawyer.law_firm, assigned_lawyer=lawyer), now)
-        briefs = current_briefs(cases[:MAX_MATTERS])
+        briefs = current_briefs(cases[:MAX_MATTERS], lawyer.law_firm)
         return {
             "advocate": user.full_name,
             "firm": lawyer.law_firm.name,
@@ -305,7 +312,7 @@ Boundaries: only this firm's RECORDS. Never discuss other firms or the Sheria Ma
         firm = user.owned_firm
         now = timezone.now()
         cases = load_matters(Case.objects.filter(firm=firm), now)
-        briefs = current_briefs(cases[:MAX_MATTERS])
+        briefs = current_briefs(cases[:MAX_MATTERS], firm)
         workload = {}
         for case in cases:
             name = case.assigned_lawyer.user.full_name if case.assigned_lawyer_id else "Unassigned"

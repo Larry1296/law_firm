@@ -12,6 +12,8 @@ from apps.common.choices import UserRole
 from apps.notifications.models import Notification
 from apps.notifications.services import NotificationService
 from apps.staff.models import LawyerPermission
+from apps.subscriptions.catalog import Feature
+from apps.subscriptions.services import SubscriptionService
 
 ADVOCATE_DISCLAIMER = (
     "AI-assisted preparation guidance built from this matter's records. It is not legal advice or a prediction "
@@ -255,7 +257,7 @@ class CourtPreparationService:
     # ------------------------------------------------------------------ notifications
     @classmethod
     def process_due(cls):
-        """Daily: refresh briefs for every firm's upcoming sittings and notify at 7, 3, 1 and 0 days."""
+        """Daily: refresh briefs for upcoming sittings of firms whose plan has court preparation; notify at 7, 3, 1 and 0 days."""
         today = timezone.localdate()
         sent = 0
         for event in cls.upcoming_events():
@@ -263,6 +265,8 @@ class CourtPreparationService:
             if days not in NOTIFY_ON_DAYS:
                 continue
             case = event.case
+            if not SubscriptionService.has_feature(case.firm, Feature.AI_CASE_ANALYSIS):
+                continue
             when = timezone.localtime(event.starts_at).strftime("%d %b %Y %H:%M")
             advocate_user = case.assigned_lawyer.user if case.assigned_lawyer_id else None
             if advocate_user and advocate_user.is_active and cls.advocate_can_use(advocate_user, case):
@@ -277,7 +281,10 @@ class CourtPreparationService:
                     event_key=f"COURT_PREP:{event.id}:ADVOCATE:{days}d",
                 )
             client_user = case.client.user
-            if event.is_client_visible and client_user and client_user.is_active:
+            if (
+                event.is_client_visible and client_user and client_user.is_active
+                and SubscriptionService.has_feature(case.firm, Feature.CLIENT_PORTAL)
+            ):
                 cls.current(event, CourtPreparationBrief.Audience.CLIENT)
                 sent += cls._notify(
                     firm=case.firm, recipient=client_user, case=case,

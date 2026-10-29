@@ -10,6 +10,8 @@ from apps.ai.services.court_preparation_service import CourtPreparationService
 from apps.authentication.portal_access import portal_access_allowed
 from apps.billing.models import Invoice
 from apps.cases.models import Case, CaseEvent
+from apps.subscriptions.catalog import Feature
+from apps.subscriptions.services import SubscriptionService
 
 OPEN_EVENT_STATUSES = [CaseEvent.EventStatus.SCHEDULED, CaseEvent.EventStatus.CONFIRMED]
 OPEN_TASK_STATUSES = ["PENDING", "IN_PROGRESS", "BLOCKED", "OVERDUE"]
@@ -76,6 +78,8 @@ Your papers:
         client = user.client_profile
         firm = client.firm
         now = timezone.now()
+        # Court preparation guidance comes with AI case analysis in the firm's plan.
+        prepare = SubscriptionService.has_feature(firm, Feature.AI_CASE_ANALYSIS)
         cases = (
             Case.objects.filter(client=client, firm=firm)
             .select_related("assigned_lawyer__user")
@@ -103,7 +107,7 @@ Your papers:
                 "court_case_number": case.official_court_case_number or None,
                 "your_advocate": case.assigned_lawyer.user.full_name if case.assigned_lawyer_id else "Not yet assigned",
                 "next_court_date": when(case.next_court_date),
-                "upcoming": [self._event(event, now) for event in upcoming[:5]],
+                "upcoming": [self._event(event, now, prepare=prepare) for event in upcoming[:5]],
                 "recent": [
                     {"what": event.get_event_type_display(), "date": when(event.starts_at), "status": event.get_status_display(),
                      "next_date": when(event.next_date)}
@@ -141,7 +145,7 @@ Your papers:
         }
 
     @staticmethod
-    def _event(event, now):
+    def _event(event, now, *, prepare):
         item = {
             "what": event.get_event_type_display(),
             "title": event.title,
@@ -150,7 +154,7 @@ Your papers:
             "courtroom": event.courtroom or None,
             "attendance": event.get_hearing_mode_display(),
         }
-        if event.event_type in KIND_BY_EVENT_TYPE and event.starts_at <= now + timedelta(days=PREPARATION_DAYS):
+        if prepare and event.event_type in KIND_BY_EVENT_TYPE and event.starts_at <= now + timedelta(days=PREPARATION_DAYS):
             guidance = CourtPreparationService.client_guidance(event)
             item["how_to_prepare"] = {key: guidance[key] for key in ("purpose", "your_role", "before", "in_court", "if_you_give_evidence", "after")}
             item["checklist"] = [check["label"] + (" (done)" if check["passed"] else " (still to do)") for check in CourtPreparationService.client_checks(event)]
