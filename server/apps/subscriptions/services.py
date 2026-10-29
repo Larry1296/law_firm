@@ -4,6 +4,7 @@ from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.conf import settings
+from django.core.mail import send_mail
 from django.db import connection, transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -16,6 +17,9 @@ from apps.firm.models import LawFirm
 
 CENT = Decimal("0.01")
 MPESA_RECEIPT_PATTERN = re.compile(r"^[A-Z0-9]{10}$")
+# Days before the end of a paid period, and of a free trial, that the owner is reminded.
+RENEWAL_REMINDER_DAYS = (14, 7, 1)
+TRIAL_REMINDER_DAYS = (3, 1)
 
 
 class SubscriptionInactive(APIException):
@@ -274,10 +278,20 @@ class SubscriptionService:
             and subscription.current_period_end and subscription.current_period_end > now
         )
 
+    @staticmethod
+    def in_grace(subscription, now=None):
+        """The paid period has ended but its grace period has not."""
+        now = now or timezone.now()
+        end = subscription.current_period_end
+        return bool(
+            subscription.status == FirmSubscription.Status.ACTIVE and not subscription.is_complimentary
+            and end and end <= now <= end + timedelta(days=subscription.grace_period_days)
+        )
+
     @classmethod
     def change_kind(cls, subscription, plan, billing_cycle, now=None):
-        """SUBSCRIBE when no paid period is running; otherwise RENEWAL, CYCLE_CHANGE, UPGRADE or DOWNGRADE."""
-        if not cls.is_paid_up(subscription, now):
+        """SUBSCRIBE when no paid period is running or in grace; otherwise RENEWAL, CYCLE_CHANGE, UPGRADE or DOWNGRADE."""
+        if not (cls.is_paid_up(subscription, now) or cls.in_grace(subscription, now)):
             return "SUBSCRIBE"
         current = subscription.plan
         if plan.id == current.id:
@@ -301,10 +315,14 @@ class SubscriptionService:
 
     @classmethod
     def new_period(cls, subscription, plan, billing_cycle, now=None):
-        """The period a paid invoice buys: a renewal follows on from the current end, any change starts at once."""
+        """
+        The period a paid invoice buys. A renewal follows on from the current end,
+        and so does anything paid in the grace period, so late payment buys no
+        free days; any other change starts at once.
+        """
         now = now or timezone.now()
         renewal = cls.change_kind(subscription, plan, billing_cycle, now) == "RENEWAL"
-        start = subscription.current_period_end if renewal else now
+        start = subscription.current_period_end if renewal or cls.in_grace(subscription, now) else now
         months = 12 if billing_cycle == FirmSubscription.BillingCycle.ANNUAL else 1
         return start, add_months(start, months)
 
@@ -437,6 +455,94 @@ class SubscriptionService:
         return invoice
 
     # -----------------------------------------------------------------
+    # Renewal reminders
+    # -----------------------------------------------------------------
+
+    @classmethod
+    def reminder_for(cls, subscription, now):
+        """(event key, title, message) for the reminder due today, if any."""
+        firm, today = subscription.firm, timezone.localdate(now)
+        status_ = cls.effective_status(subscription, now)
+        if subscription.status == FirmSubscription.Status.TRIALING and subscription.trial_ends_at:
+            ends = timezone.localdate(subscription.trial_ends_at)
+            days = (ends - today).days
+            if status_ == "EXPIRED":
+                return (
+                    f"SUBSCRIPTION_LAPSED:{subscription.id}:{ends}",
+                    "Free trial ended: the firm is view-only",
+                    f"{firm.name}'s free trial ended on {ends:%d %b %Y}. Records can still be viewed, but changes "
+                    "are paused until you choose a plan and pay from your Subscription page.",
+                )
+            if days in TRIAL_REMINDER_DAYS:
+                return (
+                    f"SUBSCRIPTION_TRIAL_ENDING:{subscription.id}:{ends}:{days}d",
+                    f"Free trial ends in {days} day{'s' if days != 1 else ''}",
+                    f"{firm.name}'s free trial of {subscription.plan.name} ends on {ends:%d %b %Y}. "
+                    "Choose a plan and pay by M-Pesa to keep making changes.",
+                )
+            return None
+        if subscription.is_complimentary or not subscription.current_period_end:
+            return None
+        end = subscription.current_period_end
+        ends = timezone.localdate(end)
+        if status_ == FirmSubscription.Status.ACTIVE:
+            days = (ends - today).days
+            if days in RENEWAL_REMINDER_DAYS:
+                return (
+                    f"SUBSCRIPTION_RENEWAL_DUE:{subscription.id}:{ends}:{days}d",
+                    f"Subscription renews in {days} day{'s' if days != 1 else ''}",
+                    f"{firm.name}'s {subscription.plan.name} subscription is paid until {ends:%d %b %Y}. "
+                    "Renew by M-Pesa from your Subscription page to keep working without interruption.",
+                )
+        elif status_ == "GRACE":
+            grace_ends = timezone.localdate(end + timedelta(days=subscription.grace_period_days))
+            return (
+                f"SUBSCRIPTION_GRACE:{subscription.id}:{ends}",
+                "Subscription period has ended",
+                f"{firm.name}'s paid period ended on {ends:%d %b %Y}. Renew by {grace_ends:%d %b %Y}, "
+                "or the firm becomes view-only until it is renewed.",
+            )
+        elif status_ == "EXPIRED":
+            return (
+                f"SUBSCRIPTION_LAPSED:{subscription.id}:{ends}",
+                "Subscription lapsed: the firm is view-only",
+                f"{firm.name}'s subscription has lapsed. Records can still be viewed, but changes are paused "
+                "until you renew from your Subscription page.",
+            )
+        return None
+
+    @classmethod
+    def send_renewal_reminders(cls, now=None):
+        """Daily: remind each owner before the trial or paid period ends, when it ends and when the firm lapses."""
+        from apps.notifications.models import Notification
+        from apps.notifications.services import NotificationService
+
+        now = now or timezone.now()
+        sent = 0
+        subscriptions = FirmSubscription.objects.filter(
+            firm__is_active=True, status__in=[FirmSubscription.Status.TRIALING, FirmSubscription.Status.ACTIVE],
+        ).select_related("firm__owner", "plan")
+        for subscription in subscriptions:
+            reminder = cls.reminder_for(subscription, now)
+            owner = subscription.firm.owner
+            if reminder is None or not owner or not owner.is_active:
+                continue
+            event_key, title, message = reminder
+            if Notification.objects.filter(recipient=owner, event_key=event_key).exists():
+                continue
+            NotificationService.notify_firm_owner(
+                firm=subscription.firm, title=title, message=message,
+                action_url="/admin/subscription", event_key=event_key,
+            )
+            send_mail(
+                subject=f"Sheria Master: {title}", message=f"{message}\n\nSign in and open Subscription to renew.",
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None), recipient_list=[owner.email],
+                fail_silently=True,
+            )
+            sent += 1
+        return sent
+
+    # -----------------------------------------------------------------
     # API payloads
     # -----------------------------------------------------------------
 
@@ -467,6 +573,7 @@ class SubscriptionService:
             "writable": cls.is_writable(subscription),
             "billing_cycle": subscription.billing_cycle,
             "is_complimentary": subscription.is_complimentary,
+            "owner_name": firm.owner.full_name if firm.owner_id else "",
             "credit_balance": str(subscription.credit_balance),
             "custom_monthly_price": str(subscription.custom_monthly_price) if subscription.custom_monthly_price is not None else None,
             "custom_annual_price": str(subscription.custom_annual_price) if subscription.custom_annual_price is not None else None,

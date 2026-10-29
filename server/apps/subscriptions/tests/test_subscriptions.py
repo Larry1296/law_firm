@@ -174,6 +174,29 @@ class LapseAndFeatureTests(SubscriptionTestCase):
         renew = self.api.post("/api/subscription/invoices/", {"plan_code": "BASIC", "billing_cycle": "MONTHLY"}, format="json")
         self.assertEqual(renew.status_code, 201, renew.data)
 
+    def test_a_lapsed_firm_can_still_mark_its_notifications_read(self):
+        from apps.notifications.models import Notification
+        self.put_on("PRO", trial_ends_at=timezone.now() - timedelta(days=1))
+        note = Notification.objects.create(firm=self.firm, recipient=self.owner, title="Hello", message="Hi")
+        self.api.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(self.owner).access_token}")
+        self.assertEqual(self.api.post(f"/api/notifications/{note.id}/read/").status_code, 200)
+
+    def test_renewing_in_the_grace_period_runs_on_from_the_old_end_date(self):
+        ended = timezone.now() - timedelta(days=3)
+        subscription = self.put_on(
+            "BASIC", status=FirmSubscription.Status.ACTIVE, trial_ends_at=None, billing_cycle="MONTHLY",
+            current_period_start=ended - timedelta(days=30), current_period_end=ended,
+        )
+        self.assertEqual(SubscriptionService.change_kind(subscription, subscription.plan, "MONTHLY"), "RENEWAL")
+        invoice = SubscriptionService.issue_invoice(firm=self.firm, plan_code="BASIC", billing_cycle="MONTHLY", user=self.owner)
+        SubscriptionService.confirm_payment(invoice=invoice, confirmed_by=self.owner)
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.current_period_end, add_months(ended, 1))
+
+        lapsed = timezone.now() - timedelta(days=20)
+        subscription = self.put_on("BASIC", current_period_start=lapsed - timedelta(days=30), current_period_end=lapsed)
+        self.assertEqual(SubscriptionService.change_kind(subscription, subscription.plan, "MONTHLY"), "SUBSCRIBE")
+
     def test_grace_period_keeps_the_firm_writable_for_seven_days(self):
         subscription = self.put_on(
             "PRO", status=FirmSubscription.Status.ACTIVE, trial_ends_at=None,
@@ -372,3 +395,38 @@ class PlanChangeTests(SubscriptionTestCase):
         self.assertFalse(any(item["eligible"] for item in data["options"]))
         response = self.api.post(self.url, {"plan_code": "FIRM", "billing_cycle": "MONTHLY"}, format="json")
         self.assertEqual(response.status_code, 400)
+
+
+class RenewalReminderTests(SubscriptionTestCase):
+    def remind_on(self, day):
+        return SubscriptionService.send_renewal_reminders(now=day)
+
+    def test_owner_is_reminded_before_the_paid_period_ends_then_at_grace_and_lapse_once_each(self):
+        from django.core import mail
+        from apps.notifications.models import Notification
+        end = timezone.now() + timedelta(days=30)
+        self.put_on("BASIC", status=FirmSubscription.Status.ACTIVE, trial_ends_at=None, current_period_end=end)
+        self.assertEqual(self.remind_on(end - timedelta(days=20)), 0)
+        for days in (14, 7, 1):
+            self.assertEqual(self.remind_on(end - timedelta(days=days)), 1)
+            self.assertEqual(self.remind_on(end - timedelta(days=days)), 0)
+        self.assertEqual(self.remind_on(end + timedelta(days=2)), 1)
+        self.assertEqual(self.remind_on(end + timedelta(days=3)), 0)
+        self.assertEqual(self.remind_on(end + timedelta(days=9)), 1)
+        titles = list(Notification.objects.filter(recipient=self.owner).order_by("created_at").values_list("title", flat=True))
+        self.assertEqual(titles, [
+            "Subscription renews in 14 days", "Subscription renews in 7 days", "Subscription renews in 1 day",
+            "Subscription period has ended", "Subscription lapsed: the firm is view-only",
+        ])
+        self.assertEqual(len(mail.outbox), 5)
+        self.assertEqual(mail.outbox[0].to, [self.owner.email])
+
+    def test_trial_reminders_and_complimentary_firms_get_none(self):
+        ends = timezone.now() + timedelta(days=10)
+        self.put_on("PRO", trial_ends_at=ends)
+        self.assertEqual(self.remind_on(ends - timedelta(days=3)), 1)
+        self.assertEqual(self.remind_on(ends - timedelta(days=2)), 0)
+        self.assertEqual(self.remind_on(ends + timedelta(days=1)), 1)
+        self.assertEqual(self.remind_on(ends + timedelta(days=2)), 0)
+        self.put_on("PRO", status=FirmSubscription.Status.ACTIVE, is_complimentary=True, current_period_end=None)
+        self.assertEqual(self.remind_on(timezone.now()), 0)
