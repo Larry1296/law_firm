@@ -176,6 +176,15 @@ def record(visit, user, action):
              'office_location': office_label(visit.advocate)})
 
 
+def needs_intake(visit):
+    """
+    Preliminary intake hands what reception heard to the advocate. An advocate who
+    received the visitor personally has nothing to hand over: the client record and
+    conflict check capture the details once.
+    """
+    return visit.received_by_id != visit.advocate.user_id
+
+
 def serialize_visit(visit, role, profile, receives=None):
     if receives is None:
         receives = receives_visitors(visit.firm, role, profile)
@@ -192,7 +201,8 @@ def serialize_visit(visit, role, profile, receives=None):
     data['file_overdue'] = bool(data['file_due'] and visit.closed_at and timezone.localdate(visit.closed_at) < timezone.localdate())
     data['previous_visit_count'] = ClientVisit.objects.filter(firm=visit.firm, visitor_phone=visit.visitor_phone,
         arrival_at__lt=visit.arrival_at).count() if visit.visitor_phone else 0
-    data['can_record_intake'] = bool(can_intake and not visit.intake_completed_at and visit.status in ACTIVE_STATUSES)
+    data['needs_intake'] = needs_intake(visit)
+    data['can_record_intake'] = bool(can_intake and needs_intake(visit) and not visit.intake_completed_at and visit.status in ACTIVE_STATUSES)
     data['can_consult'] = bool(assigned)
     data['can_call'] = bool(assigned or role == 'ADMIN')
     data['can_usher'] = receives and visit.status == 'CALLED'
@@ -394,7 +404,7 @@ class ClientVisitActionView(APIView):
                 raise PermissionDenied('The advocate who held the consultation links the client record.')
             if set(request.data) - {'action', 'client'}:
                 raise ValidationError('Only the client reference may be linked.')
-            if visit.status not in {'IN_CONSULTATION', 'COMPLETED'} or not visit.intake_completed_at:
+            if visit.status not in {'IN_CONSULTATION', 'COMPLETED'} or (needs_intake(visit) and not visit.intake_completed_at):
                 raise ValidationError('Complete preliminary intake and start consultation before linking the client.')
             if visit.outcome == 'ENQUIRY_ONLY':
                 raise ValidationError('The advocate recorded this visit as an enquiry only; no client file is opened.')
@@ -454,7 +464,7 @@ class ClientVisitActionView(APIView):
         elif action == 'COMPLETE':
             if not permissions['can_consult']:
                 raise PermissionDenied('Only the assigned advocate completes the consultation.')
-            if visit.status != 'IN_CONSULTATION' or not visit.intake_completed_at:
+            if visit.status != 'IN_CONSULTATION' or (needs_intake(visit) and not visit.intake_completed_at):
                 raise ValidationError('Start the consultation and complete preliminary intake first.')
             if set(request.data) - {'action', 'outcome'}:
                 raise ValidationError('Record only the outcome of the consultation.')

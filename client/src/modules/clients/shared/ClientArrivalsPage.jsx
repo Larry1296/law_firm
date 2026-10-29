@@ -74,7 +74,7 @@ export default function ClientArrivalsPage() {
       };
       const [title, text] = variables.id
         ? (messages[variables.payload.action] || ['Visit updated', 'Your changes have been saved.'])
-        : result?.status === 'IN_CONSULTATION' ? ['Consultation started', `${variables.payload.visitor_name} is with you. Record the consultation intake as you go.`]
+        : result?.status === 'IN_CONSULTATION' ? ['Consultation started', `${variables.payload.visitor_name} is with you. Complete the consultation when you finish.`]
         : data?.self_reception ? ['Waiting for you', `${variables.payload.visitor_name} will wait until you finish with your current client.`]
         : ['Added to queue', `${variables.payload.visitor_name} is in the waiting queue. The advocate has been alerted.`];
       Swal.fire({ icon: 'success', title, text, confirmButtonText: 'Done' });
@@ -102,7 +102,7 @@ export default function ClientArrivalsPage() {
           {visit.visitor_phone && <p className='text-sm'>{visit.visitor_phone} · {visit.previous_visit_count ? `Returning visitor · ${visit.previous_visit_count} previous ${visit.previous_visit_count === 1 ? 'visit' : 'visits'}` : 'First visit'}</p>}
           <p className='text-sm'>{visit.advocate_name} · Arrived {new Date(visit.arrival_at).toLocaleString()} · Received by {visit.received_by_name}</p>
           {visit.urgency_flag && <p className='text-amber-700 dark:text-amber-300'>Urgent issue mentioned: {visit.urgency_note || 'Advocate to assess'}</p>}
-          <p className='text-sm'>Intake: {visit.intake_completed_at ? 'Completed' : `Awaiting advocate`}</p>
+          {visit.needs_intake !== false && <p className='text-sm'>Intake: {visit.intake_completed_at ? 'Completed' : `Awaiting advocate`}</p>}
           {visit.outcome && <p className='text-sm font-medium'>Outcome: {OUTCOMES[visit.outcome]}</p>}
           {visit.status === 'CALLED' && visit.called_at && <p className='text-sm'>Called {new Date(visit.called_at).toLocaleTimeString()}</p>}
           {visit.status === 'IN_CONSULTATION' && visit.consultation_started_at && <p className='text-sm'>In office since {new Date(visit.consultation_started_at).toLocaleTimeString()}</p>}
@@ -146,7 +146,7 @@ export default function ClientArrivalsPage() {
   // Reception keeps the arrivals register; an advocate sees only their own consultations.
   // An advocate who is their own reception has no calling or ushering: the visitor is in front of them.
   const stages = data.self_reception ? [
-    ['With you', 'Record the consultation intake, then complete the consultation.', ['IN_CONSULTATION', 'CALLED']],
+    ['With you', 'When you finish, complete the consultation. If they are instructing you, the client form opens next with their name and phone filled in.', ['IN_CONSULTATION', 'CALLED']],
     ['Waiting for you', 'Arrived while you were with another client.', ['WAITING']],
     ['Seen today and follow-ups', 'Completed consultations, and any client record still to be created.', ['COMPLETED', 'LEFT']],
   ] : data.can_receive ? [

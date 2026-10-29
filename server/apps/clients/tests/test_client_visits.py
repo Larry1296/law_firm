@@ -215,7 +215,9 @@ class ClientVisitTests(TestCase):
         # Someone arriving mid-consultation waits, then goes straight in without being called.
         second = self.arrive()
         self.assertEqual(ClientVisit.objects.get(pk=second).status, 'WAITING')
-        self.assertEqual(self.action(pk, 'INTAKE', broad_issue='Land sale').status_code, 200)
+        # Nothing to hand over: no intake form, the advocate completes and opens the client file directly.
+        row = next(row for row in self.api.get(self.url).data['visits'] if row['id'] == pk)
+        self.assertFalse(row['can_record_intake'])
         self.assertEqual(self.action(pk, 'COMPLETE', outcome='INSTRUCTING').status_code, 200)
         self.assertEqual(self.action(second, 'START').status_code, 200)
         # Once a secretary covers reception again, it passes back to them.
