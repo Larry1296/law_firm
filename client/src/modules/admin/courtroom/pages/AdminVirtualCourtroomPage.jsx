@@ -28,6 +28,7 @@ import { formatDateTime } from '@/core/utils/dateFormatter';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import CourtroomLauncher from '@/modules/courtroom/components/CourtroomLauncher';
 import courtroomService from '@/modules/courtroom/services/courtroomService';
+import useSubscription from '@/modules/subscription/hooks/useSubscription';
 
 const statuses = ['SCHEDULED', 'PREPARING', 'READY_TO_JOIN', 'WAITING_ROOM', 'COURT_IN_SESSION', 'MATTER_NOT_CALLED', 'POSSIBLE_MATTER_CALL', 'MATTER_CALLED', 'STOOD_DOWN', 'PASSED_OVER', 'ADJOURNED', 'DIRECTIONS_ISSUED', 'RULING_DELIVERED', 'COMPLETED', 'LINK_FAILED', 'REGISTRY_CONTACTED', 'CANCELLED'];
 const providerTypes = ['MICROSOFT_TEAMS', 'GOOGLE_MEET', 'ZOOM', 'WEBEX', 'JUDICIARY_PORTAL', 'YOUTUBE_LIVE', 'OTHER'];
@@ -70,8 +71,10 @@ export default function AdminVirtualCourtroomPage() {
   const todayEventsQuery = useTodayCourtroomEvents();
   const providersQuery = useCourtroomProviders();
   const sessionsQuery = useCourtroomSessions();
-  const analyticsQuery = useCourtroomAnalytics();
-  const causeListQuery = useCourtroomCauseListSyncs();
+  // Attendance analytics and cause-list sync come with the advanced courtroom feature.
+  const advanced = useSubscription().hasFeature('COURTROOM_ADVANCED');
+  const analyticsQuery = useCourtroomAnalytics({ enabled: advanced });
+  const causeListQuery = useCourtroomCauseListSyncs({ enabled: advanced });
 
   const createSession = useCreateCourtroomSession();
   const updateSession = useUpdateCourtroomSession();
@@ -220,20 +223,20 @@ export default function AdminVirtualCourtroomPage() {
       <PageSectionNav
         ariaLabel='Courtroom workspace sections'
         sections={[
-          { id: 'courtroom-overview', label: 'Overview' },
+          ...(advanced ? [{ id: 'courtroom-overview', label: 'Overview' }] : []),
           { id: 'courtroom-setup', label: 'Setup and providers' },
           { id: 'courtroom-live', label: 'Live sessions' },
-          { id: 'courtroom-cause-list', label: 'Cause list' },
+          ...(advanced ? [{ id: 'courtroom-cause-list', label: 'Cause list' }] : []),
         ]}
       />
-      <div id='courtroom-overview' className='scroll-mt-28 grid gap-4 lg:grid-cols-5'>
+      {advanced && <div id='courtroom-overview' className='scroll-mt-28 grid gap-4 lg:grid-cols-5'>
         {stats.map(([label, value]) => (
           <Card key={label} className='p-4'>
             <p className='text-xs font-semibold uppercase text-slate-400'>{label}</p>
             <p className='mt-2 text-2xl font-black text-slate-900 dark:text-white'>{value}</p>
           </Card>
         ))}
-      </div>
+      </div>}
 
       {feedback && (
         <div
@@ -378,7 +381,7 @@ export default function AdminVirtualCourtroomPage() {
         </div>
       </Card>
 
-      <Card id='courtroom-cause-list' className='scroll-mt-28 p-5'>
+      {advanced && <Card id='courtroom-cause-list' className='scroll-mt-28 p-5'>
         <div className='mb-4 flex items-center gap-3'>
           <ListChecks size={20} className='text-amber-600' />
           <h2 className='text-lg font-bold text-slate-900 dark:text-white'>Cause List Sync</h2>
@@ -408,7 +411,7 @@ export default function AdminVirtualCourtroomPage() {
             </div>
           ))}
         </div>
-      </Card>
+      </Card>}
     </div>
   );
 }

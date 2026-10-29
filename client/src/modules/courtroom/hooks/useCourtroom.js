@@ -125,10 +125,11 @@ export const useCreateCourtroomRecording = () => {
   });
 };
 
-export const useCourtroomCauseListSyncs = () =>
+export const useCourtroomCauseListSyncs = ({ enabled = true } = {}) =>
   useQuery({
     queryKey: courtroomKeys.causeListSyncs,
     queryFn: courtroomService.getCauseListSyncs,
+    enabled,
   });
 
 export const useCreateCourtroomCauseListSync = () => {
@@ -142,8 +143,9 @@ export const useCreateCourtroomCauseListSync = () => {
   });
 };
 
-export const useCourtroomAnalytics = () =>
+export const useCourtroomAnalytics = ({ enabled = true } = {}) =>
   useQuery({
     queryKey: courtroomKeys.analytics,
     queryFn: courtroomService.getAnalytics,
+    enabled,
   });
