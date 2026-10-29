@@ -22,6 +22,8 @@ class ClientVisit(TimestampedModel):
     # Reception's visitor register: the phone recognises a returning visitor.
     visitor_phone = models.CharField(max_length=20, blank=True, db_index=True)
     client = models.ForeignKey('clients.Client', null=True, blank=True, on_delete=models.PROTECT)
+    # The client meeting in the matter diary that this arrival keeps, if they were expected.
+    appointment = models.ForeignKey('cases.CaseEvent', null=True, blank=True, on_delete=models.SET_NULL, related_name='client_visits')
     advocate = models.ForeignKey('staff.Lawyer', on_delete=models.PROTECT)
     received_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     intake_handler = models.CharField(max_length=20, choices=[('RECEPTIONIST', 'Receptionist'), ('ADVOCATE', 'Advocate')])

@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.audit_logs.services import AuditService
+from apps.cases.models import CaseEvent
 from apps.clients.models import Client, ClientVisit
 from apps.common.choices import UserRole
 from apps.firm.models import FirmSetting, LawFirm
@@ -19,7 +20,9 @@ from apps.users.validators.phone_number import normalize_phone_number
 
 ACTIVE_STATUSES = ['WAITING', 'CALLED', 'IN_CONSULTATION']
 INTAKE_FIELDS = {'contact_details', 'acting_capacity', 'other_parties', 'broad_issue', 'deadline'}
-ARRIVAL_FIELDS = {'visitor_name', 'visitor_phone', 'client', 'advocate', 'urgency_flag', 'urgency_note'}
+ARRIVAL_FIELDS = {'visitor_name', 'visitor_phone', 'client', 'appointment', 'advocate', 'urgency_flag', 'urgency_note'}
+# A client meeting that is still going ahead today.
+CANCELLED_MEETING = ['CANCELLED', 'VACATED', 'ADJOURNED', 'TAKEN_OUT']
 
 
 def active_staff(model):
@@ -92,6 +95,26 @@ def is_own_reception(role, profile, receives, lawyers):
         and [lawyer.pk for lawyer in lawyers] == [profile.pk])
 
 
+def expected_meetings(firm, lawyers=None):
+    """Today's client meetings in the firm's matter diaries, earliest first."""
+    meetings = (CaseEvent.objects.filter(case__firm=firm, event_type=CaseEvent.EventType.CLIENT_MEETING,
+            starts_at__date=timezone.localdate(), case__client__isnull=False)
+        .exclude(status__in=CANCELLED_MEETING).select_related('case__client', 'case__assigned_lawyer__user'))
+    if lawyers is not None:
+        meetings = meetings.filter(case__assigned_lawyer__in=lawyers)
+    return meetings.order_by('starts_at')
+
+
+def serialize_expected(meeting, arrived):
+    client, lawyer = meeting.case.client, meeting.case.assigned_lawyer
+    return {
+        'appointment': str(meeting.pk), 'starts_at': meeting.starts_at, 'title': meeting.title,
+        'matter': meeting.case.case_number, 'client': str(client.pk), 'client_name': client.full_name,
+        'client_phone': client.phone_number, 'advocate': str(lawyer.pk) if lawyer else '',
+        'advocate_name': lawyer.user.full_name if lawyer else '', 'arrived': arrived,
+    }
+
+
 def office_label(lawyer):
     room = (lawyer.office_location or '').strip()
     if room and lawyer.branch_id:
@@ -132,6 +155,14 @@ class VisitSerializer(serializers.ModelSerializer):
         advocate = attrs.get('advocate')
         if advocate and not active_staff(Lawyer).filter(pk=advocate.pk, law_firm=firm).exists():
             raise serializers.ValidationError({'advocate': 'Select an active advocate in this firm.'})
+        appointment = attrs.get('appointment')
+        if appointment:
+            if not expected_meetings(firm).filter(pk=appointment.pk).exists():
+                raise serializers.ValidationError({'appointment': 'Select a client meeting in this firm’s diary for today.'})
+            if ClientVisit.objects.filter(appointment=appointment).exists():
+                raise serializers.ValidationError({'appointment': 'This client has already been recorded as arrived for that meeting.'})
+            # The appointment names the client; reception does not choose another.
+            attrs['client'] = appointment.case.client
         client = attrs.get('client')
         if client and (client.firm_id != firm.id or not client.is_active or client.lifecycle_status == 'ARCHIVED'):
             raise serializers.ValidationError({'client': 'Select an active client in this firm.'})
@@ -205,14 +236,16 @@ class ClientVisitListView(APIView):
                 'current': current, 'called': called, 'next': waiting[0] if waiting else None,
                 'can_call': role == 'ADMIN' or (role == 'ADVOCATE' and lawyer.pk == profile.pk),
             })
-        clients = Client.objects.filter(firm=firm, is_active=True).exclude(lifecycle_status='ARCHIVED') if receives else Client.objects.none()
+        meetings = list(expected_meetings(firm, lawyers)) if receives else []
+        arrived = set(ClientVisit.objects.filter(appointment__in=meetings).values_list('appointment_id', flat=True))
         return Response({
             'has_receptionist': receptionist, 'role': role, 'reception_mode': reception_mode(firm),
             'can_receive': receives,
             # A practising advocate with no secretary covering them is their own reception.
             'self_reception': is_own_reception(role, profile, receives, lawyers),
             'advocates': [{'value': str(x.pk), 'label': f'{x.user.full_name} — {office_label(x) or "Office not assigned"}'} for x in lawyers],
-            'clients': [{'value': str(x.pk), 'label': x.full_name} for x in clients.order_by('full_name')],
+            # Clients expected today come first at reception; anyone else is searched for.
+            'expected_today': [serialize_expected(meeting, meeting.pk in arrived) for meeting in meetings],
             'visits': rows, 'queues': queues, 'waiting_count': sum(q['waiting_count'] for q in queues),
             'server_time': timezone.now(),
         })
@@ -248,6 +281,41 @@ class ClientVisitListView(APIView):
             title='Urgent client arrival' if visit.urgency_flag else 'Client waiting for consultation', message='A visitor has joined your waiting queue.',
             action_url='/admin/arrivals' if visit.advocate.user.role == UserRole.ADMIN else '/lawyer/arrivals', event_key=f'visit-arrived:{visit.pk}')
         return Response(serialize_visit(visit, role, profile), status=201)
+
+
+def mask(value):
+    value = (value or '').strip()
+    return f'••••{value[-4:]}' if len(value) > 4 else value
+
+
+class ArrivalClientSearchView(APIView):
+    """Find an existing client at reception by name, phone, ID or passport number, KRA PIN or file reference."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        firm, role, profile = visit_access(request.user)
+        if not receives_visitors(firm, role, profile):
+            raise PermissionDenied('Reception or the secretary looks up client records at arrival.')
+        query = (request.query_params.get('q') or '').strip()
+        if len(query) < 3:
+            return Response([])
+        match = (Q(full_name__icontains=query) | Q(alternative_names__icontains=query) | Q(email__iexact=query)
+            | Q(national_id__iexact=query) | Q(passport_number__iexact=query) | Q(kra_pin__iexact=query)
+            | Q(kyc_drawer_reference__iexact=query))
+        digits = ''.join(ch for ch in query if ch.isdigit())
+        if digits.startswith('254'):
+            digits = '0' + digits[3:]
+        if len(digits) >= 4:
+            match |= Q(phone_number__contains=digits[-9:])
+        clients = (Client.objects.filter(firm=firm, is_active=True).exclude(lifecycle_status='ARCHIVED')
+            .filter(match).order_by('full_name')[:8])
+        # Reception confirms who is standing there; full identity numbers stay on the client file.
+        return Response([{
+            'value': str(client.pk), 'label': client.full_name, 'phone': client.phone_number,
+            'identifier': mask(client.national_id or client.passport_number or client.kra_pin),
+            'file_reference': client.kyc_drawer_reference or '',
+        } for client in clients])
 
 
 class ReturningVisitorView(APIView):

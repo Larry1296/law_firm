@@ -6,10 +6,11 @@ import { TextInput, SelectInput } from '@/components/forms';
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
 import Swal from '@/core/utils/themedSwal';
+import ArrivalClientPicker from './ArrivalClientPicker';
 import ClientQueueBoard from './ClientQueueBoard';
 import { OUTCOMES, useClientQueue, useQueueAction } from './useClientQueue';
 
-const emptyArrival = { visitor_name: '', visitor_phone: '', client: '', advocate: '', urgency_flag: false, urgency_note: '' };
+const emptyArrival = { visitor_name: '', visitor_phone: '', client: '', appointment: '', advocate: '', urgency_flag: false, urgency_note: '' };
 const emptyIntake = { contact_details: '', acting_capacity: '', other_parties: '', broad_issue: '', deadline: '' };
 const ON_BEHALF = 'On behalf of: ';
 const actingOptions = [{ value: 'PERSONALLY', label: 'Personally' }, { value: 'ON_BEHALF', label: 'On behalf of someone else' }];
@@ -48,6 +49,13 @@ export default function ClientArrivalsPage() {
   const [intake, setIntake] = useState(emptyIntake);
   const [error, setError] = useState('');
   const [chosenVisitor, setChosenVisitor] = useState('');
+  const [chosenClient, setChosenClient] = useState(null);
+  const chooseClient = ({ client, appointment, label, phone, advocate, detail }) => {
+    setChosenClient({ label, detail });
+    setChosenVisitor(phone || '');
+    setArrival((previous) => ({ ...previous, client, appointment, visitor_name: label, visitor_phone: phone || previous.visitor_phone, advocate: advocate || previous.advocate }));
+  };
+  const clearClient = () => { setChosenClient(null); setChosenVisitor(''); setArrival((previous) => ({ ...previous, client: '', appointment: '' })); };
   const { data, isLoading, isError } = useClientQueue();
   const register = useVisitorRegister(arrival, !!data?.can_receive);
   const returning = chosenVisitor && chosenVisitor === arrival.visitor_phone ? [] : (registerQuery(arrival) && register.data) || [];
@@ -56,7 +64,7 @@ export default function ClientArrivalsPage() {
     mutationFn: async ({ id, payload }) => (await axios.post(id ? `/arrivals/${id}/` : '/arrivals/', payload)).data,
     onSuccess: (result, variables) => {
       setError('');
-      if (!variables.id) { setArrival(emptyArrival); setChosenVisitor(''); }
+      if (!variables.id) { setArrival(emptyArrival); setChosenVisitor(''); setChosenClient(null); }
       const messages = {
         LINK_CLIENT: ['Client linked', 'The arrival is now linked to the client record. Conflict clearance and matter opening remain separate.'],
         INTAKE: ['Intake saved', 'The preliminary intake details have been recorded.'],
@@ -165,21 +173,26 @@ export default function ClientArrivalsPage() {
             <p className='form-hint mt-1'>{data.self_reception ? 'Kept in the visitor register as the attendance record. It does not accept instructions or open a file.' : 'Record basic arrival details here. Arrival does not accept instructions or open a case.'}</p>
           </div>
         </div>
-        <form className='space-y-5 p-5 md:p-6' onSubmit={(event) => { event.preventDefault(); mutation.mutate({ payload: { ...arrival, client: arrival.client || null, advocate: data.self_reception ? data.advocates[0].value : arrival.advocate } }); }}>
+        <form className='space-y-5 p-5 md:p-6' onSubmit={(event) => { event.preventDefault(); mutation.mutate({ payload: { ...arrival, client: arrival.client || null, appointment: arrival.appointment || null, advocate: data.self_reception ? data.advocates[0].value : arrival.advocate } }); }}>
+          <fieldset disabled={pending} className='space-y-3'>
+            <legend className='mb-3 font-semibold'>Who has arrived?</legend>
+            <ArrivalClientPicker expected={data.expected_today} chosen={chosenClient} onChoose={chooseClient} onClear={clearClient} disabled={pending} />
+          </fieldset>
           <fieldset disabled={pending} className='grid gap-5 md:grid-cols-2'>
             <TextInput name='visitor_name' label='Visitor name' required maxLength={255} placeholder='Enter the visitor’s full name' value={arrival.visitor_name} onChange={(event) => setArrival({ ...arrival, visitor_name: event.target.value })} />
             <TextInput name='visitor_phone' label='Phone number' type='tel' required maxLength={20} placeholder='07XX XXX XXX' help='Recognises the visitor when they come back.' value={arrival.visitor_phone} onChange={(event) => setArrival({ ...arrival, visitor_phone: event.target.value })} />
-            <SelectInput name='client' label='Client record' placeholder='New enquiry / no client record' options={data.clients} value={arrival.client} onChange={(event) => setArrival({ ...arrival, client: event.target.value })} />
             {!data.self_reception && <SelectInput name='advocate' label='Advocate' required placeholder='Select advocate' options={data.advocates} value={arrival.advocate} onChange={(event) => setArrival({ ...arrival, advocate: event.target.value })} />}
           </fieldset>
-          {returning.length > 0 && <div role='status' className='space-y-3 rounded-xl border border-[color:var(--border)] p-4'>
+          {!arrival.client && returning.length > 0 && <div role='status' className='space-y-3 rounded-xl border border-[color:var(--border)] p-4'>
             <p className='flex items-center gap-2 font-semibold'><History size={17} aria-hidden='true' />Returning visitor?</p>
             <ul className='space-y-3'>
               {returning.map((visitor) => <li key={visitor.visitor_phone} className='flex flex-wrap items-center justify-between gap-3 text-sm'>
                 <span><span className='font-medium'>{visitor.visitor_name}</span> · {visitor.visitor_phone}<br />
                   <span className='form-hint'>{visitor.visit_count} previous {visitor.visit_count === 1 ? 'visit' : 'visits'} · last {new Date(visitor.last_arrival_at).toLocaleDateString()} with {visitor.last_advocate_name}{visitor.client_name ? ` · Client record: ${visitor.client_name}` : ''}</span></span>
-                <Button3D size='sm' variant='outlineLight' disabled={pending} onClick={() => { setChosenVisitor(visitor.visitor_phone);
-                  setArrival({ ...arrival, visitor_name: visitor.visitor_name, visitor_phone: visitor.visitor_phone, client: visitor.client && data.clients.some((c) => c.value === visitor.client) ? visitor.client : arrival.client }); }}>This is the visitor</Button3D>
+                <Button3D size='sm' variant='outlineLight' disabled={pending} onClick={() => {
+                  if (visitor.client) chooseClient({ client: visitor.client, appointment: '', label: visitor.client_name, phone: visitor.visitor_phone, detail: 'Existing client, found in the visitor register' });
+                  else { setChosenVisitor(visitor.visitor_phone); setArrival({ ...arrival, visitor_name: visitor.visitor_name, visitor_phone: visitor.visitor_phone }); }
+                }}>This is the visitor</Button3D>
               </li>)}
             </ul>
           </div>}

@@ -35,7 +35,7 @@ describe('client arrival staffing flows', () => {
     fireEvent.change(screen.getByLabelText(/Phone number/), { target: { value: '0712345678' } });
     fireEvent.change(screen.getByLabelText(/^Advocate/), { target: { value: 'a1' } });
     fireEvent.click(screen.getByText('Add to queue & alert advocate'));
-    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/', { visitor_name: 'A Visitor', visitor_phone: '0712345678', client: null, advocate: 'a1', urgency_flag: false, urgency_note: '' }));
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/', { visitor_name: 'A Visitor', visitor_phone: '0712345678', client: null, appointment: null, advocate: 'a1', urgency_flag: false, urgency_note: '' }));
     await waitFor(() => expect(Swal.fire).toHaveBeenCalledWith(expect.objectContaining({ icon: 'success', title: 'Added to queue' })));
     expect(screen.getByLabelText(/Visitor name/).value).toBe('');
   });
@@ -54,15 +54,41 @@ describe('client arrival staffing flows', () => {
   it('offers a returning visitor from the register and fills the arrival', async () => {
     axios.get.mockImplementation(async (url) => ({ data: url === '/arrivals/visitors/'
       ? [{ visitor_name: 'John Mutua Ndeti', visitor_phone: '0722000111', visit_count: 2, last_arrival_at: '2026-10-28T08:00:00Z', last_advocate_name: 'Grace Wanjiku', client: 'c1', client_name: 'John Mutua Ndeti' }]
-      : { ...base, clients: [{ value: 'c1', label: 'John Mutua Ndeti' }] } }));
+      : base }));
     render(<MemoryRouter><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ClientArrivalsPage /></QueryClientProvider></MemoryRouter>);
     fireEvent.change(await screen.findByLabelText(/Phone number/), { target: { value: '0722' } });
     fireEvent.click(await screen.findByRole('button', { name: 'This is the visitor' }));
     expect(axios.get).toHaveBeenCalledWith('/arrivals/visitors/', { params: { q: '0722' } });
     expect(screen.getByLabelText(/Visitor name/).value).toBe('John Mutua Ndeti');
     expect(screen.getByLabelText(/Phone number/).value).toBe('0722000111');
-    expect(screen.getByLabelText(/Client record/).value).toBe('c1');
+    expect(screen.getByText('Client record: John Mutua Ndeti')).toBeTruthy();
     expect(screen.queryByText('Returning visitor?')).toBeNull();
+  });
+  it('puts clients expected today first and links the arrival to their appointment', async () => {
+    axios.post.mockResolvedValue({ data: {} });
+    show({ ...base, expected_today: [
+      { appointment: 'm1', starts_at: '2026-10-29T07:30:00Z', title: 'Client meeting', matter: 'MAC/2026/001', client: 'c1', client_name: 'Jane Wambui', client_phone: '+254711222333', advocate: 'a1', advocate_name: 'Advocate One', arrived: false },
+      { appointment: 'm2', starts_at: '2026-10-29T09:00:00Z', title: 'Client meeting', matter: 'MAC/2026/002', client: 'c2', client_name: 'Paul Otieno', client_phone: '', advocate: 'a1', advocate_name: 'Advocate One', arrived: true },
+    ] });
+    expect(await screen.findByText('Expected today (2)')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Has arrived' })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Has arrived' }));
+    expect(screen.getByText('Client record: Jane Wambui')).toBeTruthy();
+    expect(screen.getByLabelText(/Visitor name/).value).toBe('Jane Wambui');
+    fireEvent.click(screen.getByText('Add to queue & alert advocate'));
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/arrivals/', expect.objectContaining({ client: 'c1', appointment: 'm1', advocate: 'a1', visitor_phone: '+254711222333' })));
+  });
+  it('finds an existing client without an appointment by an identifier', async () => {
+    axios.get.mockImplementation(async (url) => ({ data: url === '/arrivals/clients/'
+      ? [{ value: 'c3', label: 'Mary Njeri', phone: '0733000444', identifier: '••••5678', file_reference: 'K-0003' }]
+      : base }));
+    render(<MemoryRouter><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ClientArrivalsPage /></QueryClientProvider></MemoryRouter>);
+    fireEvent.change(await screen.findByLabelText(/Find an existing client/), { target: { value: '12345678' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'This is the client' }));
+    expect(axios.get).toHaveBeenCalledWith('/arrivals/clients/', { params: { q: '12345678' } });
+    expect(screen.getByText('Client record: Mary Njeri')).toBeTruthy();
+    expect(screen.getByText('Existing client, no appointment today')).toBeTruthy();
+    expect(screen.getByLabelText(/Phone number/).value).toBe('0733000444');
   });
   it('shows a save error without clearing the arrival details', async () => {
     axios.post.mockRejectedValue({ response: { data: { detail: 'Advocate is unavailable.' } } });

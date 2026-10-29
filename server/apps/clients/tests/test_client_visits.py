@@ -235,6 +235,45 @@ class ClientVisitTests(TestCase):
         self.assertTrue(self.api.get(self.url).data['can_receive'])
         self.arrive()
 
+    def meeting(self, client, starts_at=None, **fields):
+        from apps.cases.models import Case, CaseEvent
+        case = Case.objects.create(firm=self.firm, client=client, created_by=self.owner, case_number=f'MAC-{Case.objects.count() + 1}',
+            title='Land sale', case_type=Case.CaseType.CIVIL, assigned_lawyer=self.lawyer)
+        return CaseEvent.objects.create(case=case, event_type=CaseEvent.EventType.CLIENT_MEETING, title='Client meeting',
+            starts_at=starts_at or timezone.now(), **fields)
+
+    def test_clients_expected_today_come_first_and_their_arrival_keeps_the_appointment(self):
+        from apps.cases.models import CaseEvent
+        jane = Client.objects.create(firm=self.firm, created_by=self.owner, full_name='Jane Wambui', client_type='INDIVIDUAL', phone_number='+254711222333')
+        today = self.meeting(jane)
+        self.meeting(jane, starts_at=timezone.now() + timedelta(days=2))
+        self.meeting(jane, status=CaseEvent.EventStatus.CANCELLED)
+        expected = self.api.get(self.url).data['expected_today']
+        self.assertEqual([row['appointment'] for row in expected], [str(today.pk)])
+        self.assertEqual(expected[0]['client_name'], 'Jane Wambui')
+        self.assertFalse(expected[0]['arrived'])
+
+        response = self.api.post(self.url, {'visitor_phone': '0711222333', 'visitor_name': 'Jane Wambui',
+            'advocate': str(self.lawyer.pk), 'appointment': str(today.pk)}, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(ClientVisit.objects.get(pk=response.data['id']).client, jane)
+        self.assertTrue(self.api.get(self.url).data['expected_today'][0]['arrived'])
+        again = self.api.post(self.url, {'visitor_phone': '0711222333', 'visitor_name': 'Jane Wambui',
+            'advocate': str(self.lawyer.pk), 'appointment': str(today.pk)}, format='json')
+        self.assertEqual(again.status_code, 400)
+
+    def test_reception_finds_an_existing_client_by_name_or_identifier(self):
+        Client.objects.create(firm=self.firm, created_by=self.owner, full_name='Mary Njeri', client_type='INDIVIDUAL',
+            phone_number='+254733000444', national_id='12345678', kyc_drawer_reference='K-0003')
+        search = lambda q: [row['label'] for row in self.api.get(reverse('client-arrival-clients'), {'q': q}).data]
+        for query in ['njeri', '0733000444', '12345678', 'k-0003']:
+            self.assertEqual(search(query), ['Mary Njeri'], query)
+        row = self.api.get(reverse('client-arrival-clients'), {'q': 'Mary'}).data[0]
+        self.assertEqual(row['identifier'], '••••5678')
+        self.assertEqual(search('ma'), [])
+        self.api.force_authenticate(self.lawyer.user)
+        self.assertEqual(self.api.get(reverse('client-arrival-clients'), {'q': 'Mary'}).status_code, 403)
+
     def test_inactive_receptionist_and_other_firm_do_not_change_route(self):
         receptionist = self.receptionist()
         receptionist.user.is_active = False
