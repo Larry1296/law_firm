@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Layers,
   PlusCircle,
+  User,
   Users,
 } from 'lucide-react';
 
@@ -26,5 +27,6 @@ export const platformLayoutConfig = {
     { name: 'Onboarding requests', path: '/platform/requests', icon: Inbox, section: 'Firms' },
     { name: 'Plans', path: '/platform/plans', icon: Layers, section: 'Billing' },
     { name: 'Payments', path: '/platform/payments', icon: CreditCard, section: 'Billing' },
+    { name: 'Profile', path: '/platform/profile', icon: User, section: 'Account' },
   ],
 };
