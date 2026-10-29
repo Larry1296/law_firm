@@ -35,7 +35,7 @@ export default function ClientTopbar({ onMenuClick }) {
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
-        <LockWorkspaceButton className={`flex h-11 w-11 items-center justify-center rounded-xl ${hoverEffect}`} />
+        <LockWorkspaceButton className={`h-11 px-3 rounded-xl ${hoverEffect}`} />
         <NotificationBellDropdown
           className={hoverEffect}
           fallbackPath='/client/notifications'
