@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import axios from '@/core/api/axios';
 
 import AuthContext from '@/core/store/AuthContext';
+import useSubscription from '@/modules/subscription/hooks/useSubscription';
 import { User } from 'lucide-react';
 
 import LogoutButton from '@/components/ui/LogoutButton';
@@ -36,8 +37,9 @@ export default function AdminSidebar({ onClose }) {
     if (window.innerWidth < 1024) onClose?.();
   };
   const isFirmOwner = Boolean(user?.is_firm_owner);
+  const { hasFeature } = useSubscription();
   const visibleLinks = adminSidebarLinks.filter(
-    (link) => !link.ownerOnly || isFirmOwner,
+    (link) => (!link.ownerOnly || isFirmOwner) && (!link.feature || hasFeature(link.feature)),
   );
   // A practising owner whose firm has reception staff sees their consultations, not the arrivals register.
   const { data: queue } = useQuery({

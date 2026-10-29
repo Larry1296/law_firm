@@ -60,7 +60,7 @@ export const adminSidebarLinks = [
 
   { name: 'Firm', path: '/admin/firm', icon: Building2, section: 'Firm Administration' },
   { name: 'Subscription', path: '/admin/subscription', icon: Receipt, section: 'Firm Administration' },
-  { name: 'Chatbot Knowledge', path: '/admin/public-knowledge', icon: Globe2, section: 'Firm Administration' },
+  { name: 'Chatbot Knowledge', path: '/admin/public-knowledge', icon: Globe2, section: 'Firm Administration', feature: 'PUBLIC_AI_ASSISTANT' },
   { name: 'Compliance', path: '/admin/compliance', icon: ShieldCheck, section: 'Firm Administration' },
   { name: 'Settings', path: '/admin/settings', icon: Settings, section: 'Firm Administration' },
   { name: 'Profile', path: '/admin/profile', icon: User, section: 'Account' },

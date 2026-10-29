@@ -4,7 +4,8 @@ Request-level plan enforcement, applied by the API's JWT authentication class.
 - A lapsed subscription (expired trial, or past the grace period) makes the firm
   read-only: records stay viewable because advocates must keep client and
   account records available, but writes are refused until renewal.
-- Views for features outside the plan are refused.
+- Views for features outside the plan are refused. The public website
+  assistant has no signed-in user, so its views check the plan themselves.
 - Client users of a firm without the client portal feature are refused.
 - Every member of a firm the platform administrator has suspended is refused.
 """
@@ -24,6 +25,9 @@ EXEMPT_VIEW_PREFIXES = ("apps.authentication.", "apps.subscriptions.")
 SUSPENSION_EXEMPT_VIEW_PREFIXES = ("apps.authentication.views.logout_view.",)
 
 FEATURE_VIEW_PREFIXES = {
+    Feature.PUBLIC_AI_ASSISTANT: (
+        "apps.ai.views.admin_public_knowledge_view.",
+    ),
     Feature.AI_CASE_ANALYSIS: (
         "apps.ai.views.lawyer_case_assessment_view.",
         "apps.ai.views.court_preparation_view.",

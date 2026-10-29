@@ -19,6 +19,8 @@ from apps.ai.services.public_firm_answer_service import PublicFirmAnswerService
 from apps.ai.services.platform_guide_service import INJECTION_ANSWER, PlatformGuideService
 from apps.ai.services.public_knowledge_service import PublicKnowledgeEligibility
 from apps.ai.throttles import KnowledgeBaseAnonThrottle
+from apps.subscriptions.catalog import Feature
+from apps.subscriptions.services import SubscriptionService
 
 logger = logging.getLogger(__name__)
 DISCLAIMER = (
@@ -78,6 +80,10 @@ def _source(item, intent="legal"):
     }
 
 
+# The firm's plan does not include the website assistant.
+ASSISTANT_NOT_IN_PLAN = {"detail": "The legal information assistant is not available on this firm's website.", "code": "feature_not_in_plan"}
+
+
 class KnowledgeBaseCategoryListView(APIView):
     permission_classes = (AllowAny,)
     authentication_classes = ()
@@ -86,6 +92,8 @@ class KnowledgeBaseCategoryListView(APIView):
         firm = PublicFirmResolver.resolve(request)
         if firm is None:
             return Response({"detail": "Public website firm could not be resolved safely."}, status=404)
+        if not SubscriptionService.has_feature(firm, Feature.PUBLIC_AI_ASSISTANT):
+            return Response(ASSISTANT_NOT_IN_PLAN, status=403)
         section = request.query_params.get("section", "home")
         allowed = {"home", "about", "practice_areas", "consultation", "contact"}
         if section not in allowed:
@@ -123,6 +131,8 @@ class KnowledgeBaseAskView(APIView):
         firm = PublicFirmResolver.resolve(request)
         if firm is None:
             return Response({"detail": "Public website firm could not be resolved safely."}, status=404)
+        if not SubscriptionService.has_feature(firm, Feature.PUBLIC_AI_ASSISTANT):
+            return Response(ASSISTANT_NOT_IN_PLAN, status=403)
         intent = PublicFirmAnswerService.classify(question)
         guide = None if intent == "sensitive" else CourtProcessGuideService.answer(question, history, firm)
         if guide is not None:

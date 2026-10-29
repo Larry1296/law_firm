@@ -74,6 +74,17 @@ class KnowledgeBaseApiTests(APITestCase):
             response = self.client.post("/api/knowledge-base/ask/", {"question": "How do I recover an unpaid debt?"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_website_assistant_is_closed_on_a_plan_without_it(self):
+        from apps.subscriptions.models import Plan
+        subscription = self.firm.subscription
+        subscription.plan = Plan.objects.get(code="BASIC")
+        subscription.save()
+        self.assertEqual(self.client.get("/api/knowledge-base/").status_code, status.HTTP_403_FORBIDDEN)
+        response = self.client.post("/api/knowledge-base/ask/", {"question": "How do I recover an unpaid debt?"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data["code"], "feature_not_in_plan")
+        self.assertFalse(KnowledgeBaseQuestionLog.objects.exists())
+
     def test_rejects_empty_oversized_and_malformed_history(self):
         cases = [
             {"question": "   "},
