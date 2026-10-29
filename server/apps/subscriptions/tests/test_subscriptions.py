@@ -58,9 +58,12 @@ class TrialAndCatalogueTests(SubscriptionTestCase):
         response = self.api.get("/api/subscription/plans/")
         self.assertEqual(response.status_code, 200)
         codes = [plan["code"] for plan in response.data["plans"]]
-        self.assertEqual(codes, ["BASIC", "PRO"])
+        self.assertEqual(codes, ["SOLO", "BASIC", "CHAMBERS", "PRO", "FIRM", "ENTERPRISE"])
         prices = {plan["code"]: plan["monthly_price"] for plan in response.data["plans"]}
-        self.assertEqual(prices, {"BASIC": "2500.00", "PRO": "5000.00"})
+        self.assertEqual(prices, {
+            "SOLO": "1500.00", "BASIC": "2500.00", "CHAMBERS": "5000.00",
+            "PRO": "9500.00", "FIRM": "24000.00", "ENTERPRISE": "60000.00",
+        })
         self.assertTrue(any("Advocates (Accounts) Rules" in line for line in response.data["included_in_every_plan"]))
 
     def test_summary_reports_usage_against_limits(self):
@@ -252,7 +255,7 @@ class InvoiceAndPaymentTests(SubscriptionTestCase):
         )
         invoice = SubscriptionService.issue_invoice(firm=self.firm, plan_code="PRO", billing_cycle="MONTHLY", user=self.owner)
         self.assertAlmostEqual(invoice.proration_credit, Decimal("1250.00"), delta=Decimal("5"))
-        self.assertEqual(invoice.amount_excl_vat, Decimal("5000.00") - invoice.proration_credit)
+        self.assertEqual(invoice.amount_excl_vat, Decimal("9500.00") - invoice.proration_credit)
 
     def test_only_firm_administrators_manage_billing(self):
         staff = make_user("staff@saas.test", UserRole.STAFF, "+254744000020")

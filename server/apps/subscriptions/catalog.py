@@ -6,8 +6,9 @@ Platform administrators maintain the live values from the platform console;
 this module is only the starting point and the fallback when a plan row is
 missing.
 
-Basic is limited in scale (advocates, support staff, active matters, branches)
-and in convenience features; Pro has every feature and no limits. Statutory obligations are never tiered: every plan
+Plans climb from Wakili Solo (one advocate) to Enterprise (no limits) in scale
+(advocates, support staff, active matters, branches) and in convenience
+features; from Pro up every feature is included. Statutory obligations are never tiered: every plan
 includes conflict checks and KYC/beneficial ownership records (Proceeds of
 Crime and Anti-Money Laundering Act), client account ledgers and reconciliation
 (Advocates (Accounts) Rules), privacy notices and retention (Data Protection
@@ -65,10 +66,27 @@ INCLUDED_IN_EVERY_PLAN = [
     "Data Protection Act, 2019 privacy notices",
 ]
 
+SOLO = "SOLO"
 BASIC = "BASIC"
+CHAMBERS = "CHAMBERS"
 PRO = "PRO"
+FIRM = "FIRM"
+ENTERPRISE = "ENTERPRISE"
 
 PLANS = [
+    {
+        "code": SOLO,
+        "name": "Wakili Solo",
+        "tagline": "For an advocate practising on their own account.",
+        "monthly_price": Decimal("1500.00"),
+        "annual_price": Decimal("15000.00"),
+        "max_advocates": 1,
+        "max_support_staff": 2,
+        "max_active_matters": 75,
+        "max_branches": 1,
+        "features": [],
+        "sort_order": 10,
+    },
     {
         "code": BASIC,
         "name": "Basic",
@@ -80,20 +98,59 @@ PLANS = [
         "max_active_matters": 150,
         "max_branches": 1,
         "features": [Feature.CLIENT_PORTAL],
-        "sort_order": 10,
+        "sort_order": 20,
+    },
+    {
+        "code": CHAMBERS,
+        "name": "Chambers",
+        "tagline": "For a small partnership with a client-facing portal.",
+        "monthly_price": Decimal("5000.00"),
+        "annual_price": Decimal("50000.00"),
+        "max_advocates": 5,
+        "max_support_staff": 12,
+        "max_active_matters": 400,
+        "max_branches": 1,
+        "features": [Feature.CLIENT_PORTAL, Feature.PUBLIC_AI_ASSISTANT],
+        "sort_order": 30,
     },
     {
         "code": PRO,
         "name": "Pro",
-        "tagline": "Every feature, with no seat, matter or branch limits.",
-        "monthly_price": Decimal("5000.00"),
-        "annual_price": Decimal("50000.00"),
+        "tagline": "Every feature for a growing firm with a second office.",
+        "monthly_price": Decimal("9500.00"),
+        "annual_price": Decimal("95000.00"),
+        "max_advocates": 10,
+        "max_support_staff": 25,
+        "max_active_matters": None,
+        "max_branches": 2,
+        "features": list(Feature.ALL),
+        "sort_order": 40,
+    },
+    {
+        "code": FIRM,
+        "name": "Firm",
+        "tagline": "For established firms with several advocates and offices.",
+        "monthly_price": Decimal("24000.00"),
+        "annual_price": Decimal("240000.00"),
+        "max_advocates": 25,
+        "max_support_staff": 60,
+        "max_active_matters": None,
+        "max_branches": 5,
+        "features": list(Feature.ALL),
+        "sort_order": 50,
+    },
+    {
+        "code": ENTERPRISE,
+        "name": "Enterprise",
+        "tagline": "For large and multi-county firms. No seat, matter or branch limits.",
+        "monthly_price": Decimal("60000.00"),
+        "annual_price": Decimal("600000.00"),
         "max_advocates": None,
         "max_support_staff": None,
         "max_active_matters": None,
         "max_branches": None,
         "features": list(Feature.ALL),
-        "sort_order": 20,
+        "sort_order": 60,
     },
 ]
 
