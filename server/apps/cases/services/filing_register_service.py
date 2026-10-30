@@ -113,10 +113,38 @@ class FilingRegisterService:
             actor=user,
             metadata={"filing_id": str(filing.id), "filing_type": filing_type},
         )
+        if filing_type == CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE:
+            cls._advance_to_awaiting_response(case, user)
         from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
 
         ProceedingsWorkflowService._resync_next_action(case, actor=user)
         return filing
+
+    SERVICE_PATH = [Case.CourtStage.AWAITING_SERVICE, Case.CourtStage.SERVICE_IN_PROGRESS, Case.CourtStage.AWAITING_RESPONSE]
+
+    @classmethod
+    def _advance_to_awaiting_response(cls, case, user):
+        """Service proved by affidavit moves the court stage on to awaiting the response, step by recorded step."""
+        from apps.cases.services.case_lifecycle_service import CaseLifecycleService
+        from apps.cases.models import CaseLifecycleTransition
+
+        case.refresh_from_db()
+        pre_response = {Case.CourtStage.FILED, Case.CourtStage.AWAITING_ASSESSMENT_OR_PAYMENT, *cls.SERVICE_PATH[:-1]}
+        if case.court_stage not in pre_response:
+            return
+        start = cls.SERVICE_PATH.index(case.court_stage) + 1 if case.court_stage in cls.SERVICE_PATH else 0
+        try:
+            # Someone who may record papers but not move the stage leaves it for the advocate.
+            with transaction.atomic():
+                for stage in cls.SERVICE_PATH[start:]:
+                    CaseLifecycleService.transition(
+                        case=case, actor=user, dimension=CaseLifecycleTransition.Dimension.COURT_STAGE, to_state=stage,
+                        reason="Service proved by the affidavit of service recorded in the filing register.",
+                        metadata={"affidavit_of_service_filed": True},
+                    )
+                    case.refresh_from_db()
+        except (PermissionDenied, ValidationError):
+            case.refresh_from_db()
 
     @classmethod
     @transaction.atomic

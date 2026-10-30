@@ -369,7 +369,9 @@ class EndToEndLitigationTests(TestCase):
         served = timezone.now() - timedelta(days=3)
         self.register(self.secretary_user, matter, "SUMMONS", served_at=served.isoformat(), response_due_date=(timezone.localdate(served) + timedelta(days=10)).isoformat(), title="Summons served on the defendant's director")
         self.register(self.secretary_user, matter, "AFFIDAVIT_OF_SERVICE", served_at=served.isoformat(), response_due_date=(timezone.localdate(served) + timedelta(days=10)).isoformat(), efiling_reference="EF-2026-779001")
-        self.transition(self.advocate_user, matter, "AWAITING_RESPONSE", "Affidavit of service filed.", {"affidavit_of_service_filed": True})
+        # Recording the affidavit proves service, so the matter moves on to await the response by itself.
+        matter.refresh_from_db()
+        self.assertEqual(matter.court_stage, "AWAITING_RESPONSE")
         appearance_due = timezone.localdate(served) + timedelta(days=10)
         provisional = matter.deadlines.get(source__startswith="APPEARANCE:")
         self.assertTrue(provisional.requires_review)
