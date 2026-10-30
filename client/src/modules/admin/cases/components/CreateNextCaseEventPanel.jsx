@@ -65,6 +65,15 @@ const HEARING_MODES = [
   { value: 'NOT_APPLICABLE', label: 'Not applicable' },
 ];
 
+// Events the court sits for take a hearing mode, courtroom and judge; office, registry and client events do not.
+const COURT_SITTINGS = new Set([
+  'MENTION', 'HEARING', 'DIRECTIONS', 'CASE_MANAGEMENT', 'PRE_TRIAL', 'SUBMISSIONS', 'RULING',
+  'JUDGMENT', 'TAXATION', 'APPEAL', 'REVIEW', 'OTHER_COURT_DIRECTED',
+]);
+const AT_THE_REGISTRY = new Set(['FILING', 'REGISTRY_ACTION']);
+const modeFor = (eventType) => (COURT_SITTINGS.has(eventType) ? 'PHYSICAL' : 'NOT_APPLICABLE');
+const titleFor = (eventType, label) => (eventType === 'INTERNAL' ? '' : label);
+
 const formatDaysRemaining = (dateStr) => {
   if (!dateStr) return null;
   const eventDate = new Date(dateStr);
@@ -95,14 +104,16 @@ export default function CreateNextCaseEventPanel({
   }, [courtStage]);
 
   const defaultEventType = useMemo(() => {
-    if (suggestion?.next_action) {
+    // The suggested or recorded next action (for a new instruction, "Filing") picks the event.
+    const nextAction = suggestion?.next_action || caseData?.next_action;
+    if (nextAction) {
       const match = validTypes.find(
-        (t) => t.label.toLowerCase() === suggestion.next_action.toLowerCase()
+        (t) => t.label.toLowerCase() === nextAction.toLowerCase()
       );
       if (match) return match.value;
     }
     return validTypes[0]?.value || 'MENTION';
-  }, [suggestion, validTypes]);
+  }, [suggestion, caseData?.next_action, validTypes]);
 
   const toLocalDateTimeInput = (isoStr) => {
     if (!isoStr) return '';
@@ -115,13 +126,13 @@ export default function CreateNextCaseEventPanel({
 
   const [draft, setDraft] = useState({
     event_type: defaultEventType,
-    title: suggestion?.next_action || validTypes.find((type) => type.value === defaultEventType)?.label || '',
+    title: suggestion?.next_action || titleFor(defaultEventType, validTypes.find((type) => type.value === defaultEventType)?.label || ''),
     description: suggestion
       ? `Following: ${suggestion.source_event_title}`
       : '',
     starts_at: toLocalDateTimeInput(suggestion?.next_date),
     ends_at: '',
-    hearing_mode: 'VIRTUAL',
+    hearing_mode: modeFor(defaultEventType),
     court: caseData?.court_name || caseData?.court_station || '',
     court_station: caseData?.court_station || '',
     courtroom: '',
@@ -172,12 +183,12 @@ export default function CreateNextCaseEventPanel({
     try {
       await onCreateEvent({ caseId: caseData.id, payload });
       setDraft({
-        event_type: validTypes[0]?.value || 'MENTION',
-        title: validTypes[0]?.label || '',
+        event_type: defaultEventType,
+        title: titleFor(defaultEventType, validTypes.find((type) => type.value === defaultEventType)?.label || ''),
         description: '',
         starts_at: '',
         ends_at: '',
-        hearing_mode: 'VIRTUAL',
+        hearing_mode: modeFor(defaultEventType),
         court: caseData?.court_name || '',
         court_station: caseData?.court_station || '',
         courtroom: '',
@@ -253,7 +264,8 @@ export default function CreateNextCaseEventPanel({
             setDraft((d) => ({
               ...d,
               event_type: eventType,
-              title: eventType === 'INTERNAL' ? d.title : label,
+              title: eventType === 'INTERNAL' ? (d.event_type === 'INTERNAL' ? d.title : '') : label,
+              hearing_mode: modeFor(eventType),
             }));
           }}
           options={validTypes}
@@ -314,69 +326,89 @@ export default function CreateNextCaseEventPanel({
           />
         </div>
 
-        {/* Hearing Mode */}
-        <Select3D
-          label="Hearing Mode"
-          value={draft.hearing_mode}
-          onChange={(e) => setDraft((d) => ({ ...d, hearing_mode: e.target.value }))}
-          options={HEARING_MODES}
-        />
-
-        {/* Court Station */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
-            Court Station
-          </label>
-          <input
-            type="text"
-            value={draft.court_station}
-            onChange={(e) => setDraft((d) => ({ ...d, court_station: e.target.value }))}
-            className={fieldClass}
-            placeholder="e.g. Milimani High Court"
+        {COURT_SITTINGS.has(draft.event_type) && (
+          <>
+          {/* Hearing Mode */}
+          <Select3D
+            label="Hearing Mode"
+            value={draft.hearing_mode}
+            onChange={(e) => setDraft((d) => ({ ...d, hearing_mode: e.target.value }))}
+            options={HEARING_MODES}
           />
-        </div>
 
-        {/* Courtroom */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
-            Courtroom
-          </label>
-          <input
-            type="text"
-            value={draft.courtroom}
-            onChange={(e) => setDraft((d) => ({ ...d, courtroom: e.target.value }))}
-            className={fieldClass}
-            placeholder="e.g. Court 3"
-          />
-        </div>
+          </>
+        )}
 
-        {/* Judicial Officer */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
-            Judicial Officer
-          </label>
-          <input
-            type="text"
-            value={draft.judicial_officer}
-            onChange={(e) => setDraft((d) => ({ ...d, judicial_officer: e.target.value }))}
-            className={fieldClass}
-            placeholder="e.g. Hon. Justice Kamau"
-          />
-        </div>
+        {(COURT_SITTINGS.has(draft.event_type) || AT_THE_REGISTRY.has(draft.event_type)) && (
+          <>
+          {/* Court Station */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
+              Court Station
+            </label>
+            <input
+              type="text"
+              value={draft.court_station}
+              onChange={(e) => setDraft((d) => ({ ...d, court_station: e.target.value }))}
+              className={fieldClass}
+              placeholder="e.g. Milimani High Court"
+            />
+          </div>
 
-        {/* Virtual Meeting URL */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
-            Virtual Meeting URL
-          </label>
-          <input
-            type="url"
-            value={draft.virtual_meeting_url}
-            onChange={(e) => setDraft((d) => ({ ...d, virtual_meeting_url: e.target.value }))}
-            className={fieldClass}
-            placeholder="https://..."
-          />
-        </div>
+          </>
+        )}
+
+        {COURT_SITTINGS.has(draft.event_type) && (
+          <>
+          {/* Courtroom */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
+              Courtroom
+            </label>
+            <input
+              type="text"
+              value={draft.courtroom}
+              onChange={(e) => setDraft((d) => ({ ...d, courtroom: e.target.value }))}
+              className={fieldClass}
+              placeholder="e.g. Court 3"
+            />
+          </div>
+
+          {/* Judicial Officer */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
+              Judicial Officer
+            </label>
+            <input
+              type="text"
+              value={draft.judicial_officer}
+              onChange={(e) => setDraft((d) => ({ ...d, judicial_officer: e.target.value }))}
+              className={fieldClass}
+              placeholder="e.g. Hon. Justice Kamau"
+            />
+          </div>
+
+          </>
+        )}
+
+        {['VIRTUAL', 'HYBRID'].includes(draft.hearing_mode) && (
+          <>
+          {/* Virtual Meeting URL */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
+              Virtual Meeting URL
+            </label>
+            <input
+              type="url"
+              value={draft.virtual_meeting_url}
+              onChange={(e) => setDraft((d) => ({ ...d, virtual_meeting_url: e.target.value }))}
+              className={fieldClass}
+              placeholder="https://..."
+            />
+          </div>
+
+          </>
+        )}
 
         {/* Description */}
         <div className="lg:col-span-2">
@@ -387,7 +419,7 @@ export default function CreateNextCaseEventPanel({
             value={draft.description}
             onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
             className={fieldClass}
-            placeholder="Directions on pleadings, witness statements, and compliance status..."
+            placeholder="What the event is for and what must be ready"
           />
         </div>
 
