@@ -32,7 +32,7 @@ export default function ClientAwarenessControl({ event, clientName, clientPhone 
   const told = ['NOTIFIED', 'CONFIRMED'].includes(status);
 
   return (
-    <div className={`mt-3 rounded-lg border p-3 text-sm ${told ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30' : 'border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30'}`}>
+    <div className={`mt-3 rounded-lg border p-3 text-sm ${told ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30' : 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/40'}`}>
       <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
         {told
           ? `${clientName || 'Client'} ${status === 'CONFIRMED' ? 'confirmed this date' : 'was told'}${awareness?.confirmation_channel ? ` (${CHANNELS.find((item) => item.value === awareness.confirmation_channel)?.label || awareness.confirmation_channel})` : ''}`
