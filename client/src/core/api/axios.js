@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { captureConfirmationOptions, releaseCriticalAction, requireCriticalConfirmation } from './criticalActionGuard';
+import { reportRefused, reportSaved } from './actionFeedback';
 
 import {
   clearAuthSession,
@@ -128,7 +129,7 @@ const forceLogoutToLogin = () => {
    RESPONSE INTERCEPTOR (AUTO REFRESH)
 ========================================================= */
 axiosInstance.interceptors.response.use(
-  (response) => { releaseCriticalAction(response.config); return response; },
+  (response) => { reportSaved(response.config); releaseCriticalAction(response.config); return response; },
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
@@ -166,6 +167,7 @@ axiosInstance.interceptors.response.use(
 
     if (status !== 401 || isAuthEndpoint) {
       attachApiErrorMessage(error);
+      reportRefused(error);
       return Promise.reject(error);
     }
 
