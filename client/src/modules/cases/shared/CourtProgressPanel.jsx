@@ -221,7 +221,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
         {dimension === 'COURT_STAGE' && toState === 'FILED' && (
           <>
             <Field label='Filing date'><input type='date' name='filing_date' value={filing.filing_date} onChange={updateFiling} className={inputClass} required /></Field>
-            <Field label='Court case number'><input name='official_court_case_number' value={filing.official_court_case_number} onChange={updateFiling} placeholder='MCCOMMSU/E1234/2026' className={inputClass} required /></Field>
+            <Field label='Court case number'><input name='official_court_case_number' value={filing.official_court_case_number} onChange={updateFiling} placeholder='As stamped by the court, e.g. ELRC Cause No. E512 of 2026' className={inputClass} required /></Field>
             <Field label='E-filing reference'><input name='efiling_reference' value={filing.efiling_reference} onChange={updateFiling} className={inputClass} /></Field>
             <Field label='Court station'><input name='court_station' value={filing.court_station} onChange={updateFiling} placeholder={caseData.court_station || 'Milimani Commercial Courts'} className={inputClass} required={!caseData.court_station} /></Field>
             <Field label='Registry'><input name='registry' value={filing.registry} onChange={updateFiling} className={inputClass} required={!caseData.registry} /></Field>
@@ -239,7 +239,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
         )}
 
         <Field label='Reason / note for the record' wide>
-          <input value={reason} onChange={(event) => setReason(event.target.value)} className={inputClass} required placeholder='e.g. Plaint filed through the Judiciary e-filing portal' />
+          <input value={reason} onChange={(event) => setReason(event.target.value)} className={inputClass} required placeholder='e.g. Claim filed through the Judiciary e-filing portal' />
         </Field>
         <div className='md:col-span-2'>
           <button type='submit' disabled={busy || !selected} className='inline-flex min-h-11 items-center rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50'>
