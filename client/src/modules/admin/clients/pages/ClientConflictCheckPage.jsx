@@ -558,8 +558,11 @@ export default function ClientConflictCheckPage() {
           { id: 'conflict-overview', label: 'Overview' },
           { id: 'conflict-search', label: 'Conflict search', hidden: !hasSearch },
           { id: 'conflict-outcome', label: 'Conflict decision', hidden: nextOptions.length === 0 },
-          { id: 'conflict-jurisdiction', label: 'Jurisdiction', hidden: check.status !== 'CLEARED' },
           { id: 'conflict-acceptance', label: 'Firm acceptance', hidden: !canRecordAcceptance },
+          { id: 'client-compliance-review', label: 'KYC review', hidden: isLawyer || check.status !== 'CLEARED' || !complianceReview },
+          { id: 'engagement-management', label: 'Engagement', hidden: isLawyer || check.status !== 'CLEARED' },
+          { id: 'conflict-jurisdiction', label: 'Jurisdiction', hidden: check.status !== 'CLEARED' },
+          { id: 'matter-opening-readiness', label: 'Opening readiness' },
           { id: 'conflict-history', label: 'History' },
         ]}
       />
@@ -631,6 +634,134 @@ export default function ClientConflictCheckPage() {
             {['CLEARED', 'CONFLICT_CONFIRMED'].includes(actionDraft.next_status) && <label className='flex items-center gap-2 text-sm md:col-span-2'><input type='checkbox' checked={actionDraft.decision_confirmation} onChange={(e) => setActionDraft((v) => ({ ...v, decision_confirmation: e.target.checked }))} />I confirm this professional conflict decision for these proposed instructions only.</label>}
             <Button3D type='submit' variant='primary' disabled={isOutcomeBlocked}>{actionMutation.isPending ? 'Recording...' : 'Record Outcome'}</Button3D>
           </form>
+        </Card>
+      )}
+
+      {canRecordAcceptance && (
+        <Card id='conflict-acceptance' className='scroll-mt-28 p-6'>
+          <h3 className='mb-4 text-lg font-semibold'>Firm Acceptance Decision</h3>
+          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); confirmThen(ACCEPTANCE_CONFIRMS[acceptanceDraft.decision], () => acceptanceMutation.mutate()); }}>
+            <Select3D label='Decision' value={acceptanceDraft.decision} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, decision: e.target.value }))} options={[{ value: 'ACCEPTED', label: 'Accept instructions' }, { value: 'DECLINED', label: 'Decline instructions' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }]} required />
+            <Select3D label='Engagement preparation stage' value={acceptanceDraft.engagement_status} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, engagement_status: e.target.value }))} options={[{ value: 'DRAFTING', label: 'Drafting' }, { value: 'SENT_TO_CLIENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed document received (formal approval still required)' }, { value: 'FEE_ARRANGEMENT_CONFIRMED', label: 'Fee terms confirmed (formal approval still required)' }]} />
+            {acceptanceDraft.decision !== 'ACCEPTED' && <Select3D label='Reason category' value={acceptanceDraft.reason_category} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, reason_category: e.target.value }))} options={[{ value: 'OUTSIDE_EXPERTISE', label: 'Outside expertise' }, { value: 'CAPACITY_CONSTRAINT', label: 'Capacity constraint' }, { value: 'COMMERCIAL_TERMS', label: 'Commercial terms' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }, { value: 'CDD_RESTRICTED', label: 'CDD restricted' }, { value: 'OTHER', label: 'Other' }]} required />}
+            <TextArea label='Scope confirmation' value={acceptanceScope} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, scope_confirmation: value }))} required={acceptanceDraft.decision === 'ACCEPTED'} />
+            {acceptanceDraft.decision !== 'ACCEPTED' && <TextArea label='Restricted internal reason' value={acceptanceDraft.internal_reason} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, internal_reason: value }))} required />}
+            <Button3D type='submit' variant='primary' disabled={acceptanceMutation.isPending}>
+              {acceptanceMutation.isPending ? 'Recording...' : 'Record Acceptance Decision'}
+            </Button3D>
+          </form>
+        </Card>
+      )}
+
+      {!isLawyer && check.status === 'CLEARED' && complianceReview && (
+        <Card id='client-compliance-review' className='scroll-mt-28 p-6'>
+          <h3 className='mb-2 text-lg font-semibold'>KYC, Authority and Due-Diligence Review</h3>
+          <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+            Final decisions are recorded in immutable history. A blocked or incomplete review prevents matter opening.
+          </p>
+          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); complianceMutation.mutate(); }}>
+            <Select3D label='Identity verification' value={complianceDraft.identity_status || complianceReview.identity_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, identity_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
+            <Select3D label='Authority to instruct' value={complianceDraft.authority_status || complianceReview.authority_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, authority_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
+            <Select3D label='Beneficial ownership' value={complianceDraft.beneficial_ownership_status || complianceReview.beneficial_ownership_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, beneficial_ownership_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'NOT_APPLICABLE', label: 'Not applicable' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
+            <Select3D label='Due-diligence decision' value={complianceDraft.due_diligence_status || complianceReview.due_diligence_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, due_diligence_status: e.target.value }))} options={[{ value: 'CLEARED', label: 'Cleared' }, { value: 'ENHANCED_DUE_DILIGENCE', label: 'Enhanced due diligence required' }, { value: 'RESTRICTED', label: 'Opening restricted' }]} required />
+            <label className='flex items-center gap-2 text-sm md:col-span-2'>
+              <input type='checkbox' checked={complianceDraft.source_of_funds_required ?? complianceReview.source_of_funds_required} onChange={(e) => setComplianceDraft((value) => ({ ...value, source_of_funds_required: e.target.checked, source_of_funds_status: e.target.checked ? 'UNKNOWN' : 'NOT_APPLICABLE' }))} />
+              Source-of-funds verification is required
+            </label>
+            {(complianceDraft.source_of_funds_required ?? complianceReview.source_of_funds_required) && (
+              <Select3D label='Source-of-funds verification' value={complianceDraft.source_of_funds_status || complianceReview.source_of_funds_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, source_of_funds_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
+            )}
+            <TextArea label='Restriction or escalation reason' value={complianceDraft.restriction_reason || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, restriction_reason: value }))} />
+            <TextArea label='Review notes and evidence references' value={complianceDraft.review_notes || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, review_notes: value }))} />
+            <TextArea label='Reason for this decision' value={complianceDraft.reason || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, reason: value }))} required />
+            <Button3D type='submit' variant='primary' disabled={complianceMutation.isPending || !complianceDraft.reason?.trim()}>
+              {complianceMutation.isPending ? 'Recording...' : 'Record Compliance Decision'}
+            </Button3D>
+          </form>
+          {complianceReview.reviewed_at && <p className='mt-4 text-sm'>Last reviewed by {complianceReview.reviewed_by_name || 'Authorised reviewer'} on {formatDateTime(complianceReview.reviewed_at)}</p>}
+        </Card>
+      )}
+
+      {!isLawyer && check.status === 'CLEARED' && (
+        <Card id='engagement-management' className='scroll-mt-28 p-6'>
+          <h3 className='mb-2 text-lg font-semibold'>Formal Engagement</h3>
+          <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+            Scope, fees, signature, approval and exceptions are versioned. Marking the intake stage “signed” does not authorise opening.
+          </p>
+          {engagements.length > 0 && (
+            <div className='mb-6 space-y-3'>
+              {engagements.map((engagement) => (
+                <div key={engagement.id} className='rounded-xl border border-border-light p-4 dark:border-border-dark'>
+                  <div className='flex flex-wrap items-center justify-between gap-2'>
+                    <p className='font-semibold'>Version {engagement.version} · {enumLabel(engagement.status)}</p>
+                    <span className={engagement.permits_opening ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'}>{engagement.permits_opening ? 'Opening control satisfied' : 'Not approved for opening'}</span>
+                  </div>
+                  <p className='mt-2 text-sm'><strong>Scope:</strong> {engagement.scope_of_work}</p>
+                  <p className='text-sm'><strong>Fee terms:</strong> {enumLabel(engagement.fee_arrangement_type)} — {engagement.fee_arrangement_description}</p>
+                  {Number(engagement.required_retainer || 0) > 0 && (
+                    <div className='mt-3 rounded-lg border border-border-light p-3 dark:border-border-dark'>
+                      <p className='text-sm'><strong>Required retainer:</strong> {engagement.required_retainer} · {engagement.retainer_received ? 'Received and verified' : 'Awaiting verified receipt'}</p>
+                      {!engagement.retainer_received && !['SUPERSEDED', 'CANCELLED'].includes(engagement.status) && (
+                        <form className='mt-3 grid gap-3 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); confirmThen({ title: 'Post this retainer receipt?', text: 'It is held as unallocated client money until the matter opens. Once posted it cannot be edited; a correction needs a linked reversal.', confirmText: 'Post receipt', tone: 'warning' }, () => receiveRetainerMutation.mutate(engagement.id)); }}>
+                          <Select3D label='Client account' value={retainerDraft.account} onChange={(event) => setRetainerDraft((value) => ({ ...value, account: event.target.value }))} options={clientAccountOptions} required />
+                          <Input3D label='Receipt number' value={retainerDraft.receipt_number} onChange={(event) => setRetainerDraft((value) => ({ ...value, receipt_number: event.target.value }))} required />
+                          <Input3D label='Amount received' type='number' value={retainerDraft.amount_received} onChange={(event) => setRetainerDraft((value) => ({ ...value, amount_received: event.target.value }))} required />
+                          <Input3D label='Currency' value={retainerDraft.currency} onChange={(event) => setRetainerDraft((value) => ({ ...value, currency: event.target.value.toUpperCase() }))} required />
+                          <Input3D label='Payment date' type='date' value={retainerDraft.payment_date} onChange={(event) => setRetainerDraft((value) => ({ ...value, payment_date: event.target.value }))} required />
+                          <Select3D label='Payment method' value={retainerDraft.payment_method} onChange={(event) => setRetainerDraft((value) => ({ ...value, payment_method: event.target.value }))} options={[{ value: 'BANK_TRANSFER', label: 'Bank transfer' }, { value: 'CARD', label: 'Card' }, { value: 'CHEQUE', label: 'Cheque' }, { value: 'CASH', label: 'Cash' }, { value: 'MOBILE_MONEY', label: 'Mobile money' }, { value: 'OTHER', label: 'Other' }]} required />
+                          <Input3D label='Bank or transaction reference' value={retainerDraft.bank_transaction_reference} onChange={(event) => setRetainerDraft((value) => ({ ...value, bank_transaction_reference: event.target.value }))} required />
+                          <Button3D type='submit' variant='primary' disabled={receiveRetainerMutation.isPending}>{receiveRetainerMutation.isPending ? 'Posting receipt...' : 'Post Retainer Receipt'}</Button3D>
+                        </form>
+                      )}
+                    </div>
+                  )}
+                  {engagement.exception_reason && <p className='text-sm'><strong>Exception:</strong> {engagement.exception_reason} ({engagement.exception_policy_basis})</p>}
+                  {!['SUPERSEDED', 'CANCELLED', 'READY', 'WAIVED', 'NOT_REQUIRED'].includes(engagement.status) && (
+                    <div className='mt-4 grid gap-3 md:grid-cols-2'>
+                      <Button3D type='button' variant='primary' onClick={() => confirmThen({ title: 'Approve the signed engagement?', text: 'You confirm the client has signed this version. It becomes the current engagement for opening the matter.', confirmText: 'Approve engagement' }, () => approveEngagementMutation.mutate(engagement.id))} disabled={approveEngagementMutation.isPending}>Approve Signed Engagement</Button3D>
+                      <Select3D label='Exception type' value={engagementAction.status} onChange={(e) => setEngagementAction((value) => ({ ...value, status: e.target.value }))} options={[{ value: 'WAIVED', label: 'Waived with approval' }, { value: 'NOT_REQUIRED', label: 'Not required under firm policy' }]} />
+                      <TextArea label='Exception reason' value={engagementAction.reason} onChange={(value) => setEngagementAction((current) => ({ ...current, reason: value }))} />
+                      <TextArea label='Firm policy basis' value={engagementAction.policy_basis} onChange={(value) => setEngagementAction((current) => ({ ...current, policy_basis: value }))} />
+                      <Button3D type='button' variant='secondary' onClick={() => confirmThen({ title: 'Approve this engagement exception?', text: `The matter may open without a signed engagement (${enumLabel(engagementAction.status)}). The reason and policy basis are recorded.`, confirmText: 'Approve exception', tone: 'warning' }, () => exceptionEngagementMutation.mutate(engagement.id))} disabled={exceptionEngagementMutation.isPending || !engagementAction.reason.trim() || !engagementAction.policy_basis.trim()}>Approve Exception</Button3D>
+                      <TextArea label='Supersession reason' value={engagementAction.supersede_reason} onChange={(value) => setEngagementAction((current) => ({ ...current, supersede_reason: value }))} />
+                      <Button3D type='button' variant='secondary' onClick={() => confirmThen({ title: 'Supersede this engagement version?', text: 'It stops being current. The version is kept in the history.', confirmText: 'Supersede', tone: 'warning' }, () => supersedeEngagementMutation.mutate(engagement.id))} disabled={supersedeEngagementMutation.isPending || !engagementAction.supersede_reason.trim()}>Supersede Version</Button3D>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {!engagements.some((item) => !['SUPERSEDED', 'CANCELLED'].includes(item.status)) && (
+            <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); createEngagementMutation.mutate(); }}>
+              <Select3D label='Responsible advocate' value={engagementDraft.responsible_advocate} onChange={(e) => setEngagementDraft((value) => ({ ...value, responsible_advocate: e.target.value }))} options={lawyerOptions} required />
+              <Select3D label='Record stage' value={engagementDraft.status} onChange={(e) => setEngagementDraft((value) => ({ ...value, status: e.target.value }))} options={[{ value: 'DRAFT', label: 'Drafting' }, { value: 'SENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed' }, { value: 'FEE_TERMS_CONFIRMED', label: 'Fee terms confirmed' }, { value: 'RETAINER_PENDING', label: 'Retainer pending' }]} required />
+              <TextArea label='Scope of work' value={engagementDraft.scope_of_work} onChange={(value) => setEngagementDraft((current) => ({ ...current, scope_of_work: value }))} required />
+              <TextArea label='Work expressly excluded' value={engagementDraft.excluded_work} onChange={(value) => setEngagementDraft((current) => ({ ...current, excluded_work: value }))} />
+              <TextArea label='Client objectives' value={engagementDraft.client_objectives} onChange={(value) => setEngagementDraft((current) => ({ ...current, client_objectives: value }))} />
+              <TextArea label='Reporting expectations' value={engagementDraft.reporting_expectations} onChange={(value) => setEngagementDraft((current) => ({ ...current, reporting_expectations: value }))} />
+              <Input3D label='Communication method' value={engagementDraft.communication_method} onChange={(e) => setEngagementDraft((value) => ({ ...value, communication_method: e.target.value }))} />
+              <Select3D label='Fee arrangement' value={engagementDraft.fee_arrangement_type} onChange={(e) => setEngagementDraft((value) => ({ ...value, fee_arrangement_type: e.target.value }))} options={[{ value: 'CONSULTATION', label: 'Consultation fee' }, { value: 'FIXED', label: 'Fixed or agreed fee' }, { value: 'HOURLY', label: 'Hourly fee' }, { value: 'STAGE_BASED', label: 'Stage-based fee' }, { value: 'MONTHLY_RETAINER', label: 'Monthly retainer' }, { value: 'REMUNERATION_ORDER', label: 'Advocates Remuneration Order' }, { value: 'OTHER', label: 'Other approved arrangement' }]} required />
+              <TextArea label='Fee arrangement description' value={engagementDraft.fee_arrangement_description} onChange={(value) => setEngagementDraft((current) => ({ ...current, fee_arrangement_description: value }))} required />
+              <Input3D label='Estimated professional fees' type='number' value={engagementDraft.estimated_professional_fees} onChange={(e) => setEngagementDraft((value) => ({ ...value, estimated_professional_fees: e.target.value }))} />
+              <Input3D label='Estimated disbursements' type='number' value={engagementDraft.estimated_disbursements} onChange={(e) => setEngagementDraft((value) => ({ ...value, estimated_disbursements: e.target.value }))} />
+              <Input3D label='Required retainer' type='number' value={engagementDraft.required_retainer} onChange={(e) => setEngagementDraft((value) => ({ ...value, required_retainer: e.target.value }))} />
+              <Input3D label='Retainer due date' type='date' value={engagementDraft.retainer_due_date} onChange={(e) => setEngagementDraft((value) => ({ ...value, retainer_due_date: e.target.value }))} />
+              <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>Retainer receipt status is set only by posting an immutable client-account receipt after this engagement version is created.</p>
+              <div>
+                <Select3D label='Signed engagement letter' value={engagementDraft.engagement_letter_document} onChange={(e) => setEngagementDraft((value) => ({ ...value, engagement_letter_document: e.target.value }))} options={engagementLetterOptions} placeholder={engagementLetterOptions.length ? 'Select the letter from the client file' : 'None recorded yet'} />
+                {!engagementLetterOptions.length && <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>Needed before approval. Record it in the client&apos;s document register with the type &quot;Engagement letter / retainer agreement&quot;.</p>}
+              </div>
+              <Input3D label='Date sent' type='datetime-local' value={engagementDraft.sent_at} onChange={(e) => setEngagementDraft((value) => ({ ...value, sent_at: e.target.value }))} />
+              <Input3D label='Date signed' type='datetime-local' value={engagementDraft.signed_at} onChange={(e) => setEngagementDraft((value) => ({ ...value, signed_at: e.target.value }))} />
+              <Input3D label='Signed by' value={engagementDraft.signed_by} onChange={(e) => setEngagementDraft((value) => ({ ...value, signed_by: e.target.value }))} />
+              <Button3D type='submit' variant='primary' disabled={createEngagementMutation.isPending}>{createEngagementMutation.isPending ? 'Saving...' : 'Create Engagement Version'}</Button3D>
+            </form>
+          )}
+          {unallocatedFundsData?.ledger && (
+            <p className='mt-4 rounded-lg bg-surface-muted-light p-3 text-sm dark:bg-surface-muted-dark'>
+              Client funds awaiting matter allocation: <strong>{unallocatedFundsData.ledger.currency} {unallocatedFundsData.ledger.cleared_balance}</strong>. These funds move to the matter ledger atomically when the matter opens.
+            </p>
+          )}
         </Card>
       )}
 
@@ -728,134 +859,6 @@ export default function ClientConflictCheckPage() {
               <p>Confirmed by {check.jurisdiction.confirmed_by_name} on {formatDateTime(check.jurisdiction.confirmed_at)}</p>
             </div>
           )}
-        </Card>
-      )}
-
-      {canRecordAcceptance && (
-        <Card id='conflict-acceptance' className='scroll-mt-28 p-6'>
-          <h3 className='mb-4 text-lg font-semibold'>Firm Acceptance Decision</h3>
-          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); confirmThen(ACCEPTANCE_CONFIRMS[acceptanceDraft.decision], () => acceptanceMutation.mutate()); }}>
-            <Select3D label='Decision' value={acceptanceDraft.decision} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, decision: e.target.value }))} options={[{ value: 'ACCEPTED', label: 'Accept instructions' }, { value: 'DECLINED', label: 'Decline instructions' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }]} required />
-            <Select3D label='Engagement preparation stage' value={acceptanceDraft.engagement_status} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, engagement_status: e.target.value }))} options={[{ value: 'DRAFTING', label: 'Drafting' }, { value: 'SENT_TO_CLIENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed document received (formal approval still required)' }, { value: 'FEE_ARRANGEMENT_CONFIRMED', label: 'Fee terms confirmed (formal approval still required)' }]} />
-            {acceptanceDraft.decision !== 'ACCEPTED' && <Select3D label='Reason category' value={acceptanceDraft.reason_category} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, reason_category: e.target.value }))} options={[{ value: 'OUTSIDE_EXPERTISE', label: 'Outside expertise' }, { value: 'CAPACITY_CONSTRAINT', label: 'Capacity constraint' }, { value: 'COMMERCIAL_TERMS', label: 'Commercial terms' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }, { value: 'CDD_RESTRICTED', label: 'CDD restricted' }, { value: 'OTHER', label: 'Other' }]} required />}
-            <TextArea label='Scope confirmation' value={acceptanceScope} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, scope_confirmation: value }))} required={acceptanceDraft.decision === 'ACCEPTED'} />
-            {acceptanceDraft.decision !== 'ACCEPTED' && <TextArea label='Restricted internal reason' value={acceptanceDraft.internal_reason} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, internal_reason: value }))} required />}
-            <Button3D type='submit' variant='primary' disabled={acceptanceMutation.isPending}>
-              {acceptanceMutation.isPending ? 'Recording...' : 'Record Acceptance Decision'}
-            </Button3D>
-          </form>
-        </Card>
-      )}
-
-      {!isLawyer && check.status === 'CLEARED' && (
-        <Card id='engagement-management' className='scroll-mt-28 p-6'>
-          <h3 className='mb-2 text-lg font-semibold'>Formal Engagement</h3>
-          <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
-            Scope, fees, signature, approval and exceptions are versioned. Marking the intake stage “signed” does not authorise opening.
-          </p>
-          {engagements.length > 0 && (
-            <div className='mb-6 space-y-3'>
-              {engagements.map((engagement) => (
-                <div key={engagement.id} className='rounded-xl border border-border-light p-4 dark:border-border-dark'>
-                  <div className='flex flex-wrap items-center justify-between gap-2'>
-                    <p className='font-semibold'>Version {engagement.version} · {enumLabel(engagement.status)}</p>
-                    <span className={engagement.permits_opening ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'}>{engagement.permits_opening ? 'Opening control satisfied' : 'Not approved for opening'}</span>
-                  </div>
-                  <p className='mt-2 text-sm'><strong>Scope:</strong> {engagement.scope_of_work}</p>
-                  <p className='text-sm'><strong>Fee terms:</strong> {enumLabel(engagement.fee_arrangement_type)} — {engagement.fee_arrangement_description}</p>
-                  {Number(engagement.required_retainer || 0) > 0 && (
-                    <div className='mt-3 rounded-lg border border-border-light p-3 dark:border-border-dark'>
-                      <p className='text-sm'><strong>Required retainer:</strong> {engagement.required_retainer} · {engagement.retainer_received ? 'Received and verified' : 'Awaiting verified receipt'}</p>
-                      {!engagement.retainer_received && !['SUPERSEDED', 'CANCELLED'].includes(engagement.status) && (
-                        <form className='mt-3 grid gap-3 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); confirmThen({ title: 'Post this retainer receipt?', text: 'It is held as unallocated client money until the matter opens. Once posted it cannot be edited; a correction needs a linked reversal.', confirmText: 'Post receipt', tone: 'warning' }, () => receiveRetainerMutation.mutate(engagement.id)); }}>
-                          <Select3D label='Client account' value={retainerDraft.account} onChange={(event) => setRetainerDraft((value) => ({ ...value, account: event.target.value }))} options={clientAccountOptions} required />
-                          <Input3D label='Receipt number' value={retainerDraft.receipt_number} onChange={(event) => setRetainerDraft((value) => ({ ...value, receipt_number: event.target.value }))} required />
-                          <Input3D label='Amount received' type='number' value={retainerDraft.amount_received} onChange={(event) => setRetainerDraft((value) => ({ ...value, amount_received: event.target.value }))} required />
-                          <Input3D label='Currency' value={retainerDraft.currency} onChange={(event) => setRetainerDraft((value) => ({ ...value, currency: event.target.value.toUpperCase() }))} required />
-                          <Input3D label='Payment date' type='date' value={retainerDraft.payment_date} onChange={(event) => setRetainerDraft((value) => ({ ...value, payment_date: event.target.value }))} required />
-                          <Select3D label='Payment method' value={retainerDraft.payment_method} onChange={(event) => setRetainerDraft((value) => ({ ...value, payment_method: event.target.value }))} options={[{ value: 'BANK_TRANSFER', label: 'Bank transfer' }, { value: 'CARD', label: 'Card' }, { value: 'CHEQUE', label: 'Cheque' }, { value: 'CASH', label: 'Cash' }, { value: 'MOBILE_MONEY', label: 'Mobile money' }, { value: 'OTHER', label: 'Other' }]} required />
-                          <Input3D label='Bank or transaction reference' value={retainerDraft.bank_transaction_reference} onChange={(event) => setRetainerDraft((value) => ({ ...value, bank_transaction_reference: event.target.value }))} required />
-                          <Button3D type='submit' variant='primary' disabled={receiveRetainerMutation.isPending}>{receiveRetainerMutation.isPending ? 'Posting receipt...' : 'Post Retainer Receipt'}</Button3D>
-                        </form>
-                      )}
-                    </div>
-                  )}
-                  {engagement.exception_reason && <p className='text-sm'><strong>Exception:</strong> {engagement.exception_reason} ({engagement.exception_policy_basis})</p>}
-                  {!['SUPERSEDED', 'CANCELLED', 'READY', 'WAIVED', 'NOT_REQUIRED'].includes(engagement.status) && (
-                    <div className='mt-4 grid gap-3 md:grid-cols-2'>
-                      <Button3D type='button' variant='primary' onClick={() => confirmThen({ title: 'Approve the signed engagement?', text: 'You confirm the client has signed this version. It becomes the current engagement for opening the matter.', confirmText: 'Approve engagement' }, () => approveEngagementMutation.mutate(engagement.id))} disabled={approveEngagementMutation.isPending}>Approve Signed Engagement</Button3D>
-                      <Select3D label='Exception type' value={engagementAction.status} onChange={(e) => setEngagementAction((value) => ({ ...value, status: e.target.value }))} options={[{ value: 'WAIVED', label: 'Waived with approval' }, { value: 'NOT_REQUIRED', label: 'Not required under firm policy' }]} />
-                      <TextArea label='Exception reason' value={engagementAction.reason} onChange={(value) => setEngagementAction((current) => ({ ...current, reason: value }))} />
-                      <TextArea label='Firm policy basis' value={engagementAction.policy_basis} onChange={(value) => setEngagementAction((current) => ({ ...current, policy_basis: value }))} />
-                      <Button3D type='button' variant='secondary' onClick={() => confirmThen({ title: 'Approve this engagement exception?', text: `The matter may open without a signed engagement (${enumLabel(engagementAction.status)}). The reason and policy basis are recorded.`, confirmText: 'Approve exception', tone: 'warning' }, () => exceptionEngagementMutation.mutate(engagement.id))} disabled={exceptionEngagementMutation.isPending || !engagementAction.reason.trim() || !engagementAction.policy_basis.trim()}>Approve Exception</Button3D>
-                      <TextArea label='Supersession reason' value={engagementAction.supersede_reason} onChange={(value) => setEngagementAction((current) => ({ ...current, supersede_reason: value }))} />
-                      <Button3D type='button' variant='secondary' onClick={() => confirmThen({ title: 'Supersede this engagement version?', text: 'It stops being current. The version is kept in the history.', confirmText: 'Supersede', tone: 'warning' }, () => supersedeEngagementMutation.mutate(engagement.id))} disabled={supersedeEngagementMutation.isPending || !engagementAction.supersede_reason.trim()}>Supersede Version</Button3D>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          {!engagements.some((item) => !['SUPERSEDED', 'CANCELLED'].includes(item.status)) && (
-            <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); createEngagementMutation.mutate(); }}>
-              <Select3D label='Responsible advocate' value={engagementDraft.responsible_advocate} onChange={(e) => setEngagementDraft((value) => ({ ...value, responsible_advocate: e.target.value }))} options={lawyerOptions} required />
-              <Select3D label='Record stage' value={engagementDraft.status} onChange={(e) => setEngagementDraft((value) => ({ ...value, status: e.target.value }))} options={[{ value: 'DRAFT', label: 'Drafting' }, { value: 'SENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed' }, { value: 'FEE_TERMS_CONFIRMED', label: 'Fee terms confirmed' }, { value: 'RETAINER_PENDING', label: 'Retainer pending' }]} required />
-              <TextArea label='Scope of work' value={engagementDraft.scope_of_work} onChange={(value) => setEngagementDraft((current) => ({ ...current, scope_of_work: value }))} required />
-              <TextArea label='Work expressly excluded' value={engagementDraft.excluded_work} onChange={(value) => setEngagementDraft((current) => ({ ...current, excluded_work: value }))} />
-              <TextArea label='Client objectives' value={engagementDraft.client_objectives} onChange={(value) => setEngagementDraft((current) => ({ ...current, client_objectives: value }))} />
-              <TextArea label='Reporting expectations' value={engagementDraft.reporting_expectations} onChange={(value) => setEngagementDraft((current) => ({ ...current, reporting_expectations: value }))} />
-              <Input3D label='Communication method' value={engagementDraft.communication_method} onChange={(e) => setEngagementDraft((value) => ({ ...value, communication_method: e.target.value }))} />
-              <Select3D label='Fee arrangement' value={engagementDraft.fee_arrangement_type} onChange={(e) => setEngagementDraft((value) => ({ ...value, fee_arrangement_type: e.target.value }))} options={[{ value: 'CONSULTATION', label: 'Consultation fee' }, { value: 'FIXED', label: 'Fixed or agreed fee' }, { value: 'HOURLY', label: 'Hourly fee' }, { value: 'STAGE_BASED', label: 'Stage-based fee' }, { value: 'MONTHLY_RETAINER', label: 'Monthly retainer' }, { value: 'REMUNERATION_ORDER', label: 'Advocates Remuneration Order' }, { value: 'OTHER', label: 'Other approved arrangement' }]} required />
-              <TextArea label='Fee arrangement description' value={engagementDraft.fee_arrangement_description} onChange={(value) => setEngagementDraft((current) => ({ ...current, fee_arrangement_description: value }))} required />
-              <Input3D label='Estimated professional fees' type='number' value={engagementDraft.estimated_professional_fees} onChange={(e) => setEngagementDraft((value) => ({ ...value, estimated_professional_fees: e.target.value }))} />
-              <Input3D label='Estimated disbursements' type='number' value={engagementDraft.estimated_disbursements} onChange={(e) => setEngagementDraft((value) => ({ ...value, estimated_disbursements: e.target.value }))} />
-              <Input3D label='Required retainer' type='number' value={engagementDraft.required_retainer} onChange={(e) => setEngagementDraft((value) => ({ ...value, required_retainer: e.target.value }))} />
-              <Input3D label='Retainer due date' type='date' value={engagementDraft.retainer_due_date} onChange={(e) => setEngagementDraft((value) => ({ ...value, retainer_due_date: e.target.value }))} />
-              <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>Retainer receipt status is set only by posting an immutable client-account receipt after this engagement version is created.</p>
-              <div>
-                <Select3D label='Signed engagement letter' value={engagementDraft.engagement_letter_document} onChange={(e) => setEngagementDraft((value) => ({ ...value, engagement_letter_document: e.target.value }))} options={engagementLetterOptions} placeholder={engagementLetterOptions.length ? 'Select the letter from the client file' : 'None recorded yet'} />
-                {!engagementLetterOptions.length && <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>Needed before approval. Record it in the client&apos;s document register with the type &quot;Engagement letter / retainer agreement&quot;.</p>}
-              </div>
-              <Input3D label='Date sent' type='datetime-local' value={engagementDraft.sent_at} onChange={(e) => setEngagementDraft((value) => ({ ...value, sent_at: e.target.value }))} />
-              <Input3D label='Date signed' type='datetime-local' value={engagementDraft.signed_at} onChange={(e) => setEngagementDraft((value) => ({ ...value, signed_at: e.target.value }))} />
-              <Input3D label='Signed by' value={engagementDraft.signed_by} onChange={(e) => setEngagementDraft((value) => ({ ...value, signed_by: e.target.value }))} />
-              <Button3D type='submit' variant='primary' disabled={createEngagementMutation.isPending}>{createEngagementMutation.isPending ? 'Saving...' : 'Create Engagement Version'}</Button3D>
-            </form>
-          )}
-          {unallocatedFundsData?.ledger && (
-            <p className='mt-4 rounded-lg bg-surface-muted-light p-3 text-sm dark:bg-surface-muted-dark'>
-              Client funds awaiting matter allocation: <strong>{unallocatedFundsData.ledger.currency} {unallocatedFundsData.ledger.cleared_balance}</strong>. These funds move to the matter ledger atomically when the matter opens.
-            </p>
-          )}
-        </Card>
-      )}
-
-      {!isLawyer && check.status === 'CLEARED' && complianceReview && (
-        <Card id='client-compliance-review' className='scroll-mt-28 p-6'>
-          <h3 className='mb-2 text-lg font-semibold'>KYC, Authority and Due-Diligence Review</h3>
-          <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
-            Final decisions are recorded in immutable history. A blocked or incomplete review prevents matter opening.
-          </p>
-          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); complianceMutation.mutate(); }}>
-            <Select3D label='Identity verification' value={complianceDraft.identity_status || complianceReview.identity_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, identity_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
-            <Select3D label='Authority to instruct' value={complianceDraft.authority_status || complianceReview.authority_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, authority_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
-            <Select3D label='Beneficial ownership' value={complianceDraft.beneficial_ownership_status || complianceReview.beneficial_ownership_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, beneficial_ownership_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'NOT_APPLICABLE', label: 'Not applicable' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
-            <Select3D label='Due-diligence decision' value={complianceDraft.due_diligence_status || complianceReview.due_diligence_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, due_diligence_status: e.target.value }))} options={[{ value: 'CLEARED', label: 'Cleared' }, { value: 'ENHANCED_DUE_DILIGENCE', label: 'Enhanced due diligence required' }, { value: 'RESTRICTED', label: 'Opening restricted' }]} required />
-            <label className='flex items-center gap-2 text-sm md:col-span-2'>
-              <input type='checkbox' checked={complianceDraft.source_of_funds_required ?? complianceReview.source_of_funds_required} onChange={(e) => setComplianceDraft((value) => ({ ...value, source_of_funds_required: e.target.checked, source_of_funds_status: e.target.checked ? 'UNKNOWN' : 'NOT_APPLICABLE' }))} />
-              Source-of-funds verification is required
-            </label>
-            {(complianceDraft.source_of_funds_required ?? complianceReview.source_of_funds_required) && (
-              <Select3D label='Source-of-funds verification' value={complianceDraft.source_of_funds_status || complianceReview.source_of_funds_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, source_of_funds_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
-            )}
-            <TextArea label='Restriction or escalation reason' value={complianceDraft.restriction_reason || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, restriction_reason: value }))} />
-            <TextArea label='Review notes and evidence references' value={complianceDraft.review_notes || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, review_notes: value }))} />
-            <TextArea label='Reason for this decision' value={complianceDraft.reason || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, reason: value }))} required />
-            <Button3D type='submit' variant='primary' disabled={complianceMutation.isPending || !complianceDraft.reason?.trim()}>
-              {complianceMutation.isPending ? 'Recording...' : 'Record Compliance Decision'}
-            </Button3D>
-          </form>
-          {complianceReview.reviewed_at && <p className='mt-4 text-sm'>Last reviewed by {complianceReview.reviewed_by_name || 'Authorised reviewer'} on {formatDateTime(complianceReview.reviewed_at)}</p>}
         </Card>
       )}
 

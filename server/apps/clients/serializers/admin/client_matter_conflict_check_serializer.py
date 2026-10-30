@@ -175,11 +175,6 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
                 ),
             },
             {
-                "code": "ENGAGEMENT_READY",
-                "label": "Formal engagement approved or policy exception authorised",
-                "complete": bool(engagement and engagement.permits_opening),
-            },
-            {
                 "code": "CLIENT_IDENTITY_VERIFIED",
                 "label": "Client identity verification complete",
                 "complete": "identity_verification" not in compliance_errors and "client_compliance" not in compliance_errors,
@@ -193,6 +188,11 @@ class ClientMatterConflictCheckListSerializer(serializers.ModelSerializer):
                 "code": "DUE_DILIGENCE_CLEARED",
                 "label": "Due diligence and beneficial ownership controls cleared",
                 "complete": not any(key in compliance_errors for key in ["client_compliance", "beneficial_ownership", "due_diligence", "due_diligence_restriction", "source_of_funds"]),
+            },
+            {
+                "code": "ENGAGEMENT_READY",
+                "label": "Formal engagement approved or policy exception authorised",
+                "complete": bool(engagement and engagement.permits_opening),
             },
             {
                 "code": "JURISDICTION_REVIEW",
