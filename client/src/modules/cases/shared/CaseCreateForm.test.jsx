@@ -46,6 +46,16 @@ describe('CaseCreateForm opened from a cleared conflict check', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(screen.getByText('Claimant')).toBeInTheDocument();
     expect(screen.getByText('Baraka Supplies Limited - Respondent')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByText('Employment and Labour Court at Nairobi')).toBeInTheDocument();
+    expect(screen.queryByText('Courtroom')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    const fieldValue = (label) => screen.getByText(label, { selector: 'label' }).parentElement.querySelector('button').textContent;
+    expect(fieldValue('Employer')).toBe('Baraka Supplies Limited');
+    expect(fieldValue('Employee')).toBe('Grace Mwende');
+    expect(screen.queryByText('Unfair dismissal')).not.toBeInTheDocument();
   });
 
   it('returns to the confirmed court when another entry route was tried first', async () => {

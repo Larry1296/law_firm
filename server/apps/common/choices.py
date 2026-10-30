@@ -89,13 +89,14 @@ class EmploymentStatus(models.TextChoices):
 
 
 class DismissalType(models.TextChoices):
+    # How the employment ended; whether it was unfair or wrongful is the claim itself.
     NOT_APPLICABLE = "NOT_APPLICABLE", "Not applicable"
     SUMMARY_DISMISSAL = "SUMMARY_DISMISSAL", "Summary dismissal"
+    TERMINATION_WITHOUT_NOTICE = "TERMINATION_WITHOUT_NOTICE", "Termination without notice"
     TERMINATION_WITH_NOTICE = "TERMINATION_WITH_NOTICE", "Termination with notice"
     REDUNDANCY = "REDUNDANCY", "Redundancy"
     CONSTRUCTIVE_DISMISSAL = "CONSTRUCTIVE_DISMISSAL", "Constructive dismissal"
-    UNFAIR_DISMISSAL = "UNFAIR_DISMISSAL", "Unfair dismissal"
-    WRONGFUL_DISMISSAL = "WRONGFUL_DISMISSAL", "Wrongful dismissal"
+    EXPIRY_OF_CONTRACT = "EXPIRY_OF_CONTRACT", "Fixed-term contract not renewed"
     MUTUAL_SEPARATION = "MUTUAL_SEPARATION", "Mutual separation"
     RESIGNATION = "RESIGNATION", "Resignation"
     RETIREMENT = "RETIREMENT", "Retirement"

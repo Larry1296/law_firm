@@ -48,19 +48,34 @@ export const EMPLOYMENT_STATUSES = [
   { value: 'RETIRED', label: 'Retired' },
 ];
 
+// How the employment ended; whether it was unfair or wrongful is the claim, not the manner of ending.
 export const DISMISSAL_TYPES = [
-  { value: 'NOT_APPLICABLE', label: 'Not applicable' },
   { value: 'SUMMARY_DISMISSAL', label: 'Summary dismissal' },
+  { value: 'TERMINATION_WITHOUT_NOTICE', label: 'Termination without notice' },
   { value: 'TERMINATION_WITH_NOTICE', label: 'Termination with notice' },
   { value: 'REDUNDANCY', label: 'Redundancy' },
   { value: 'CONSTRUCTIVE_DISMISSAL', label: 'Constructive dismissal' },
-  { value: 'UNFAIR_DISMISSAL', label: 'Unfair dismissal' },
-  { value: 'WRONGFUL_DISMISSAL', label: 'Wrongful dismissal' },
+  { value: 'EXPIRY_OF_CONTRACT', label: 'Fixed-term contract not renewed' },
   { value: 'MUTUAL_SEPARATION', label: 'Mutual separation' },
   { value: 'RESIGNATION', label: 'Resignation' },
   { value: 'RETIREMENT', label: 'Retirement' },
   { value: 'OTHER', label: 'Other' },
 ];
+
+export const EMPLOYMENT_ENDED_STATUSES = ['TERMINATED', 'RESIGNED', 'RETIRED'];
+
+export const EMPLOYMENT_STATUS_FOR_ENDING = { RESIGNATION: 'RESIGNED', RETIREMENT: 'RETIRED' };
+
+export const EMPLOYMENT_COMPLAINTS = [
+  'No valid or fair reason for termination',
+  'Not heard before dismissal',
+  'No notice or pay in lieu of notice',
+  'Terminal dues not paid',
+  'Unpaid salary or overtime',
+  'Untaken leave not paid',
+  'Discrimination or victimisation',
+  'Certificate of service not issued',
+].map((label) => ({ value: label, label }));
 
 export const FORUMS = [
   { value: 'NO_FORMAL_FORUM', label: 'No formal forum' },

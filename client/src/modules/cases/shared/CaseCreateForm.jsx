@@ -20,6 +20,9 @@ import {
   COURT_LEVELS,
   COURT_TYPES,
   DISMISSAL_TYPES,
+  EMPLOYMENT_COMPLAINTS,
+  EMPLOYMENT_ENDED_STATUSES,
+  EMPLOYMENT_STATUS_FOR_ENDING,
   EMPLOYMENT_STATUSES,
   ENTRY_ROUTES,
   FORUMS,
@@ -82,7 +85,9 @@ const buildInitialFormData = (initialClientId, initialConflictCheckId, initialCo
 
   if (!initialConflictCheck) return next;
 
-  return alignRolesToProcedure({
+  const clientName = (initialConflictCheck.parties || []).find((party) => party.role === 'PROSPECTIVE_CLIENT')?.name
+    || initialConflictCheck.client_name;
+  const prefilled = alignRolesToProcedure({
     ...next,
     ...matterDefaultsFromConflictCheck(initialConflictCheck),
     title: initialConflictCheck.proposed_matter_title || next.title,
@@ -104,6 +109,11 @@ const buildInitialFormData = (initialClientId, initialConflictCheckId, initialCo
         is_adverse: party.role === 'PROPOSED_ADVERSE_PARTY',
       })),
   });
+  return {
+    ...prefilled,
+    court_name: courtNameFor(prefilled.court_type, prefilled.court_station),
+    ...(prefilled.practice_area === 'EMPLOYMENT_LABOUR' ? employmentSidesFromParties(prefilled, clientName) : {}),
+  };
 };
 
 const optionLabel = (options, value) =>
@@ -143,6 +153,21 @@ const alignRolesToProcedure = (data) => {
       roles.includes(party.role) ? party : { ...party, role: party.is_adverse ? theirs : otherRole }
     )),
   };
+};
+
+// The client stands on the side that brings an employment claim when they are the claimant.
+const employmentSidesFromParties = (data, clientName) => {
+  const adverse = (data.parties || []).find((party) => party.is_adverse)?.name || '';
+  const clientIsEmployee = ['CLAIMANT', 'PLAINTIFF', 'PETITIONER', 'APPLICANT'].includes(data.client_party_role);
+  return clientIsEmployee
+    ? { employee: clientName || '', employer: adverse }
+    : { employee: adverse, employer: clientName || '' };
+};
+
+const courtNameFor = (courtType, station) => {
+  const court = COURT_TYPES.find((item) => item.value === courtType)?.label;
+  if (!court) return '';
+  return station?.trim() ? `${court} at ${station.trim()}` : court;
 };
 
 const isCourtRoute = (formData) =>
@@ -352,6 +377,11 @@ export default function CaseCreateForm({
   );
 
   const currentRoleOptions = roleOptionsForProcedure(formData.procedure_track);
+  const representedName = selectedClient?.full_name || selectedClient?.company_name || initialConflictCheck?.client_name || '';
+  const partyNameOptions = [representedName, ...(formData.parties || []).map((party) => party.name)]
+    .filter((name, index, names) => name && names.indexOf(name) === index)
+    .map((name) => ({ value: name, label: name }));
+  const complaintValues = (formData.nature_of_complaint || '').split('; ').filter(Boolean);
   const partyDraftRole = currentRoleOptions.some((option) => option.value === partyDraft.role)
     ? partyDraft.role
     : defaultAdverseRoleForProcedure(formData.procedure_track);
@@ -414,6 +444,19 @@ export default function CaseCreateForm({
 
       if (name === 'court_type') {
         next.court_level = COURT_LEVEL_BY_TYPE[value] || '';
+      }
+
+      if (['court_type', 'court_station', 'practice_area', 'entry_route'].includes(name)) {
+        next.court_name = courtNameFor(next.court_type, next.court_station);
+      }
+
+      if (name === 'dismissal_type') {
+        next.employment_status = EMPLOYMENT_STATUS_FOR_ENDING[value] || 'TERMINATED';
+      }
+
+      if (name === 'employment_status' && !EMPLOYMENT_ENDED_STATUSES.includes(value)) {
+        next.dismissal_type = '';
+        next.termination_date = '';
       }
 
       return alignRolesToProcedure(next);
@@ -732,13 +775,20 @@ export default function CaseCreateForm({
                 <ReadOnlyNotice title='Court Level'>
                   {optionLabel(COURT_LEVELS, formData.court_level) || 'Select a court type to derive the Kenyan court level.'}
                 </ReadOnlyNotice>
-                <MatterTextInput label='Court Name' name='court_name' value={formData.court_name} onChange={handleChange} />
                 <MatterTextInput label='Court Station' name='court_station' value={formData.court_station} onChange={handleChange} error={errors.court_station} />
+                <ReadOnlyNotice title='Court Name'>
+                  {formData.court_name || 'Follows the court type and station.'}
+                </ReadOnlyNotice>
                 <SelectField label='Division / Registry' name='court_division' value={formData.court_division} onChange={handleChange} options={COURT_DIVISIONS} />
-                <MatterTextInput label='Registry' name='registry' value={formData.registry} onChange={handleChange} error={errors.registry} />
-                <MatterTextInput label='Courtroom' name='courtroom' value={formData.courtroom} onChange={handleChange} />
-                <MatterTextInput label='Judicial Officer' name='judicial_officer' value={formData.judicial_officer} onChange={handleChange} />
-                <MatterTextInput label='Court Location' name='court_location' value={formData.court_location} onChange={handleChange} />
+                {/* The registry, courtroom and judge are known only once the claim is filed. */}
+                {isFiledCourtRoute(formData) && (
+                  <>
+                    <MatterTextInput label='Registry' name='registry' value={formData.registry} onChange={handleChange} error={errors.registry} />
+                    <MatterTextInput label='Courtroom' name='courtroom' value={formData.courtroom} onChange={handleChange} />
+                    <MatterTextInput label='Judicial Officer' name='judicial_officer' value={formData.judicial_officer} onChange={handleChange} />
+                    <MatterTextInput label='Court Location' name='court_location' value={formData.court_location} onChange={handleChange} />
+                  </>
+                )}
                 <ReadOnlyNotice title='CTS Reference'>
                   Assigned through court-record, jurisdiction-verification or lifecycle workflow. It is never submitted during initial matter creation.
                 </ReadOnlyNotice>
@@ -834,14 +884,18 @@ export default function CaseCreateForm({
             )}
             {formData.practice_area === 'EMPLOYMENT_LABOUR' && (
               <>
-                <MatterTextInput label='Employer' name='employer' value={formData.employer} onChange={handleChange} />
-                <MatterTextInput label='Employee' name='employee' value={formData.employee} onChange={handleChange} />
-                <MatterTextInput label='Employment Start Date' name='employment_start_date' type='date' value={formData.employment_start_date} onChange={handleChange} noFloat />
-                <MatterTextInput label='Monthly Salary' name='monthly_salary' type='number' value={formData.monthly_salary} onChange={handleChange} />
-                <MatterTextInput label='Termination Date' name='termination_date' type='date' value={formData.termination_date} onChange={handleChange} noFloat />
+                <SelectField label='Employer' name='employer' value={formData.employer} onChange={handleChange} options={partyNameOptions} />
+                <SelectField label='Employee' name='employee' value={formData.employee} onChange={handleChange} options={partyNameOptions} />
+                <MatterTextInput label='Employment Start Date' name='employment_start_date' type='date' max={localToday()} value={formData.employment_start_date} onChange={handleChange} noFloat />
+                <MatterTextInput label='Monthly Salary (KES)' name='monthly_salary' type='number' min='0' value={formData.monthly_salary} onChange={handleChange} />
                 <Select3D label='Employment Status' name='employment_status' value={formData.employment_status} onChange={handleChange} options={EMPLOYMENT_STATUSES} placeholder='Select employment status' />
-                <MatterTextInput label='Nature of Complaint' name='nature_of_complaint' value={formData.nature_of_complaint} onChange={handleChange} />
-                <Select3D label='Dismissal Type' name='dismissal_type' value={formData.dismissal_type} onChange={handleChange} options={DISMISSAL_TYPES} placeholder='Select dismissal type' />
+                {(!formData.employment_status || EMPLOYMENT_ENDED_STATUSES.includes(formData.employment_status)) && (
+                  <>
+                    <Select3D label='How the Employment Ended' name='dismissal_type' value={formData.dismissal_type} onChange={handleChange} options={DISMISSAL_TYPES} placeholder='Select how it ended' />
+                    <MatterTextInput label='Date Employment Ended' name='termination_date' type='date' min={formData.employment_start_date || undefined} max={localToday()} value={formData.termination_date} onChange={handleChange} noFloat />
+                  </>
+                )}
+                <Select3D label='Complaints' name='nature_of_complaint' value={complaintValues} onChange={(event) => updateField('nature_of_complaint', event.target.value.join('; '))} options={EMPLOYMENT_COMPLAINTS} multiple placeholder='Select what the client complains of' />
                 <MatterTextInput label='Labour Officer Reference' name='labour_officer_reference' value={formData.labour_officer_reference} onChange={handleChange} />
               </>
             )}
