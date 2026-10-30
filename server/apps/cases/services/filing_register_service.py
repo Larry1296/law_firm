@@ -328,6 +328,9 @@ class FilingRegisterService:
         if case.court_stage in {Case.CourtStage.FILED, Case.CourtStage.AWAITING_ASSESSMENT_OR_PAYMENT, Case.CourtStage.AWAITING_SERVICE, Case.CourtStage.SERVICE_IN_PROGRESS}:
             if not case.filings.filter(Q(filing_type=CaseFiling.FilingType.SUMMONS) | Q(filing_type=CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE), served_at__isnull=False).exists():
                 return f"Serve summons and {cls.originating_document(case)}"
+            # Service is proved to the court by the process server's affidavit before the matter waits for a response.
+            if not cls.latest(case, CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE):
+                return "File affidavit of service"
         if case.court_stage == Case.CourtStage.AWAITING_RESPONSE:
             if cls.latest(case, CaseFiling.FilingType.DEFENCE):
                 return None

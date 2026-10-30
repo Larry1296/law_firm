@@ -322,6 +322,9 @@ class CaseLifecycleFrameworkTests(TestCase):
             served_at=timezone.now(), response_due_date=timezone.localdate() + timedelta(days=21),
         )
         FilingRegisterService._seed_deadlines(case, summons, self.admin)
+        case.court_stage = Case.CourtStage.FILED
+        case.save(update_fields=["court_stage"])
+        self.assertEqual(FilingRegisterService.service_recommendation(case), "File affidavit of service")
         self.assertTrue(case.deadlines.get(source=f"APPEARANCE:{case.id}").description.startswith("Response due (ELRC"))
         demand = CaseFiling.objects.create(
             case=case, filing_type=CaseFiling.FilingType.DEMAND_LETTER, title="Demand", filed_at=timezone.now(),
