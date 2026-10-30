@@ -66,6 +66,12 @@ class EngagementService:
         advocate = data["responsible_advocate"]
         if advocate.law_firm_id != firm.id or not advocate.is_active:
             raise ValidationError({"responsible_advocate": "Select an active advocate in this firm."})
+        now = timezone.now()
+        sent_at, signed_at = data.get("sent_at"), data.get("signed_at")
+        if (sent_at and sent_at > now) or (signed_at and signed_at > now):
+            raise ValidationError({"signed_at": "A letter cannot be sent or signed on a future date."})
+        if sent_at and signed_at and sent_at > signed_at:
+            raise ValidationError({"sent_at": "The letter must be sent before it is signed."})
         version = proposed_matter.engagements.count() + 1
         record = EngagementRecord(
             firm=firm, client=proposed_matter.client, proposed_matter=proposed_matter,

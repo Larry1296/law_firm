@@ -1,6 +1,7 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.clients.models import Client, ClientMatterConflictCheck, EngagementRecord
@@ -49,7 +50,7 @@ class EngagementWorkflowTests(TestCase):
             responsible_lawyer=self.owner_lawyer, created_by=self.owner, status=ConflictCheckStatus.CLEARED,
         )
 
-    def create_draft(self):
+    def create_draft(self, **extra):
         return EngagementService.create(
             user=self.owner, proposed_matter=self.proposal,
             data={
@@ -58,8 +59,17 @@ class EngagementWorkflowTests(TestCase):
                 "excluded_work": "Litigation and appeals.",
                 "fee_arrangement_type": EngagementRecord.FeeArrangement.FIXED,
                 "fee_arrangement_description": "KES 50,000 plus approved disbursements.",
+                **extra,
             },
         )
+
+    def test_letter_cannot_be_signed_in_the_future_or_before_it_was_sent(self):
+        now = timezone.now()
+        with self.assertRaises(ValidationError):
+            self.create_draft(signed_at=now + timedelta(days=1))
+        with self.assertRaises(ValidationError):
+            self.create_draft(sent_at=now - timedelta(hours=1), signed_at=now - timedelta(days=1))
+        self.assertFalse(self.proposal.engagements.exists())
 
     def test_engagement_cannot_be_prepared_before_conflict_clearance(self):
         self.proposal.status = ConflictCheckStatus.IN_PROGRESS

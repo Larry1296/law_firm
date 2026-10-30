@@ -14,6 +14,7 @@ import adminBillingService from '@/modules/admin/billing/services/adminBillingSe
 import useFirmLawyers from '@/modules/admin/cases/hooks/useFirmLawyers';
 import lawyerCasesService from '@/modules/staff/lawyer/cases/services/lawyerCasesService';
 import ConflictSearchPanel from '@/modules/admin/clients/components/ConflictSearchPanel';
+import EngagementForm from '@/modules/admin/clients/components/EngagementForm';
 import { enumLabel } from '@/core/utils/textFormatter';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import themedSwal from '@/core/utils/themedSwal';
@@ -161,14 +162,6 @@ const emptyJurisdictionDecision = {
   override_reason: '',
 };
 
-const emptyEngagementDraft = {
-  responsible_advocate: '', scope_of_work: '', excluded_work: '', client_objectives: '',
-  communication_method: 'EMAIL', reporting_expectations: '', fee_arrangement_type: 'FIXED',
-  fee_arrangement_description: '', estimated_professional_fees: '', estimated_disbursements: '',
-  required_retainer: '', retainer_due_date: '',
-  engagement_letter_document: '', sent_at: '', signed_at: '', signed_by: '', status: 'DRAFT',
-};
-
 const emptyRetainerDraft = {
   account: '', receipt_number: '', amount_received: '', currency: 'KES', payment_date: '',
   payment_method: 'BANK_TRANSFER', bank_transaction_reference: '',
@@ -252,7 +245,6 @@ export default function ClientConflictCheckPage() {
   const [jurisdictionFacts, setJurisdictionFacts] = useState(emptyJurisdictionFacts);
   const [jurisdictionDecision, setJurisdictionDecision] = useState(emptyJurisdictionDecision);
   const [complianceDraft, setComplianceDraft] = useState({ reason: '', restriction_reason: '' });
-  const [engagementDraft, setEngagementDraft] = useState(emptyEngagementDraft);
   const [engagementAction, setEngagementAction] = useState({ status: 'WAIVED', reason: '', policy_basis: '', supersede_reason: '' });
   const [retainerDraft, setRetainerDraft] = useState(emptyRetainerDraft);
   const { lawyers = [] } = useFirmLawyers();
@@ -262,9 +254,6 @@ export default function ClientConflictCheckPage() {
     queryFn: () => adminClientsService.getClientDetails(clientId),
     enabled: !isLawyer && !!clientId,
   });
-  const engagementLetterOptions = (clientData?.client?.documents || [])
-    .filter((document) => document.subtype === 'ENGAGEMENT_LETTER')
-    .map((document) => ({ value: document.id, label: `${document.reference} · ${document.title}` }));
   const { data: check, isLoading } = useQuery({
     queryKey: ['client-conflict-check', isLawyer, clientId, checkId],
     queryFn: () => service.getConflictCheck(clientId, checkId),
@@ -357,13 +346,8 @@ export default function ClientConflictCheckPage() {
 
   const createEngagementMutation = useMutation({
     onError: showRefusal,
-    mutationFn: () => {
-      const payload = Object.fromEntries(
-        Object.entries(engagementDraft).filter(([, value]) => value !== '' && value !== null),
-      );
-      return adminClientsService.createEngagement(clientId, checkId, payload);
-    },
-    onSuccess: () => { setEngagementDraft(emptyEngagementDraft); refreshEngagement(); },
+    mutationFn: (payload) => adminClientsService.createEngagement(clientId, checkId, payload),
+    onSuccess: refreshEngagement,
   });
   const approveEngagementMutation = useMutation({
     onError: showRefusal,
@@ -732,30 +716,14 @@ export default function ClientConflictCheckPage() {
             </div>
           )}
           {!engagements.some((item) => !['SUPERSEDED', 'CANCELLED'].includes(item.status)) && (
-            <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); createEngagementMutation.mutate(); }}>
-              <Select3D label='Responsible advocate' value={engagementDraft.responsible_advocate} onChange={(e) => setEngagementDraft((value) => ({ ...value, responsible_advocate: e.target.value }))} options={lawyerOptions} required />
-              <Select3D label='Record stage' value={engagementDraft.status} onChange={(e) => setEngagementDraft((value) => ({ ...value, status: e.target.value }))} options={[{ value: 'DRAFT', label: 'Drafting' }, { value: 'SENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed' }, { value: 'FEE_TERMS_CONFIRMED', label: 'Fee terms confirmed' }, { value: 'RETAINER_PENDING', label: 'Retainer pending' }]} required />
-              <TextArea label='Scope of work' value={engagementDraft.scope_of_work} onChange={(value) => setEngagementDraft((current) => ({ ...current, scope_of_work: value }))} required />
-              <TextArea label='Work expressly excluded' value={engagementDraft.excluded_work} onChange={(value) => setEngagementDraft((current) => ({ ...current, excluded_work: value }))} />
-              <TextArea label='Client objectives' value={engagementDraft.client_objectives} onChange={(value) => setEngagementDraft((current) => ({ ...current, client_objectives: value }))} />
-              <TextArea label='Reporting expectations' value={engagementDraft.reporting_expectations} onChange={(value) => setEngagementDraft((current) => ({ ...current, reporting_expectations: value }))} />
-              <Input3D label='Communication method' value={engagementDraft.communication_method} onChange={(e) => setEngagementDraft((value) => ({ ...value, communication_method: e.target.value }))} />
-              <Select3D label='Fee arrangement' value={engagementDraft.fee_arrangement_type} onChange={(e) => setEngagementDraft((value) => ({ ...value, fee_arrangement_type: e.target.value }))} options={[{ value: 'CONSULTATION', label: 'Consultation fee' }, { value: 'FIXED', label: 'Fixed or agreed fee' }, { value: 'HOURLY', label: 'Hourly fee' }, { value: 'STAGE_BASED', label: 'Stage-based fee' }, { value: 'MONTHLY_RETAINER', label: 'Monthly retainer' }, { value: 'REMUNERATION_ORDER', label: 'Advocates Remuneration Order' }, { value: 'OTHER', label: 'Other approved arrangement' }]} required />
-              <TextArea label='Fee arrangement description' value={engagementDraft.fee_arrangement_description} onChange={(value) => setEngagementDraft((current) => ({ ...current, fee_arrangement_description: value }))} required />
-              <Input3D label='Estimated professional fees' type='number' value={engagementDraft.estimated_professional_fees} onChange={(e) => setEngagementDraft((value) => ({ ...value, estimated_professional_fees: e.target.value }))} />
-              <Input3D label='Estimated disbursements' type='number' value={engagementDraft.estimated_disbursements} onChange={(e) => setEngagementDraft((value) => ({ ...value, estimated_disbursements: e.target.value }))} />
-              <Input3D label='Required retainer' type='number' value={engagementDraft.required_retainer} onChange={(e) => setEngagementDraft((value) => ({ ...value, required_retainer: e.target.value }))} />
-              <Input3D label='Retainer due date' type='date' value={engagementDraft.retainer_due_date} onChange={(e) => setEngagementDraft((value) => ({ ...value, retainer_due_date: e.target.value }))} />
-              <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>Retainer receipt status is set only by posting an immutable client-account receipt after this engagement version is created.</p>
-              <div>
-                <Select3D label='Signed engagement letter' value={engagementDraft.engagement_letter_document} onChange={(e) => setEngagementDraft((value) => ({ ...value, engagement_letter_document: e.target.value }))} options={engagementLetterOptions} placeholder={engagementLetterOptions.length ? 'Select the letter from the client file' : 'None recorded yet'} />
-                {!engagementLetterOptions.length && <p className='mt-1 text-xs text-text-muted-light dark:text-text-muted-dark'>Needed before approval. Record it in the client&apos;s document register with the type &quot;Engagement letter / retainer agreement&quot;.</p>}
-              </div>
-              <Input3D label='Date sent' type='datetime-local' value={engagementDraft.sent_at} onChange={(e) => setEngagementDraft((value) => ({ ...value, sent_at: e.target.value }))} />
-              <Input3D label='Date signed' type='datetime-local' value={engagementDraft.signed_at} onChange={(e) => setEngagementDraft((value) => ({ ...value, signed_at: e.target.value }))} />
-              <Input3D label='Signed by' value={engagementDraft.signed_by} onChange={(e) => setEngagementDraft((value) => ({ ...value, signed_by: e.target.value }))} />
-              <Button3D type='submit' variant='primary' disabled={createEngagementMutation.isPending}>{createEngagementMutation.isPending ? 'Saving...' : 'Create Engagement Version'}</Button3D>
-            </form>
+            <EngagementForm
+              client={clientData?.client}
+              lawyerOptions={lawyerOptions}
+              defaultAdvocate={check.responsible_lawyer || (lawyerOptions.length === 1 ? lawyerOptions[0].value : '')}
+              defaultScope={check.scope_confirmation || check.proposed_instructions}
+              busy={createEngagementMutation.isPending}
+              onSubmit={(payload) => createEngagementMutation.mutate(payload)}
+            />
           )}
           {unallocatedFundsData?.ledger && (
             <p className='mt-4 rounded-lg bg-surface-muted-light p-3 text-sm dark:bg-surface-muted-dark'>
