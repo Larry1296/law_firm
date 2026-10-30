@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.documents.models import DocumentRequest, MatterDocumentReference
@@ -124,6 +125,7 @@ class LawyerDocumentService:
         item_location_detail = (data.get("item_location_detail") or "").strip()
         section_label = dict(CaseAttachment.PhysicalSection.choices)[section]
         physical_storage_location = " / ".join(filter(None, [physical_file.location, physical_file.reference, section_label, item_location_detail]))
+        document_date = LawyerDocumentService._document_date(case, data)
         reference = MatterPhysicalFileService.next_document_reference(case)
         attachment = CaseAttachment.objects.create(
             case=case, physical_file=physical_file, document_reference=reference,
@@ -131,7 +133,7 @@ class LawyerDocumentService:
             title=title, description=(data.get("description") or "").strip(),
             physical_copy_type=data.get("physical_copy_type") or CaseAttachment.PhysicalCopyType.OFFICE_COPY,
             physical_storage_location=physical_storage_location,
-            document_date=data.get("document_date") or None,
+            document_date=document_date,
             physical_section=section,
             item_location_detail=item_location_detail,
             origin=data.get("origin") or CaseAttachment.Origin.FIRM_GENERATED,
@@ -144,6 +146,25 @@ class LawyerDocumentService:
             "title": attachment.title, "attachment_type": attachment.attachment_type,
             "physical_storage_location": attachment.physical_storage_location,
         }
+
+    @staticmethod
+    def _document_date(case, data):
+        value = data.get("document_date") or None
+        if not value:
+            return None
+        document_date = value if hasattr(value, "isoformat") else parse_date(str(value))
+        if document_date is None:
+            raise ValidationError({"document_date": "Enter a valid document date."})
+        if document_date > timezone.localdate():
+            raise ValidationError({"document_date": "A document cannot be dated in the future."})
+        # The firm's own copy of what it wrote or sent cannot predate the client's instructions.
+        firm_made = (
+            (data.get("origin") or CaseAttachment.Origin.FIRM_GENERATED) == CaseAttachment.Origin.FIRM_GENERATED
+            and (data.get("physical_copy_type") or CaseAttachment.PhysicalCopyType.OFFICE_COPY) == CaseAttachment.PhysicalCopyType.OFFICE_COPY
+        )
+        if firm_made and case.date_instructions_received and document_date < case.date_instructions_received:
+            raise ValidationError({"document_date": f"The firm's own document cannot be dated before instructions were received on {case.date_instructions_received:%d %b %Y}."})
+        return document_date
 
     @staticmethod
     def review_request(user, request_id, data):

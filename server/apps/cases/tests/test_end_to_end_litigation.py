@@ -322,6 +322,16 @@ class EndToEndLitigationTests(TestCase):
     def step_demand_letter_issued(self, matter):
         matter.refresh_from_db()
         self.assertEqual(matter.next_action, "Issue demand letter")
+        # The office copy of the firm's own letter cannot be dated before the client instructed the firm.
+        matter.date_instructions_received = date.today() - timedelta(days=20)
+        matter.save(update_fields=["date_instructions_received"])
+        refused = self.as_user(self.advocate_user).post("/api/staff/lawyer/documents/", {
+            "action": "matter_document", "case_id": str(matter.id), "title": "Demand letter to Baraka Builders Limited",
+            "attachment_type": "CORRESPONDENCE", "physical_section": "CORRESPONDENCE",
+            "document_date": (date.today() - timedelta(days=25)).isoformat(), "origin": "FIRM_GENERATED",
+        }, format="json")
+        self.assertEqual(refused.status_code, 400, refused.data)
+        self.assertIn("before instructions were received", str(refused.data))
         # The office copy goes into the physical matter file; the register records the issue date and period.
         self.ok(self.as_user(self.advocate_user).post("/api/staff/lawyer/documents/", {
             "action": "matter_document", "case_id": str(matter.id), "title": "Demand letter to Baraka Builders Limited",
