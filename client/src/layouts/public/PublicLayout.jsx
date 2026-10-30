@@ -13,7 +13,7 @@ const PublicLayout = () => {
       <PublicNavbar />
 
       {/* Page content */}
-      <main className={`${isHomePage ? 'pt-0' : 'pt-20'} flex-1`}>
+      <main className={`${isHomePage ? 'pt-0' : 'pt-28 md:pt-32'} flex-1`}>
         <Outlet />
       </main>
 

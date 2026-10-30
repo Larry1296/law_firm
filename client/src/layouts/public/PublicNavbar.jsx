@@ -42,33 +42,33 @@ export default function PublicNavbar() {
     else navigate(`/#${id}`);
   };
 
-  const linkClass = 'rounded-lg px-3 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
+  const linkClass = 'whitespace-nowrap rounded-lg px-3 py-2.5 text-base font-semibold text-white/90 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
 
   return (
     <>
-      <nav aria-label='Main navigation' className='fixed left-1/2 top-3 z-50 w-[95%] max-w-7xl -translate-x-1/2 rounded-2xl border border-white/15 bg-[#07101e]/85 shadow-lg backdrop-blur-xl md:top-5'>
-        <div className='flex items-center justify-between gap-3 px-4 py-3 md:px-5'>
+      <nav aria-label='Main navigation' className='fixed left-1/2 top-3 z-50 w-[96%] max-w-[1600px] -translate-x-1/2 rounded-2xl border border-white/15 bg-[#07101e]/85 shadow-lg backdrop-blur-xl md:top-5'>
+        <div className='flex items-center justify-between gap-3 px-4 py-3 md:px-8 md:py-4'>
           <Link to='/' className='flex shrink-0 items-center gap-3 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50'>
-            <img src={logo} alt='' className='h-10 w-10 object-contain md:h-11 md:w-11' />
-            <span className='text-lg font-extrabold tracking-wide text-white'>Sheria Master</span>
+            <img src={logo} alt='' className='h-12 w-12 object-contain md:h-16 md:w-16' />
+            <span className='text-xl font-extrabold tracking-wide text-white md:text-2xl'>Sheria Master</span>
           </Link>
 
           {!isAuthPage && (
-            <div className='hidden items-center gap-1 lg:flex'>
+            <div className='hidden items-center gap-2 xl:flex'>
               {LINKS.map((link) => (
                 <button key={link.id} type='button' onClick={() => goTo(link.id)} className={linkClass}>{link.label}</button>
               ))}
             </div>
           )}
 
-          <div className='flex shrink-0 items-center gap-2'>
+          <div className='flex shrink-0 items-center gap-3'>
             <button
               type='button'
               onClick={toggleTheme}
-              className='inline-flex h-10 w-10 items-center justify-center rounded-xl text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50'
+              className='inline-flex h-12 w-12 items-center justify-center rounded-xl text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50'
               aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
             >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              {theme === 'dark' ? <Sun size={22} /> : <Moon size={22} />}
             </button>
             {location.pathname !== '/login' && (
               <Link to='/login' className={`${linkClass} hidden sm:inline-flex`}>Sign in</Link>
@@ -76,7 +76,7 @@ export default function PublicNavbar() {
             {location.pathname !== '/register-firm' && (
               <Link
                 to='/register-firm'
-                className='hidden rounded-xl bg-brand-accent px-4 py-2 text-sm font-bold text-[#1a1203] transition hover:bg-[#cf9d35] focus:outline-none focus-visible:ring-2 focus-visible:ring-white sm:inline-flex'
+                className='hidden whitespace-nowrap rounded-xl bg-brand-accent px-6 py-3 text-base font-bold text-[#1a1203] transition hover:bg-[#cf9d35] focus:outline-none focus-visible:ring-2 focus-visible:ring-white sm:inline-flex'
               >
                 Register your firm
               </Link>
@@ -87,21 +87,21 @@ export default function PublicNavbar() {
               aria-expanded={menuOpen}
               aria-controls='public-mobile-menu'
               aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-              className='inline-flex h-10 w-10 items-center justify-center rounded-xl text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 lg:hidden'
+              className='inline-flex h-12 w-12 items-center justify-center rounded-xl text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 xl:hidden'
             >
-              {menuOpen ? <X size={20} /> : <Menu size={20} />}
+              {menuOpen ? <X size={26} /> : <Menu size={26} />}
             </button>
           </div>
         </div>
 
         {menuOpen && (
-          <div id='public-mobile-menu' className='border-t border-white/10 px-4 pb-4 pt-2 lg:hidden'>
+          <div id='public-mobile-menu' className='border-t border-white/10 px-4 pb-4 pt-2 xl:hidden'>
             <div className='flex flex-col gap-1'>
               {!isAuthPage && LINKS.map((link) => (
                 <button key={link.id} type='button' onClick={() => goTo(link.id)} className={`${linkClass} text-left`}>{link.label}</button>
               ))}
               <Link to='/login' onClick={() => setMenuOpen(false)} className={linkClass}>Sign in</Link>
-              <Link to='/register-firm' onClick={() => setMenuOpen(false)} className='mt-2 rounded-xl bg-brand-accent px-4 py-2.5 text-center text-sm font-bold text-[#1a1203]'>
+              <Link to='/register-firm' onClick={() => setMenuOpen(false)} className='mt-2 rounded-xl bg-brand-accent px-4 py-3 text-center text-base font-bold text-[#1a1203]'>
                 Register your firm
               </Link>
             </div>

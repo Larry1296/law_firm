@@ -31,7 +31,7 @@ export default function HeroSection({ startingPrice }) {
       ))}
       <div className='absolute inset-0 -z-10 bg-gradient-to-r from-[#050816]/95 via-[#050816]/80 to-[#050816]/40' />
 
-      <div className='mx-auto w-full max-w-7xl px-4 pb-16 pt-36 sm:px-6 lg:px-8'>
+      <div className='mx-auto w-full max-w-7xl px-4 pb-16 pt-40 sm:px-6 lg:px-8'>
         <div className='max-w-2xl'>
           <p className='inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur'>
             <ShieldCheck size={14} aria-hidden='true' /> Built for Kenyan law firms
