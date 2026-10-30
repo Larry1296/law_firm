@@ -19,7 +19,7 @@ export default function HeroSection({ startingPrice }) {
   }, []);
 
   return (
-    <section className='relative isolate flex min-h-[92vh] items-center overflow-hidden bg-[#050816]'>
+    <section className='relative isolate flex min-h-[100dvh] items-center overflow-hidden bg-[#050816]'>
       {BACKGROUNDS.map((src, index) => (
         <img
           key={src}
