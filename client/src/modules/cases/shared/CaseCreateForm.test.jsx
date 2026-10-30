@@ -114,4 +114,38 @@ describe('CaseCreateForm opened from a cleared conflict check', () => {
     await userEvent.type(screen.getByLabelText(/Interest Rate/), '14%');
     expect(screen.getByLabelText(/Interest Rate/)).toHaveValue('14');
   });
+
+  it('assigns the responsible advocate, counts the limitation from the dismissal and carries the jurisdiction findings', async () => {
+    render(
+      <CaseCreateForm
+        clients={[{ id: 'client-1', full_name: 'Grace Mwende', client_type: 'INDIVIDUAL' }]}
+        lawyers={[{ id: 'adv-1', full_name: 'Daniel Mutiso', system_role: 'ADMIN' }]}
+        secretaries={[]}
+        createCase={vi.fn()}
+        initialClientId='client-1'
+        initialConflictCheckId='check-1'
+        initialConflictCheck={{
+          ...conflictCheck,
+          responsible_lawyer: 'adv-1',
+          jurisdiction: { ...conflictCheck.jurisdiction, advocate_findings: 'Forum confirmed: ELRC at Nairobi.' },
+        }}
+        canCreate
+      />,
+    );
+
+    await userEvent.click(screen.getByText('New instruction - not yet filed'));
+    for (let step = 0; step < 5; step += 1) {
+      await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    }
+    const ended = screen.getByLabelText('Date Employment Ended');
+    await userEvent.type(ended, '2026-09-15');
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(screen.getByText('Daniel Mutiso')).toBeInTheDocument();
+    expect(screen.queryByText('Assigned Secretary')).not.toBeInTheDocument();
+    expect(screen.queryByText('Next Court Date')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Limitation Date')).toHaveValue('2029-09-14');
+    expect(screen.getByLabelText('Jurisdiction Notes')).toHaveValue('Forum confirmed: ELRC at Nairobi.');
+  });
 });

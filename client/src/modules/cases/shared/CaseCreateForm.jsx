@@ -121,6 +121,8 @@ const buildInitialFormData = (initialClientId, initialConflictCheckId, initialCo
       estimated_matter_value: claimValue,
     } : {}),
     court_name: courtNameFor(prefilled.court_type, prefilled.court_station),
+    assigned_lawyer_membership_id: initialConflictCheck.responsible_lawyer || next.assigned_lawyer_membership_id,
+    jurisdiction_notes: jurisdictionNotesFor(initialConflictCheck.jurisdiction) || next.jurisdiction_notes,
     ...(prefilled.practice_area === 'EMPLOYMENT_LABOUR' ? employmentSidesFromParties(prefilled, clientName) : {}),
   };
 };
@@ -187,6 +189,19 @@ const amountOrZero = (value) => Number(value) || 0;
 const outstandingFor = (data) => (
   data.claim_amount === '' ? '' : String(Math.max(amountOrZero(data.claim_amount) - amountOrZero(data.amount_already_paid), 0))
 );
+
+// An employment claim must be filed within three years of the dismissal (Employment Act, section 90).
+const employmentLimitationDate = (terminationDate) => {
+  if (!terminationDate) return '';
+  const [year, month, day] = terminationDate.split('-').map(Number);
+  const lastDay = new Date(Date.UTC(year + 3, month - 1, day - 1));
+  return lastDay.toISOString().slice(0, 10);
+};
+
+const jurisdictionNotesFor = (jurisdiction) => (jurisdiction?.is_final
+  ? [jurisdiction.advocate_findings, jurisdiction.subject_matter_basis, jurisdiction.pecuniary_basis, jurisdiction.territorial_basis, jurisdiction.legal_basis]
+    .filter(Boolean).join('\n')
+  : '');
 
 const courtNameFor = (courtType, station) => {
   const court = COURT_TYPES.find((item) => item.value === courtType)?.label;
@@ -345,6 +360,7 @@ export default function CaseCreateForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdResult, setCreatedResult] = useState(null);
   const nextActionEdited = useRef(false);
+  const limitationEdited = useRef(false);
   const [partyDraft, setPartyDraft] = useState({
     name: '',
     role: '',
@@ -373,10 +389,8 @@ export default function CaseCreateForm({
     [sortedClients, formData.client_id],
   );
 
-  const selectableLawyers = useMemo(
-    () => (lawyers || []).filter((lawyer) => lawyer.system_role !== 'ADMIN'),
-    [lawyers],
-  );
+  // Everyone in the advocates list is an advocate, including an owner who practises.
+  const selectableLawyers = lawyers || [];
 
   const filteredProcedures = useMemo(() => {
     const forum = formData.forum === 'COURT' ? 'COURT' : formData.forum;
@@ -482,6 +496,10 @@ export default function CaseCreateForm({
         next.interest_rate = '';
       }
 
+      if (name === 'termination_date' && next.practice_area === 'EMPLOYMENT_LABOUR' && !limitationEdited.current) {
+        next.limitation_date = employmentLimitationDate(value);
+      }
+
       if (name === 'dismissal_type') {
         next.employment_status = EMPLOYMENT_STATUS_FOR_ENDING[value] || 'TERMINATED';
       }
@@ -503,6 +521,7 @@ export default function CaseCreateForm({
   const handleChange = (event) => {
     const { name, type, checked, value } = event.target;
     if (name === 'next_action') nextActionEdited.current = true;
+    if (name === 'limitation_date') limitationEdited.current = true;
     updateField(name, type === 'checkbox' ? checked : value);
   };
 
@@ -1032,20 +1051,24 @@ export default function CaseCreateForm({
                 <option value=''>{currentLawyer ? 'Logged-in advocate' : 'Firm default lawyer'}</option>
               </SelectField>
             )}
-            <SelectField
-              label='Assigned Secretary'
-              name='assigned_secretary_membership_id'
-              value={formData.assigned_secretary_membership_id}
-              onChange={handleChange}
-              options={(secretaries || []).map((secretary) => ({ value: normalizeId(secretary), label: secretary.full_name }))}
-            >
-              <option value=''>Firm default secretary</option>
-            </SelectField>
+            {(secretaries || []).length > 0 && (
+              <SelectField
+                label='Assigned Secretary'
+                name='assigned_secretary_membership_id'
+                value={formData.assigned_secretary_membership_id}
+                onChange={handleChange}
+                options={secretaries.map((secretary) => ({ value: normalizeId(secretary), label: secretary.full_name }))}
+              >
+                <option value=''>Firm default secretary</option>
+              </SelectField>
+            )}
             <MatterTextInput label='Date Instructions Received' name='date_instructions_received' type='date' value={formData.date_instructions_received} onChange={handleChange} noFloat />
             <MatterTextInput label='Limitation Date' name='limitation_date' type='date' value={formData.limitation_date} onChange={handleChange} noFloat />
             {isCourtRoute(formData) && (
               <>
-                <MatterTextInput label='Next Court Date' name='next_court_date' type='datetime-local' value={formData.next_court_date} onChange={handleChange} noFloat error={errors.next_court_date} />
+                {isFiledCourtRoute(formData) && (
+                  <MatterTextInput label='Next Court Date' name='next_court_date' type='datetime-local' value={formData.next_court_date} onChange={handleChange} noFloat error={errors.next_court_date} />
+                )}
                 <MatterTextInput label='Next Action' name='next_action' value={formData.next_action} onChange={handleChange} />
               </>
             )}
