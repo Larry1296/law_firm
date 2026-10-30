@@ -82,7 +82,7 @@ const buildInitialFormData = (initialClientId, initialConflictCheckId, initialCo
 
   if (!initialConflictCheck) return next;
 
-  return {
+  return alignRolesToProcedure({
     ...next,
     ...matterDefaultsFromConflictCheck(initialConflictCheck),
     title: initialConflictCheck.proposed_matter_title || next.title,
@@ -103,7 +103,7 @@ const buildInitialFormData = (initialClientId, initialConflictCheckId, initialCo
         party_type: party.party_type === 'ORGANISATION' ? 'COMPANY' : 'INDIVIDUAL',
         is_adverse: party.role === 'PROPOSED_ADVERSE_PARTY',
       })),
-  };
+  });
 };
 
 const optionLabel = (options, value) =>
@@ -115,18 +115,34 @@ const roleOptionsForProcedure = (procedureTrack) =>
     label: role.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()),
   }));
 
-const remapSmallClaimRole = (role) => {
-  if (role === 'PLAINTIFF' || !role) return 'CLAIMANT';
-  if (role === 'DEFENDANT') return 'RESPONDENT';
-  return role;
+// The side that brings the proceedings and the side that answers them, named as each procedure names them.
+const PROCEDURE_SIDES = {
+  CIVIL_SUIT: ['PLAINTIFF', 'DEFENDANT'],
+  EMPLOYMENT_CLAIM: ['CLAIMANT', 'RESPONDENT'],
+  SMALL_CLAIM: ['CLAIMANT', 'RESPONDENT'],
+  JUDICIAL_REVIEW: ['EX_PARTE_APPLICANT', 'RESPONDENT'],
+  PETITION: ['PETITIONER', 'RESPONDENT'],
+  SUCCESSION_CAUSE: ['PETITIONER', 'OBJECTOR'],
+  APPEAL: ['APPELLANT', 'RESPONDENT'],
+  CRIMINAL_CASE: ['ACCUSED', 'PROSECUTION'],
 };
 
-const defaultAdverseRoleForProcedure = (procedureTrack) =>
-  procedureTrack === 'SMALL_CLAIM' ? 'RESPONDENT' : 'DEFENDANT';
+const sidesForProcedure = (procedureTrack) => PROCEDURE_SIDES[procedureTrack] || ['PLAINTIFF', 'DEFENDANT'];
 
-const remapPartiesForProcedure = (parties = [], procedureTrack) => {
-  if (procedureTrack !== 'SMALL_CLAIM') return parties;
-  return parties.map((party) => ({ ...party, role: remapSmallClaimRole(party.role) }));
+const defaultAdverseRoleForProcedure = (procedureTrack) => sidesForProcedure(procedureTrack)[1];
+
+// A new instruction starts with the client bringing the proceedings; any role the procedure does not use is renamed to its side.
+const alignRolesToProcedure = (data) => {
+  const roles = PARTY_ROLES[data.procedure_track] || PARTY_ROLES.DEFAULT;
+  const [ours, theirs] = sidesForProcedure(data.procedure_track);
+  const otherRole = ['INTERESTED_PARTY', 'OTHER'].find((role) => roles.includes(role)) || theirs;
+  return {
+    ...data,
+    client_party_role: roles.includes(data.client_party_role) ? data.client_party_role : ours,
+    parties: (data.parties || []).map((party) => (
+      roles.includes(party.role) ? party : { ...party, role: party.is_adverse ? theirs : otherRole }
+    )),
+  };
 };
 
 const isCourtRoute = (formData) =>
@@ -282,7 +298,7 @@ export default function CaseCreateForm({
   const nextActionEdited = useRef(false);
   const [partyDraft, setPartyDraft] = useState({
     name: '',
-    role: defaultAdverseRoleForProcedure(caseCreateInitialValues.procedure_track),
+    role: '',
     party_type: 'OTHER',
     is_adverse: true,
   });
@@ -336,6 +352,9 @@ export default function CaseCreateForm({
   );
 
   const currentRoleOptions = roleOptionsForProcedure(formData.procedure_track);
+  const partyDraftRole = currentRoleOptions.some((option) => option.value === partyDraft.role)
+    ? partyDraft.role
+    : defaultAdverseRoleForProcedure(formData.procedure_track);
 
   const updateField = (name, value) => {
     setFormData((current) => {
@@ -375,13 +394,6 @@ export default function CaseCreateForm({
         next.court_type = 'SMALL_CLAIMS';
         next.court_level = COURT_LEVEL_BY_TYPE.SMALL_CLAIMS;
         next.court_division = 'SMALL_CLAIMS';
-        next.client_party_role = 'CLAIMANT';
-        next.parties = remapPartiesForProcedure(next.parties || [], 'SMALL_CLAIM');
-      }
-
-      if (name === 'procedure_track' && value === 'SMALL_CLAIM') {
-        next.client_party_role = remapSmallClaimRole(next.client_party_role);
-        next.parties = remapPartiesForProcedure(next.parties || [], 'SMALL_CLAIM');
       }
 
       if (name === 'forum') {
@@ -395,11 +407,8 @@ export default function CaseCreateForm({
         next.court_level = COURT_LEVEL_BY_TYPE[value] || '';
       }
 
-      return next;
+      return alignRolesToProcedure(next);
     });
-    if ((name === 'case_type' && value === 'SMALL_CLAIM') || (name === 'procedure_track' && value === 'SMALL_CLAIM')) {
-      setPartyDraft((current) => ({ ...current, role: defaultAdverseRoleForProcedure('SMALL_CLAIM') }));
-    }
     setErrors((current) => {
       const next = { ...current };
       delete next[name];
@@ -508,9 +517,9 @@ export default function CaseCreateForm({
     }
     setFormData((current) => ({
       ...current,
-      parties: [...(current.parties || []), { ...partyDraft, name, organization_name: name }],
+      parties: [...(current.parties || []), { ...partyDraft, role: partyDraftRole, name, organization_name: name }],
     }));
-    setPartyDraft({ name: '', role: defaultAdverseRoleForProcedure(formData.procedure_track), party_type: 'OTHER', is_adverse: true });
+    setPartyDraft({ name: '', role: '', party_type: 'OTHER', is_adverse: true });
   };
 
   const removeParty = (index) => {
@@ -643,7 +652,7 @@ export default function CaseCreateForm({
               <p className='mb-3 text-sm font-semibold text-text-primary-light dark:text-text-primary-dark'>Additional Parties</p>
               <div className='grid gap-5 md:grid-cols-[1fr_180px_180px_auto] md:items-start'>
                 <MatterTextInput label='Party Name' name='party_name' value={partyDraft.name} onChange={(event) => setPartyDraft((current) => ({ ...current, name: event.target.value }))} />
-                <SelectField label='Role' name='party_role' value={partyDraft.role} onChange={(event) => setPartyDraft((current) => ({ ...current, role: event.target.value }))} options={currentRoleOptions} />
+                <SelectField label='Role' name='party_role' value={partyDraftRole} onChange={(event) => setPartyDraft((current) => ({ ...current, role: event.target.value }))} options={currentRoleOptions} />
                 <SelectField
                   label='Party Type'
                   name='party_type'
@@ -666,7 +675,7 @@ export default function CaseCreateForm({
                 <div className='mt-5 space-y-3'>
                   {formData.parties.map((party, index) => (
                     <div key={`${party.name}:${index}`} className='flex items-center justify-between rounded-lg border border-border-light px-3 py-2 text-sm dark:border-border-dark'>
-                      <span>{party.name} - {party.role?.replaceAll('_', ' ')}</span>
+                      <span>{party.name} - {enumLabel(party.role)}</span>
                       <button type='button' className='text-red-600 dark:text-red-400' onClick={() => removeParty(index)}>Remove</button>
                     </div>
                   ))}
