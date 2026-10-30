@@ -60,7 +60,16 @@ class LawyerDocumentService:
                 if params.get("case_id") and scoped_cases.first() and hasattr(scoped_cases.first(), "physical_file")
                 else None
             ),
+            # Without records staff the advocate keeps the client's papers and the matter file personally.
+            "keeps_own_records": LawyerDocumentService._keeps_own_records(user),
         }
+
+    @staticmethod
+    def _keeps_own_records(user):
+        from apps.staff.services.secretary.secretary_document_service import SecretaryDocumentService
+
+        lawyer = getattr(user, "lawyer_profile", None)
+        return bool(lawyer and not SecretaryDocumentService.records_staff(lawyer.law_firm).exists())
 
     @staticmethod
     def create_request(user, data):
