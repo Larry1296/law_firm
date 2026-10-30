@@ -108,7 +108,14 @@ export default function CaseProceedingsWorkflow({ caseData }) {
         </section>
       </div>
 
-      {current && (
+      {current && new Date(current.starts_at) > new Date() && (
+        <section className={box}>
+          <h2 className='text-lg font-semibold'>Proceedings · Record Outcome</h2>
+          <p className='mt-2 text-sm'>The outcome of the {current.event_type_label?.toLowerCase() || 'event'} can be recorded once it has taken place on {formatDateTime(current.starts_at)}.</p>
+        </section>
+      )}
+      {/* An outcome is recorded only after the sitting has taken place. */}
+      {current && new Date(current.starts_at) <= new Date() && (
         <form className={box} onSubmit={submit}>
           <h2 className='text-lg font-semibold'>Proceedings · Record Outcome</h2>
           <div className='mt-3 grid gap-3 md:grid-cols-2'>

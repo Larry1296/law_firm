@@ -428,6 +428,9 @@ class EndToEndLitigationTests(TestCase):
 
         self.transition(self.advocate_user, matter, "HEARING_IN_PROGRESS", "Plaintiff's case opened; PW1 testified.")
         judgment_on = timezone.now() + timedelta(days=30)
+        # The hearing has now taken place; an outcome is only recorded after the sitting.
+        from apps.cases.models import CaseEvent
+        CaseEvent.objects.filter(id=event["id"]).update(starts_at=timezone.now() - timedelta(minutes=1))
         self.ok(self.as_user(self.advocate_user).post(f"/api/cases/{matter.id}/events/{event['id']}/record-outcome/", {
             "proceeded": True, "outcome_code": "PROCEEDED",
             "outcome": "Both sides closed their cases. Written submissions within 14 days; judgment reserved.",
@@ -512,6 +515,8 @@ class EndToEndLitigationTests(TestCase):
         self.assertEqual(accepted["status"], "ACCEPTED")
 
     def step_judgment_decree_and_enforcement(self, matter, judgment_event):
+        # Judgment day has come.
+        type(judgment_event).objects.filter(id=judgment_event.id).update(starts_at=timezone.now() - timedelta(minutes=1))
         self.ok(self.as_user(self.advocate_user).post(f"/api/cases/{matter.id}/events/{judgment_event.id}/record-outcome/", {
             "proceeded": True, "outcome_code": "JUDGMENT_DELIVERED",
             "outcome": "Judgment for the plaintiff for KES 1,850,000 with interest at court rates and costs.",

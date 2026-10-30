@@ -374,6 +374,8 @@ class ProceedingsWorkflowService:
         cls.ensure_can_record(actor, case)
         if event.status in {CaseEvent.EventStatus.COMPLETED, CaseEvent.EventStatus.CONCLUDED}:
             raise ValidationError({"event": "This proceeding already has a final outcome."})
+        if event.starts_at > timezone.now():
+            raise ValidationError({"event": f"This {event.get_event_type_display().lower()} is on {timezone.localtime(event.starts_at):%d %b %Y at %H:%M}; record its outcome once it has taken place."})
         outcome_code = data["outcome_code"]
         next_type = data.get("next_event_type") or ""
         if not data.get("outcome"):
