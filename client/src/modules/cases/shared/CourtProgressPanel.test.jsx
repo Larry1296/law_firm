@@ -26,6 +26,9 @@ describe('summons service diary', () => {
     const papers = Array.from(screen.getByLabelText('Paper').options).map((option) => option.textContent);
     expect(papers).toContain('Response received');
     expect(papers).not.toContain('Memorandum of appearance received');
+    expect(screen.queryByLabelText('E-filing reference')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Paper'), { target: { value: 'AFFIDAVIT_OF_SERVICE' } });
+    expect(screen.getByLabelText('E-filing reference')).toBeTruthy();
   });
 
   it('starts what it records at now and counts the ELRC response from the day of service', () => {
