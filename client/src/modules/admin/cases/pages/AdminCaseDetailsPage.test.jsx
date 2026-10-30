@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -37,10 +38,11 @@ const { caseData } = vi.hoisted(() => ({ caseData: {
   priority: 'MEDIUM',
   next_action: 'Filing',
   physical_matter_file: { assignment_pending: true },
+  client: { full_name: 'Grace Mwende', phone_number: '0711234567', portal_access_exists: false },
   parties: [],
   documents: [],
   tasks: [],
-  events: [],
+  events: [{ id: 'event-1', title: 'Mention', event_type: 'MENTION', is_client_visible: true, starts_at: '2099-11-18T06:00:00Z', client_awareness: { status: 'NOT_NOTIFIED' } }],
   timeline: [],
   activities: [],
 } }));
@@ -51,12 +53,14 @@ vi.mock('@/modules/admin/cases/hooks/useAdminCaseDetails', () => ({
 
 describe('AdminCaseDetailsPage', () => {
   it('shows one part of the matter at a time, starting with what needs doing next', async () => {
-    render(<AdminCaseDetailsPage />);
+    render(<QueryClientProvider client={new QueryClient()}><AdminCaseDetailsPage /></QueryClientProvider>);
 
     expect(screen.getByRole('heading', { name: caseData.title })).toBeInTheDocument();
     expect(screen.getByText(/MAT-2026-00001 · Grace Mwende \(Claimant\) · Employment and Labour Court at Nairobi/)).toBeInTheDocument();
     expect(screen.getByText('Record the prepared physical file and where it is kept.')).toBeInTheDocument();
     expect(screen.queryByText('Physical file card')).not.toBeInTheDocument();
+
+    expect(screen.getByText(/Tell Grace Mwende about the Mention on .*\(0711234567\)\./)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Open file →' }));
     expect(screen.getByText('Physical file card')).toBeInTheDocument();

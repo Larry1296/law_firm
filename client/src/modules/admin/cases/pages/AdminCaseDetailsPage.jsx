@@ -17,6 +17,7 @@ import AssignedAdvocateMatterDesk from '@/modules/admin/cases/components/Assigne
 import MatterTasksCard from '@/modules/admin/cases/components/MatterTasksCard';
 import MatterLifecycleControls from '@/modules/admin/cases/components/MatterLifecycleControls';
 import PhysicalMatterFileCard from '@/modules/cases/shared/PhysicalMatterFileCard';
+import ClientAwarenessControl from '@/modules/cases/shared/ClientAwarenessControl';
 import { casePartyLabel, casePartyName, renderPriorityBadge, renderStatusBadge } from '@/modules/cases/shared/casePresentation';
 
 const MATTER_TABS = [
@@ -155,6 +156,13 @@ const MatterTabs = ({ tabs, active, onChange }) => (
   </div>
 );
 
+// Upcoming dates a client without the portal has not yet been told about.
+const untoldDates = (caseData) => (caseData.client?.portal_access_exists ? [] : (caseData.events || []).filter((event) => (
+  event.is_client_visible
+  && new Date(event.starts_at) > new Date()
+  && ['NOT_NOTIFIED', undefined].includes(event.client_awareness?.status)
+)));
+
 // What the matter needs next, each with a way straight to where it is done.
 const MatterNextSteps = ({ caseData, onOpenTab }) => {
   const steps = [
@@ -163,6 +171,11 @@ const MatterNextSteps = ({ caseData, onOpenTab }) => {
       action: 'Open file',
       tab: 'documents',
     },
+    ...untoldDates(caseData).map((event) => ({
+      text: `Tell ${caseData.client?.full_name || 'the client'} about the ${event.title} on ${formatDateTime(event.starts_at)}${caseData.client?.phone_number ? ` (${caseData.client.phone_number})` : ''}.`,
+      action: 'Record it',
+      tab: 'court',
+    })),
     caseData.court_stage === 'NOT_FILED' && caseData.next_action && {
       text: `Next: ${caseData.next_action}.`,
       action: 'Go to court work',
@@ -1600,6 +1613,9 @@ const AdminCaseDetailsPage = () => {
                       <p className='mt-2 text-sm text-text-primary-light dark:text-text-primary-dark'>
                         {event.orders_directions}
                       </p>
+                    )}
+                    {!caseData.client?.portal_access_exists && (
+                      <ClientAwarenessControl event={event} clientName={caseData.client?.full_name} clientPhone={caseData.client?.phone_number} />
                     )}
                   </div>
                 ))}

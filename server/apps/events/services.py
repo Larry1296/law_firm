@@ -628,6 +628,9 @@ class EventService:
         awareness.confirmation_channel = validated_data.get("confirmation_channel", awareness.confirmation_channel)
         awareness.notes = validated_data.get("notes", awareness.notes)
         awareness.updated_by = user
+        told = {EventClientAwareness.AwarenessStatus.NOTIFIED, EventClientAwareness.AwarenessStatus.CONFIRMED}
+        if awareness.status in told and awareness.notified_at is None:
+            awareness.notified_at = timezone.now()
         if awareness.status == EventClientAwareness.AwarenessStatus.CONFIRMED and awareness.confirmed_at is None:
             awareness.confirmed_at = timezone.now()
         awareness.save()
