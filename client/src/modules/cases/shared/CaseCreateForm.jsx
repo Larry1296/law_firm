@@ -937,13 +937,13 @@ export default function CaseCreateForm({
               <>
                 <SelectField label='Employer' name='employer' value={formData.employer} onChange={handleChange} options={partyNameOptions} />
                 <SelectField label='Employee' name='employee' value={formData.employee} onChange={handleChange} options={partyNameOptions} />
-                <MatterTextInput label='Employment Start Date' name='employment_start_date' type='date' max={localToday()} value={formData.employment_start_date} onChange={handleChange} noFloat />
+                <MatterTextInput label='Employment Start Date' name='employment_start_date' type='date' max={localToday()} value={formData.employment_start_date} onChange={handleChange} noFloat error={errors.employment_start_date} />
                 <MatterTextInput label='Monthly Salary (KES)' name='monthly_salary' type='number' min='0' value={formData.monthly_salary} onChange={handleChange} />
                 <Select3D label='Employment Status' name='employment_status' value={formData.employment_status} onChange={handleChange} options={EMPLOYMENT_STATUSES} placeholder='Select employment status' />
                 {(!formData.employment_status || EMPLOYMENT_ENDED_STATUSES.includes(formData.employment_status)) && (
                   <>
                     <Select3D label='How the Employment Ended' name='dismissal_type' value={formData.dismissal_type} onChange={handleChange} options={DISMISSAL_TYPES} placeholder='Select how it ended' />
-                    <MatterTextInput label='Date Employment Ended' name='termination_date' type='date' min={formData.employment_start_date || undefined} max={localToday()} value={formData.termination_date} onChange={handleChange} noFloat />
+                    <MatterTextInput label='Date Employment Ended' name='termination_date' type='date' min={formData.employment_start_date || undefined} max={localToday()} value={formData.termination_date} onChange={handleChange} noFloat error={errors.termination_date} />
                   </>
                 )}
                 <Select3D label='Complaints' name='nature_of_complaint' value={complaintValues} onChange={(event) => updateField('nature_of_complaint', event.target.value.join('; '))} options={EMPLOYMENT_COMPLAINTS} multiple placeholder='Select what the client complains of' />

@@ -253,6 +253,17 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertEqual(case.currency, "KES")
         self.assertIn("claim amount is recorded", case.jurisdiction_notes)
 
+    def test_employment_cannot_end_on_a_future_date(self):
+        payload = self.payload("CASE-EMPLOYMENT-FUTURE")
+        payload["practice_area"] = "EMPLOYMENT_LABOUR"
+        payload["employment_details"] = {
+            "employment_start_date": "2024-10-21",
+            "termination_date": (timezone.localdate() + timedelta(days=30)).isoformat(),
+        }
+        response = self.api.post(reverse("case-create"), payload, format="json")
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("future", str(response.data))
+
     def test_ordinary_creation_cannot_set_jurisdiction_verification_actor(self):
         payload = self.payload("CASE-JURIS-REJECT")
         payload["jurisdiction_verified"] = True

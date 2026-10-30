@@ -471,7 +471,8 @@ class CaseService:
                 "court_type": confirmed_jurisdiction.final_court_type,
                 "court_level": confirmed_jurisdiction.final_court_level,
                 "court_station": confirmed_jurisdiction.final_station,
-                "jurisdiction_notes": "\n\n".join(
+                # The opening form already carries the findings; add them only when they are missing.
+                "jurisdiction_notes": recorded_notes if confirmed_findings in recorded_notes else "\n\n".join(
                     value for value in (recorded_notes, confirmed_findings) if value
                 ),
                 "jurisdiction_verified": True,
@@ -719,6 +720,11 @@ class CaseService:
                     "payment_reference": court_data.get("payment_reference") or case.payment_reference,
                     "payment_date": court_data.get("payment_date") or case.payment_date,
                     "jurisdiction_notes": court_data.get("jurisdiction_notes") or case.jurisdiction_notes,
+                    "jurisdiction_verification_status": (
+                        CourtProceeding.JurisdictionVerificationStatus.VERIFIED
+                        if case.jurisdiction_verified
+                        else CourtProceeding.JurisdictionVerificationStatus.PENDING
+                    ),
                 },
             )
             CourtProceeding.objects.create(matter=case, **court_payload)

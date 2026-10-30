@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import serializers
 
@@ -196,6 +197,16 @@ class CaseCreateSerializer(serializers.Serializer):
             errors["employment_details.dismissal_type"] = (
                 "Select a valid controlled dismissal type."
             )
+
+        started = self._coerce_date(employment.get("employment_start_date"), "employment_details.employment_start_date", errors)
+        ended = self._coerce_date(employment.get("termination_date"), "employment_details.termination_date", errors)
+        today = timezone.localdate()
+        if hasattr(started, "isoformat") and started > today:
+            errors["employment_details.employment_start_date"] = "Employment cannot start on a future date."
+        if hasattr(ended, "isoformat") and ended > today:
+            errors["employment_details.termination_date"] = "Employment cannot have ended on a future date."
+        elif hasattr(ended, "isoformat") and hasattr(started, "isoformat") and ended < started:
+            errors["employment_details.termination_date"] = "Employment cannot end before it started."
 
         if court.get("filing_date") not in (None, ""):
             court["filing_date"] = self._coerce_date(court.get("filing_date"), "filing_date", errors)

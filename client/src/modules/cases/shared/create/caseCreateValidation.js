@@ -37,6 +37,20 @@ export const validateCaseCreateForm = (formData = {}, context = {}) => {
     addError(errors, 'client_party_role', 'Select the represented client role.');
   }
 
+  if (formData.practice_area === 'EMPLOYMENT_LABOUR') {
+    const today = new Date().toISOString().slice(0, 10);
+    if (!isBlank(formData.employment_start_date) && formData.employment_start_date > today) {
+      addError(errors, 'employment_start_date', 'Employment cannot start on a future date.');
+    }
+    if (!isBlank(formData.termination_date) && formData.termination_date > today) {
+      addError(errors, 'termination_date', 'Employment cannot have ended on a future date.');
+    }
+    if (!isBlank(formData.termination_date) && !isBlank(formData.employment_start_date)
+      && formData.termination_date < formData.employment_start_date) {
+      addError(errors, 'termination_date', 'Employment cannot end before it started.');
+    }
+  }
+
   if (entryRoute === 'EXISTING_FILED_COURT_CASE') {
     if (isBlank(formData.official_court_case_number)) {
       addError(errors, 'official_court_case_number', 'Official court case number is required for an existing filed court case.');
