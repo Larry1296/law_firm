@@ -19,23 +19,30 @@ describe('doneMessage', () => {
   });
 });
 
-describe('action toasts', () => {
+describe('action notices', () => {
   beforeEach(() => { swal.fire.mockClear(); swal.getPopup.mockReturnValue(null); });
 
-  it('shows a SweetAlert toast when a confirmed change saves or is refused', () => {
+  it('shows a centred SweetAlert when a confirmed change saves or is refused', () => {
     reportSaved({ ...fileAssign, criticalAction: { title: 'Record MAT-2026-00001 as prepared?' } });
-    expect(swal.fire).toHaveBeenLastCalledWith(expect.objectContaining({ toast: true, icon: 'success', title: 'Recorded: MAT-2026-00001 as prepared' }));
+    expect(swal.fire).toHaveBeenLastCalledWith(expect.objectContaining({ icon: 'success', title: 'Recorded: MAT-2026-00001 as prepared', timer: 2200 }));
 
     reportRefused({ config: fileAssign, response: { data: { detail: 'This matter already has a confirmed physical file.' } } });
-    expect(swal.fire).toHaveBeenLastCalledWith(expect.objectContaining({ toast: true, icon: 'error', title: 'Not saved', text: 'This matter already has a confirmed physical file.' }));
+    expect(swal.fire).toHaveBeenLastCalledWith(expect.objectContaining({ icon: 'error', title: 'Not saved', text: 'This matter already has a confirmed physical file.', confirmButtonText: 'OK' }));
   });
 
   it('leaves a dialog the page is showing in place and stays quiet for reads and cancellations', () => {
-    swal.getPopup.mockReturnValue({});
+    swal.getPopup.mockReturnValue({ classList: { contains: () => false } });
     reportSaved(fileAssign);
     swal.getPopup.mockReturnValue(null);
     reportSaved({ method: 'get', url: '/cases/' });
     reportRefused({ isActionCancelled: true, config: fileAssign });
     expect(swal.fire).not.toHaveBeenCalled();
   });
+
+  it('still reports when the only dialog is the confirmation fading out', () => {
+    swal.getPopup.mockReturnValue({ classList: { contains: (name) => name === 'swal2-hide' } });
+    reportSaved(fileAssign);
+    expect(swal.fire).toHaveBeenCalledWith(expect.objectContaining({ icon: 'success' }));
+  });
 });
+

@@ -18,13 +18,17 @@ export function doneMessage(title = '') {
   return past && rest.length ? `${past}: ${rest.join(' ')}` : 'Saved';
 }
 
-// The app's own SweetAlert toast, shown only when the page has no dialog of its own open.
-const toast = (icon, title, text) => {
-  if (themedSwal.getPopup?.()) return;
+// The app's own SweetAlert dialog in the middle of the screen, shown only when the page has none of its own open:
+// a success closes itself, a refusal waits to be read.
+const notify = (icon, title, text) => {
+  // The confirmation that started the change may still be fading out; only a dialog that stays open counts.
+  const open = themedSwal.getPopup?.();
+  if (open && !open.classList?.contains('swal2-hide')) return;
   themedSwal.fire({
-    toast: true, position: 'top-end', icon, title, text,
-    showConfirmButton: false, showCloseButton: true,
-    timer: icon === 'success' ? 3500 : 7000, timerProgressBar: true,
+    icon, title, text,
+    ...(icon === 'success'
+      ? { showConfirmButton: false, timer: 2200, timerProgressBar: true }
+      : { confirmButtonText: 'OK' }),
   });
 };
 
@@ -34,11 +38,11 @@ export function reportSaved(config) {
   if (!base) return;
   const policy = { ...base, ...config.criticalAction };
   if (/sign out/i.test(policy.confirmText || '')) return;
-  toast('success', doneMessage(policy.title));
+  notify('success', doneMessage(policy.title));
 }
 
 export function reportRefused(error) {
   const config = error?.config;
   if (!config || error?.isActionCancelled || !criticalAction(config)) return;
-  toast('error', 'Not saved', getApiErrorMessage(error));
+  notify('error', 'Not saved', getApiErrorMessage(error));
 }
