@@ -18,4 +18,14 @@ describe('summons service diary', () => {
     await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/cases/case-1/filings/', expect.objectContaining({ filing_type: 'SUMMONS', response_due_date: '2026-11-12' })));
     expect(await screen.findByRole('status')).toHaveProperty('textContent', expect.stringContaining('Advocate to verify'));
   });
+
+  it('offers the next paper and the ELRC names for an employment claim that has been filed', () => {
+    render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'FILED', procedure_track: 'EMPLOYMENT_CLAIM', filings: [] }} showStage={false} /></QueryClientProvider>);
+    expect(screen.getByLabelText('Paper')).toHaveProperty('value', 'SUMMONS');
+    expect(screen.getByLabelText(/Response due date \(21 days after service\)/)).toBeTruthy();
+    const papers = Array.from(screen.getByLabelText('Paper').options).map((option) => option.textContent);
+    expect(papers).toContain('Response received');
+    expect(papers).not.toContain('Memorandum of appearance received');
+  });
 });
+

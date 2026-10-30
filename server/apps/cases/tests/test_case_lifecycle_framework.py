@@ -309,6 +309,26 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertEqual((filing.filing_type, filing.title), (CaseFiling.FilingType.ORIGINATING_CLAIM, "Statement of claim"))
         self.assertEqual(case.deadlines.get(source="LIMITATION:opening").status, MatterDeadline.Status.COMPLETED)
 
+    def test_an_elrc_summons_sets_a_response_deadline_and_a_demand_letter_reads_as_issued(self):
+        from apps.cases.models import CaseFiling
+        from apps.cases.serializers.case_filing_serializer import CaseFilingSerializer
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
+        case = self.create_case()
+        case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
+        case.save(update_fields=["procedure_track"])
+        summons = CaseFiling.objects.create(
+            case=case, filing_type=CaseFiling.FilingType.SUMMONS, title="Summons", filed_at=timezone.now(),
+            served_at=timezone.now(), response_due_date=timezone.localdate() + timedelta(days=21),
+        )
+        FilingRegisterService._seed_deadlines(case, summons, self.admin)
+        self.assertTrue(case.deadlines.get(source=f"APPEARANCE:{case.id}").description.startswith("Response due (ELRC"))
+        demand = CaseFiling.objects.create(
+            case=case, filing_type=CaseFiling.FilingType.DEMAND_LETTER, title="Demand", filed_at=timezone.now(),
+            status=CaseFiling.FilingStatus.SERVED,
+        )
+        self.assertEqual(CaseFilingSerializer(demand).data["status_label"], "Issued")
+
     def test_employment_cannot_end_on_a_future_date(self):
         payload = self.payload("CASE-EMPLOYMENT-FUTURE")
         payload["practice_area"] = "EMPLOYMENT_LABOUR"

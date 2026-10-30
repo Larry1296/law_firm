@@ -187,7 +187,11 @@ class FilingRegisterService:
                 case, user, key=f"APPEARANCE:{case.id}",
                 due=filing.response_due_date,
                 deadline_type=MatterDeadline.Type.RESPONSE, priority="HIGH",
-                description="Entry of appearance due (verify summons, service and court directions).",
+                description=(
+                    "Response due (ELRC (Procedure) Rules, 2016: 21 days after service; verify the summons and court directions)."
+                    if case.procedure_track == Case.ProcedureTrack.EMPLOYMENT_CLAIM
+                    else "Entry of appearance due (verify summons, service and court directions)."
+                ),
                 requires_review=True,
             )
         elif filing.filing_type == CaseFiling.FilingType.MEMORANDUM_OF_APPEARANCE:
@@ -334,6 +338,8 @@ class FilingRegisterService:
                     if deadline.requires_review:
                         return "Advocate to verify response deadline against summons, rules and court directions"
                     if deadline.due_at < timezone.now():
+                        if case.procedure_track == Case.ProcedureTrack.EMPLOYMENT_CLAIM:
+                            return "Review request for judgment in default of a response for advocate decision"
                         return "Review default judgment (Order 10) for advocate decision"
                     return f"{deadline.description.split(' (')[0]} by {timezone.localtime(deadline.due_at):%d %b %Y}"
         return None

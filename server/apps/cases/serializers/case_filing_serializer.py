@@ -5,7 +5,13 @@ from apps.cases.models import CaseFiling
 
 class CaseFilingSerializer(serializers.ModelSerializer):
     filing_type_label = serializers.CharField(source="get_filing_type_display", read_only=True)
-    status_label = serializers.CharField(source="get_status_display", read_only=True)
+    status_label = serializers.SerializerMethodField()
+
+    def get_status_label(self, obj):
+        # A demand letter is sent to the other side, not served on it through the court.
+        if obj.filing_type == CaseFiling.FilingType.DEMAND_LETTER and obj.status == CaseFiling.FilingStatus.SERVED:
+            return "Issued"
+        return obj.get_status_display()
 
     class Meta:
         model = CaseFiling

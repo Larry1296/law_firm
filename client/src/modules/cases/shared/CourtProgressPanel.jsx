@@ -38,6 +38,28 @@ const REGISTER_TYPES = [
 ];
 const SERVICE_TYPES = new Set(['SUMMONS', 'AFFIDAVIT_OF_SERVICE']);
 
+// The ELRC (Procedure) Rules, 2016 have no appearance: the respondent files a response within
+// 21 days of service and the claimant may reply to it.
+const ELRC_PAPERS = {
+  DEFENCE: 'Response received',
+  REPLY_TO_DEFENCE: 'Reply to response filed',
+  REQUEST_FOR_JUDGMENT: 'Request for judgment in default of a response',
+};
+const registerTypesFor = (caseData) => (caseData.procedure_track === 'EMPLOYMENT_CLAIM'
+  ? REGISTER_TYPES.filter(([value]) => value !== 'MEMORANDUM_OF_APPEARANCE').map(([value, label]) => [value, ELRC_PAPERS[value] || label])
+  : REGISTER_TYPES);
+
+// The paper the matter needs next: a demand before filing, then service, then the other side's answer.
+const nextPaper = (caseData) => {
+  const served = (caseData.filings || []).some((filing) => filing.filing_type === 'SUMMONS' && filing.served_at);
+  if (['NOT_FILED', 'READY_FOR_FILING'].includes(caseData.court_stage)) return 'DEMAND_LETTER';
+  if (['FILED', 'AWAITING_ASSESSMENT_OR_PAYMENT', 'AWAITING_SERVICE', 'SERVICE_IN_PROGRESS'].includes(caseData.court_stage)) {
+    return served ? 'AFFIDAVIT_OF_SERVICE' : 'SUMMONS';
+  }
+  if (caseData.court_stage === 'AWAITING_RESPONSE') return 'DEFENCE';
+  return 'DEMAND_LETTER';
+};
+
 const inputClass = 'form-control';
 const friendly = (value) => (value || '').replaceAll('_', ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 
@@ -46,7 +68,7 @@ const emptyFiling = {
   registry: '', court_fee_amount: '', payment_reference: '', payment_date: '',
 };
 const emptyEntry = {
-  filing_type: 'DEMAND_LETTER', title: '', filed_at: '', served_at: '', response_period_days: '14', response_due_date: '',
+  filing_type: '', title: '', filed_at: '', served_at: '', response_period_days: '14', response_due_date: '',
   efiling_reference: '', court_fee_amount: '', payment_reference: '', receipt_number: '',
 };
 
@@ -79,6 +101,10 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const [filing, setFiling] = useState(emptyFiling);
   const [serviceFiled, setServiceFiled] = useState(false);
   const [entry, setEntry] = useState(emptyEntry);
+  const registerTypes = registerTypesFor(caseData);
+  const isElrc = caseData.procedure_track === 'EMPLOYMENT_CLAIM';
+  // Until a paper is chosen, the form offers the one the matter needs next, following it as the matter moves on.
+  const paper = entry.filing_type || nextPaper(caseData);
   const [busy, setBusy] = useState(false);
   const [stageFeedback, setStageFeedback] = useState(null);
   const [entryFeedback, setEntryFeedback] = useState(null);
@@ -113,12 +139,12 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
     event.preventDefault();
     setEntryFeedback(null);
     const payload = compact({
-      filing_type: entry.filing_type,
+      filing_type: paper,
       title: entry.title,
       filed_at: toIso(entry.filed_at),
-      served_at: SERVICE_TYPES.has(entry.filing_type) ? toIso(entry.served_at) : null,
-      response_due_date: SERVICE_TYPES.has(entry.filing_type) ? entry.response_due_date : null,
-      response_period_days: entry.filing_type === 'DEMAND_LETTER' ? Number(entry.response_period_days) : null,
+      served_at: SERVICE_TYPES.has(paper) ? toIso(entry.served_at) : null,
+      response_due_date: SERVICE_TYPES.has(paper) ? entry.response_due_date : null,
+      response_period_days: paper === 'DEMAND_LETTER' ? Number(entry.response_period_days) : null,
       efiling_reference: entry.efiling_reference,
       court_fee_amount: entry.court_fee_amount,
       payment_reference: entry.payment_reference,
@@ -164,15 +190,15 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
             <h4 className='font-semibold'>Filing register</h4>
           </div>
           <Field label='Paper'>
-            <select name='filing_type' value={entry.filing_type} onChange={updateEntry} className={inputClass}>
-              {REGISTER_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            <select name='filing_type' value={paper} onChange={updateEntry} className={inputClass}>
+              {registerTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </Field>
           <Field label='Title (optional)'><input name='title' value={entry.title} onChange={updateEntry} className={inputClass} /></Field>
-          <Field label={entry.filing_type === 'DEMAND_LETTER' ? 'Date issued' : 'Date filed / received'}>
+          <Field label={paper === 'DEMAND_LETTER' ? 'Date issued' : 'Date filed / received'}>
             <input type='datetime-local' name='filed_at' value={entry.filed_at} onChange={updateEntry} className={inputClass} />
           </Field>
-          {entry.filing_type === 'DEMAND_LETTER' && (
+          {paper === 'DEMAND_LETTER' && (
             <Field label='Demand period'>
               <select name='response_period_days' value={entry.response_period_days} onChange={updateEntry} className={inputClass}>
                 <option value='7'>7 days</option>
@@ -181,9 +207,9 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
               </select>
             </Field>
           )}
-          {SERVICE_TYPES.has(entry.filing_type) && (
+          {SERVICE_TYPES.has(paper) && (
             <>
-            <Field label='Appearance due date in summons / court order'>
+            <Field label={isElrc ? 'Response due date (21 days after service)' : 'Appearance due date in summons / court order'}>
               <input type='date' name='response_due_date' value={entry.response_due_date} onChange={updateEntry} className={inputClass} required />
               <span className='block text-xs font-normal'>The advocate verifies this date in the matter deadlines before relying on it.</span>
             </Field>

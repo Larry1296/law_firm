@@ -51,7 +51,7 @@ export default function CaseProcedurePanels({ caseData }) {
               {filing.title || renderEnum(filing.filing_type)}
             </p>
             <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
-              {renderEnum(filing.filing_type)} • {renderEnum(filing.status)}
+              {filing.filing_type_label || renderEnum(filing.filing_type)} • {filing.status_label || renderEnum(filing.status)}
             </p>
             <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
               eFiling: {filing.efiling_reference || 'Not Set'} • Receipt: {filing.receipt_number || 'Not Set'}
