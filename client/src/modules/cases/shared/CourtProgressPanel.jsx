@@ -97,6 +97,22 @@ function Feedback({ feedback }) {
 }
 
 const toIso = (value) => (value ? new Date(value).toISOString() : null);
+// A register title written from the paper and the other side, e.g. "Summons and statement of claim served on Baraka Supplies Limited".
+const titleFor = (paper, caseData, label) => {
+  const other = (caseData.parties || []).find((party) => party.is_adverse)?.name || caseData.defendant || 'the other side';
+  const elrc = caseData.procedure_track === 'EMPLOYMENT_CLAIM';
+  const claim = elrc ? 'statement of claim' : 'plaint';
+  const titles = {
+    DEMAND_LETTER: `Demand letter to ${other}`,
+    SUMMONS: `Summons and ${claim} served on ${other}`,
+    AFFIDAVIT_OF_SERVICE: `Affidavit of service on ${other}`,
+    MEMORANDUM_OF_APPEARANCE: `Memorandum of appearance by ${other}`,
+    DEFENCE: `${elrc ? 'Response' : 'Defence'} by ${other}`,
+    REPLY_TO_DEFENCE: `Reply to ${elrc ? 'response' : 'defence'} of ${other}`,
+  };
+  return titles[paper] || label;
+};
+
 const pad = (value) => String(value).padStart(2, '0');
 const localDate = (date = new Date()) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 const localDateTime = (date = new Date()) => `${localDate(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -125,6 +141,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const isElrc = caseData.procedure_track === 'EMPLOYMENT_CLAIM';
   // Until a paper is chosen, the form offers the one the matter needs next, following it as the matter moves on.
   const paper = entry.filing_type || nextPaper(caseData);
+  const title = entry.title || titleFor(paper, caseData, registerTypes.find(([value]) => value === paper)?.[1] || '');
   const [busy, setBusy] = useState(false);
   const [stageFeedback, setStageFeedback] = useState(null);
   const [entryFeedback, setEntryFeedback] = useState(null);
@@ -160,7 +177,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
     setEntryFeedback(null);
     const payload = compact({
       filing_type: paper,
-      title: entry.title,
+      title,
       filed_at: toIso(entry.filed_at),
       served_at: SERVICE_TYPES.has(paper) ? toIso(entry.served_at) : null,
       response_due_date: SERVICE_TYPES.has(paper) ? entry.response_due_date : null,
@@ -222,7 +239,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
               {registerTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </Field>
-          <Field label='Title (optional)'><input name='title' value={entry.title} onChange={updateEntry} className={inputClass} /></Field>
+          <Field label='Title'><input name='title' value={title} onChange={updateEntry} className={inputClass} /></Field>
           <Field label={paper === 'DEMAND_LETTER' ? 'Date issued' : 'Date filed / received'}>
             <input type='datetime-local' name='filed_at' max={localDateTime()} value={entry.filed_at} onChange={updateEntry} className={inputClass} />
           </Field>

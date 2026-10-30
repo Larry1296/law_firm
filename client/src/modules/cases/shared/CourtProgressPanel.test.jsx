@@ -32,7 +32,8 @@ describe('summons service diary', () => {
   });
 
   it('starts what it records at now and counts the ELRC response from the day of service', () => {
-    render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'FILED', procedure_track: 'EMPLOYMENT_CLAIM', filings: [] }} showStage={false} /></QueryClientProvider>);
+    render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'FILED', procedure_track: 'EMPLOYMENT_CLAIM', filings: [], parties: [{ name: 'Baraka Supplies Limited', is_adverse: true }] }} showStage={false} /></QueryClientProvider>);
+    expect(screen.getByLabelText('Title')).toHaveProperty('value', 'Summons and statement of claim served on Baraka Supplies Limited');
     expect(screen.getByLabelText('Date served').value.slice(0, 10)).toBe(new Date().toLocaleDateString('en-CA'));
     fireEvent.change(screen.getByLabelText('Date served'), { target: { value: '2026-10-30T14:00' } });
     expect(screen.getByLabelText(/Response due date/)).toHaveProperty('value', '2026-11-20');
