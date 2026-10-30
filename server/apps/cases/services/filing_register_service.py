@@ -21,6 +21,7 @@ class FilingRegisterService:
     DEMAND_PERIODS = {7, 14, 21}
     # Order 7 rule 1: defence within 14 days after appearance.
     DEFENCE_DAYS = 14
+    REPLY_DAYS = 14
 
     ORIGINATING_TYPES = {CaseFiling.FilingType.PLAINT, CaseFiling.FilingType.ORIGINATING_CLAIM}
 
@@ -115,6 +116,14 @@ class FilingRegisterService:
         )
         if filing_type == CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE:
             cls._advance_to_awaiting_response(case, user)
+        elif filing_type == CaseFiling.FilingType.DEFENCE:
+            case.refresh_from_db()
+            if case.court_stage == Case.CourtStage.AWAITING_RESPONSE:
+                cls._advance(case, user, [Case.CourtStage.PLEADINGS_OPEN], f"{cls.answer_name(case).capitalize()} received and recorded in the filing register.")
+        elif filing_type == CaseFiling.FilingType.REPLY_TO_DEFENCE:
+            case.refresh_from_db()
+            if case.court_stage == Case.CourtStage.PLEADINGS_OPEN:
+                cls._advance(case, user, [Case.CourtStage.PLEADINGS_CLOSED], f"Reply to the {cls.answer_name(case)} filed; pleadings closed.")
         from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
 
         ProceedingsWorkflowService._resync_next_action(case, actor=user)
@@ -125,22 +134,25 @@ class FilingRegisterService:
     @classmethod
     def _advance_to_awaiting_response(cls, case, user):
         """Service proved by affidavit moves the court stage on to awaiting the response, step by recorded step."""
-        from apps.cases.services.case_lifecycle_service import CaseLifecycleService
-        from apps.cases.models import CaseLifecycleTransition
-
         case.refresh_from_db()
         pre_response = {Case.CourtStage.FILED, Case.CourtStage.AWAITING_ASSESSMENT_OR_PAYMENT, *cls.SERVICE_PATH[:-1]}
         if case.court_stage not in pre_response:
             return
         start = cls.SERVICE_PATH.index(case.court_stage) + 1 if case.court_stage in cls.SERVICE_PATH else 0
+        cls._advance(case, user, cls.SERVICE_PATH[start:], "Service proved by the affidavit of service recorded in the filing register.", {"affidavit_of_service_filed": True})
+
+    @staticmethod
+    def _advance(case, user, stages, reason, metadata=None):
+        from apps.cases.services.case_lifecycle_service import CaseLifecycleService
+        from apps.cases.models import CaseLifecycleTransition
+
         try:
             # Someone who may record papers but not move the stage leaves it for the advocate.
             with transaction.atomic():
-                for stage in cls.SERVICE_PATH[start:]:
+                for stage in stages:
                     CaseLifecycleService.transition(
                         case=case, actor=user, dimension=CaseLifecycleTransition.Dimension.COURT_STAGE, to_state=stage,
-                        reason="Service proved by the affidavit of service recorded in the filing register.",
-                        metadata={"affidavit_of_service_filed": True},
+                        reason=reason, metadata=metadata or {},
                     )
                     case.refresh_from_db()
         except (PermissionDenied, ValidationError):
@@ -234,6 +246,19 @@ class FilingRegisterService:
         elif filing.filing_type == CaseFiling.FilingType.DEFENCE:
             cls._complete(case, user, key=f"APPEARANCE:{case.id}")
             cls._complete(case, user, key=f"DEFENCE:{case.id}")
+            cls._deadline(
+                case, user, key=f"REPLY:{case.id}",
+                due=timezone.localdate(filing.filed_at) + timedelta(days=cls.REPLY_DAYS),
+                deadline_type=MatterDeadline.Type.RESPONSE, priority="MEDIUM",
+                description=(
+                    "Reply to the response due (14 days after service of the response; verify against the ELRC (Procedure) Rules, 2016 and any directions)."
+                    if case.procedure_track == Case.ProcedureTrack.EMPLOYMENT_CLAIM
+                    else "Reply to defence due (Order 7 rule 17: 14 days after service of the defence; verify)."
+                ),
+                requires_review=True,
+            )
+        elif filing.filing_type == CaseFiling.FilingType.REPLY_TO_DEFENCE:
+            cls._complete(case, user, key=f"REPLY:{case.id}")
         elif filing.filing_type == CaseFiling.FilingType.JUDGMENT:
             appeal = cls.appeal_window(case)
             if appeal:
@@ -336,6 +361,11 @@ class FilingRegisterService:
         Case.ProcedureTrack.SMALL_CLAIM: "statement of claim",
     }
 
+    @staticmethod
+    def answer_name(case):
+        """What the respondent files: a response at the ELRC, a defence in an ordinary suit."""
+        return "response" if case.procedure_track == Case.ProcedureTrack.EMPLOYMENT_CLAIM else "defence"
+
     @classmethod
     def originating_document(cls, case):
         """What the claim is begun by: a plaint in an ordinary suit, a statement of claim at the ELRC or Small Claims Court."""
@@ -359,6 +389,12 @@ class FilingRegisterService:
             # Service is proved to the court by the process server's affidavit before the matter waits for a response.
             if not cls.latest(case, CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE):
                 return "File affidavit of service"
+        if case.court_stage == Case.CourtStage.PLEADINGS_OPEN:
+            reply = MatterDeadline.objects.filter(matter=case, source=f"REPLY:{case.id}", status=MatterDeadline.Status.OPEN).first()
+            if reply:
+                return f"Reply to the {cls.answer_name(case)} by {timezone.localtime(reply.due_at):%d %b %Y}, or close pleadings"
+        if case.court_stage == Case.CourtStage.PLEADINGS_CLOSED:
+            return "Take a mention date for directions"
         if case.court_stage == Case.CourtStage.AWAITING_RESPONSE:
             if cls.latest(case, CaseFiling.FilingType.DEFENCE):
                 return None

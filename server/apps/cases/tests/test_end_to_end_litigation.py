@@ -394,9 +394,12 @@ class EndToEndLitigationTests(TestCase):
 
         self.register(self.secretary_user, matter, "DEFENCE", title="Statement of defence")
         self.assertFalse(matter.deadlines.filter(status="OPEN", source__in=[f"APPEARANCE:{matter.id}", f"DEFENCE:{matter.id}"]).exists())
-        self.transition(self.advocate_user, matter, "PLEADINGS_OPEN", "Defence served on the plaintiff.")
+        # The defence opens pleadings and the reply closes them, each recorded as a stage change.
+        matter.refresh_from_db()
+        self.assertEqual(matter.court_stage, "PLEADINGS_OPEN")
         self.register(self.advocate_user, matter, "REPLY_TO_DEFENCE", title="Reply to defence")
-        self.transition(self.advocate_user, matter, "PLEADINGS_CLOSED", "Reply to defence filed; pleadings closed.")
+        matter.refresh_from_db()
+        self.assertEqual(matter.court_stage, "PLEADINGS_CLOSED")
         self.transition(self.advocate_user, matter, "CASE_MANAGEMENT", "Pre-trial directions sought under Order 11.")
         self.transition(self.advocate_user, matter, "PRE_TRIAL", "Parties complied with Order 11: witness statements and documents filed.")
         self.transition(self.advocate_user, matter, "AWAITING_HEARING", "Hearing date taken at the registry.")

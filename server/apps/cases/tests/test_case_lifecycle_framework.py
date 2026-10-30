@@ -332,6 +332,26 @@ class CaseLifecycleFrameworkTests(TestCase):
         )
         self.assertEqual(CaseFilingSerializer(demand).data["status_label"], "Issued")
 
+    def test_a_response_opens_pleadings_with_a_reply_deadline_and_the_reply_closes_them(self):
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
+        case = self.create_case()
+        case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
+        case.court_stage = Case.CourtStage.AWAITING_RESPONSE
+        case.save(update_fields=["procedure_track", "court_stage"])
+        FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "DEFENCE", "title": "Response"})
+        case.refresh_from_db()
+        self.assertEqual(case.court_stage, Case.CourtStage.PLEADINGS_OPEN)
+        reply = case.deadlines.get(source=f"REPLY:{case.id}")
+        self.assertTrue(reply.requires_review)
+        self.assertTrue(FilingRegisterService.service_recommendation(case).startswith("Reply to the response by"))
+
+        FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "REPLY_TO_DEFENCE", "title": "Reply"})
+        case.refresh_from_db()
+        self.assertEqual(case.court_stage, Case.CourtStage.PLEADINGS_CLOSED)
+        self.assertEqual(case.deadlines.get(source=f"REPLY:{case.id}").status, "COMPLETED")
+        self.assertEqual(case.next_action, "Take a mention date for directions")
+
     def test_employment_cannot_end_on_a_future_date(self):
         payload = self.payload("CASE-EMPLOYMENT-FUTURE")
         payload["practice_area"] = "EMPLOYMENT_LABOUR"
