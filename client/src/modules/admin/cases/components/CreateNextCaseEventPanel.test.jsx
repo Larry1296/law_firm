@@ -68,4 +68,16 @@ describe('CreateNextCaseEventPanel', () => {
     fireEvent.change(screen.getByLabelText('Event Type *'), { target: { value: 'INTERNAL' } });
     expect(screen.getByPlaceholderText('Describe the internal event')).not.toHaveAttribute('readonly');
   });
+
+  it('starts on the event the next action names', () => {
+    render(
+      <CreateNextCaseEventPanel
+        caseData={{ ...caseData, court_stage: 'PLEADINGS_CLOSED', next_action: 'Take a mention date for directions' }}
+        onCreateEvent={vi.fn()}
+        isCreating={false}
+      />,
+    );
+    expect(screen.getByPlaceholderText('Mention')).toHaveValue('Mention');
+  });
 });
+

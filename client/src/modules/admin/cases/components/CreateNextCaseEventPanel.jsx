@@ -112,12 +112,16 @@ export default function CreateNextCaseEventPanel({
 
   const defaultEventType = useMemo(() => {
     // The suggested or recorded next action (for a new instruction, "Filing") picks the event.
-    const nextAction = suggestion?.next_action || caseData?.next_action;
+    const nextAction = (suggestion?.next_action || caseData?.next_action || '').toLowerCase();
     if (nextAction) {
-      const match = validTypes.find(
-        (t) => t.label.toLowerCase() === nextAction.toLowerCase()
-      );
-      if (match) return match.value;
+      const exact = validTypes.find((t) => t.label.toLowerCase() === nextAction);
+      if (exact) return exact.value;
+      // "Take a mention date for directions" names a mention: take the event named first in the sentence.
+      const named = validTypes
+        .map((t) => ({ value: t.value, at: nextAction.search(new RegExp(`\\b${t.label.toLowerCase()}\\b`)) }))
+        .filter((t) => t.at >= 0)
+        .sort((a, b) => a.at - b.at)[0];
+      if (named) return named.value;
     }
     return validTypes[0]?.value || 'MENTION';
   }, [suggestion, caseData?.next_action, validTypes]);
