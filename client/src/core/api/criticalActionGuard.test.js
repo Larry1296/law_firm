@@ -9,6 +9,8 @@ import { withConfirmation, withCriticalAction } from '@/core/utils/confirmationC
 import { requireCriticalConfirmation, releaseCriticalAction } from './criticalActionGuard';
 
 vi.mock('sweetalert2', () => ({ default: { fire: vi.fn(), mixin: vi.fn() } }));
+// These tests count confirmation dialogs; the after-save toasts are tested on their own.
+vi.mock('./actionFeedback', () => ({ reportSaved: vi.fn(), reportRefused: vi.fn() }));
 const jwt = () => {
   const encode = (value) => btoa(JSON.stringify(value)).replace(/=+$/, '');
   return `${encode({ alg: 'HS256' })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600 })}.signature`;

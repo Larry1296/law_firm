@@ -359,7 +359,7 @@ describe('ClientConflictCheckPage proposed matter parties', () => {
       { name: 'Baraka Homes Limited', party_type: 'ORGANISATION', role: 'PROPOSED_ADVERSE_PARTY', relationship_to_party: '' },
       { name: 'John Otieno Baraka', party_type: 'PERSON', role: 'DIRECTOR', relationship_to_party: 'Director of Baraka Homes Limited' },
     ]);
-  });
+  }, 15000); // Types many fields; it runs near the default 5s when the whole suite shares the machine.
 
   it('does not save a party until person or organisation is chosen', async () => {
     const user = renderPage();

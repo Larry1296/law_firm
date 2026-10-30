@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { doneMessage } from './actionFeedback';
+import { doneMessage, reportRefused, reportSaved } from './actionFeedback';
+
+const swal = vi.hoisted(() => ({ fire: vi.fn(), getPopup: vi.fn(() => null) }));
+vi.mock('@/core/utils/themedSwal', () => ({ default: swal }));
+
+const fileAssign = { method: 'post', url: '/cases/c1/physical-file/', data: { operation: 'assign' } };
 
 describe('doneMessage', () => {
   it('turns the confirmation question into what was done', () => {
@@ -14,21 +19,23 @@ describe('doneMessage', () => {
   });
 });
 
-describe('action notices', () => {
-  it('shows a corner notice when a confirmed change saves or is refused', async () => {
-    const { reportRefused, reportSaved } = await import('./actionFeedback');
-    reportSaved({ method: 'post', url: '/cases/c1/physical-file/', data: { operation: 'assign' }, criticalAction: { title: 'Record MAT-2026-00001 as prepared?' } });
-    expect(document.querySelector('[role="status"]').textContent).toContain('Recorded: MAT-2026-00001 as prepared');
+describe('action toasts', () => {
+  beforeEach(() => { swal.fire.mockClear(); swal.getPopup.mockReturnValue(null); });
 
-    reportRefused({ config: { method: 'post', url: '/cases/c1/physical-file/', data: {} }, response: { data: { detail: 'This matter already has a confirmed physical file.' } } });
-    expect(document.querySelector('[role="alert"]').textContent).toContain('This matter already has a confirmed physical file.');
+  it('shows a SweetAlert toast when a confirmed change saves or is refused', () => {
+    reportSaved({ ...fileAssign, criticalAction: { title: 'Record MAT-2026-00001 as prepared?' } });
+    expect(swal.fire).toHaveBeenLastCalledWith(expect.objectContaining({ toast: true, icon: 'success', title: 'Recorded: MAT-2026-00001 as prepared' }));
+
+    reportRefused({ config: fileAssign, response: { data: { detail: 'This matter already has a confirmed physical file.' } } });
+    expect(swal.fire).toHaveBeenLastCalledWith(expect.objectContaining({ toast: true, icon: 'error', title: 'Not saved', text: 'This matter already has a confirmed physical file.' }));
   });
 
-  it('stays quiet for reads and for a cancelled confirmation', async () => {
-    const { reportRefused, reportSaved } = await import('./actionFeedback');
-    document.body.innerHTML = '';
+  it('leaves a dialog the page is showing in place and stays quiet for reads and cancellations', () => {
+    swal.getPopup.mockReturnValue({});
+    reportSaved(fileAssign);
+    swal.getPopup.mockReturnValue(null);
     reportSaved({ method: 'get', url: '/cases/' });
-    reportRefused({ isActionCancelled: true, config: { method: 'post', url: '/cases/c1/physical-file/' } });
-    expect(document.getElementById('action-feedback')).toBeNull();
+    reportRefused({ isActionCancelled: true, config: fileAssign });
+    expect(swal.fire).not.toHaveBeenCalled();
   });
 });
