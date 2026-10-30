@@ -23,6 +23,7 @@ export function criticalAction(config) {
   if (method === 'post' && (
     /^\/auth\/(login|token\/refresh|unlock)$/.test(path)
     || /^\/knowledge-base\/ask$/.test(path)
+    || /^\/legal-assistant$/.test(path)
     || /^\/assistant\/(client|advocate|firm|platform)$/.test(path)
     || /^\/notifications\/([^/]+\/read|mark-all-read)$/.test(path)
     || /^\/communications\/announcements\/[^/]+\/read$/.test(path)
