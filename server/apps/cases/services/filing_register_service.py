@@ -22,6 +22,20 @@ class FilingRegisterService:
     # Order 7 rule 1: defence within 14 days after appearance.
     DEFENCE_DAYS = 14
     REPLY_DAYS = 14
+    # ELRC (Procedure) Rules, 2024 (L.N. 133 of 2024), which revoked the 2016 Rules.
+    # Rule 29(1): response within 28 days of service; rule 29(3): reply within 7 days of
+    # service of the response; rule 29(4): pleadings close 14 days after service of the
+    # reply, or of the response where no reply is filed; rule 40(1): within 14 days after
+    # the close of pleadings the parties move the court for a pre-trial conference.
+    ELRC_RESPONSE_DAYS = 28
+    ELRC_REPLY_DAYS = 7
+    ELRC_PLEADINGS_CLOSE_DAYS = 14
+    ELRC_PRE_TRIAL_DAYS = 14
+    PRE_TRIAL_EVENT_TYPES = {"CASE_MANAGEMENT", "PRE_TRIAL"}
+    PLEADINGS_CLOSE_DESCRIPTION = (
+        "Pleadings close (ELRC (Procedure) Rules, 2024, rule 29(4): 14 days after service of the reply, "
+        "or of the response where no reply is filed). Close pleadings in the court stage on this date."
+    )
 
     ORIGINATING_TYPES = {CaseFiling.FilingType.PLAINT, CaseFiling.FilingType.ORIGINATING_CLAIM}
 
@@ -122,7 +136,8 @@ class FilingRegisterService:
                 cls._advance(case, user, [Case.CourtStage.PLEADINGS_OPEN], f"{cls.answer_name(case).capitalize()} received and recorded in the filing register.")
         elif filing_type == CaseFiling.FilingType.REPLY_TO_DEFENCE:
             case.refresh_from_db()
-            if case.court_stage == Case.CourtStage.PLEADINGS_OPEN:
+            # At the ELRC pleadings close 14 days after the reply is served, not on filing it.
+            if case.court_stage == Case.CourtStage.PLEADINGS_OPEN and case.procedure_track != Case.ProcedureTrack.EMPLOYMENT_CLAIM:
                 cls._advance(case, user, [Case.CourtStage.PLEADINGS_CLOSED], f"Reply to the {cls.answer_name(case)} filed; pleadings closed.")
         from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
 
@@ -215,6 +230,36 @@ class FilingRegisterService:
         cls._seed_deadlines(case, filing, actor)
 
     @classmethod
+    def pleadings_close_date(cls, case):
+        """The ELRC date pleadings close under rule 29(4), or None where nothing sets it."""
+        closing = MatterDeadline.objects.filter(matter=case, source=f"PLEADINGS_CLOSE:{case.id}", status=MatterDeadline.Status.OPEN).first()
+        return timezone.localdate(closing.due_at) if closing else None
+
+    @classmethod
+    def record_pleadings_closed(cls, *, case, actor):
+        """Called when an ELRC matter moves to Pleadings closed: the parties then have 14 days to seek a pre-trial conference."""
+        if case.procedure_track != Case.ProcedureTrack.EMPLOYMENT_CLAIM:
+            return
+        cls._complete(case, actor, key=f"PLEADINGS_CLOSE:{case.id}")
+        if case.events.filter(event_type__in=cls.PRE_TRIAL_EVENT_TYPES).exists():
+            return
+        cls._deadline(
+            case, actor, key=f"PRE_TRIAL:{case.id}",
+            due=timezone.localdate() + timedelta(days=cls.ELRC_PRE_TRIAL_DAYS),
+            deadline_type=MatterDeadline.Type.COURT, priority="HIGH",
+            description=(
+                "Move the court for a pre-trial conference (ELRC (Procedure) Rules, 2024, rule 40(1): "
+                "within 14 days after the close of pleadings). A party who misses it or its directions "
+                "risks the suit being fixed for hearing or dismissed (rule 40(5))."
+            ),
+        )
+
+    @classmethod
+    def record_pre_trial_date(cls, *, case, actor):
+        """A case management or pre-trial date taken from the court answers the rule 40(1) step."""
+        cls._complete(case, actor, key=f"PRE_TRIAL:{case.id}")
+
+    @classmethod
     def _seed_deadlines(cls, case, filing, user):
         if filing.filing_type == CaseFiling.FilingType.DEMAND_LETTER:
             cls._deadline(
@@ -228,7 +273,7 @@ class FilingRegisterService:
                 due=filing.response_due_date,
                 deadline_type=MatterDeadline.Type.RESPONSE, priority="HIGH",
                 description=(
-                    "Response due (ELRC (Procedure) Rules, 2016: 21 days after service; verify the summons and court directions)."
+                    "Response due (ELRC (Procedure) Rules, 2024, rule 29(1): 28 days after service; verify the summons and court directions)."
                     if case.procedure_track == Case.ProcedureTrack.EMPLOYMENT_CLAIM
                     else "Entry of appearance due (verify summons, service and court directions)."
                 ),
@@ -246,19 +291,40 @@ class FilingRegisterService:
         elif filing.filing_type == CaseFiling.FilingType.DEFENCE:
             cls._complete(case, user, key=f"APPEARANCE:{case.id}")
             cls._complete(case, user, key=f"DEFENCE:{case.id}")
+            elrc = case.procedure_track == Case.ProcedureTrack.EMPLOYMENT_CLAIM
+            served = timezone.localdate(filing.filed_at)
             cls._deadline(
                 case, user, key=f"REPLY:{case.id}",
-                due=timezone.localdate(filing.filed_at) + timedelta(days=cls.REPLY_DAYS),
+                due=served + timedelta(days=cls.ELRC_REPLY_DAYS if elrc else cls.REPLY_DAYS),
                 deadline_type=MatterDeadline.Type.RESPONSE, priority="MEDIUM",
                 description=(
-                    "Reply to the response due (14 days after service of the response; verify against the ELRC (Procedure) Rules, 2016 and any directions)."
-                    if case.procedure_track == Case.ProcedureTrack.EMPLOYMENT_CLAIM
+                    "Reply to the response due (ELRC (Procedure) Rules, 2024, rule 29(3): 7 days after service of the response; verify any directions)."
+                    if elrc
                     else "Reply to defence due (Order 7 rule 17: 14 days after service of the defence; verify)."
                 ),
                 requires_review=True,
             )
+            if elrc:
+                # With no reply, pleadings close 14 days after service of the response.
+                cls._deadline(
+                    case, user, key=f"PLEADINGS_CLOSE:{case.id}",
+                    due=served + timedelta(days=cls.ELRC_PLEADINGS_CLOSE_DAYS),
+                    deadline_type=MatterDeadline.Type.FILING, priority="MEDIUM",
+                    description=cls.PLEADINGS_CLOSE_DESCRIPTION,
+                )
         elif filing.filing_type == CaseFiling.FilingType.REPLY_TO_DEFENCE:
             cls._complete(case, user, key=f"REPLY:{case.id}")
+            if case.procedure_track == Case.ProcedureTrack.EMPLOYMENT_CLAIM:
+                # A reply moves the close of pleadings to 14 days after its service.
+                due = timezone.localdate(filing.filed_at) + timedelta(days=cls.ELRC_PLEADINGS_CLOSE_DAYS)
+                MatterDeadline.objects.filter(
+                    matter=case, source=f"PLEADINGS_CLOSE:{case.id}", status=MatterDeadline.Status.OPEN,
+                ).update(due_at=timezone.make_aware(datetime.combine(due, time(17, 0))), updated_at=timezone.now())
+                cls._deadline(
+                    case, user, key=f"PLEADINGS_CLOSE:{case.id}", due=due,
+                    deadline_type=MatterDeadline.Type.FILING, priority="MEDIUM",
+                    description=cls.PLEADINGS_CLOSE_DESCRIPTION,
+                )
         elif filing.filing_type == CaseFiling.FilingType.JUDGMENT:
             appeal = cls.appeal_window(case)
             if appeal:
@@ -393,7 +459,13 @@ class FilingRegisterService:
             reply = MatterDeadline.objects.filter(matter=case, source=f"REPLY:{case.id}", status=MatterDeadline.Status.OPEN).first()
             if reply:
                 return f"Reply to the {cls.answer_name(case)} by {timezone.localtime(reply.due_at):%d %b %Y}, or close pleadings"
+            closing = MatterDeadline.objects.filter(matter=case, source=f"PLEADINGS_CLOSE:{case.id}", status=MatterDeadline.Status.OPEN).first()
+            if closing:
+                return f"Pleadings close on {timezone.localtime(closing.due_at):%d %b %Y}; close them in the court stage then"
         if case.court_stage == Case.CourtStage.PLEADINGS_CLOSED:
+            pre_trial = MatterDeadline.objects.filter(matter=case, source=f"PRE_TRIAL:{case.id}", status=MatterDeadline.Status.OPEN).first()
+            if pre_trial:
+                return f"Move the court for a pre-trial conference by {timezone.localtime(pre_trial.due_at):%d %b %Y}"
             return "Take a mention date for directions"
         if case.court_stage == Case.CourtStage.AWAITING_RESPONSE:
             if cls.latest(case, CaseFiling.FilingType.DEFENCE):

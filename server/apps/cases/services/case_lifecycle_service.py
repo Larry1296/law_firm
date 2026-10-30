@@ -1327,6 +1327,19 @@ class CaseLifecycleService:
 
 
 
+        if to_state == Case.CourtStage.PLEADINGS_CLOSED:
+            from apps.cases.services.filing_register_service import FilingRegisterService
+
+            # ELRC rule 29(4) closes pleadings on a date; they cannot be closed before it.
+            closes_on = FilingRegisterService.pleadings_close_date(case)
+            if closes_on and timezone.localdate() < closes_on:
+                raise ValidationError({
+                    "to_state": (
+                        f"Pleadings close on {closes_on:%d %b %Y} (ELRC (Procedure) Rules, 2024, rule 29(4)). "
+                        "Close them on or after that date."
+                    ),
+                })
+
         if (
             to_state
             == Case.CourtStage.AWAITING_RESPONSE
@@ -1598,6 +1611,10 @@ class CaseLifecycleService:
                 from apps.cases.services.filing_register_service import FilingRegisterService
 
                 FilingRegisterService.record_originating_filing(case=case, actor=actor)
+            elif to_state == Case.CourtStage.PLEADINGS_CLOSED:
+                from apps.cases.services.filing_register_service import FilingRegisterService
+
+                FilingRegisterService.record_pleadings_closed(case=case, actor=actor)
             elif to_state == Case.CourtStage.JUDGMENT_DELIVERED:
                 from apps.cases.services.filing_register_service import FilingRegisterService
 

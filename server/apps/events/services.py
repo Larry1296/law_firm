@@ -589,6 +589,10 @@ class EventService:
             validated_data["title"] = ProceedingsWorkflowService.event_label(event_type, track)
         event = CaseEvent.objects.create(case=case, created_by=user, **validated_data)
         cls.awareness_for_event(event)
+        if event_type in {CaseEvent.EventType.CASE_MANAGEMENT, CaseEvent.EventType.PRE_TRIAL}:
+            from apps.cases.services.filing_register_service import FilingRegisterService
+
+            FilingRegisterService.record_pre_trial_date(case=case, actor=user)
 
         # Sync case next court date
         cls.sync_case_next_court_date(case, actor=user)

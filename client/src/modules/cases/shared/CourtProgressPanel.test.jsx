@@ -22,7 +22,7 @@ describe('summons service diary', () => {
   it('offers the next paper and the ELRC names for an employment claim that has been filed', () => {
     render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'FILED', procedure_track: 'EMPLOYMENT_CLAIM', filings: [] }} showStage={false} /></QueryClientProvider>);
     expect(screen.getByLabelText('Paper')).toHaveProperty('value', 'SUMMONS');
-    expect(screen.getByLabelText(/Response due date \(21 days after service\)/)).toBeTruthy();
+    expect(screen.getByLabelText(/Response due date \(28 days after service\)/)).toBeTruthy();
     const papers = Array.from(screen.getByLabelText('Paper').options).map((option) => option.textContent);
     expect(papers).toContain('Response received');
     expect(papers).not.toContain('Memorandum of appearance received');
@@ -37,7 +37,7 @@ describe('summons service diary', () => {
     expect(screen.getByLabelText('Payment reference')).toHaveProperty('value', '');
     expect(screen.getByLabelText('Date served').value.slice(0, 10)).toBe(new Date().toLocaleDateString('en-CA'));
     fireEvent.change(screen.getByLabelText('Date served'), { target: { value: '2026-10-30T14:00' } });
-    expect(screen.getByLabelText(/Response due date/)).toHaveProperty('value', '2026-11-20');
+    expect(screen.getByLabelText(/Response due date/)).toHaveProperty('value', '2026-11-27');
   });
 
   it('swears the affidavit to the service already recorded', async () => {

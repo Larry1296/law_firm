@@ -332,25 +332,54 @@ class CaseLifecycleFrameworkTests(TestCase):
         )
         self.assertEqual(CaseFilingSerializer(demand).data["status_label"], "Issued")
 
-    def test_a_response_opens_pleadings_with_a_reply_deadline_and_the_reply_closes_them(self):
+    def test_elrc_pleadings_follow_rule_29_and_their_close_starts_the_pre_trial_period(self):
         from apps.cases.services.filing_register_service import FilingRegisterService
+        from apps.events.services import EventService
 
         case = self.create_case()
         case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
         case.court_stage = Case.CourtStage.AWAITING_RESPONSE
         case.save(update_fields=["procedure_track", "court_stage"])
-        FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "DEFENCE", "title": "Response"})
+        served = timezone.now() - timedelta(days=5)
+        FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "DEFENCE", "title": "Response", "filed_at": served})
         case.refresh_from_db()
         self.assertEqual(case.court_stage, Case.CourtStage.PLEADINGS_OPEN)
         reply = case.deadlines.get(source=f"REPLY:{case.id}")
         self.assertTrue(reply.requires_review)
+        # Rule 29(3): 7 days to reply; rule 29(4): with no reply, pleadings close 14 days after the response.
+        self.assertEqual(timezone.localdate(reply.due_at), timezone.localdate(served) + timedelta(days=7))
+        closing = case.deadlines.get(source=f"PLEADINGS_CLOSE:{case.id}")
+        self.assertEqual(timezone.localdate(closing.due_at), timezone.localdate(served) + timedelta(days=14))
         self.assertTrue(FilingRegisterService.service_recommendation(case).startswith("Reply to the response by"))
 
-        FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "REPLY_TO_DEFENCE", "title": "Reply"})
+        replied = timezone.now() - timedelta(days=2)
+        FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "REPLY_TO_DEFENCE", "title": "Reply", "filed_at": replied})
         case.refresh_from_db()
-        self.assertEqual(case.court_stage, Case.CourtStage.PLEADINGS_CLOSED)
+        # The reply does not close pleadings at the ELRC; they close 14 days after it is served.
+        self.assertEqual(case.court_stage, Case.CourtStage.PLEADINGS_OPEN)
         self.assertEqual(case.deadlines.get(source=f"REPLY:{case.id}").status, "COMPLETED")
-        self.assertEqual(case.next_action, "Take a mention date for directions")
+        closing.refresh_from_db()
+        self.assertEqual(timezone.localdate(closing.due_at), timezone.localdate(replied) + timedelta(days=14))
+        self.assertTrue(case.next_action.startswith("Pleadings close on"))
+        response = self.transition(case, CaseLifecycleTransition.Dimension.COURT_STAGE, Case.CourtStage.PLEADINGS_CLOSED)
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertIn("rule 29(4)", str(response.data))
+
+        closing.due_at = timezone.now() - timedelta(days=1)
+        closing.save(update_fields=["due_at"])
+        response = self.transition(case, CaseLifecycleTransition.Dimension.COURT_STAGE, Case.CourtStage.PLEADINGS_CLOSED)
+        self.assertEqual(response.status_code, 200, response.data)
+        case.refresh_from_db()
+        self.assertEqual(case.deadlines.get(source=f"PLEADINGS_CLOSE:{case.id}").status, "COMPLETED")
+        pre_trial = case.deadlines.get(source=f"PRE_TRIAL:{case.id}")
+        self.assertEqual(timezone.localdate(pre_trial.due_at), timezone.localdate() + timedelta(days=14))
+        self.assertTrue(case.next_action.startswith("Move the court for a pre-trial conference by"))
+
+        EventService.create_event(user=self.admin, validated_data={
+            "case_id": case.id, "event_type": CaseEvent.EventType.CASE_MANAGEMENT,
+            "title": "Case management", "starts_at": timezone.now() + timedelta(days=10), "notify_participants": False,
+        })
+        self.assertEqual(case.deadlines.get(source=f"PRE_TRIAL:{case.id}").status, "COMPLETED")
 
     def test_employment_cannot_end_on_a_future_date(self):
         payload = self.payload("CASE-EMPLOYMENT-FUTURE")

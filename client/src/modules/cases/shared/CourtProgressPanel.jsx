@@ -38,8 +38,8 @@ const REGISTER_TYPES = [
 ];
 const SERVICE_TYPES = new Set(['SUMMONS', 'AFFIDAVIT_OF_SERVICE']);
 
-// The ELRC (Procedure) Rules, 2016 have no appearance: the respondent files a response within
-// 21 days of service and the claimant may reply to it.
+// The ELRC (Procedure) Rules, 2024 have no separate appearance: the respondent enters appearance and
+// files a response within 28 days of service (rule 29(1)) and the claimant may reply within 7 days (rule 29(3)).
 const ELRC_PAPERS = {
   DEFENCE: 'Response received',
   REPLY_TO_DEFENCE: 'Reply to response filed',
@@ -114,7 +114,7 @@ const addDays = (day, days) => {
   const [year, month, date] = day.split('-').map(Number);
   return localDate(new Date(year, month - 1, date + days));
 };
-const ELRC_RESPONSE_DAYS = 21;
+const ELRC_RESPONSE_DAYS = 28;
 const compact = (object) => Object.fromEntries(Object.entries(object).filter(([, value]) => value !== '' && value !== null));
 
 export default function CourtProgressPanel({ caseData, canRecordFilings = true, showStage = true }) {
@@ -133,7 +133,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   });
   const [filing, setFiling] = useState(freshFiling);
   const [serviceFiled, setServiceFiled] = useState(false);
-  // What is recorded has just happened, so its times start at now; at the ELRC the response is due 21 days after service.
+  // What is recorded has just happened, so its times start at now; at the ELRC the response is due 28 days after service.
   const freshEntry = () => {
     const now = localDateTime();
     // Papers in the same matter carry the matter's e-filing reference; fees and receipts are per payment.
@@ -267,7 +267,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
           )}
           {SERVICE_TYPES.has(paper) && (
             <>
-            <Field label={isElrc ? 'Response due date (21 days after service)' : 'Appearance due date in summons / court order'}>
+            <Field label={isElrc ? 'Response due date (28 days after service)' : 'Appearance due date in summons / court order'}>
               <input type='date' name='response_due_date' value={responseDue} onChange={updateEntry} className={inputClass} required />
               <span className='block text-xs font-normal'>The advocate verifies this date in the matter deadlines before relying on it.</span>
             </Field>
