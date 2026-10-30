@@ -145,6 +145,11 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const isElrc = caseData.procedure_track === 'EMPLOYMENT_CLAIM';
   // Until a paper is chosen, the form offers the one the matter needs next, following it as the matter moves on.
   const paper = entry.filing_type || nextPaper(caseData);
+  // An affidavit of service swears to the service already recorded, so it repeats that date and the response it set.
+  const summons = (caseData.filings || []).find((filing) => filing.filing_type === 'SUMMONS' && filing.served_at);
+  const fromSummons = paper === 'AFFIDAVIT_OF_SERVICE' && summons && !entry.serviceEdited;
+  const servedAt = fromSummons ? localDateTime(new Date(summons.served_at)) : entry.served_at;
+  const responseDue = fromSummons ? summons.response_due_date || entry.response_due_date : entry.response_due_date;
   const title = entry.title || titleFor(paper, caseData, registerTypes.find(([value]) => value === paper)?.[1] || '');
   const [busy, setBusy] = useState(false);
   const [stageFeedback, setStageFeedback] = useState(null);
@@ -183,8 +188,8 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       filing_type: paper,
       title,
       filed_at: toIso(entry.filed_at),
-      served_at: SERVICE_TYPES.has(paper) ? toIso(entry.served_at) : null,
-      response_due_date: SERVICE_TYPES.has(paper) ? entry.response_due_date : null,
+      served_at: SERVICE_TYPES.has(paper) ? toIso(servedAt) : null,
+      response_due_date: SERVICE_TYPES.has(paper) ? responseDue : null,
       response_period_days: paper === 'DEMAND_LETTER' ? Number(entry.response_period_days) : null,
       efiling_reference: entry.efiling_reference,
       court_fee_amount: entry.court_fee_amount,
@@ -207,6 +212,12 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const updateFiling = (event) => setFiling((current) => ({ ...current, [event.target.name]: event.target.value }));
   const updateEntry = (event) => setEntry((current) => {
     const next = { ...current, [event.target.name]: event.target.value };
+    if (['served_at', 'response_due_date'].includes(event.target.name) && !current.serviceEdited) {
+      // Editing either service field starts from what the form was showing.
+      next.served_at = event.target.name === 'served_at' ? event.target.value : servedAt;
+      next.response_due_date = event.target.name === 'response_due_date' ? event.target.value : responseDue;
+      next.serviceEdited = true;
+    }
     if (event.target.name === 'served_at' && isElrc && event.target.value) {
       next.response_due_date = addDays(event.target.value.slice(0, 10), ELRC_RESPONSE_DAYS);
     }
@@ -257,11 +268,11 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
           {SERVICE_TYPES.has(paper) && (
             <>
             <Field label={isElrc ? 'Response due date (21 days after service)' : 'Appearance due date in summons / court order'}>
-              <input type='date' name='response_due_date' value={entry.response_due_date} onChange={updateEntry} className={inputClass} required />
+              <input type='date' name='response_due_date' value={responseDue} onChange={updateEntry} className={inputClass} required />
               <span className='block text-xs font-normal'>The advocate verifies this date in the matter deadlines before relying on it.</span>
             </Field>
             <Field label='Date served'>
-              <input type='datetime-local' name='served_at' max={localDateTime()} value={entry.served_at} onChange={updateEntry} className={inputClass} required />
+              <input type='datetime-local' name='served_at' max={localDateTime()} value={servedAt} onChange={updateEntry} className={inputClass} required />
             </Field>
             </>
           )}

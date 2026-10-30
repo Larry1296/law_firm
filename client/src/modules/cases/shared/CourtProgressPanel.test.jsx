@@ -39,5 +39,16 @@ describe('summons service diary', () => {
     fireEvent.change(screen.getByLabelText('Date served'), { target: { value: '2026-10-30T14:00' } });
     expect(screen.getByLabelText(/Response due date/)).toHaveProperty('value', '2026-11-20');
   });
+
+  it('swears the affidavit to the service already recorded', async () => {
+    axios.post.mockResolvedValue({ data: { next_action: 'Awaiting response' } });
+    const served = new Date(2026, 9, 30, 17, 39);
+    render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'FILED', procedure_track: 'EMPLOYMENT_CLAIM', filings: [{ filing_type: 'SUMMONS', served_at: served.toISOString(), response_due_date: '2026-11-20' }] }} showStage={false} /></QueryClientProvider>);
+    expect(screen.getByLabelText('Paper')).toHaveProperty('value', 'AFFIDAVIT_OF_SERVICE');
+    expect(screen.getByLabelText('Date served')).toHaveProperty('value', '2026-10-30T17:39');
+    expect(screen.getByLabelText(/Response due date/)).toHaveProperty('value', '2026-11-20');
+    fireEvent.click(screen.getByRole('button', { name: 'Record in register' }));
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/cases/case-1/filings/', expect.objectContaining({ filing_type: 'AFFIDAVIT_OF_SERVICE', served_at: served.toISOString(), response_due_date: '2026-11-20' })));
+  });
 });
 
