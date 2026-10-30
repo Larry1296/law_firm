@@ -81,4 +81,37 @@ describe('CaseCreateForm opened from a cleared conflict check', () => {
     expect(screen.getByText('Employment and Labour Court')).toBeInTheDocument();
     expect(screen.queryByText('Tribunal Name')).not.toBeInTheDocument();
   });
+
+  it('starts the monetary relief from the jurisdiction claim value and takes a pleaded interest rate', async () => {
+    render(
+      <CaseCreateForm
+        clients={[{ id: 'client-1', full_name: 'Grace Mwende', client_type: 'INDIVIDUAL' }]}
+        lawyers={[]}
+        secretaries={[]}
+        createCase={vi.fn()}
+        initialClientId='client-1'
+        initialConflictCheckId='check-1'
+        initialConflictCheck={{ ...conflictCheck, jurisdiction_facts: { practice_area: 'EMPLOYMENT_LABOUR', claim_value: '600000.00' } }}
+        canCreate
+      />,
+    );
+
+    await userEvent.click(screen.getByText('New instruction - not yet filed'));
+    for (let step = 0; step < 6; step += 1) {
+      await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    }
+    expect(screen.getByText('Yes - quantified')).toBeInTheDocument();
+    expect(screen.getByLabelText('Principal / Claim Amount')).toHaveValue(600000);
+
+    await userEvent.type(screen.getByLabelText('Amount Already Paid'), '100000');
+    expect(screen.getByText('KES 500,000')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText('Select'));
+    await userEvent.click(screen.getByText('Yes'));
+    expect(screen.getByText('Court rates')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('Court rates'));
+    await userEvent.click(screen.getByText('Rate pleaded in the claim'));
+    await userEvent.type(screen.getByLabelText(/Interest Rate/), '14%');
+    expect(screen.getByLabelText(/Interest Rate/)).toHaveValue('14');
+  });
 });

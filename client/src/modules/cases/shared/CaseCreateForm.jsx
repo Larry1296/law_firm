@@ -109,8 +109,17 @@ const buildInitialFormData = (initialClientId, initialConflictCheckId, initialCo
         is_adverse: party.role === 'PROPOSED_ADVERSE_PARTY',
       })),
   });
+  const claimValue = Number(initialConflictCheck.jurisdiction_facts?.claim_value) > 0
+    ? String(Number(initialConflictCheck.jurisdiction_facts.claim_value))
+    : '';
   return {
     ...prefilled,
+    ...(claimValue ? {
+      monetary_relief_type: 'QUANTIFIED',
+      claim_amount: claimValue,
+      outstanding_amount: claimValue,
+      estimated_matter_value: claimValue,
+    } : {}),
     court_name: courtNameFor(prefilled.court_type, prefilled.court_station),
     ...(prefilled.practice_area === 'EMPLOYMENT_LABOUR' ? employmentSidesFromParties(prefilled, clientName) : {}),
   };
@@ -163,6 +172,21 @@ const employmentSidesFromParties = (data, clientName) => {
     ? { employee: clientName || '', employer: adverse }
     : { employee: adverse, employer: clientName || '' };
 };
+
+const INTEREST_BASES = [
+  { value: 'Court rates', label: 'Court rates' },
+  { value: 'Contractual rate', label: 'Contractual rate' },
+  { value: 'Rate pleaded in the claim', label: 'Rate pleaded in the claim' },
+];
+
+const CURRENCIES = ['KES', 'USD', 'EUR', 'GBP'].map((code) => ({ value: code, label: code }));
+
+const amountOrZero = (value) => Number(value) || 0;
+
+// The outstanding amount is what is claimed less what has been paid.
+const outstandingFor = (data) => (
+  data.claim_amount === '' ? '' : String(Math.max(amountOrZero(data.claim_amount) - amountOrZero(data.amount_already_paid), 0))
+);
 
 const courtNameFor = (courtType, station) => {
   const court = COURT_TYPES.find((item) => item.value === courtType)?.label;
@@ -448,6 +472,14 @@ export default function CaseCreateForm({
 
       if (['court_type', 'court_station', 'practice_area', 'entry_route'].includes(name)) {
         next.court_name = courtNameFor(next.court_type, next.court_station);
+      }
+
+      if (['claim_amount', 'amount_already_paid'].includes(name)) {
+        next.outstanding_amount = outstandingFor(next);
+      }
+
+      if (name === 'interest_basis' && value === 'Court rates') {
+        next.interest_rate = '';
       }
 
       if (name === 'dismissal_type') {
@@ -923,14 +955,19 @@ export default function CaseCreateForm({
             {formData.practice_area !== 'CRIMINAL_LITIGATION' && formData.monetary_relief_type !== 'NO_MONETARY_RELIEF' && (
               <>
                 {formData.monetary_relief_type === 'QUANTIFIED' && (
-                  <MatterTextInput label='Principal / Claim Amount' name='claim_amount' type='number' value={formData.claim_amount} onChange={handleChange} error={errors.claim_amount} />
+                  <MatterTextInput label='Principal / Claim Amount' name='claim_amount' type='number' min='0' value={formData.claim_amount} onChange={handleChange} error={errors.claim_amount} />
                 )}
-                <MatterTextInput label='Currency' name='currency' value={formData.currency} onChange={handleChange} />
+                <SelectField label='Currency' name='currency' value={formData.currency} onChange={handleChange} options={CURRENCIES} />
                 <SelectField
                   label='Interest Claimed'
                   name='interest_claimed'
                   value={formData.interest_claimed === true ? 'true' : formData.interest_claimed === false ? 'false' : formData.interest_claimed}
-                  onChange={(event) => setFormData((current) => ({ ...current, interest_claimed: event.target.value === 'true' }))}
+                  onChange={(event) => setFormData((current) => ({
+                    ...current,
+                    interest_claimed: event.target.value === 'true',
+                    interest_basis: event.target.value === 'true' ? current.interest_basis || 'Court rates' : '',
+                    interest_rate: event.target.value === 'true' ? current.interest_rate : '',
+                  }))}
                   options={[
                     { value: 'true', label: 'Yes' },
                     { value: 'false', label: 'No' },
@@ -940,14 +977,28 @@ export default function CaseCreateForm({
                 </SelectField>
                 {formData.interest_claimed === true && (
                   <>
-                    <MatterTextInput label='Interest Rate, if pleaded or contractual' name='interest_rate' type='number' value={formData.interest_rate} onChange={handleChange} />
-                    <MatterTextInput label='Interest Basis' name='interest_basis' value={formData.interest_basis} onChange={handleChange} placeholder='Court rates, contractual rate, or as pleaded' />
+                    <SelectField label='Interest Basis' name='interest_basis' value={formData.interest_basis} onChange={handleChange} options={INTEREST_BASES} />
+                    {formData.interest_basis && formData.interest_basis !== 'Court rates' && (
+                      <MatterTextInput
+                        label='Interest Rate (% a year)'
+                        name='interest_rate'
+                        type='text'
+                        noFloat
+                        inputMode='decimal'
+                        format='none'
+                        value={formData.interest_rate}
+                        onChange={(event) => updateField('interest_rate', event.target.value.replace(/[^0-9.]/g, ''))}
+                        required
+                      />
+                    )}
                   </>
                 )}
-                <MatterTextInput label='Costs Claimed' name='costs_claimed' type='number' value={formData.costs_claimed} onChange={handleChange} />
-                <MatterTextInput label='Amount Already Paid' name='amount_already_paid' type='number' value={formData.amount_already_paid} onChange={handleChange} />
-                <MatterTextInput label='Outstanding Amount' name='outstanding_amount' type='number' value={formData.outstanding_amount} onChange={handleChange} />
-                <MatterTextInput label='Estimated Matter Value' name='estimated_matter_value' type='number' value={formData.estimated_matter_value} onChange={handleChange} />
+                <MatterTextInput label='Costs Claimed' name='costs_claimed' type='number' min='0' value={formData.costs_claimed} onChange={handleChange} />
+                <MatterTextInput label='Amount Already Paid' name='amount_already_paid' type='number' min='0' value={formData.amount_already_paid} onChange={handleChange} />
+                <ReadOnlyNotice title='Outstanding Amount'>
+                  {formData.outstanding_amount === '' ? 'Follows the claim amount less what has been paid.' : `${formData.currency || 'KES'} ${Number(formData.outstanding_amount).toLocaleString('en-KE')}`}
+                </ReadOnlyNotice>
+                <MatterTextInput label='Estimated Matter Value' name='estimated_matter_value' type='number' min='0' value={formData.estimated_matter_value} onChange={handleChange} />
                 {formData.monetary_relief_type === 'TO_BE_ASSESSED' && (
                   <label className='flex items-center gap-2 text-sm'>
                     <input type='checkbox' name='amount_to_be_assessed' checked={formData.amount_to_be_assessed} onChange={handleChange} />
