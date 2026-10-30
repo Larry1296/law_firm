@@ -35,6 +35,13 @@ describe('PhysicalMatterFileCard', () => {
     await waitFor(() => expect(post).toHaveBeenCalledWith('/cases/case-1/physical-file/', { operation: 'assign', storage_location_id: 'drawer-1' }));
   });
 
+  it('says so when the confirmation is cancelled instead of failing silently', async () => {
+    post.mockRejectedValueOnce(Object.assign(new Error('cancelled'), { isActionCancelled: true }));
+    renderCard({ canManage: true });
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm file prepared' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nothing was recorded: the confirmation was cancelled.');
+  });
+
   it('shows no placement form to someone who only requests files', () => {
     renderCard({ canRequest: true });
     expect(screen.queryByRole('button', { name: 'Confirm file prepared' })).not.toBeInTheDocument();
