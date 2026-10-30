@@ -364,6 +364,15 @@ export default function CaseCreateForm({
         if (!nextActionEdited.current) {
           next.next_action = value === 'EXISTING_FILED_COURT_CASE' ? 'Directions' : 'Filing';
         }
+        if (['NEW_INSTRUCTION', 'EXISTING_FILED_COURT_CASE'].includes(value)) {
+          // Leaving a tribunal, arbitration or advisory route restores the court the practice area and jurisdiction point to.
+          Object.assign(next, {
+            forum: 'COURT',
+            matter_nature: 'CONTENTIOUS',
+            ...practiceAreaDefaults(next.practice_area),
+            ...(initialConflictCheck ? matterDefaultsFromConflictCheck(initialConflictCheck) : {}),
+          });
+        }
         if (value === 'EXISTING_FILED_COURT_CASE') {
           next.forum = 'COURT';
         } else if (value === 'EXISTING_TRIBUNAL_MATTER') {

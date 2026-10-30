@@ -47,4 +47,28 @@ describe('CaseCreateForm opened from a cleared conflict check', () => {
     expect(screen.getByText('Claimant')).toBeInTheDocument();
     expect(screen.getByText('Baraka Supplies Limited - Respondent')).toBeInTheDocument();
   });
+
+  it('returns to the confirmed court when another entry route was tried first', async () => {
+    render(
+      <CaseCreateForm
+        clients={[{ id: 'client-1', full_name: 'Grace Mwende', client_type: 'INDIVIDUAL' }]}
+        lawyers={[]}
+        secretaries={[]}
+        createCase={vi.fn()}
+        initialClientId='client-1'
+        initialConflictCheckId='check-1'
+        initialConflictCheck={conflictCheck}
+        canCreate
+      />,
+    );
+
+    await userEvent.click(screen.getByText('Existing tribunal matter'));
+    await userEvent.click(screen.getByText('New instruction - not yet filed'));
+    for (let step = 0; step < 4; step += 1) {
+      await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    }
+    expect(screen.getByText('Statement of Claim')).toBeInTheDocument();
+    expect(screen.getByText('Employment and Labour Court')).toBeInTheDocument();
+    expect(screen.queryByText('Tribunal Name')).not.toBeInTheDocument();
+  });
 });

@@ -86,6 +86,7 @@ export const matterDefaultsFromConflictCheck = (conflictCheck) => {
   const defaults = { practice_area: practiceArea, ...practiceAreaDefaults(practiceArea) };
   const jurisdiction = conflictCheck?.jurisdiction;
   if (jurisdiction?.is_final && COURT_TYPES.some((type) => type.value === jurisdiction.final_court_type)) {
+    defaults.forum = 'COURT';
     defaults.court_type = jurisdiction.final_court_type;
     defaults.court_level = COURT_LEVEL_BY_TYPE[jurisdiction.final_court_type] || defaults.court_level;
     if (jurisdiction.final_station) defaults.court_station = jurisdiction.final_station;
