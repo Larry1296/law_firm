@@ -1278,18 +1278,13 @@ const AdminCaseDetailsPage = () => {
             </Card>
           )}
 
-          <CaseProcedurePanels caseData={caseData} />
           <CourtProgressPanel caseData={caseData} />
 
-                {/* =========================================================
-                    CREATE NEXT CASE EVENT (chained from previous event)
-                ========================================================= */}
-                <CreateNextCaseEventPanel
-                  caseData={caseData}
-                  onCreateEvent={createCaseEvent}
-                  isCreating={isCreatingCaseEvent}
-                />
-
+          <CreateNextCaseEventPanel
+            caseData={caseData}
+            onCreateEvent={createCaseEvent}
+            isCreating={isCreatingCaseEvent}
+          />
 
           <Card className='p-6'>
             <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
@@ -1610,6 +1605,8 @@ const AdminCaseDetailsPage = () => {
               </div>
             )}
           </Card>
+
+          <CaseProcedurePanels caseData={caseData} />
         </div>
       )}
 
@@ -1674,127 +1671,6 @@ const AdminCaseDetailsPage = () => {
                 {safe(caseData.description)}
               </p>
             </div>
-          </Card>
-
-          <div className='grid gap-4 lg:grid-cols-2'>
-            <Card className='p-6'>
-              <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-                Firm Matter Lifecycle
-              </h3>
-              <div className='grid gap-4 sm:grid-cols-2'>
-                <InfoRow
-                  label='Matter Status'
-                  value={caseData.matter_status_label || friendly(caseData.matter_status)}
-                />
-                <InfoRow
-                  label='Client Lifecycle'
-                  value={friendly(caseData.client?.lifecycle_status)}
-                />
-                <InfoRow
-                  label='Portal Access'
-                  value={caseData.client?.access_type === 'PORTAL_ENABLED' ? 'Portal enabled' : friendly(caseData.client?.access_type)}
-                />
-                <InfoRow
-                  label='Conflict Position'
-                  value={friendly(conflictStatus)}
-                />
-              </div>
-              <p className='mt-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
-                This section tracks the firm-client instruction and acceptance workflow. It is separate from the court proceeding stage.
-              </p>
-            </Card>
-
-            <Card className='p-6'>
-              <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-                Proceeding Lifecycle
-              </h3>
-              <div className='grid gap-4 sm:grid-cols-2'>
-                <InfoRow
-                  label='Court Stage'
-                  value={isCourtMatter ? caseData.court_stage_label || friendly(caseData.court_stage) : 'Not applicable'}
-                />
-                <InfoRow
-                  label='Outcome'
-                  value={caseData.outcome_status_label || friendly(caseData.outcome_status)}
-                />
-                <InfoRow
-                  label='Enforcement'
-                  value={caseData.enforcement_status_label || friendly(caseData.enforcement_status)}
-                />
-                <InfoRow
-                  label='Appeal / Review'
-                  value={caseData.appeal_status_label || friendly(caseData.appeal_status)}
-                />
-              </div>
-              <p className='mt-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
-                Court stage tracks the formal court record. Judgment, enforcement and appeal are independent legal dimensions.
-              </p>
-            </Card>
-          </div>
-
-          <Card className='p-6'>
-            <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-              Lifecycle Transitions
-            </h3>
-            {(caseData.available_transitions || []).length ? (
-              <form onSubmit={handleTransitionSubmit} className='grid gap-4 lg:grid-cols-2'>
-                <Select3D
-                  value={transitionDraft.key}
-                  onChange={(event) => setTransitionDraft((current) => ({ ...current, key: event.target.value }))}
-                  wrapperClassName='mb-0'
-                  placeholder='Choose permitted transition'
-                  options={(caseData.available_transitions || []).map((transition) => ({
-                    value: `${transition.dimension}:${transition.to_state}`,
-                    label: `${friendly(transition.dimension)}: ${friendly(transition.from_state)} to ${transition.label || friendly(transition.to_state)}`,
-                  }))}
-                />
-                <input
-                  type='datetime-local'
-                  value={transitionDraft.effective_at}
-                  onChange={(event) => setTransitionDraft((current) => ({ ...current, effective_at: event.target.value }))}
-                  className='form-control'
-                />
-                <ElasticTextArea
-                  label='Reason or description'
-                  value={transitionDraft.reason}
-                  onChange={(event) => setTransitionDraft((current) => ({ ...current, reason: event.target.value }))}
-                  className='lg:col-span-2'
-                  required
-                />
-                {selectedTransition?.to_state === 'FILED' && (
-                  <div className='grid gap-4 rounded-xl border border-border-light p-4 dark:border-border-dark lg:col-span-2 md:grid-cols-2'>
-                    <input type='date' value={transitionMetadata.filing_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, filing_date: event.target.value }))} className='form-control' />
-                    <input placeholder='Official court case number' value={transitionMetadata.official_court_case_number} onChange={(event) => setTransitionMetadata((current) => ({ ...current, official_court_case_number: event.target.value }))} className='form-control' />
-                    <input placeholder='eFiling reference' value={transitionMetadata.efiling_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, efiling_reference: event.target.value }))} className='form-control' />
-                    <input placeholder='Assessment reference' value={transitionMetadata.assessment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, assessment_reference: event.target.value }))} className='form-control' />
-                    <input placeholder='Payment reference' value={transitionMetadata.payment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_reference: event.target.value }))} className='form-control' />
-                    <input type='date' value={transitionMetadata.payment_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_date: event.target.value }))} className='form-control' />
-                    <input type='number' min='0' placeholder='Court fee amount' value={transitionMetadata.court_fee_amount} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_fee_amount: event.target.value }))} className='form-control' />
-                    <input placeholder='Court station' value={transitionMetadata.court_station} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_station: event.target.value }))} className='form-control' />
-                    <input placeholder='Registry' value={transitionMetadata.registry} onChange={(event) => setTransitionMetadata((current) => ({ ...current, registry: event.target.value }))} className='form-control' />
-                  </div>
-                )}
-                {selectedTransition?.to_state === 'AWAITING_SERVICE' && (
-                  <div className='grid gap-4 rounded-xl border border-border-light p-4 dark:border-border-dark lg:col-span-2 md:grid-cols-2'>
-                    <label className='flex items-center gap-2 text-sm'><input type='checkbox' checked={transitionMetadata.sealed_documents_received} onChange={(event) => setTransitionMetadata((current) => ({ ...current, sealed_documents_received: event.target.checked }))} /> Sealed documents received</label>
-                    <label className='flex items-center gap-2 text-sm'><input type='checkbox' checked={transitionMetadata.service_package_prepared} onChange={(event) => setTransitionMetadata((current) => ({ ...current, service_package_prepared: event.target.checked }))} /> Service package prepared</label>
-                    <input placeholder='Responsible person' value={transitionMetadata.responsible_person} onChange={(event) => setTransitionMetadata((current) => ({ ...current, responsible_person: event.target.value }))} className='form-control' />
-                    <input type='date' value={transitionMetadata.target_service_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, target_service_date: event.target.value }))} className='form-control' />
-                  </div>
-                )}
-                <button
-                  type='submit'
-                  disabled={isTransitioning}
-                  className='rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
-                >
-                  {isTransitioning ? 'Recording...' : 'Record Transition'}
-                </button>
-              </form>
-            ) : (
-              <p className='text-text-muted-light dark:text-text-muted-dark'>
-                No lifecycle transition is currently available at this stage.
-              </p>
-            )}
           </Card>
 
           <Card className='p-6'>
@@ -2090,46 +1966,133 @@ const AdminCaseDetailsPage = () => {
             )}
           </Card>
 
+          <div className='grid gap-4 lg:grid-cols-2'>
+            <Card className='p-6'>
+              <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+                Firm Matter Lifecycle
+              </h3>
+              <div className='grid gap-4 sm:grid-cols-2'>
+                <InfoRow
+                  label='Matter Status'
+                  value={caseData.matter_status_label || friendly(caseData.matter_status)}
+                />
+                <InfoRow
+                  label='Client Lifecycle'
+                  value={friendly(caseData.client?.lifecycle_status)}
+                />
+                <InfoRow
+                  label='Portal Access'
+                  value={caseData.client?.access_type === 'PORTAL_ENABLED' ? 'Portal enabled' : friendly(caseData.client?.access_type)}
+                />
+                <InfoRow
+                  label='Conflict Position'
+                  value={friendly(conflictStatus)}
+                />
+              </div>
+              <p className='mt-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                This section tracks the firm-client instruction and acceptance workflow. It is separate from the court proceeding stage.
+              </p>
+            </Card>
+
+            <Card className='p-6'>
+              <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+                Proceeding Lifecycle
+              </h3>
+              <div className='grid gap-4 sm:grid-cols-2'>
+                <InfoRow
+                  label='Court Stage'
+                  value={isCourtMatter ? caseData.court_stage_label || friendly(caseData.court_stage) : 'Not applicable'}
+                />
+                <InfoRow
+                  label='Outcome'
+                  value={caseData.outcome_status_label || friendly(caseData.outcome_status)}
+                />
+                <InfoRow
+                  label='Enforcement'
+                  value={caseData.enforcement_status_label || friendly(caseData.enforcement_status)}
+                />
+                <InfoRow
+                  label='Appeal / Review'
+                  value={caseData.appeal_status_label || friendly(caseData.appeal_status)}
+                />
+              </div>
+              <p className='mt-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                Court stage tracks the formal court record. Judgment, enforcement and appeal are independent legal dimensions.
+              </p>
+            </Card>
+          </div>
+
+          <Card className='p-6'>
+            <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+              Lifecycle Transitions
+            </h3>
+            {(caseData.available_transitions || []).length ? (
+              <form onSubmit={handleTransitionSubmit} className='grid gap-4 lg:grid-cols-2'>
+                <Select3D
+                  value={transitionDraft.key}
+                  onChange={(event) => setTransitionDraft((current) => ({ ...current, key: event.target.value }))}
+                  wrapperClassName='mb-0'
+                  placeholder='Choose permitted transition'
+                  options={(caseData.available_transitions || []).map((transition) => ({
+                    value: `${transition.dimension}:${transition.to_state}`,
+                    label: `${friendly(transition.dimension)}: ${friendly(transition.from_state)} to ${transition.label || friendly(transition.to_state)}`,
+                  }))}
+                />
+                <input
+                  type='datetime-local'
+                  value={transitionDraft.effective_at}
+                  onChange={(event) => setTransitionDraft((current) => ({ ...current, effective_at: event.target.value }))}
+                  className='form-control'
+                />
+                <ElasticTextArea
+                  label='Reason or description'
+                  value={transitionDraft.reason}
+                  onChange={(event) => setTransitionDraft((current) => ({ ...current, reason: event.target.value }))}
+                  className='lg:col-span-2'
+                  required
+                />
+                {selectedTransition?.to_state === 'FILED' && (
+                  <div className='grid gap-4 rounded-xl border border-border-light p-4 dark:border-border-dark lg:col-span-2 md:grid-cols-2'>
+                    <input type='date' value={transitionMetadata.filing_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, filing_date: event.target.value }))} className='form-control' />
+                    <input placeholder='Official court case number' value={transitionMetadata.official_court_case_number} onChange={(event) => setTransitionMetadata((current) => ({ ...current, official_court_case_number: event.target.value }))} className='form-control' />
+                    <input placeholder='eFiling reference' value={transitionMetadata.efiling_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, efiling_reference: event.target.value }))} className='form-control' />
+                    <input placeholder='Assessment reference' value={transitionMetadata.assessment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, assessment_reference: event.target.value }))} className='form-control' />
+                    <input placeholder='Payment reference' value={transitionMetadata.payment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_reference: event.target.value }))} className='form-control' />
+                    <input type='date' value={transitionMetadata.payment_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_date: event.target.value }))} className='form-control' />
+                    <input type='number' min='0' placeholder='Court fee amount' value={transitionMetadata.court_fee_amount} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_fee_amount: event.target.value }))} className='form-control' />
+                    <input placeholder='Court station' value={transitionMetadata.court_station} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_station: event.target.value }))} className='form-control' />
+                    <input placeholder='Registry' value={transitionMetadata.registry} onChange={(event) => setTransitionMetadata((current) => ({ ...current, registry: event.target.value }))} className='form-control' />
+                  </div>
+                )}
+                {selectedTransition?.to_state === 'AWAITING_SERVICE' && (
+                  <div className='grid gap-4 rounded-xl border border-border-light p-4 dark:border-border-dark lg:col-span-2 md:grid-cols-2'>
+                    <label className='flex items-center gap-2 text-sm'><input type='checkbox' checked={transitionMetadata.sealed_documents_received} onChange={(event) => setTransitionMetadata((current) => ({ ...current, sealed_documents_received: event.target.checked }))} /> Sealed documents received</label>
+                    <label className='flex items-center gap-2 text-sm'><input type='checkbox' checked={transitionMetadata.service_package_prepared} onChange={(event) => setTransitionMetadata((current) => ({ ...current, service_package_prepared: event.target.checked }))} /> Service package prepared</label>
+                    <input placeholder='Responsible person' value={transitionMetadata.responsible_person} onChange={(event) => setTransitionMetadata((current) => ({ ...current, responsible_person: event.target.value }))} className='form-control' />
+                    <input type='date' value={transitionMetadata.target_service_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, target_service_date: event.target.value }))} className='form-control' />
+                  </div>
+                )}
+                <button
+                  type='submit'
+                  disabled={isTransitioning}
+                  className='rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
+                >
+                  {isTransitioning ? 'Recording...' : 'Record Transition'}
+                </button>
+              </form>
+            ) : (
+              <p className='text-text-muted-light dark:text-text-muted-dark'>
+                No lifecycle transition is currently available at this stage.
+              </p>
+            )}
+          </Card>
+
           <MatterLifecycleControls matter={caseData} />
         </div>
       )}
 
       {activeTab === 'team' && (
         <div className='space-y-6'>
-          <Card className='p-6'>
-            <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-              Case Management
-            </h3>
-
-            <div className='grid gap-4 md:grid-cols-[1fr_auto] md:items-end'>
-              <div>
-                <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
-                  Priority
-                </label>
-
-                <Select3D
-                  value={selectedPriority || caseData.priority || ''}
-                  onChange={(event) => setSelectedPriority(event.target.value)}
-                  wrapperClassName='mb-0'
-                  options={PRIORITIES}
-                />
-              </div>
-
-              <button
-                type='button'
-                onClick={handlePriorityUpdate}
-                disabled={
-                  isUpdatingCase ||
-                  !selectedPriority ||
-                  selectedPriority === caseData.priority
-                }
-                className='rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
-              >
-                {isUpdatingCase ? 'Updating...' : 'Update Priority'}
-              </button>
-            </div>
-          </Card>
-
           <Card id='case-assignments' className='scroll-mt-24 p-6'>
             <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
               Assignments
@@ -2213,6 +2176,40 @@ const AdminCaseDetailsPage = () => {
                 </div>
               </div>
               )}
+            </div>
+          </Card>
+
+          <Card className='p-6'>
+            <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+              Case Management
+            </h3>
+
+            <div className='grid gap-4 md:grid-cols-[1fr_auto] md:items-end'>
+              <div>
+                <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
+                  Priority
+                </label>
+
+                <Select3D
+                  value={selectedPriority || caseData.priority || ''}
+                  onChange={(event) => setSelectedPriority(event.target.value)}
+                  wrapperClassName='mb-0'
+                  options={PRIORITIES}
+                />
+              </div>
+
+              <button
+                type='button'
+                onClick={handlePriorityUpdate}
+                disabled={
+                  isUpdatingCase ||
+                  !selectedPriority ||
+                  selectedPriority === caseData.priority
+                }
+                className='rounded-xl bg-brand-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
+              >
+                {isUpdatingCase ? 'Updating...' : 'Update Priority'}
+              </button>
             </div>
           </Card>
         </div>

@@ -147,60 +147,18 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
         <h3 className='text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>Court progress</h3>
       </div>
 
-      {showStage && (<>
-      <dl className='grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4'>
+      {showStage && (
+        <dl className='grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4'>
         <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Court stage</dt><dd className='font-semibold'>{friendly(caseData.court_stage)}</dd></div>
         <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Outcome</dt><dd className='font-semibold'>{friendly(caseData.outcome_status)}</dd></div>
         <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Enforcement</dt><dd className='font-semibold'>{friendly(caseData.enforcement_status)}</dd></div>
         <div><dt className='text-text-muted-light dark:text-text-muted-dark'>Next action</dt><dd className='font-semibold'>{caseData.next_action || 'None pending'}</dd></div>
       </dl>
+      )}
 
-      <form onSubmit={submitTransition} className='mt-5 grid gap-3 md:grid-cols-2' aria-label='Record court progress'>
-        <Field label='What has happened' wide>
-          <select value={selected} onChange={(event) => { setSelected(event.target.value); setStageFeedback(null); }} className={inputClass} required>
-            <option value=''>{transitions.length ? 'Select the step reached' : 'No court step is available at this stage'}</option>
-            {transitions.map((item) => (
-              <option key={`${item.dimension}:${item.to_state}`} value={`${item.dimension}:${item.to_state}`}>
-                {DIMENSION_LABELS[item.dimension]}: {item.label || friendly(item.to_state)}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        {dimension === 'COURT_STAGE' && toState === 'FILED' && (
-          <>
-            <Field label='Filing date'><input type='date' name='filing_date' value={filing.filing_date} onChange={updateFiling} className={inputClass} required /></Field>
-            <Field label='Court case number'><input name='official_court_case_number' value={filing.official_court_case_number} onChange={updateFiling} placeholder='MCCOMMSU/E1234/2026' className={inputClass} required /></Field>
-            <Field label='E-filing reference'><input name='efiling_reference' value={filing.efiling_reference} onChange={updateFiling} className={inputClass} /></Field>
-            <Field label='Court station'><input name='court_station' value={filing.court_station} onChange={updateFiling} placeholder={caseData.court_station || 'Milimani Commercial Courts'} className={inputClass} required={!caseData.court_station} /></Field>
-            <Field label='Registry'><input name='registry' value={filing.registry} onChange={updateFiling} className={inputClass} required={!caseData.registry} /></Field>
-            <Field label='Court fees paid (KES)'><input type='number' step='0.01' min='0' name='court_fee_amount' value={filing.court_fee_amount} onChange={updateFiling} className={inputClass} /></Field>
-            <Field label='Payment reference (e.g. M-Pesa code)'><input name='payment_reference' value={filing.payment_reference} onChange={updateFiling} className={inputClass} /></Field>
-            <Field label='Payment date'><input type='date' name='payment_date' value={filing.payment_date} onChange={updateFiling} className={inputClass} /></Field>
-          </>
-        )}
-
-        {dimension === 'COURT_STAGE' && toState === 'AWAITING_RESPONSE' && (
-          <label className='flex items-start gap-2 text-sm md:col-span-2'>
-            <input type='checkbox' checked={serviceFiled} onChange={(event) => setServiceFiled(event.target.checked)} className='mt-1' required />
-            <span>The affidavit of service has been filed.</span>
-          </label>
-        )}
-
-        <Field label='Reason / note for the record' wide>
-          <input value={reason} onChange={(event) => setReason(event.target.value)} className={inputClass} required placeholder='e.g. Plaint filed through the Judiciary e-filing portal' />
-        </Field>
-        <div className='md:col-span-2'>
-          <button type='submit' disabled={busy || !selected} className='inline-flex min-h-11 items-center rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50'>
-            Save court progress
-          </button>
-        </div>
-      </form>
-      <Feedback feedback={stageFeedback} />
-      </>)}
-
+      {/* Papers are recorded first (a demand, a filing, service); the court stage then moves on them. */}
       {canRecordFilings && (
-        <form onSubmit={submitEntry} className={`grid gap-3 md:grid-cols-2 ${showStage ? 'mt-6 border-t border-border-light pt-6 dark:border-border-dark' : ''}`} aria-label='Record in the filing register'>
+        <form onSubmit={submitEntry} className={`grid gap-3 md:grid-cols-2 ${showStage ? 'mt-5' : ''}`} aria-label='Record in the filing register'>
           <div className='flex items-center gap-2 md:col-span-2'>
             <NotebookPen size={18} className='text-brand-primary' />
             <h4 className='font-semibold'>Filing register</h4>
@@ -246,6 +204,51 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
           <div className='md:col-span-2'><Feedback feedback={entryFeedback} /></div>
         </form>
       )}
+
+      {showStage && (<>
+      <form onSubmit={submitTransition} className={`grid gap-3 md:grid-cols-2 ${canRecordFilings ? 'mt-6 border-t border-border-light pt-6 dark:border-border-dark' : 'mt-5'}`} aria-label='Record court progress'>
+        <Field label='What has happened' wide>
+          <select value={selected} onChange={(event) => { setSelected(event.target.value); setStageFeedback(null); }} className={inputClass} required>
+            <option value=''>{transitions.length ? 'Select the step reached' : 'No court step is available at this stage'}</option>
+            {transitions.map((item) => (
+              <option key={`${item.dimension}:${item.to_state}`} value={`${item.dimension}:${item.to_state}`}>
+                {DIMENSION_LABELS[item.dimension]}: {item.label || friendly(item.to_state)}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        {dimension === 'COURT_STAGE' && toState === 'FILED' && (
+          <>
+            <Field label='Filing date'><input type='date' name='filing_date' value={filing.filing_date} onChange={updateFiling} className={inputClass} required /></Field>
+            <Field label='Court case number'><input name='official_court_case_number' value={filing.official_court_case_number} onChange={updateFiling} placeholder='MCCOMMSU/E1234/2026' className={inputClass} required /></Field>
+            <Field label='E-filing reference'><input name='efiling_reference' value={filing.efiling_reference} onChange={updateFiling} className={inputClass} /></Field>
+            <Field label='Court station'><input name='court_station' value={filing.court_station} onChange={updateFiling} placeholder={caseData.court_station || 'Milimani Commercial Courts'} className={inputClass} required={!caseData.court_station} /></Field>
+            <Field label='Registry'><input name='registry' value={filing.registry} onChange={updateFiling} className={inputClass} required={!caseData.registry} /></Field>
+            <Field label='Court fees paid (KES)'><input type='number' step='0.01' min='0' name='court_fee_amount' value={filing.court_fee_amount} onChange={updateFiling} className={inputClass} /></Field>
+            <Field label='Payment reference (e.g. M-Pesa code)'><input name='payment_reference' value={filing.payment_reference} onChange={updateFiling} className={inputClass} /></Field>
+            <Field label='Payment date'><input type='date' name='payment_date' value={filing.payment_date} onChange={updateFiling} className={inputClass} /></Field>
+          </>
+        )}
+
+        {dimension === 'COURT_STAGE' && toState === 'AWAITING_RESPONSE' && (
+          <label className='flex items-start gap-2 text-sm md:col-span-2'>
+            <input type='checkbox' checked={serviceFiled} onChange={(event) => setServiceFiled(event.target.checked)} className='mt-1' required />
+            <span>The affidavit of service has been filed.</span>
+          </label>
+        )}
+
+        <Field label='Reason / note for the record' wide>
+          <input value={reason} onChange={(event) => setReason(event.target.value)} className={inputClass} required placeholder='e.g. Plaint filed through the Judiciary e-filing portal' />
+        </Field>
+        <div className='md:col-span-2'>
+          <button type='submit' disabled={busy || !selected} className='inline-flex min-h-11 items-center rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50'>
+            Save court progress
+          </button>
+        </div>
+      </form>
+      <Feedback feedback={stageFeedback} />
+      </>)}
     </Card>
   );
 }
