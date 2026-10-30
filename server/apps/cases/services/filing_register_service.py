@@ -177,7 +177,7 @@ class FilingRegisterService:
             cls._deadline(
                 case, user, key=f"FILING:{filing.id}:DEMAND_EXPIRY",
                 due=filing.response_due_date, deadline_type=MatterDeadline.Type.RESPONSE, priority="HIGH",
-                description="Demand period expires. If unpaid, prepare the plaint for advocate review.",
+                description=f"Demand period expires. If unpaid, prepare the {cls.originating_document(case)} for advocate review.",
             )
         elif filing.filing_type in {CaseFiling.FilingType.SUMMONS, CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE} and filing.served_at:
             cls._deadline(
@@ -296,14 +296,22 @@ class FilingRegisterService:
             .first()
         )
 
+    ORIGINATING_DOCUMENTS = {
+        Case.ProcedureTrack.EMPLOYMENT_CLAIM: "statement of claim",
+        Case.ProcedureTrack.SMALL_CLAIM: "statement of claim",
+    }
+
+    @classmethod
+    def originating_document(cls, case):
+        """What the claim is begun by: a plaint in an ordinary suit, a statement of claim at the ELRC or Small Claims Court."""
+        return cls.ORIGINATING_DOCUMENTS.get(case.procedure_track, "plaint")
+
     @classmethod
     def pre_filing_recommendation(cls, case):
-        """Debt recovery starts with a demand; the plaint follows only once the period lapses."""
-        if case.case_type != Case.CaseType.DEBT_RECOVERY:
-            return None
+        """A matter that sent a demand waits out its period; debt recovery always starts with one."""
         demand = cls.latest(case, CaseFiling.FilingType.DEMAND_LETTER)
         if demand is None:
-            return "Issue demand letter"
+            return "Issue demand letter" if case.case_type == Case.CaseType.DEBT_RECOVERY else None
         if demand.response_due_date and timezone.localdate() <= demand.response_due_date:
             return f"Await demand response (due {demand.response_due_date:%d %b %Y})"
         return None
@@ -312,7 +320,7 @@ class FilingRegisterService:
     def service_recommendation(cls, case):
         if case.court_stage in {Case.CourtStage.FILED, Case.CourtStage.AWAITING_ASSESSMENT_OR_PAYMENT, Case.CourtStage.AWAITING_SERVICE, Case.CourtStage.SERVICE_IN_PROGRESS}:
             if not case.filings.filter(Q(filing_type=CaseFiling.FilingType.SUMMONS) | Q(filing_type=CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE), served_at__isnull=False).exists():
-                return "Serve summons and plaint"
+                return f"Serve summons and {cls.originating_document(case)}"
         if case.court_stage == Case.CourtStage.AWAITING_RESPONSE:
             if cls.latest(case, CaseFiling.FilingType.DEFENCE):
                 return None

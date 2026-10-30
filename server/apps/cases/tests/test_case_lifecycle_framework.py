@@ -265,6 +265,22 @@ class CaseLifecycleFrameworkTests(TestCase):
         detail = self.api.get(reverse("case-detail", args=[case.id]))
         self.assertIn("Limitation on 06 Sep 2029", str(detail.data))
 
+    def test_an_employment_claim_waits_out_its_demand_and_is_begun_by_a_statement_of_claim(self):
+        from apps.cases.models import CaseFiling
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
+        case = self.create_case()
+        case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
+        case.case_type = Case.CaseType.EMPLOYMENT
+        case.save(update_fields=["procedure_track", "case_type"])
+        self.assertIsNone(FilingRegisterService.pre_filing_recommendation(case))
+        CaseFiling.objects.create(
+            case=case, filing_type=CaseFiling.FilingType.DEMAND_LETTER, title="Demand letter",
+            filed_at=timezone.now(), response_due_date=timezone.localdate() + timedelta(days=14),
+        )
+        self.assertTrue(FilingRegisterService.pre_filing_recommendation(case).startswith("Await demand response"))
+        self.assertEqual(FilingRegisterService.originating_document(case), "statement of claim")
+
     def test_employment_cannot_end_on_a_future_date(self):
         payload = self.payload("CASE-EMPLOYMENT-FUTURE")
         payload["practice_area"] = "EMPLOYMENT_LABOUR"
