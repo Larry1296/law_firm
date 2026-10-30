@@ -71,6 +71,14 @@ class CaseEvent(TimestampedModel):
     virtual_courtroom_available_until = models.DateTimeField(null=True, blank=True)
     is_virtual_courtroom_enabled = models.BooleanField(default=False)
     cause_list_position = models.CharField(max_length=50, blank=True, default="")
+    # Court dates are given by the court; the diary keeps where each one came from.
+    date_source = models.CharField(max_length=30, choices=(
+        ("REGISTRY", "Allocated by the registry"),
+        ("JUDGE_IN_COURT", "Set by the judge in court"),
+        ("CAUSE_LIST", "Published on the cause list or CTS"),
+        ("COURT_ORDER", "Fixed by a court order"),
+        ("FIRM", "Set by the firm"),
+    ), blank=True, default="")
     adjournment_reason = models.TextField(blank=True, default="")
     outcome = models.TextField(blank=True, default="")
     outcome_code = models.CharField(max_length=40, choices=CourtEventOutcome.choices, blank=True, default="")

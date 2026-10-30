@@ -34,6 +34,7 @@ export default function CaseProcedurePanels({ caseData }) {
             </p>
             <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
               {renderEnum(event.event_type)} • {renderEnum(event.status)} • {renderDateTime(event.starts_at)}
+              {event.date_source_label && event.date_source !== 'FIRM' ? ` • ${event.date_source_label}` : ''}
             </p>
             <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
               {event.court_station || event.courtroom || event.judicial_officer || 'Court details not set'}

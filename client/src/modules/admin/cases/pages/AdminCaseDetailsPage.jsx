@@ -1589,6 +1589,7 @@ const AdminCaseDetailsPage = () => {
                       Mode: {friendly(event.hearing_mode || 'NOT_APPLICABLE')}
                       {event.courtroom ? ` · Courtroom: ${event.courtroom}` : ''}
                       {event.judicial_officer ? ` · Judicial officer: ${event.judicial_officer}` : ''}
+                      {event.date_source && event.date_source !== 'FIRM' ? ` · Date ${event.date_source_label?.charAt(0).toLowerCase()}${event.date_source_label?.slice(1)}` : ''}
                     </p>
                     {event.virtual_meeting_url && (
                       <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>

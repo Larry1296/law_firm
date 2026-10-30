@@ -48,10 +48,12 @@ describe('CreateNextCaseEventPanel', () => {
     fireEvent.change(document.querySelector('input[type="datetime-local"]'), {
       target: { value: '2030-01-02T09:00' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /create event/i }));
+    fireEvent.click(screen.getByRole('button', { name: /record date/i }));
 
     await vi.waitFor(() => expect(onCreateEvent).toHaveBeenCalled());
     expect(onCreateEvent.mock.calls[0][0].payload.title).toBe('Mention');
+    // The first court sitting's date comes from the registry; the court, not the firm, gives it.
+    expect(onCreateEvent.mock.calls[0][0].payload.date_source).toBe('REGISTRY');
   });
 
   it('allows a custom title only for an internal event', () => {

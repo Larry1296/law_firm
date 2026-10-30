@@ -26,6 +26,7 @@ class EventClientAwarenessSerializer(serializers.ModelSerializer):
 
 
 class EventSerializer(serializers.ModelSerializer):
+    date_source_label = serializers.CharField(source="get_date_source_display", read_only=True)
     event_type_label = serializers.CharField(source="get_event_type_display", read_only=True)
     status_label = serializers.CharField(source="get_status_display", read_only=True)
     case = serializers.SerializerMethodField()
@@ -106,6 +107,8 @@ class EventSerializer(serializers.ModelSerializer):
             "is_virtual_courtroom_enabled",
             "virtual_courtroom_is_available",
             "cause_list_position",
+            "date_source",
+            "date_source_label",
             "adjournment_reason",
             "outcome",
             "outcome_code",
@@ -154,6 +157,7 @@ class EventCreateSerializer(serializers.Serializer):
     physical_venue = serializers.CharField(max_length=255, required=False, allow_blank=True)
     judicial_officer = serializers.CharField(max_length=255, required=False, allow_blank=True)
     cause_list_position = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    date_source = serializers.ChoiceField(choices=CaseEvent._meta.get_field("date_source").choices, required=False, allow_blank=True)
     is_client_visible = serializers.BooleanField(required=False, default=True)
     virtual_courtroom_url = serializers.URLField(max_length=1000, required=False, allow_blank=True)
     virtual_courtroom_label = serializers.CharField(max_length=120, required=False, allow_blank=True)

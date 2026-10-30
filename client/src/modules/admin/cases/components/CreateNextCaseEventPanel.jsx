@@ -71,6 +71,13 @@ const COURT_SITTINGS = new Set([
   'JUDGMENT', 'TAXATION', 'APPEAL', 'REVIEW', 'OTHER_COURT_DIRECTED',
 ]);
 const AT_THE_REGISTRY = new Set(['FILING', 'REGISTRY_ACTION']);
+// The court gives court dates; the diary records where each one came from.
+const COURT_DATE_SOURCES = [
+  { value: 'REGISTRY', label: 'Allocated by the registry' },
+  { value: 'JUDGE_IN_COURT', label: 'Set by the judge in court' },
+  { value: 'CAUSE_LIST', label: 'Published on the cause list or CTS' },
+  { value: 'COURT_ORDER', label: 'Fixed by a court order' },
+];
 const modeFor = (eventType) => (COURT_SITTINGS.has(eventType) ? 'PHYSICAL' : 'NOT_APPLICABLE');
 const titleFor = (eventType, label) => (eventType === 'INTERNAL' ? '' : label);
 
@@ -124,7 +131,11 @@ export default function CreateNextCaseEventPanel({
     return local.toISOString().slice(0, 16);
   };
 
+  const hadSitting = (caseData?.events || []).some((event) => COURT_SITTINGS.has(event.event_type));
+  const defaultDateSource = hadSitting ? 'JUDGE_IN_COURT' : 'REGISTRY';
+
   const [draft, setDraft] = useState({
+    date_source: defaultDateSource,
     event_type: defaultEventType,
     title: suggestion?.next_action || titleFor(defaultEventType, validTypes.find((type) => type.value === defaultEventType)?.label || ''),
     description: suggestion
@@ -170,6 +181,7 @@ export default function CreateNextCaseEventPanel({
       starts_at: new Date(draft.starts_at).toISOString(),
       ends_at: draft.ends_at ? new Date(draft.ends_at).toISOString() : null,
       hearing_mode: draft.hearing_mode,
+      date_source: COURT_SITTINGS.has(draft.event_type) ? draft.date_source : 'FIRM',
       court: draft.court.trim(),
       court_station: draft.court_station.trim(),
       courtroom: draft.courtroom.trim(),
@@ -183,6 +195,7 @@ export default function CreateNextCaseEventPanel({
     try {
       await onCreateEvent({ caseId: caseData.id, payload });
       setDraft({
+        date_source: defaultDateSource,
         event_type: defaultEventType,
         title: titleFor(defaultEventType, validTypes.find((type) => type.value === defaultEventType)?.label || ''),
         description: '',
@@ -199,7 +212,7 @@ export default function CreateNextCaseEventPanel({
       });
       Swal.fire({
         icon: 'success',
-        title: 'Next event created',
+        title: 'Date recorded',
         text: 'All participants have been notified.',
         timer: 2000,
         showConfirmButton: false,
@@ -231,7 +244,7 @@ export default function CreateNextCaseEventPanel({
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">
-            Create Next Case Event
+            Record the next date
           </h3>
           <p className="text-sm text-text-muted">
             Court stage: <strong>{caseData?.court_stage_label || courtStage}</strong>
@@ -328,6 +341,13 @@ export default function CreateNextCaseEventPanel({
 
         {COURT_SITTINGS.has(draft.event_type) && (
           <>
+          <Select3D
+            label="Date given by *"
+            value={draft.date_source}
+            onChange={(e) => setDraft((d) => ({ ...d, date_source: e.target.value }))}
+            options={COURT_DATE_SOURCES}
+          />
+
           {/* Hearing Mode */}
           <Select3D
             label="Hearing Mode"
@@ -448,7 +468,7 @@ export default function CreateNextCaseEventPanel({
             disabled={isCreating}
             className="w-full"
           >
-            {isCreating ? 'Creating...' : 'Create Event & Notify Participants'}
+            {isCreating ? 'Recording...' : 'Record date & notify participants'}
           </Button3D>
         </div>
       </form>
