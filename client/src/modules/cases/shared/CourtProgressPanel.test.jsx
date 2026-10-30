@@ -26,14 +26,15 @@ describe('summons service diary', () => {
     const papers = Array.from(screen.getByLabelText('Paper').options).map((option) => option.textContent);
     expect(papers).toContain('Response received');
     expect(papers).not.toContain('Memorandum of appearance received');
-    expect(screen.queryByLabelText('E-filing reference')).toBeNull();
     fireEvent.change(screen.getByLabelText('Paper'), { target: { value: 'AFFIDAVIT_OF_SERVICE' } });
     expect(screen.getByLabelText('E-filing reference')).toBeTruthy();
   });
 
   it('starts what it records at now and counts the ELRC response from the day of service', () => {
-    render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'FILED', procedure_track: 'EMPLOYMENT_CLAIM', filings: [], parties: [{ name: 'Baraka Supplies Limited', is_adverse: true }] }} showStage={false} /></QueryClientProvider>);
+    render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'FILED', procedure_track: 'EMPLOYMENT_CLAIM', filings: [], efiling_reference: 'EF-2026-118734', parties: [{ name: 'Baraka Supplies Limited', is_adverse: true }] }} showStage={false} /></QueryClientProvider>);
     expect(screen.getByLabelText('Title')).toHaveProperty('value', 'Summons and statement of claim served on Baraka Supplies Limited');
+    expect(screen.getByLabelText('E-filing reference')).toHaveProperty('value', 'EF-2026-118734');
+    expect(screen.getByLabelText('Payment reference')).toHaveProperty('value', '');
     expect(screen.getByLabelText('Date served').value.slice(0, 10)).toBe(new Date().toLocaleDateString('en-CA'));
     fireEvent.change(screen.getByLabelText('Date served'), { target: { value: '2026-10-30T14:00' } });
     expect(screen.getByLabelText(/Response due date/)).toHaveProperty('value', '2026-11-20');

@@ -37,12 +37,6 @@ const REGISTER_TYPES = [
   ['OTHER', 'Other paper'],
 ];
 const SERVICE_TYPES = new Set(['SUMMONS', 'AFFIDAVIT_OF_SERVICE']);
-// Papers the firm lodges with the court, each with its own e-filing reference and fee; a demand
-// letter, service on the other side or a paper received from it has neither.
-const LODGED_PAPERS = new Set([
-  'AFFIDAVIT_OF_SERVICE', 'REPLY_TO_DEFENCE', 'LIST_OF_DOCUMENTS', 'WITNESS_STATEMENT', 'NOTICE_OF_MOTION',
-  'SUBMISSIONS', 'REQUEST_FOR_JUDGMENT', 'BILL_OF_COSTS', 'OTHER',
-]);
 
 // The ELRC (Procedure) Rules, 2016 have no appearance: the respondent files a response within
 // 21 days of service and the claimant may reply to it.
@@ -128,13 +122,23 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const caseId = caseData.id;
   const [selected, setSelected] = useState('');
   const [reason, setReason] = useState('');
-  const freshFiling = () => ({ ...emptyFiling, filing_date: localDate(), payment_date: localDate() });
+  const freshFiling = () => ({
+    ...emptyFiling,
+    filing_date: localDate(),
+    payment_date: localDate(),
+    // What the matter already records about its court is carried in, not typed again.
+    court_station: caseData.court_station || '',
+    registry: caseData.registry || '',
+    efiling_reference: caseData.court_proceeding?.efiling_reference || caseData.efiling_reference || '',
+  });
   const [filing, setFiling] = useState(freshFiling);
   const [serviceFiled, setServiceFiled] = useState(false);
   // What is recorded has just happened, so its times start at now; at the ELRC the response is due 21 days after service.
   const freshEntry = () => {
     const now = localDateTime();
-    return { ...emptyEntry, filed_at: now, served_at: now, response_due_date: caseData.procedure_track === 'EMPLOYMENT_CLAIM' ? addDays(localDate(), ELRC_RESPONSE_DAYS) : '' };
+    // Papers in the same matter carry the matter's e-filing reference; fees and receipts are per payment.
+    const efilingReference = caseData.court_proceeding?.efiling_reference || caseData.efiling_reference || '';
+    return { ...emptyEntry, efiling_reference: efilingReference, filed_at: now, served_at: now, response_due_date: caseData.procedure_track === 'EMPLOYMENT_CLAIM' ? addDays(localDate(), ELRC_RESPONSE_DAYS) : '' };
   };
   const [entry, setEntry] = useState(freshEntry);
   const registerTypes = registerTypesFor(caseData);
@@ -182,12 +186,10 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       served_at: SERVICE_TYPES.has(paper) ? toIso(entry.served_at) : null,
       response_due_date: SERVICE_TYPES.has(paper) ? entry.response_due_date : null,
       response_period_days: paper === 'DEMAND_LETTER' ? Number(entry.response_period_days) : null,
-      ...(LODGED_PAPERS.has(paper) ? {
-        efiling_reference: entry.efiling_reference,
-        court_fee_amount: entry.court_fee_amount,
-        payment_reference: entry.payment_reference,
-        receipt_number: entry.receipt_number,
-      } : {}),
+      efiling_reference: entry.efiling_reference,
+      court_fee_amount: entry.court_fee_amount,
+      payment_reference: entry.payment_reference,
+      receipt_number: entry.receipt_number,
     });
     setBusy(true);
     try {
@@ -263,14 +265,10 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
             </Field>
             </>
           )}
-          {LODGED_PAPERS.has(paper) && (
-            <>
-            <Field label='E-filing reference'><input name='efiling_reference' value={entry.efiling_reference} onChange={updateEntry} className={inputClass} /></Field>
-            <Field label='Court fees (KES)'><input type='number' step='0.01' min='0' name='court_fee_amount' value={entry.court_fee_amount} onChange={updateEntry} className={inputClass} /></Field>
-            <Field label='Payment reference'><input name='payment_reference' value={entry.payment_reference} onChange={updateEntry} className={inputClass} /></Field>
-            <Field label='Receipt number'><input name='receipt_number' value={entry.receipt_number} onChange={updateEntry} className={inputClass} /></Field>
-            </>
-          )}
+          <Field label='E-filing reference'><input name='efiling_reference' value={entry.efiling_reference} onChange={updateEntry} className={inputClass} /></Field>
+          <Field label='Court fees (KES)'><input type='number' step='0.01' min='0' name='court_fee_amount' value={entry.court_fee_amount} onChange={updateEntry} className={inputClass} /></Field>
+          <Field label='Payment reference'><input name='payment_reference' value={entry.payment_reference} onChange={updateEntry} className={inputClass} /></Field>
+          <Field label='Receipt number'><input name='receipt_number' value={entry.receipt_number} onChange={updateEntry} className={inputClass} /></Field>
           <div className='md:col-span-2'>
             <button type='submit' disabled={busy} className='inline-flex min-h-11 items-center rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50'>
               Record in register
