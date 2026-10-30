@@ -91,6 +91,14 @@ function Feedback({ feedback }) {
 }
 
 const toIso = (value) => (value ? new Date(value).toISOString() : null);
+const pad = (value) => String(value).padStart(2, '0');
+const localDate = (date = new Date()) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+const localDateTime = (date = new Date()) => `${localDate(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+const addDays = (day, days) => {
+  const [year, month, date] = day.split('-').map(Number);
+  return localDate(new Date(year, month - 1, date + days));
+};
+const ELRC_RESPONSE_DAYS = 21;
 const compact = (object) => Object.fromEntries(Object.entries(object).filter(([, value]) => value !== '' && value !== null));
 
 export default function CourtProgressPanel({ caseData, canRecordFilings = true, showStage = true }) {
@@ -98,9 +106,15 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const caseId = caseData.id;
   const [selected, setSelected] = useState('');
   const [reason, setReason] = useState('');
-  const [filing, setFiling] = useState(emptyFiling);
+  const freshFiling = () => ({ ...emptyFiling, filing_date: localDate(), payment_date: localDate() });
+  const [filing, setFiling] = useState(freshFiling);
   const [serviceFiled, setServiceFiled] = useState(false);
-  const [entry, setEntry] = useState(emptyEntry);
+  // What is recorded has just happened, so its times start at now; at the ELRC the response is due 21 days after service.
+  const freshEntry = () => {
+    const now = localDateTime();
+    return { ...emptyEntry, filed_at: now, served_at: now, response_due_date: caseData.procedure_track === 'EMPLOYMENT_CLAIM' ? addDays(localDate(), ELRC_RESPONSE_DAYS) : '' };
+  };
+  const [entry, setEntry] = useState(freshEntry);
   const registerTypes = registerTypesFor(caseData);
   const isElrc = caseData.procedure_track === 'EMPLOYMENT_CLAIM';
   // Until a paper is chosen, the form offers the one the matter needs next, following it as the matter moves on.
@@ -125,7 +139,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       setStageFeedback({ tone: 'success', text: `${DIMENSION_LABELS[dimension]} updated.` });
       setSelected('');
       setReason('');
-      setFiling(emptyFiling);
+      setFiling(freshFiling());
       setServiceFiled(false);
       refresh();
     } catch (error) { if (error?.isActionCancelled) return;
@@ -154,7 +168,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
     try {
       const { data } = await axiosInstance.post(`/cases/${caseId}/filings/`, payload);
       setEntryFeedback({ tone: 'success', text: `Recorded. Next action: ${data.next_action || 'none pending'}.` });
-      setEntry(emptyEntry);
+      setEntry(freshEntry());
       refresh();
     } catch (error) { if (error?.isActionCancelled) return;
       setEntryFeedback({ tone: 'error', text: getApiErrorMessage(error, 'The entry could not be recorded.') });
@@ -164,7 +178,13 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   };
 
   const updateFiling = (event) => setFiling((current) => ({ ...current, [event.target.name]: event.target.value }));
-  const updateEntry = (event) => setEntry((current) => ({ ...current, [event.target.name]: event.target.value }));
+  const updateEntry = (event) => setEntry((current) => {
+    const next = { ...current, [event.target.name]: event.target.value };
+    if (event.target.name === 'served_at' && isElrc && event.target.value) {
+      next.response_due_date = addDays(event.target.value.slice(0, 10), ELRC_RESPONSE_DAYS);
+    }
+    return next;
+  });
 
   return (
     <Card className='p-6'>
@@ -196,7 +216,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
           </Field>
           <Field label='Title (optional)'><input name='title' value={entry.title} onChange={updateEntry} className={inputClass} /></Field>
           <Field label={paper === 'DEMAND_LETTER' ? 'Date issued' : 'Date filed / received'}>
-            <input type='datetime-local' name='filed_at' value={entry.filed_at} onChange={updateEntry} className={inputClass} />
+            <input type='datetime-local' name='filed_at' max={localDateTime()} value={entry.filed_at} onChange={updateEntry} className={inputClass} />
           </Field>
           {paper === 'DEMAND_LETTER' && (
             <Field label='Demand period'>
@@ -214,7 +234,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
               <span className='block text-xs font-normal'>The advocate verifies this date in the matter deadlines before relying on it.</span>
             </Field>
             <Field label='Date served'>
-              <input type='datetime-local' name='served_at' value={entry.served_at} onChange={updateEntry} className={inputClass} required />
+              <input type='datetime-local' name='served_at' max={localDateTime()} value={entry.served_at} onChange={updateEntry} className={inputClass} required />
             </Field>
             </>
           )}
@@ -246,14 +266,14 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
 
         {dimension === 'COURT_STAGE' && toState === 'FILED' && (
           <>
-            <Field label='Filing date'><input type='date' name='filing_date' value={filing.filing_date} onChange={updateFiling} className={inputClass} required /></Field>
+            <Field label='Filing date'><input type='date' name='filing_date' max={localDate()} value={filing.filing_date} onChange={updateFiling} className={inputClass} required /></Field>
             <Field label='Court case number'><input name='official_court_case_number' value={filing.official_court_case_number} onChange={updateFiling} placeholder='As stamped by the court, e.g. ELRC Cause No. E512 of 2026' className={inputClass} required /></Field>
             <Field label='E-filing reference'><input name='efiling_reference' value={filing.efiling_reference} onChange={updateFiling} className={inputClass} /></Field>
             <Field label='Court station'><input name='court_station' value={filing.court_station} onChange={updateFiling} placeholder={caseData.court_station || 'Milimani Commercial Courts'} className={inputClass} required={!caseData.court_station} /></Field>
             <Field label='Registry'><input name='registry' value={filing.registry} onChange={updateFiling} className={inputClass} required={!caseData.registry} /></Field>
             <Field label='Court fees paid (KES)'><input type='number' step='0.01' min='0' name='court_fee_amount' value={filing.court_fee_amount} onChange={updateFiling} className={inputClass} /></Field>
             <Field label='Payment reference (e.g. M-Pesa code)'><input name='payment_reference' value={filing.payment_reference} onChange={updateFiling} className={inputClass} /></Field>
-            <Field label='Payment date'><input type='date' name='payment_date' value={filing.payment_date} onChange={updateFiling} className={inputClass} /></Field>
+            <Field label='Payment date'><input type='date' name='payment_date' max={localDate()} value={filing.payment_date} onChange={updateFiling} className={inputClass} /></Field>
           </>
         )}
 

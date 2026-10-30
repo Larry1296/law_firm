@@ -12,7 +12,7 @@ describe('summons service diary', () => {
     axios.post.mockResolvedValue({ data: { next_action: 'Advocate to verify response deadline' } });
     render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1' }} showStage={false} /></QueryClientProvider>);
     fireEvent.change(screen.getByLabelText('Paper'), { target: { value: 'SUMMONS' } });
-    fireEvent.change(screen.getByLabelText('Date served'), { target: { value: '2026-11-02T10:00' } });
+    fireEvent.change(screen.getByLabelText('Date served'), { target: { value: '2026-10-20T10:00' } });
     fireEvent.change(screen.getByLabelText(/Appearance due date in summons/), { target: { value: '2026-11-12' } });
     fireEvent.click(screen.getByRole('button', { name: 'Record in register' }));
     await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/cases/case-1/filings/', expect.objectContaining({ filing_type: 'SUMMONS', response_due_date: '2026-11-12' })));
@@ -26,6 +26,13 @@ describe('summons service diary', () => {
     const papers = Array.from(screen.getByLabelText('Paper').options).map((option) => option.textContent);
     expect(papers).toContain('Response received');
     expect(papers).not.toContain('Memorandum of appearance received');
+  });
+
+  it('starts what it records at now and counts the ELRC response from the day of service', () => {
+    render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'FILED', procedure_track: 'EMPLOYMENT_CLAIM', filings: [] }} showStage={false} /></QueryClientProvider>);
+    expect(screen.getByLabelText('Date served').value.slice(0, 10)).toBe(new Date().toLocaleDateString('en-CA'));
+    fireEvent.change(screen.getByLabelText('Date served'), { target: { value: '2026-10-30T14:00' } });
+    expect(screen.getByLabelText(/Response due date/)).toHaveProperty('value', '2026-11-20');
   });
 });
 
