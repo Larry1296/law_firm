@@ -2,7 +2,9 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apps.clients.models import Client, ClientComplianceHistory, ClientComplianceReview
+from apps.clients.models import (
+    Client, ClientComplianceHistory, ClientComplianceReview, ClientDocument, ClientDueDiligence,
+)
 from apps.audit_logs.services import AuditService
 from apps.common.choices import ConflictCheckStatus, UserRole
 from apps.staff.models import LawyerPermission
@@ -19,6 +21,12 @@ class ClientComplianceReviewService:
         Client.ClientType.BUSINESS_ENTITY,
         Client.ClientType.FINANCIAL_INSTITUTION,
     }
+    IDENTITY_SUBTYPES = {
+        ClientDocument.Subtype.NATIONAL_ID, ClientDocument.Subtype.PASSPORT, ClientDocument.Subtype.ALIEN_ID,
+        ClientDocument.Subtype.INCORPORATION, ClientDocument.Subtype.BUSINESS_REGISTRATION,
+        ClientDocument.Subtype.TRUST_DEED,
+    }
+    REVIEW_METHOD = "Confirmed at the KYC review"
 
     @staticmethod
     def _firm(user):
@@ -76,7 +84,62 @@ class ClientComplianceReviewService:
             reason=data.get("reason", ""),
         )
         AuditService.record(firm=firm, user=user, action="CLIENT_COMPLIANCE_REVIEWED", obj=review, previous=previous, new=current, reason=data.get("reason", ""))
+        cls._sync_client_file(review, user=user, previous=previous)
         return review
+
+    @classmethod
+    def _sync_client_file(cls, review, *, user, previous):
+        """Carry a newly recorded verification onto the KYC documents and due-diligence record."""
+        verified = ClientComplianceReview.VerificationStatus.VERIFIED
+        blocked = ClientComplianceReview.VerificationStatus.BLOCKED
+        identity_changed = review.identity_status != previous["identity_status"]
+        authority_changed = review.authority_status != previous["authority_status"]
+        if not (identity_changed or authority_changed):
+            return
+        client = review.client
+        now = timezone.now()
+        kyc_documents = ClientDocument.objects.filter(
+            client=client, classification=ClientDocument.Classification.CLIENT_KYC, archived_at__isnull=True,
+        )
+        due_diligence, _ = ClientDueDiligence.objects.get_or_create(client=client)
+        fields = []
+        if identity_changed and review.identity_status in {verified, blocked}:
+            identity_documents = kyc_documents.filter(subtype__in=cls.IDENTITY_SUBTYPES)
+            if review.identity_status == verified:
+                references = list(identity_documents.exclude(reference="").values_list("reference", flat=True))
+                cls._verify_documents(identity_documents, user=user, now=now)
+                due_diligence.identity_verification_status = ClientDueDiligence.IdentityVerificationStatus.VERIFIED
+                due_diligence.identity_verification_method = cls.REVIEW_METHOD
+                due_diligence.identity_verification_date = now.date()
+                due_diligence.identity_verified_by = user
+                due_diligence.identity_evidence_reference = ", ".join(references)[:255]
+            else:
+                due_diligence.identity_verification_status = ClientDueDiligence.IdentityVerificationStatus.FAILED
+            fields += [
+                "identity_verification_status", "identity_verification_method", "identity_verification_date",
+                "identity_verified_by", "identity_evidence_reference",
+            ]
+        if authority_changed and review.authority_status in {verified, blocked}:
+            is_verified = review.authority_status == verified
+            if is_verified:
+                cls._verify_documents(
+                    kyc_documents.filter(subtype=ClientDocument.Subtype.AUTHORITY_TO_INSTRUCT), user=user, now=now,
+                )
+            due_diligence.authority_verified = is_verified
+            due_diligence.authority_verified_by = user if is_verified else None
+            due_diligence.authority_verified_at = now if is_verified else None
+            due_diligence.authority_verification_method = cls.REVIEW_METHOD if is_verified else ""
+            fields += ["authority_verified", "authority_verified_by", "authority_verified_at", "authority_verification_method"]
+        if fields:
+            due_diligence.save(update_fields=[*fields, "updated_at"])
+
+    @classmethod
+    def _verify_documents(cls, documents, *, user, now):
+        documents.exclude(verification_status=ClientDocument.VerificationStatus.VERIFIED).update(
+            verification_status=ClientDocument.VerificationStatus.VERIFIED,
+            verification_method=cls.REVIEW_METHOD, verified_by=user, verified_at=now,
+            is_verified=True, updated_by=user, updated_at=now,
+        )
 
     @classmethod
     def opening_errors(cls, client, *, review=None):

@@ -3,7 +3,9 @@ from datetime import date
 from django.test import TestCase
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apps.clients.models import Client, ClientComplianceReview, ClientMatterConflictCheck
+from apps.clients.models import (
+    Client, ClientComplianceReview, ClientDocument, ClientDueDiligence, ClientMatterConflictCheck,
+)
 from apps.clients.services.compliance_review_service import ClientComplianceReviewService
 from apps.common.choices import ConflictCheckStatus, UserRole
 from apps.firm.models import LawFirm
@@ -81,6 +83,32 @@ class ClientComplianceReviewTests(TestCase):
         errors = ClientComplianceReviewService.opening_errors(self.client, review=review)
         self.assertIn("due_diligence_restriction", errors)
         self.assertIn("sanctions", errors["due_diligence_restriction"].lower())
+
+    def test_verified_identity_and_authority_mark_the_kyc_documents_and_due_diligence(self):
+        def kyc_document(reference, subtype):
+            return ClientDocument.objects.create(
+                client=self.client, firm=self.firm, title=reference, reference=reference,
+                classification=ClientDocument.Classification.CLIENT_KYC, subtype=subtype,
+            )
+        incorporation = kyc_document("KYC-2026-001/D1", ClientDocument.Subtype.INCORPORATION)
+        resolution = kyc_document("KYC-2026-001/D2", ClientDocument.Subtype.AUTHORITY_TO_INSTRUCT)
+        letter = kyc_document("KYC-2026-001/D3", ClientDocument.Subtype.ENGAGEMENT_LETTER)
+
+        ClientComplianceReviewService.record(
+            user=self.reviewer.user, client_id=self.client.id,
+            data={"identity_status": "VERIFIED", "authority_status": "VERIFIED", "reason": "Originals seen."},
+        )
+
+        for document in (incorporation, resolution):
+            document.refresh_from_db()
+            self.assertEqual(document.verification_status, ClientDocument.VerificationStatus.VERIFIED)
+            self.assertEqual(document.verified_by, self.reviewer.user)
+        letter.refresh_from_db()
+        self.assertEqual(letter.verification_status, ClientDocument.VerificationStatus.NOT_VERIFIED)
+        due_diligence = ClientDueDiligence.objects.get(client=self.client)
+        self.assertEqual(due_diligence.identity_verification_status, "VERIFIED")
+        self.assertEqual(due_diligence.identity_evidence_reference, "KYC-2026-001/D1")
+        self.assertTrue(due_diligence.authority_verified)
 
     def test_unpermissioned_lawyer_cannot_record_compliance_decision(self):
         other_user = User.objects.create_user(
