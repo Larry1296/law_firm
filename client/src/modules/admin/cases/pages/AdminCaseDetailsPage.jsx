@@ -1107,7 +1107,7 @@ const AdminCaseDetailsPage = () => {
               <p><strong>Firm acceptance:</strong> {friendly(originatingConflictCheck?.acceptance_decision || conflictCheckEnvelope?.acceptance_decision, 'Not recorded')}</p>
               <p><strong>Accepted by:</strong> {safe(originatingConflictCheck?.accepted_by_name || conflictCheckEnvelope?.accepted_by_name)}</p>
               <p><strong>Acceptance date:</strong> {(originatingConflictCheck?.accepted_at || conflictCheckEnvelope?.accepted_at) ? formatDateTime(originatingConflictCheck?.accepted_at || conflictCheckEnvelope?.accepted_at) : 'Not recorded'}</p>
-              <p><strong>Engagement status:</strong> {friendly(originatingConflictCheck?.engagement_status || conflictCheckEnvelope?.engagement_status, 'Not recorded')}</p>
+              <p><strong>Engagement status:</strong> {originatingConflictCheck?.engagement_status_label || friendly(originatingConflictCheck?.engagement_status || conflictCheckEnvelope?.engagement_status, 'Not recorded')}</p>
             </div>
             <div className={`space-y-2 ${panelClass}`}>
               <h4 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Clearance Result</h4>
@@ -1756,6 +1756,8 @@ const AdminCaseDetailsPage = () => {
             </div>
           </div>
 
+          {/* A firm without secretaries has no one to assign here. */}
+          {(secretaries.length > 0 || currentSecretaryId) && (
           <div>
             <div className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
               <h4 className='mb-3 font-semibold text-text-primary-light dark:text-text-primary-dark'>
@@ -1792,6 +1794,7 @@ const AdminCaseDetailsPage = () => {
               </button>
             </div>
           </div>
+          )}
         </div>
       </Card>
 
@@ -2211,7 +2214,7 @@ const AdminCaseDetailsPage = () => {
           <div className='space-y-3'>
             {(caseData.activities || []).map((activity) => (
               <div key={activity.id} className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
-                <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>{activity.action}</p>
+                <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>{friendly(activity.action)}</p>
                 <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>{activity.description}</p>
               </div>
             ))}
@@ -2228,7 +2231,7 @@ const AdminCaseDetailsPage = () => {
 
         {documents.length === 0 ? (
           <p className='text-text-muted-light dark:text-text-muted-dark'>
-            No documents uploaded.
+            No documents recorded on this matter yet.
           </p>
         ) : (
           <div className='space-y-3'>

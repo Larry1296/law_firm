@@ -321,6 +321,7 @@ export default function LawyerCaseDetailsPage() {
   const acceptedAt = conflictRecord?.accepted_at || firmAcceptance?.accepted_at;
 
   const engagementStatus =
+    conflictRecord?.engagement_status_label ||
     conflictRecord?.engagement_status ||
     firmAcceptance?.engagement_status ||
     'Not recorded';

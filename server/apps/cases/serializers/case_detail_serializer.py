@@ -1,6 +1,7 @@
+from django.utils import timezone
 from rest_framework import serializers
 
-from apps.cases.models import Case
+from apps.cases.models import Case, MatterDeadline
 from apps.cases.serializers.case_activity_serializer import CaseActivitySerializer
 from apps.cases.serializers.case_attachment_serializer import CaseAttachmentSerializer
 from apps.cases.serializers.case_filing_serializer import CaseFilingSerializer
@@ -440,9 +441,22 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "acceptance_decision": check.acceptance_decision,
             "accepted_by_name": check.accepted_by.user.full_name if check.accepted_by_id else "",
             "accepted_at": check.accepted_at,
-            "engagement_status": check.engagement_status,
+            **self._engagement_position(check),
             "consumed_at": check.consumed_at,
         }
+
+    @staticmethod
+    def _engagement_position(check):
+        # The formal engagement record supersedes the preparation stage noted at acceptance.
+        from apps.clients.models import EngagementRecord
+
+        engagement = check.engagements.exclude(
+            status__in=[EngagementRecord.Status.SUPERSEDED, EngagementRecord.Status.CANCELLED]
+        ).order_by("-version").first()
+        if not engagement:
+            return {"engagement_status": check.engagement_status, "engagement_status_label": check.get_engagement_status_display()}
+        label = "Signed and approved" if engagement.status == EngagementRecord.Status.READY else engagement.get_status_display()
+        return {"engagement_status": engagement.status, "engagement_status_label": f"{label} (version {engagement.version})"}
 
     def get_originating_conflict_check(self, obj):
         if self._client_visible_only():
@@ -589,10 +603,18 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         deadline = obj.tasks.filter(
             status__in=["PENDING", "IN_PROGRESS"], due_at__isnull=False
         ).order_by("due_at").first()
+        critical_date = obj.deadlines.filter(status=MatterDeadline.Status.OPEN).order_by("due_at").first()
+        key_deadline = CaseTaskSerializer(deadline).data if deadline else None
+        if critical_date and (not deadline or critical_date.due_at < deadline.due_at):
+            key_deadline = {
+                "id": str(critical_date.id),
+                "title": f"{critical_date.get_deadline_type_display()} on {timezone.localtime(critical_date.due_at):%d %b %Y}",
+                "due_at": critical_date.due_at,
+            }
         return {
             "current_stage": obj.lifecycle_stage,
             "current_stage_label": obj.get_lifecycle_stage_display(),
             "last_completed_proceeding": completed.get_event_type_display() if completed else None,
             "next_event": EventSerializer(upcoming).data if upcoming else None,
-            "key_pending_deadline": CaseTaskSerializer(deadline).data if deadline else None,
+            "key_pending_deadline": key_deadline,
         }

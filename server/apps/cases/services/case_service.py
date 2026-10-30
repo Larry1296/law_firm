@@ -498,6 +498,16 @@ class CaseService:
         )
         from apps.cases.services.matter_physical_file_service import MatterPhysicalFileService
         MatterPhysicalFileService.ensure_pending(case, user)
+        if case.limitation_date:
+            from apps.cases.models import MatterDeadline
+            from apps.cases.services.filing_register_service import FilingRegisterService
+
+            # The limitation date is the matter's hardest deadline, so it is tracked from the day the file opens.
+            FilingRegisterService._deadline(
+                case, user, key="LIMITATION:opening", due=case.limitation_date,
+                deadline_type=MatterDeadline.Type.LIMITATION, priority="CRITICAL",
+                description="Limitation period ends: the claim must be filed before this date (recorded when the matter was opened).",
+            )
         if not (case.next_action or "").strip():
             from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
 

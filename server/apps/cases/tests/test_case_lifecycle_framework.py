@@ -253,6 +253,18 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertEqual(case.currency, "KES")
         self.assertIn("claim amount is recorded", case.jurisdiction_notes)
 
+    def test_opening_tracks_the_limitation_date_as_the_key_deadline(self):
+        payload = self.payload("CASE-LIMITATION")
+        payload["limitation_date"] = "2029-09-06"
+        response = self.api.post(reverse("case-create"), payload, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        case = Case.objects.get(official_court_case_number="CASE-LIMITATION")
+        deadline = case.deadlines.get()
+        self.assertEqual(deadline.deadline_type, "LIMITATION")
+        self.assertEqual(timezone.localtime(deadline.due_at).date(), date(2029, 9, 6))
+        detail = self.api.get(reverse("case-detail", args=[case.id]))
+        self.assertIn("Limitation on 06 Sep 2029", str(detail.data))
+
     def test_employment_cannot_end_on_a_future_date(self):
         payload = self.payload("CASE-EMPLOYMENT-FUTURE")
         payload["practice_area"] = "EMPLOYMENT_LABOUR"
