@@ -4,6 +4,7 @@ import Card from '@/components/ui/Card';
 import { FormButton, SelectInput, TextArea, TextInput } from '@/components/forms';
 import axiosInstance from '@/core/api/axios';
 import { formatDateTime } from '@/core/utils/dateFormatter';
+import { getApiErrorMessage } from '@/core/utils/errorMessages';
 
 export default function PhysicalMatterFileCard({ physicalFile, caseId, canManage = false, canRequest = false }) {
   const queryClient = useQueryClient();
@@ -22,7 +23,32 @@ export default function PhysicalMatterFileCard({ physicalFile, caseId, canManage
     </div>
     {pending ? <div className='mt-4 rounded-lg bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100'><strong>Physical matter file awaiting preparation</strong><p className='mt-1'>The internal matter has been opened, but authorised records staff have not yet confirmed creation and physical storage of its folder.</p></div> : <div className='mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3'><p><strong>Reference</strong><br />{physicalFile.reference}</p><p><strong>Exact location</strong><br />{physicalFile.location || 'Location not confirmed'}</p><p><strong>Current custody</strong><br />{physicalFile.current_custodian || 'Records room'}</p><p><strong>Assigned by</strong><br />{physicalFile.assigned_by || 'Not recorded'}</p><p><strong>Assigned at</strong><br />{physicalFile.assigned_at ? formatDateTime(physicalFile.assigned_at) : 'Not recorded'}</p><p><strong>Last movement</strong><br />{physicalFile.last_movement ? `${physicalFile.last_movement.action_label} · ${formatDateTime(physicalFile.last_movement.recorded_at)}` : 'None recorded'}</p></div>}
     <details className='mt-4 border-t border-border-light pt-3 dark:border-border-dark'><summary className='cursor-pointer text-sm font-semibold text-brand-primary'>View custody history</summary><div className='mt-3 space-y-2'>{(physicalFile.movements || []).map((item) => <div key={item.id} className='rounded-lg bg-black/[0.03] p-3 text-sm dark:bg-white/[0.04]'><strong>{item.action_label}</strong><p>{item.previous_location || 'No previous location'} → {item.new_location || 'No location assigned'}</p><small>{formatDateTime(item.recorded_at)} · {item.recorded_by}</small></div>)}</div></details>
+    {canManage && pending && <PrepareFileForm physicalFile={physicalFile} busy={custodyAction.isPending} error={custodyAction.error} onSubmit={(payload) => custodyAction.mutate({ operation: 'assign', ...payload })} />}
     {canRequest && !pending && <div className='mt-4 flex justify-end'><FormButton type='button' variant='secondary' loading={custodyAction.isPending} onClick={() => custodyAction.mutate({ operation: 'request_retrieval', reason: 'Responsible advocate requested retrieval of the physical matter file.' })}>Request retrieval</FormButton></div>}
     {canManage && !pending && <div className='mt-4 border-t border-border-light pt-4 dark:border-border-dark'><h3 className='text-sm font-semibold'>Record custody action</h3><div className='mt-3 grid gap-3 md:grid-cols-2'><SelectInput label='Action' name='physical_file_action' value={action} onChange={(event) => setAction(event.target.value)} options={[{ value: 'CHECKED_OUT', label: 'Check out to responsible advocate' }, { value: 'RETURNED', label: 'Return to records room' }, { value: 'RELOCATED', label: 'Relocate' }, { value: 'MARKED_MISSING', label: 'Mark missing' }, { value: 'FOUND', label: 'Record found' }, { value: 'SENT_FOR_ARCHIVING', label: 'Send for archive review' }, { value: 'ARCHIVED', label: 'Confirm archived' }]} />{['RELOCATED','ARCHIVED'].includes(action) && <><TextInput label='Storage zone' value={draft.storage_zone} onChange={(event) => setDraft({ ...draft, storage_zone: event.target.value })} /><TextInput label='Cabinet' value={draft.cabinet} onChange={(event) => setDraft({ ...draft, cabinet: event.target.value })} /><TextInput label='Shelf/drawer' value={draft.shelf_or_drawer} onChange={(event) => setDraft({ ...draft, shelf_or_drawer: event.target.value })} /><TextInput label='Additional location' value={draft.location_detail} onChange={(event) => setDraft({ ...draft, location_detail: event.target.value })} /></>}<TextArea label='Reason' value={draft.reason} onChange={(event) => setDraft({ ...draft, reason: event.target.value })} className='md:col-span-2' required /></div>{(custodyAction.error && !custodyAction.error?.isActionCancelled) && <p className='mt-2 text-sm text-error'>The custody action could not be recorded.</p>}<div className='mt-3 flex justify-end'><FormButton type='button' disabled={!action || !draft.reason} loading={custodyAction.isPending} onClick={() => custodyAction.mutate({ operation: 'move', action, reason: draft.reason, issued_to: action === 'CHECKED_OUT' ? 'ASSIGNED_LAWYER' : undefined, storage_zone: draft.storage_zone, cabinet: draft.cabinet, shelf_or_drawer: draft.shelf_or_drawer, location_detail: draft.location_detail })}>Record action</FormButton></div></div>}
   </Card>;
 }
+
+// Whoever keeps the records (the advocate, where the firm has no records staff) confirms the labelled folder and where it is kept.
+function PrepareFileForm({ physicalFile, busy, error, onSubmit }) {
+  const places = physicalFile.matter_places || [];
+  const [placeId, setPlaceId] = useState((places.find((place) => place.purpose === 'MATTER') || places[0])?.id || '');
+  const [typed, setTyped] = useState({ storage_zone: 'Active Matters', cabinet: '', shelf_or_drawer: '' });
+  const ready = placeId || (typed.storage_zone && typed.cabinet && typed.shelf_or_drawer);
+  return <form className='mt-4 border-t border-border-light pt-4 dark:border-border-dark' onSubmit={(event) => { event.preventDefault(); onSubmit(placeId ? { storage_location_id: placeId } : typed); }}>
+    <h3 className='text-sm font-semibold'>Record the prepared file</h3>
+    <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>Label the folder {physicalFile.reference || 'with the matter number'} and say where it is kept.</p>
+    <div className='mt-3 grid gap-3 md:grid-cols-2'>
+      {places.length > 0
+        ? <SelectInput label='Kept in' name='physical_file_place' value={placeId} onChange={(event) => setPlaceId(event.target.value)} options={places.map((place) => ({ value: place.id, label: place.path }))} placeholder={null} required />
+        : <>
+          <TextInput label='Storage zone' value={typed.storage_zone} onChange={(event) => setTyped({ ...typed, storage_zone: event.target.value })} required />
+          <TextInput label='Cabinet' value={typed.cabinet} onChange={(event) => setTyped({ ...typed, cabinet: event.target.value })} required />
+          <TextInput label='Shelf or drawer' value={typed.shelf_or_drawer} onChange={(event) => setTyped({ ...typed, shelf_or_drawer: event.target.value })} required />
+        </>}
+    </div>
+    {error && !error.isActionCancelled && <p className='mt-2 text-sm text-error'>{getApiErrorMessage(error)}</p>}
+    <div className='mt-3 flex justify-end'><FormButton type='submit' loading={busy} disabled={!ready}>Confirm file prepared</FormButton></div>
+  </form>;
+}
+
