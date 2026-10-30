@@ -13,9 +13,10 @@ export default function LegalAssistantSection() {
     <section id='legal-assistant' className='scroll-mt-28 bg-[#0b1a2e] py-20 text-white sm:py-24'>
       <div className='mx-auto grid max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:px-8'>
         <div>
-          <p className='text-sm font-semibold uppercase tracking-wider text-brand-accent'>Free for everyone</p>
-          <h2 className='mt-2 text-3xl font-bold tracking-tight sm:text-4xl'>Have a question? Just ask</h2>
-          <p className='mt-4 leading-relaxed text-slate-300'>
+          <p className='font-sans text-sm font-semibold uppercase tracking-[0.2em] text-brand-accent'>Free for everyone</p>
+          <h2 className='mt-3 font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl'>Have a question? Just ask</h2>
+          <span aria-hidden='true' className='mt-5 block h-1 w-16 rounded-full bg-brand-accent' />
+          <p className='mt-5 text-lg leading-relaxed text-slate-300'>
             Our assistant answers questions about Sheria Master (plans, getting started, signing in, security) and
             general legal questions, drawing on official sources such as the Constitution and Acts of Parliament and
             showing you the provisions it relied on. Legal answers are general information, not legal advice.

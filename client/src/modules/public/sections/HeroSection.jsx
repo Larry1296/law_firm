@@ -33,13 +33,13 @@ export default function HeroSection({ startingPrice }) {
 
       <div className='mx-auto w-full max-w-7xl px-4 pb-16 pt-40 sm:px-6 lg:px-8'>
         <div className='max-w-2xl'>
-          <p className='inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur'>
+          <p className='inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 font-sans text-xs font-semibold uppercase tracking-[0.2em] text-white backdrop-blur'>
             <ShieldCheck size={14} aria-hidden='true' /> Built for Kenyan law firms
           </p>
-          <h1 className='mt-6 text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl'>
+          <h1 className='mt-6 font-heading text-5xl font-bold leading-[1.05] tracking-tight text-white sm:text-6xl lg:text-7xl'>
             Run your whole practice from one secure workspace
           </h1>
-          <p className='mt-6 text-lg leading-relaxed text-slate-200'>
+          <p className='mt-6 text-lg leading-relaxed text-slate-200 sm:text-xl'>
             Matters, court diary and virtual courts, client accounts, documents and M-Pesa billing.
             Each firm gets its own private workspace for its advocates, staff and clients.
           </p>

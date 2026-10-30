@@ -9,7 +9,7 @@ const STEPS = [
 
 export default function HowItWorksSection() {
   return (
-    <section id='how-it-works' className='scroll-mt-28 bg-surface-light py-20 dark:bg-surface-dark sm:py-24'>
+    <section id='how-it-works' className='scroll-mt-28 border-y border-border-light bg-[#E8EEF5] py-20 dark:border-border-dark dark:bg-surface-dark sm:py-24'>
       <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
         <SectionIntro eyebrow='Getting started' title='From registration to your first matter' />
         <ol className='mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4'>
@@ -18,7 +18,7 @@ export default function HowItWorksSection() {
               <span className='flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary text-sm font-bold text-white dark:bg-sky-600' aria-hidden='true'>
                 {index + 1}
               </span>
-              <h3 className='mt-4 font-semibold text-text-primary-light dark:text-text-primary-dark'>{step.title}</h3>
+              <h3 className='mt-4 font-heading text-xl font-semibold leading-snug text-text-primary-light dark:text-text-primary-dark'>{step.title}</h3>
               <p className='mt-2 text-sm leading-relaxed text-text-muted-light dark:text-text-muted-dark'>{step.text}</p>
             </li>
           ))}

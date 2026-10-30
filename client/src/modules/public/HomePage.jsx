@@ -16,7 +16,7 @@ export default function HomePage() {
   const cheapest = plans.reduce((low, plan) => (low === null || Number(plan.monthly_price) < low ? Number(plan.monthly_price) : low), null);
 
   return (
-    <div className='public-home overflow-x-hidden bg-background-light text-text-primary-light dark:bg-background-dark dark:text-text-primary-dark'>
+    <div className='public-home overflow-x-hidden font-body bg-background-light text-text-primary-light dark:bg-background-dark dark:text-text-primary-dark'>
       <FloatingAIChat mode='platform' />
 
       <section id='home'>
@@ -27,10 +27,10 @@ export default function HomePage() {
       <PricingSection plans={plans} includedInEveryPlan={plansQuery.data?.included_in_every_plan || []} loading={plansQuery.isLoading} />
       <LegalAssistantSection />
 
-      <section className='bg-surface-light py-16 dark:bg-surface-dark'>
+      <section className='border-t border-border-light bg-surface-light py-20 dark:border-border-dark dark:bg-surface-dark sm:py-24'>
         <div className='mx-auto flex max-w-5xl flex-col items-center gap-6 px-4 text-center sm:px-6'>
-          <h2 className='text-2xl font-bold sm:text-3xl'>Ready to bring your firm onto Sheria Master?</h2>
-          <p className='max-w-2xl text-text-muted-light dark:text-text-muted-dark'>
+          <h2 className='font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl'>Ready to bring your firm onto Sheria Master?</h2>
+          <p className='max-w-2xl text-lg leading-relaxed text-text-muted-light dark:text-text-muted-dark'>
             Register your firm and we will set up its workspace. Already registered? Sign in and you will go straight to your firm.
           </p>
           <div className='flex flex-wrap justify-center gap-3'>

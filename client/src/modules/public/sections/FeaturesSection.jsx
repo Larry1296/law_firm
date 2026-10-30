@@ -37,7 +37,7 @@ export default function FeaturesSection() {
               <span className='flex h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary dark:bg-sky-400/10 dark:text-sky-300'>
                 <feature.icon size={20} aria-hidden='true' />
               </span>
-              <h3 className='mt-4 font-semibold text-text-primary-light dark:text-text-primary-dark'>{feature.title}</h3>
+              <h3 className='mt-4 font-heading text-xl font-semibold leading-snug text-text-primary-light dark:text-text-primary-dark'>{feature.title}</h3>
               <p className='mt-2 text-sm leading-relaxed text-text-muted-light dark:text-text-muted-dark'>{feature.text}</p>
             </article>
           ))}

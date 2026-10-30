@@ -69,6 +69,9 @@ export default {
       fontFamily: {
         sans: ['Poppins', 'ui-sans-serif', 'system-ui'],
         display: ['Poppins', 'ui-sans-serif'],
+        // Public pages: serif headings set apart from the reading text beneath them.
+        heading: ['"Playfair Display"', 'Georgia', 'serif'],
+        body: ['Inter', 'ui-sans-serif', 'system-ui'],
       },
 
       boxShadow: {

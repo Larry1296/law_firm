@@ -27,7 +27,7 @@ export default function PricingSection({ plans, includedInEveryPlan, loading }) 
                 className={`flex flex-col rounded-3xl border bg-surface-light p-8 dark:bg-surface-dark ${isFeatured ? 'border-brand-accent shadow-strong ring-1 ring-brand-accent' : 'border-border-light dark:border-border-dark'}`}
               >
                 <div className='flex items-center justify-between gap-3'>
-                  <h3 className='text-xl font-bold text-text-primary-light dark:text-text-primary-dark'>{plan.name}</h3>
+                  <h3 className='font-heading text-2xl font-bold text-text-primary-light dark:text-text-primary-dark'>{plan.name}</h3>
                   {isFeatured && <span className='rounded-full bg-brand-accent/15 px-3 py-1 text-xs font-bold text-[#7a5a14] dark:text-brand-accent'>{plan.features.every((feature) => feature.included) ? 'All features' : 'Featured'}</span>}
                 </div>
                 <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>{plan.tagline}</p>
@@ -67,7 +67,7 @@ export default function PricingSection({ plans, includedInEveryPlan, loading }) 
 
         {includedInEveryPlan.length > 0 && (
           <div className='mx-auto mt-10 max-w-4xl rounded-2xl border border-border-light bg-surface-light p-6 dark:border-border-dark dark:bg-surface-dark'>
-            <h3 className='font-semibold text-text-primary-light dark:text-text-primary-dark'>Included in every plan</h3>
+            <h3 className='font-heading text-xl font-semibold leading-snug text-text-primary-light dark:text-text-primary-dark'>Included in every plan</h3>
             <ul className='mt-4 grid gap-2 text-sm text-text-muted-light dark:text-text-muted-dark sm:grid-cols-2'>
               {includedInEveryPlan.map((line) => (
                 <li key={line} className='flex items-start gap-2'>
