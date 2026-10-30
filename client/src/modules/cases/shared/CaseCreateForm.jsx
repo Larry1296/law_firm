@@ -11,7 +11,8 @@ import Select3D from '@/components/ui/Select3D';
 import { caseCreateInitialValues } from './create/caseCreateInitialValues';
 import { buildCaseCreatePayload } from './create/caseCreatePayload';
 import { validateCaseCreateForm } from './create/caseCreateValidation';
-import { practiceAreaFromConflictCheck } from './create/practiceAreaSelection';
+import { enumLabel } from '@/core/utils/textFormatter';
+import { matterDefaultsFromConflictCheck, practiceAreaDefaults } from './create/practiceAreaSelection';
 import {
   CASE_TYPES,
   COURT_DIVISIONS,
@@ -51,7 +52,10 @@ const getPrimaryContact = (client) => {
 
 const formatPrimaryContact = (client) => {
   const contact = getPrimaryContact(client);
-  if (!contact?.full_name) return 'Not recorded';
+  if (!contact?.full_name) {
+    // With no separate contact person, the client is reached on their own phone or email.
+    return [client?.phone_number, client?.email].filter(Boolean).join(' · ') || 'Not recorded';
+  }
   const details = [contact.role_or_designation, contact.phone_number, contact.email].filter(Boolean);
   return details.length ? `${contact.full_name} (${details.join(' · ')})` : contact.full_name;
 };
@@ -80,7 +84,7 @@ const buildInitialFormData = (initialClientId, initialConflictCheckId, initialCo
 
   return {
     ...next,
-    practice_area: practiceAreaFromConflictCheck(initialConflictCheck) || next.practice_area,
+    ...matterDefaultsFromConflictCheck(initialConflictCheck),
     title: initialConflictCheck.proposed_matter_title || next.title,
     description: initialConflictCheck.factual_summary || initialConflictCheck.proposed_instructions || next.description,
     urgency_level: initialConflictCheck.urgency_level || next.urgency_level,
@@ -385,59 +389,7 @@ export default function CaseCreateForm({
         if (!stillValid) next.procedure_track = '';
       }
 
-      if (name === 'practice_area') {
-        if (value === 'LAND_ENVIRONMENT') {
-          next.case_type = 'LAND';
-          next.court_type = 'ENVIRONMENT_LAND';
-          next.court_level = COURT_LEVEL_BY_TYPE.ENVIRONMENT_LAND;
-          next.court_division = 'ELC';
-          next.procedure_track = 'ELC_SUIT';
-        } else if (value === 'EMPLOYMENT_LABOUR') {
-          next.case_type = 'EMPLOYMENT';
-          next.court_type = 'EMPLOYMENT_LABOUR';
-          next.court_level = COURT_LEVEL_BY_TYPE.EMPLOYMENT_LABOUR;
-          next.court_division = 'ELRC';
-          next.procedure_track = 'EMPLOYMENT_CLAIM';
-        } else if (value === 'SUCCESSION_PROBATE') {
-          next.case_type = 'SUCCESSION';
-          next.court_type = 'HIGH_COURT';
-          next.court_level = COURT_LEVEL_BY_TYPE.HIGH_COURT;
-          next.court_division = 'FAMILY';
-          next.procedure_track = 'SUCCESSION_CAUSE';
-        } else if (value === 'CRIMINAL_LITIGATION') {
-          next.case_type = 'CRIMINAL';
-          next.court_type = 'MAGISTRATE';
-          next.court_level = COURT_LEVEL_BY_TYPE.MAGISTRATE;
-          next.court_division = 'CRIMINAL';
-          next.procedure_track = 'CRIMINAL_CASE';
-          next.monetary_relief_type = 'NO_MONETARY_RELIEF';
-          next.claim_amount = '';
-        } else if (value === 'INSURANCE') {
-          next.case_type = 'CIVIL';
-          next.court_type = 'MAGISTRATE';
-          next.court_level = COURT_LEVEL_BY_TYPE.MAGISTRATE;
-          next.court_division = 'CIVIL';
-          next.procedure_track = 'CIVIL_SUIT';
-        } else if (value === 'CIVIL_COMMERCIAL_LITIGATION') {
-          next.case_type = 'COMMERCIAL';
-          next.procedure_track = 'CIVIL_SUIT';
-          next.court_type = 'HIGH_COURT';
-          next.court_level = COURT_LEVEL_BY_TYPE.HIGH_COURT;
-          next.court_division = 'COMMERCIAL_TAX';
-        } else if (value === 'JUDICIAL_REVIEW') {
-          next.case_type = 'JUDICIAL_REVIEW';
-          next.procedure_track = 'JUDICIAL_REVIEW';
-          next.court_type = 'HIGH_COURT';
-          next.court_level = COURT_LEVEL_BY_TYPE.HIGH_COURT;
-          next.court_division = 'JUDICIAL_REVIEW';
-        } else if (value === 'CONSTITUTIONAL_HUMAN_RIGHTS') {
-          next.case_type = 'CONSTITUTIONAL';
-          next.procedure_track = 'CONSTITUTIONAL_PETITION';
-          next.court_type = 'HIGH_COURT';
-          next.court_level = COURT_LEVEL_BY_TYPE.HIGH_COURT;
-          next.court_division = 'CONSTITUTIONAL_HUMAN_RIGHTS';
-        }
-      }
+      if (name === 'practice_area') Object.assign(next, practiceAreaDefaults(value));
 
       if (name === 'court_type') {
         next.court_level = COURT_LEVEL_BY_TYPE[value] || '';
@@ -649,9 +601,9 @@ export default function CaseCreateForm({
             )}
             {selectedClient && (
               <div className='grid gap-4 rounded-xl border border-border-light bg-surface-light/60 p-5 text-sm dark:border-border-dark dark:bg-surface-dark/60 md:grid-cols-2'>
-                <p><strong>Client type:</strong> {selectedClient.client_type || 'Not recorded'}</p>
-                <p><strong>Lifecycle:</strong> {selectedClient.lifecycle_status || 'Not recorded'}</p>
-                <p><strong>Portal access:</strong> {selectedClient.portal_access_exists ? 'Exists' : selectedClient.access_type || 'Not recorded'}</p>
+                <p><strong>Client type:</strong> {selectedClient.client_type_label || enumLabel(selectedClient.client_type) || 'Not recorded'}</p>
+                <p><strong>Lifecycle:</strong> {enumLabel(selectedClient.lifecycle_status) || 'Not recorded'}</p>
+                <p><strong>Portal access:</strong> {selectedClient.portal_access_exists ? 'Exists' : enumLabel(selectedClient.access_type) || 'Not recorded'}</p>
                 <p><strong>Primary contact:</strong> {formatPrimaryContact(selectedClient)}</p>
               </div>
             )}
