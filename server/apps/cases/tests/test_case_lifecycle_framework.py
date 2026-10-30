@@ -281,6 +281,34 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertTrue(FilingRegisterService.pre_filing_recommendation(case).startswith("Await demand response"))
         self.assertEqual(FilingRegisterService.originating_document(case), "statement of claim")
 
+    def test_filing_refuses_the_e_filing_reference_as_the_court_number(self):
+        from rest_framework.exceptions import ValidationError
+        from apps.cases.services.case_lifecycle_service import CaseLifecycleService
+
+        case = self.create_case()
+        with self.assertRaises(ValidationError) as refused:
+            CaseLifecycleService.validate_court_stage_requirements(case=case, to_state=Case.CourtStage.FILED, metadata={
+                "filing_date": "2026-10-30", "official_court_case_number": " EF-2026-118734",
+                "efiling_reference": "EF-2026-118734", "court_station": "Nairobi", "registry": "ELRC Registry",
+            })
+        self.assertIn("not the e-filing reference", str(refused.exception.detail))
+
+    def test_filing_an_employment_claim_records_a_statement_of_claim_and_ends_the_limitation_watch(self):
+        from apps.cases.models import CaseFiling, MatterDeadline
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
+        payload = self.payload("CASE-ELRC-FILED")
+        payload["limitation_date"] = "2029-09-06"
+        self.assertEqual(self.api.post(reverse("case-create"), payload, format="json").status_code, 201)
+        case = Case.objects.get(official_court_case_number="CASE-ELRC-FILED")
+        case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
+        case.save(update_fields=["procedure_track"])
+        case.filings.all().delete()
+        FilingRegisterService.record_originating_filing(case=case, actor=self.admin)
+        filing = case.filings.get()
+        self.assertEqual((filing.filing_type, filing.title), (CaseFiling.FilingType.ORIGINATING_CLAIM, "Statement of claim"))
+        self.assertEqual(case.deadlines.get(source="LIMITATION:opening").status, MatterDeadline.Status.COMPLETED)
+
     def test_employment_cannot_end_on_a_future_date(self):
         payload = self.payload("CASE-EMPLOYMENT-FUTURE")
         payload["practice_area"] = "EMPLOYMENT_LABOUR"

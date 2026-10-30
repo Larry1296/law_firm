@@ -1244,6 +1244,21 @@ class CaseLifecycleService:
             )
 
 
+            # Stray spaces are dropped, and the e-filing reference is not mistaken for the court's number.
+            for key, value in list(metadata.items()):
+                if isinstance(value, str):
+                    metadata[key] = value.strip()
+            if (
+                metadata.get("official_court_case_number")
+                and metadata.get("official_court_case_number") == metadata.get("efiling_reference")
+            ):
+                raise ValidationError({
+                    "official_court_case_number": (
+                        "Enter the case number the court assigned (for example ELRC Cause No. E512 of 2026), "
+                        "not the e-filing reference."
+                    ),
+                })
+
             official_number = (
                 metadata.get("official_court_case_number")
                 or metadata.get("cts_reference")

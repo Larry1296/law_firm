@@ -125,11 +125,12 @@ class FilingRegisterService:
         case.refresh_from_db()
         filed_at = timezone.make_aware(datetime.combine(case.filing_date, time(9, 0))) if case.filing_date else timezone.now()
         if not case.filings.filter(filing_type__in=cls.ORIGINATING_TYPES).exclude(status=CaseFiling.FilingStatus.WITHDRAWN).exists():
+            document = cls.originating_document(case)
             CaseFiling.objects.create(
                 case=case,
-                filing_type=CaseFiling.FilingType.PLAINT,
+                filing_type=CaseFiling.FilingType.PLAINT if document == "plaint" else CaseFiling.FilingType.ORIGINATING_CLAIM,
                 status=CaseFiling.FilingStatus.FILED,
-                title="Plaint",
+                title=document[:1].upper() + document[1:],
                 filed_at=filed_at,
                 official_court_case_number=case.official_court_case_number,
                 efiling_reference=case.efiling_reference,
@@ -140,8 +141,10 @@ class FilingRegisterService:
                 source="COURT_STAGE_FILED",
                 filed_by=actor,
             )
+        # Filing answers both the demand period and the limitation period.
         MatterDeadline.objects.filter(
-            matter=case, source__startswith="FILING:", source__endswith=":DEMAND_EXPIRY", status=MatterDeadline.Status.OPEN,
+            Q(source__startswith="FILING:", source__endswith=":DEMAND_EXPIRY") | Q(source="LIMITATION:opening"),
+            matter=case, status=MatterDeadline.Status.OPEN,
         ).update(status=MatterDeadline.Status.COMPLETED, completed_by=actor, completed_at=timezone.now())
         proceeding = getattr(case, "court_proceeding", None)
         if proceeding is not None:
