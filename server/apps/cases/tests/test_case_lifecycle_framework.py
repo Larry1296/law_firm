@@ -358,6 +358,10 @@ class CaseLifecycleFrameworkTests(TestCase):
         # The reply does not close pleadings at the ELRC; they close 14 days after it is served.
         self.assertEqual(case.court_stage, Case.CourtStage.PLEADINGS_OPEN)
         self.assertEqual(case.deadlines.get(source=f"REPLY:{case.id}").status, "COMPLETED")
+        from apps.cases.serializers.case_filing_serializer import CaseFilingSerializer
+
+        labels = {item["filing_type"]: item["filing_type_label"] for item in CaseFilingSerializer(case.filings.all(), many=True).data}
+        self.assertEqual((labels["DEFENCE"], labels["REPLY_TO_DEFENCE"]), ("Response", "Reply to response"))
         closing.refresh_from_db()
         self.assertEqual(timezone.localdate(closing.due_at), timezone.localdate(replied) + timedelta(days=14))
         self.assertTrue(case.next_action.startswith("Pleadings close on"))

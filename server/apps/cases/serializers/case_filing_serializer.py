@@ -1,11 +1,24 @@
 from rest_framework import serializers
 
-from apps.cases.models import CaseFiling
+from apps.cases.models import Case, CaseFiling
+
+# The ELRC (Procedure) Rules, 2024 call the respondent's answer a response (rule 29(1)) and the
+# claimant's answer to it a reply (rule 29(3)); the filing register form uses the same names.
+ELRC_FILING_LABELS = {
+    CaseFiling.FilingType.DEFENCE: "Response",
+    CaseFiling.FilingType.REPLY_TO_DEFENCE: "Reply to response",
+    CaseFiling.FilingType.REQUEST_FOR_JUDGMENT: "Request for judgment in default of a response",
+}
 
 
 class CaseFilingSerializer(serializers.ModelSerializer):
-    filing_type_label = serializers.CharField(source="get_filing_type_display", read_only=True)
+    filing_type_label = serializers.SerializerMethodField()
     status_label = serializers.SerializerMethodField()
+
+    def get_filing_type_label(self, obj):
+        if obj.case.procedure_track == Case.ProcedureTrack.EMPLOYMENT_CLAIM and obj.filing_type in ELRC_FILING_LABELS:
+            return ELRC_FILING_LABELS[obj.filing_type]
+        return obj.get_filing_type_display()
 
     def get_status_label(self, obj):
         # A demand letter is sent to the other side, not served on it through the court.
