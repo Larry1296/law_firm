@@ -20,8 +20,10 @@ import '@/index.css';
 import App from '@/App';
 import AuthProvider from '@/core/store/AuthProvider';
 import { installFormValidationUX } from '@/core/forms/installFormValidationUX';
+import { installNumberInputGuard } from '@/core/forms/installNumberInputGuard';
 
 installFormValidationUX();
+installNumberInputGuard();
 
 /* =========================================================
    QUERY CLIENT (GLOBAL SINGLETON)
