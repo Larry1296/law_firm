@@ -33,11 +33,30 @@ describe('summons service diary', () => {
   it('starts what it records at now and counts the ELRC response from the day of service', () => {
     render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'FILED', procedure_track: 'EMPLOYMENT_CLAIM', filings: [], efiling_reference: 'EF-2026-118734', parties: [{ name: 'Baraka Supplies Limited', is_adverse: true }] }} showStage={false} /></QueryClientProvider>);
     expect(screen.getByLabelText('Title')).toHaveProperty('value', 'Summons and statement of claim served on Baraka Supplies Limited');
-    expect(screen.getByLabelText('E-filing reference')).toHaveProperty('value', 'EF-2026-118734');
+    // The claim's e-filing reference belongs to the claim; each paper takes its own.
+    expect(screen.getByLabelText('E-filing reference')).toHaveProperty('value', '');
     expect(screen.getByLabelText('Payment reference')).toHaveProperty('value', '');
     expect(screen.getByLabelText('Date served').value.slice(0, 10)).toBe(new Date().toLocaleDateString('en-CA'));
     fireEvent.change(screen.getByLabelText('Date served'), { target: { value: '2026-10-30T14:00' } });
     expect(screen.getByLabelText(/Response due date/)).toHaveProperty('value', '2026-11-27');
+  });
+
+  it('offers the reply after the response and asks for the paper once pleadings are past it', () => {
+    const filings = [{ filing_type: 'DEFENCE' }];
+    const { rerender } = render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'PLEADINGS_OPEN', procedure_track: 'EMPLOYMENT_CLAIM', filings }} showStage={false} /></QueryClientProvider>);
+    expect(screen.getByLabelText('Paper')).toHaveProperty('value', 'REPLY_TO_DEFENCE');
+    rerender(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-2', court_stage: 'PLEADINGS_OPEN', procedure_track: 'EMPLOYMENT_CLAIM', filings: [...filings, { filing_type: 'REPLY_TO_DEFENCE' }] }} showStage={false} /></QueryClientProvider>);
+    expect(screen.getByLabelText('Paper')).toHaveProperty('value', '');
+  });
+
+  it('asks no court fees for a demand letter or the other side\'s response', () => {
+    render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'NOT_FILED', procedure_track: 'EMPLOYMENT_CLAIM', filings: [] }} showStage={false} /></QueryClientProvider>);
+    expect(screen.getByLabelText('Paper')).toHaveProperty('value', 'DEMAND_LETTER');
+    expect(screen.queryByLabelText('E-filing reference')).toBeNull();
+    expect(screen.queryByLabelText('Court fees (KES)')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Paper'), { target: { value: 'DEFENCE' } });
+    expect(screen.getByLabelText('E-filing reference')).toBeTruthy();
+    expect(screen.queryByLabelText('Receipt number')).toBeNull();
   });
 
   it('swears the affidavit to the service already recorded', async () => {

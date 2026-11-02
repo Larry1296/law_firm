@@ -49,16 +49,22 @@ const registerTypesFor = (caseData) => (caseData.procedure_track === 'EMPLOYMENT
   ? REGISTER_TYPES.filter(([value]) => value !== 'MEMORANDUM_OF_APPEARANCE').map(([value, label]) => [value, ELRC_PAPERS[value] || label])
   : REGISTER_TYPES);
 
-// The paper the matter needs next: a demand before filing, then service, then the other side's answer.
+// The paper the matter needs next: a demand before filing, then service, the other side's answer and the reply.
+// Past that no single paper follows, so the form asks which one is being recorded.
 const nextPaper = (caseData) => {
+  const filed = (type) => (caseData.filings || []).some((filing) => filing.filing_type === type);
   const served = (caseData.filings || []).some((filing) => filing.filing_type === 'SUMMONS' && filing.served_at);
   if (['NOT_FILED', 'READY_FOR_FILING'].includes(caseData.court_stage)) return 'DEMAND_LETTER';
   if (['FILED', 'AWAITING_ASSESSMENT_OR_PAYMENT', 'AWAITING_SERVICE', 'SERVICE_IN_PROGRESS'].includes(caseData.court_stage)) {
     return served ? 'AFFIDAVIT_OF_SERVICE' : 'SUMMONS';
   }
   if (caseData.court_stage === 'AWAITING_RESPONSE') return 'DEFENCE';
-  return 'DEMAND_LETTER';
+  if (caseData.court_stage === 'PLEADINGS_OPEN' && !filed('REPLY_TO_DEFENCE')) return 'REPLY_TO_DEFENCE';
+  return '';
 };
+// A demand letter is not filed in court, and the other side's papers carry their own fees and receipts.
+const NOT_FILED_IN_COURT = new Set(['DEMAND_LETTER']);
+const OTHER_SIDE_PAPERS = new Set(['DEFENCE', 'MEMORANDUM_OF_APPEARANCE']);
 
 const inputClass = 'form-control';
 const friendly = (value) => (value || '').replaceAll('_', ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
@@ -136,9 +142,8 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   // What is recorded has just happened, so its times start at now; at the ELRC the response is due 28 days after service.
   const freshEntry = () => {
     const now = localDateTime();
-    // Papers in the same matter carry the matter's e-filing reference; fees and receipts are per payment.
-    const efilingReference = caseData.court_proceeding?.efiling_reference || caseData.efiling_reference || '';
-    return { ...emptyEntry, efiling_reference: efilingReference, filed_at: now, served_at: now, response_due_date: caseData.procedure_track === 'EMPLOYMENT_CLAIM' ? addDays(localDate(), ELRC_RESPONSE_DAYS) : '' };
+    // Each paper has its own e-filing reference, fees and receipt, read from that paper's e-filing record.
+    return { ...emptyEntry, filed_at: now, served_at: now, response_due_date: caseData.procedure_track === 'EMPLOYMENT_CLAIM' ? addDays(localDate(), ELRC_RESPONSE_DAYS) : '' };
   };
   const [entry, setEntry] = useState(freshEntry);
   const registerTypes = registerTypesFor(caseData);
@@ -191,10 +196,13 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       served_at: SERVICE_TYPES.has(paper) ? toIso(servedAt) : null,
       response_due_date: SERVICE_TYPES.has(paper) ? responseDue : null,
       response_period_days: paper === 'DEMAND_LETTER' ? Number(entry.response_period_days) : null,
-      efiling_reference: entry.efiling_reference,
-      court_fee_amount: entry.court_fee_amount,
-      payment_reference: entry.payment_reference,
-      receipt_number: entry.receipt_number,
+      // Only the fields shown for this paper are sent.
+      efiling_reference: NOT_FILED_IN_COURT.has(paper) ? null : entry.efiling_reference,
+      ...(NOT_FILED_IN_COURT.has(paper) || OTHER_SIDE_PAPERS.has(paper) ? {} : {
+        court_fee_amount: entry.court_fee_amount,
+        payment_reference: entry.payment_reference,
+        receipt_number: entry.receipt_number,
+      }),
     });
     setBusy(true);
     try {
@@ -248,7 +256,8 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
             <h4 className='font-semibold'>Filing register</h4>
           </div>
           <Field label='Paper'>
-            <select name='filing_type' value={paper} onChange={updateEntry} className={inputClass}>
+            <select name='filing_type' value={paper} onChange={updateEntry} className={inputClass} required>
+              <option value=''>Select the paper</option>
               {registerTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </Field>
@@ -276,10 +285,16 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
             </Field>
             </>
           )}
-          <Field label='E-filing reference'><input name='efiling_reference' value={entry.efiling_reference} onChange={updateEntry} className={inputClass} /></Field>
-          <Field label='Court fees (KES)'><input type='number' step='0.01' min='0' name='court_fee_amount' value={entry.court_fee_amount} onChange={updateEntry} className={inputClass} /></Field>
-          <Field label='Payment reference'><input name='payment_reference' value={entry.payment_reference} onChange={updateEntry} className={inputClass} /></Field>
-          <Field label='Receipt number'><input name='receipt_number' value={entry.receipt_number} onChange={updateEntry} className={inputClass} /></Field>
+          {!NOT_FILED_IN_COURT.has(paper) && (
+            <Field label='E-filing reference'><input name='efiling_reference' value={entry.efiling_reference} onChange={updateEntry} className={inputClass} /></Field>
+          )}
+          {!NOT_FILED_IN_COURT.has(paper) && !OTHER_SIDE_PAPERS.has(paper) && (
+            <>
+            <Field label='Court fees (KES)'><input type='number' step='0.01' min='0' name='court_fee_amount' value={entry.court_fee_amount} onChange={updateEntry} className={inputClass} /></Field>
+            <Field label='Payment reference'><input name='payment_reference' value={entry.payment_reference} onChange={updateEntry} className={inputClass} /></Field>
+            <Field label='Receipt number'><input name='receipt_number' value={entry.receipt_number} onChange={updateEntry} className={inputClass} /></Field>
+            </>
+          )}
           <div className='md:col-span-2'>
             <button type='submit' disabled={busy} className='inline-flex min-h-11 items-center rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50'>
               Record in register
