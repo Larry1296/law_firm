@@ -9,7 +9,7 @@ from apps.billing.models import (
     CreditNote, Disbursement, FinancialAccount, Invoice, LedgerTransaction,
     ClientFundsLedger, MatterClientLedger, ReceiptReversal, TimeEntry,
 )
-from apps.billing.services.finance_service import ClientMoneyService, CreditNoteService, InvoiceService
+from apps.billing.services.finance_service import ClientMoneyService, CreditNoteService, FinanceAccess, InvoiceService, OperationalFinanceService
 from apps.billing.serializers.finance_serializer import PreMatterRetainerReceiptSerializer
 from apps.cases.models import Case
 from apps.clients.models import Client, ClientMatterConflictCheck, EngagementRecord
@@ -94,6 +94,30 @@ class FinancialControlTests(TestCase):
             ClientMoneyService.approve_payment(user=self.owner, instruction_id=instruction.id)
         ClientMoneyService.approve_payment(user=self.checker_user, instruction_id=instruction.id)
         self.assertEqual(MatterClientLedger.objects.get(matter=self.matter).cleared_balance, Decimal("600"))
+
+    def test_a_sole_practitioner_approves_their_own_finance_records(self):
+        # A sole practitioner keeps the books personally and has no second person to approve.
+        self.firm.business_structure = LawFirm.BusinessStructure.SOLE_PRACTITIONER
+        self.firm.save(update_fields=["business_structure"])
+        self.receive()
+        instruction = ClientMoneyService.request_payment(
+            user=self.owner, matter_id=self.matter.id, account_id=self.client_account.id,
+            data={"beneficiary_name": "Registry", "beneficiary_details": {"account": "REG-001"}, "amount": Decimal("400"),
+                  "currency": "KES", "purpose": "Filing", "payment_basis": "Written instruction"},
+        )
+        ClientMoneyService.approve_payment(user=self.owner, instruction_id=instruction.id)
+        self.assertEqual(MatterClientLedger.objects.get(matter=self.matter).cleared_balance, Decimal("600"))
+        disbursement = Disbursement.objects.create(
+            firm=self.firm, matter=self.matter, disbursement_type="COURT_FEES", description="Filing fee",
+            supplier_payee="Judiciary", amount=Decimal("1650"), currency="KES", date_incurred=date(2026, 10, 30),
+            funding_source=Disbursement.FundingSource.FIRM, recoverable_from_client=True,
+            approval_status=Disbursement.ApprovalStatus.PENDING, created_by=self.owner,
+        )
+        OperationalFinanceService.approve_disbursement(user=self.owner, disbursement_id=disbursement.id)
+        disbursement.refresh_from_db()
+        self.assertEqual(disbursement.approval_status, Disbursement.ApprovalStatus.APPROVED)
+        # Anyone else in the firm is still refused their own records.
+        self.assertFalse(FinanceAccess.sole_signatory(self.firm, self.checker_user))
 
     def test_posted_transaction_is_immutable_and_reversal_preserves_original(self):
         _, original = self.receive()

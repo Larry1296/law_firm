@@ -36,6 +36,17 @@ class FinanceAccess:
             raise PermissionDenied(f"Financial permission {code} is required.")
         return firm
 
+    @staticmethod
+    def sole_signatory(firm, user):
+        """A sole practitioner keeps the books personally, so has no second person to approve.
+
+        Every other firm keeps maker-checker: the preparer of an entry cannot approve it.
+        """
+        return (
+            firm.business_structure == firm.BusinessStructure.SOLE_PRACTITIONER
+            and user.role == UserRole.ADMIN and firm.owner_id == user.id
+        )
+
 
 class InvoiceService:
     CENT = Decimal("0.01")
@@ -152,7 +163,7 @@ class InvoiceService:
         invoice = Invoice.objects.select_for_update().get(id=invoice_id, firm=firm)
         if invoice.status != Invoice.Status.PENDING_APPROVAL:
             raise ValidationError({"status": "Only pending invoices may be approved."})
-        if invoice.created_by_id == user.id:
+        if invoice.created_by_id == user.id and not FinanceAccess.sole_signatory(firm, user):
             raise PermissionDenied("The invoice maker cannot approve their own invoice.")
         invoice.status = Invoice.Status.APPROVED
         invoice.approved_by = user
@@ -268,7 +279,7 @@ class CreditNoteService:
         note = CreditNote.objects.select_for_update().get(id=credit_note_id, firm=firm)
         if note.status != CreditNote.Status.PENDING_APPROVAL:
             raise ValidationError({"status": "Only pending credit notes may be approved."})
-        if note.created_by_id == user.id:
+        if note.created_by_id == user.id and not FinanceAccess.sole_signatory(firm, user):
             raise PermissionDenied("The credit-note maker cannot approve their own credit note.")
         note.status = CreditNote.Status.APPROVED
         note.approved_by = user
@@ -484,7 +495,7 @@ class ClientMoneyService:
         )
         if instruction.status != PaymentInstruction.Status.PENDING_APPROVAL:
             raise ValidationError({"status": "Only pending payment instructions may be approved."})
-        if instruction.maker_id == user.id:
+        if instruction.maker_id == user.id and not FinanceAccess.sole_signatory(firm, user):
             raise PermissionDenied("The payment maker cannot approve their own instruction.")
         ledger = MatterClientLedger.objects.select_for_update().get(id=instruction.ledger_id, firm=firm)
         if ledger.cleared_balance < instruction.amount:
@@ -674,7 +685,7 @@ class OperationalFinanceService:
         entry = TimeEntry.objects.select_for_update().get(id=entry_id, firm=firm)
         if entry.approval_status != TimeEntry.ApprovalStatus.PENDING:
             raise ValidationError({"status": "Only pending time entries may be approved."})
-        if entry.staff_member_id == user.id:
+        if entry.staff_member_id == user.id and not FinanceAccess.sole_signatory(firm, user):
             raise PermissionDenied("A staff member cannot approve their own time entry.")
         entry.approval_status = TimeEntry.ApprovalStatus.APPROVED
         entry.approved_by = user
@@ -705,7 +716,7 @@ class OperationalFinanceService:
         record = Disbursement.objects.select_for_update().get(id=disbursement_id, firm=firm)
         if record.approval_status != Disbursement.ApprovalStatus.PENDING:
             raise ValidationError({"status": "Only pending disbursements may be approved."})
-        if record.created_by_id == user.id:
+        if record.created_by_id == user.id and not FinanceAccess.sole_signatory(firm, user):
             raise PermissionDenied("The disbursement maker cannot approve their own record.")
         record.approval_status = Disbursement.ApprovalStatus.APPROVED
         record.approved_by = user
@@ -775,7 +786,7 @@ class OperationalFinanceService:
         record = AccountReconciliation.objects.select_for_update().get(id=reconciliation_id, firm=firm)
         if record.status != AccountReconciliation.Status.DRAFT:
             raise ValidationError({"status": "Only draft reconciliations may be approved."})
-        if record.prepared_by_id == user.id:
+        if record.prepared_by_id == user.id and not FinanceAccess.sole_signatory(firm, user):
             raise PermissionDenied("The reconciliation preparer cannot approve their own reconciliation.")
         if record.difference != 0:
             raise ValidationError({"difference": "An unexplained reconciliation difference cannot be approved."})
