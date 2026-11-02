@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import adminCasesService from '../services/adminCasesService';
 import ActionModal from '@/components/ui/ActionModal';
+import { localDateInput } from '@/core/utils/dateFormatter';
 
 const WORKSTREAM_STAGES = {
   LITIGATION: ['PRE_ACTION','NOTICE','DRAFTING','FILING','REGISTRY_ACCEPTANCE','SERVICE','PLEADINGS','INTERIM_APPLICATIONS','CASE_MANAGEMENT','PRE_TRIAL','HEARING','SUBMISSIONS','JUDGMENT','DECREE','APPEAL_REVIEW','ENFORCEMENT','SETTLEMENT','CONCLUSION'],
@@ -37,7 +38,7 @@ const localInput = (value) => {
 };
 const input = 'w-full rounded-lg border border-border-light bg-transparent px-3 py-2 text-sm dark:border-border-dark';
 const button = 'rounded-lg bg-brand-primary px-3 py-2 text-sm font-semibold text-white disabled:opacity-50';
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDateInput();
 const split = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
 const label = (value = '') => {
   const text = value.replaceAll('_', ' ').toLowerCase();

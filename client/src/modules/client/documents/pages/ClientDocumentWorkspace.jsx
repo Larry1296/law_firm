@@ -8,6 +8,7 @@ import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import documentsService from '@/modules/client/documents/services/documentsService';
+import { localDateInput } from '@/core/utils/dateFormatter';
 
 // What each request status means to the client. Only the first two wait for the client.
 const REQUEST_STATES = {
@@ -25,7 +26,7 @@ const DELIVERY_METHODS = [
   { value: 'OTHER', label: 'Another way (explain below)' },
 ];
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDateInput();
 
 function DeliveryForm({ item, onDone }) {
   const [method, setMethod] = useState('IN_PERSON');

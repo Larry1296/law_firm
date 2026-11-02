@@ -30,7 +30,17 @@ export const formatDate = (value, locale = undefined) => {
   }).format(date);
 };
 
+// The calendar date (YYYY-MM-DD) for a date input, on the user's own clock. toISOString() would give the
+// UTC date, which in Nairobi (UTC+3) is still yesterday until 3 a.m.
+export const localDateInput = (value = new Date()) => {
+  const date = toDate(value);
+  if (!date) return '';
+  const pad = (number) => String(number).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
 export default {
   formatDateTime,
   formatDate,
+  localDateInput,
 };

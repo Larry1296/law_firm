@@ -21,6 +21,7 @@ import Swal from "@/core/utils/themedSwal";
 import { autoGrow } from '@/components/ui/autoGrow';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import useSubscription from '@/modules/subscription/hooks/useSubscription';
+import { localDateInput } from '@/core/utils/dateFormatter';
 
 const timezoneOptions = {
   'Africa/Nairobi': 'Africa/Nairobi',
@@ -593,7 +594,7 @@ export default function AdminFirmPage() {
   };
 
   const openOwnerLawyerForm = async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateInput();
     const result = await Swal.fire({
       title: 'Confirm Owner Lawyer Role',
       html: `

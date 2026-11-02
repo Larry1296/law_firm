@@ -1,4 +1,5 @@
 import { COURT_TYPES, ENTRY_ROUTES, PROCEDURE_TRACKS } from './caseCreateOptions.js';
+import { localDateInput } from '@/core/utils/dateFormatter';
 
 const isBlank = (value) => value === undefined || value === null || String(value).trim() === '';
 const isElectronicFiling = (value) => ['ELECTRONIC', 'EFILING', 'E-FILING'].includes(String(value || '').trim().toUpperCase());
@@ -38,7 +39,7 @@ export const validateCaseCreateForm = (formData = {}, context = {}) => {
   }
 
   if (formData.practice_area === 'EMPLOYMENT_LABOUR') {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateInput();
     if (!isBlank(formData.employment_start_date) && formData.employment_start_date > today) {
       addError(errors, 'employment_start_date', 'Employment cannot start on a future date.');
     }

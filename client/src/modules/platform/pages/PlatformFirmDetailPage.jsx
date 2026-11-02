@@ -26,8 +26,9 @@ import {
   Table,
 } from '@/modules/platform/components/ui';
 import { cellClass, formatDateTime, inputClass } from '@/modules/platform/components/styles';
+import { localDateInput } from '@/core/utils/dateFormatter';
 
-const toDateInput = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '');
+const toDateInput = (value) => (value ? localDateInput(value) : '');
 const fromDateInput = (value) => (value ? new Date(`${value}T23:59:00`).toISOString() : null);
 
 const PROFILE_FIELDS = [

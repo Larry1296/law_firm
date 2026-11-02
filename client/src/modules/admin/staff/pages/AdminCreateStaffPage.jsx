@@ -17,6 +17,7 @@ import { useAdminStaff } from '@/modules/admin/staff/hooks/useAdminStaff';
 import StaffPermissionPicker from '@/modules/admin/staff/components/StaffPermissionPicker';
 import AdvocateChecklist from '@/modules/admin/staff/components/AdvocateChecklist';
 import useSubscription from '@/modules/subscription/hooks/useSubscription';
+import { localDateInput } from '@/core/utils/dateFormatter';
 
 const STAFF_ROLE_OPTIONS = [
   { value: 'LAWYER', label: 'Lawyer', defaultJobTitle: 'Lawyer' },
@@ -111,7 +112,7 @@ export default function AdminCreateStaffPage() {
     practicing_certificate_expiry: '',
     bar_admission_date: '',
     employment_type: 'PERMANENT',
-    date_hired: new Date().toISOString().slice(0, 10),
+    date_hired: localDateInput(),
     professional_summary: '',
     can_prepare_documents: true,
     can_schedule_appointments: true,

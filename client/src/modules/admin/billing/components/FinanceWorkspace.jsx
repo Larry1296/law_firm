@@ -6,11 +6,12 @@ import { withCriticalAction } from '@/core/utils/confirmationContext';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import adminBillingService from '../services/adminBillingService';
 import ActionModal from '@/components/ui/ActionModal';
+import { localDateInput } from '@/core/utils/dateFormatter';
 
 const field = 'w-full rounded-lg border border-border-light bg-surface-light px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-dark';
 const button = 'rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50';
 const linkButton = 'font-semibold text-brand-primary underline-offset-2 hover:underline dark:text-blue-300';
-const today = new Date().toISOString().slice(0, 10);
+const today = localDateInput();
 const money = (currency, value) => `${currency || 'KES'} ${Number(value || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const PAYMENT_METHODS = [
