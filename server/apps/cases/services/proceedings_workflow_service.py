@@ -288,6 +288,11 @@ class ProceedingsWorkflowService:
         )
         recommendation = None if pending else cls.recommended_next_action(case)
         next_action = pending.title if pending else (recommendation or {}).get("label", "")
+        if pending:
+            from apps.cases.services.filing_register_service import FilingRegisterService
+
+            # A dated step such as the close of pleadings comes before a later court date.
+            next_action = FilingRegisterService.step_due_before(case, pending.starts_at) or next_action
         next_date = pending.starts_at if pending else None
         previous = {
             "next_action": case.next_action,

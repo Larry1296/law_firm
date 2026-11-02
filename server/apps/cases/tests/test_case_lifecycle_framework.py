@@ -381,6 +381,36 @@ class CaseLifecycleFrameworkTests(TestCase):
         })
         self.assertEqual(case.deadlines.get(source=f"PRE_TRIAL:{case.id}").status, "COMPLETED")
 
+    def test_a_close_of_pleadings_before_the_next_court_date_leads_the_next_action(self):
+        from apps.cases.models import MatterDeadline
+        from apps.cases.services.filing_register_service import FilingRegisterService
+        from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
+
+        case = self.create_case()
+        case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
+        case.court_stage = Case.CourtStage.PLEADINGS_OPEN
+        case.save(update_fields=["procedure_track", "court_stage"])
+        FilingRegisterService._deadline(
+            case, self.admin, key=f"PLEADINGS_CLOSE:{case.id}", due=timezone.localdate() + timedelta(days=10),
+            deadline_type=MatterDeadline.Type.FILING, priority="MEDIUM",
+            description=FilingRegisterService.PLEADINGS_CLOSE_DESCRIPTION,
+        )
+        mention = CaseEvent.objects.create(
+            case=case, event_type=CaseEvent.EventType.MENTION, title="Mention",
+            starts_at=timezone.now() + timedelta(days=15), created_by=self.admin,
+        )
+        ProceedingsWorkflowService._resync_next_action(case, actor=self.admin)
+        case.refresh_from_db()
+        self.assertTrue(case.next_action.startswith("Pleadings close on"), case.next_action)
+        self.assertEqual(case.next_court_date, mention.starts_at)
+
+        # A court date that comes first still leads.
+        mention.starts_at = timezone.now() + timedelta(days=5)
+        mention.save(update_fields=["starts_at"])
+        ProceedingsWorkflowService._resync_next_action(case, actor=self.admin)
+        case.refresh_from_db()
+        self.assertEqual(case.next_action, "Mention")
+
     def test_employment_cannot_end_on_a_future_date(self):
         payload = self.payload("CASE-EMPLOYMENT-FUTURE")
         payload["practice_area"] = "EMPLOYMENT_LABOUR"

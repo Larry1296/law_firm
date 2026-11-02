@@ -447,6 +447,18 @@ class FilingRegisterService:
             return f"Await demand response (due {demand.response_due_date:%d %b %Y})"
         return None
 
+    # Dated register steps that service_recommendation names.
+    DATED_STEP_KEYS = ("APPEARANCE", "DEFENCE", "REPLY", "PLEADINGS_CLOSE", "PRE_TRIAL")
+
+    @classmethod
+    def step_due_before(cls, case, when):
+        """The register step to headline when its open deadline falls before the next court date."""
+        due_first = MatterDeadline.objects.filter(
+            matter=case, status=MatterDeadline.Status.OPEN, due_at__lt=when,
+            source__in=[f"{key}:{case.id}" for key in cls.DATED_STEP_KEYS],
+        ).exists()
+        return cls.service_recommendation(case) if due_first else None
+
     @classmethod
     def service_recommendation(cls, case):
         if case.court_stage in {Case.CourtStage.FILED, Case.CourtStage.AWAITING_ASSESSMENT_OR_PAYMENT, Case.CourtStage.AWAITING_SERVICE, Case.CourtStage.SERVICE_IN_PROGRESS}:
