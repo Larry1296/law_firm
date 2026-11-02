@@ -162,6 +162,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
     ? `VAT ${Number(currentTax.vat_rate)}%${currentTax.tax_inclusive ? ' (included in the fee)' : ' added on professional fees'}, from ${currentTax.effective_from}`
     : 'No VAT: the firm is not VAT-registered, or no tax setting is in effect';
 
+  // A reversed entry shows no Reverse link: the server refuses a second reversal.
   const inspectLedger = () => run(async () => { const data = await adminBillingService.getMatterLedger(ledgerMatter); setLedger(data.ledger); });
 
   return <div className='space-y-6 p-4 text-text-primary-light dark:text-text-primary-dark sm:p-6'>
@@ -406,7 +407,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
         <p className='font-semibold'>Cleared balance: {money(ledger.currency, ledger.cleared_balance)}</p>
         <div className='overflow-x-auto'><table className='w-full min-w-[640px] text-left text-xs'>
           <thead><tr>{['Posted', 'Type', 'Direction', 'Amount', 'Narrative', ''].map((x) => <th className='p-2 font-medium' key={x}>{x}</th>)}</tr></thead>
-          <tbody>{ledger.transactions?.map((item) => <tr key={item.id}><td className='p-2'>{new Date(item.posted_at).toLocaleString('en-KE')}</td><td className='p-2'>{item.transaction_type}</td><td className='p-2'>{item.direction}</td><td className='p-2 tabular-nums'>{item.amount}</td><td className='p-2'>{item.narrative}</td><td className='p-2'>{!item.original_transaction && <button className={linkButton} onClick={() => setModal({ title: 'Reverse posted transaction', summary: `${item.transaction_type} ${item.amount} — the original stays on record.`, fields: [{ name: 'reason', label: 'Reversal reason', type: 'textarea' }], submit: ({ reason }) => run(() => adminBillingService.reverseTransaction(item.id, reason), 'Linked reversal posted; original retained.') })}>Reverse</button>}</td></tr>)}</tbody>
+          <tbody>{ledger.transactions?.map((item) => <tr key={item.id}><td className='p-2'>{new Date(item.posted_at).toLocaleString('en-KE')}</td><td className='p-2'>{item.transaction_type}</td><td className='p-2'>{item.direction}</td><td className='p-2 tabular-nums'>{item.amount}</td><td className='p-2'>{item.narrative}</td><td className='p-2'>{!item.original_transaction && !ledger.transactions.some((entry) => entry.original_transaction === item.id) && <button className={linkButton} onClick={() => setModal({ title: 'Reverse posted transaction', summary: `${item.transaction_type} ${item.amount} — the original stays on record.`, fields: [{ name: 'reason', label: 'Reversal reason', type: 'textarea' }], submit: ({ reason }) => run(() => adminBillingService.reverseTransaction(item.id, reason), 'Linked reversal posted; original retained.') })}>Reverse</button>}</td></tr>)}</tbody>
         </table></div>
       </div>}
     </section>
