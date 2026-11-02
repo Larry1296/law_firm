@@ -62,7 +62,7 @@ export default function CaseProcedurePanels({ caseData }) {
       />
 
       <ProcedureList
-        title='Deadlines and Tasks'
+        title='Tasks'
         items={caseData.tasks || []}
         renderItem={(task) => (
           <div key={task.id} className='rounded-xl border border-border-light p-4 dark:border-border-dark'>
