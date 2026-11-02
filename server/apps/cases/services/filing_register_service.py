@@ -121,6 +121,7 @@ class FilingRegisterService:
             is_client_visible=data.get("is_client_visible", True),
         )
         cls._seed_deadlines(case, filing, user)
+        cls.court_fee_disbursement(case=case, filing=filing, actor=user)
         CaseActivity.objects.create(
             case=case,
             action="FILING_REGISTER_ENTRY",
@@ -181,7 +182,7 @@ class FilingRegisterService:
         filed_at = timezone.make_aware(datetime.combine(case.filing_date, time(9, 0))) if case.filing_date else timezone.now()
         if not case.filings.filter(filing_type__in=cls.ORIGINATING_TYPES).exclude(status=CaseFiling.FilingStatus.WITHDRAWN).exists():
             document = cls.originating_document(case)
-            CaseFiling.objects.create(
+            originating = CaseFiling.objects.create(
                 case=case,
                 filing_type=CaseFiling.FilingType.PLAINT if document == "plaint" else CaseFiling.FilingType.ORIGINATING_CLAIM,
                 status=CaseFiling.FilingStatus.FILED,
@@ -196,6 +197,7 @@ class FilingRegisterService:
                 source="COURT_STAGE_FILED",
                 filed_by=actor,
             )
+            cls.court_fee_disbursement(case=case, filing=originating, actor=actor)
         # Filing answers both the demand period and the limitation period.
         MatterDeadline.objects.filter(
             Q(source__startswith="FILING:", source__endswith=":DEMAND_EXPIRY") | Q(source="LIMITATION:opening"),
@@ -211,6 +213,30 @@ class FilingRegisterService:
                 if value not in (None, ""):
                     setattr(proceeding, field, value)
             proceeding.save()
+
+    @staticmethod
+    def court_fee_disbursement(*, case, filing, actor):
+        """A court fee recorded with a filing goes to billing once, awaiting the advocate's approval.
+
+        The firm pays e-filing fees when it files, so the fee is office money to recover on the fee note,
+        recorded once per filing and payment reference.
+        """
+        from apps.billing.models import Disbursement
+
+        if not filing.court_fee_amount or filing.court_fee_amount <= 0:
+            return None
+        reference = f" (payment {filing.payment_reference})" if filing.payment_reference else ""
+        description = f"Court fee: {filing.title}{reference}"
+        existing = Disbursement.objects.filter(matter=case, disbursement_type="COURT_FEES", description=description).first()
+        if existing:
+            return existing
+        return Disbursement.objects.create(
+            firm=case.firm, matter=case, disbursement_type="COURT_FEES", description=description,
+            supplier_payee="Judiciary of Kenya", amount=filing.court_fee_amount, currency="KES",
+            date_incurred=filing.payment_date or timezone.localdate(filing.filed_at or timezone.now()),
+            funding_source=Disbursement.FundingSource.FIRM, recoverable_from_client=True,
+            approval_status=Disbursement.ApprovalStatus.PENDING, created_by=actor,
+        )
 
     @classmethod
     def record_judgment(cls, *, case, actor, delivered_at=None):

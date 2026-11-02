@@ -385,6 +385,25 @@ class CaseLifecycleFrameworkTests(TestCase):
         })
         self.assertEqual(case.deadlines.get(source=f"PRE_TRIAL:{case.id}").status, "COMPLETED")
 
+    def test_a_court_fee_recorded_with_a_filing_awaits_approval_in_billing_once(self):
+        from decimal import Decimal
+
+        from apps.billing.models import Disbursement
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
+        case = self.create_case()
+        case.court_stage = Case.CourtStage.PLEADINGS_OPEN
+        case.save(update_fields=["court_stage"])
+        data = {"filing_type": "REPLY_TO_DEFENCE", "title": "Reply", "filed_at": timezone.now(),
+                "court_fee_amount": Decimal("500.00"), "payment_reference": "SKM7XYZ456"}
+        filing = FilingRegisterService.record(user=self.admin, case=case, data=data)
+        fee = Disbursement.objects.get(matter=case)
+        self.assertEqual((fee.disbursement_type, fee.amount, fee.funding_source, fee.approval_status),
+                         ("COURT_FEES", Decimal("500.00"), "FIRM", "PENDING"))
+        self.assertEqual(fee.description, "Court fee: Reply (payment SKM7XYZ456)")
+        FilingRegisterService.court_fee_disbursement(case=case, filing=filing, actor=self.admin)
+        self.assertEqual(Disbursement.objects.filter(matter=case).count(), 1)
+
     def test_a_close_of_pleadings_before_the_next_court_date_leads_the_next_action(self):
         from apps.cases.models import MatterDeadline
         from apps.cases.services.filing_register_service import FilingRegisterService
