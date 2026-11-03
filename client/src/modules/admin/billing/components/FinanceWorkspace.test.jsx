@@ -94,6 +94,13 @@ describe('finance workspace forms', () => {
     expect(await screen.findByText(/No accepted instructions are waiting/)).toBeTruthy();
   });
 
+  it('takes amounts as typed text that the wheel and arrow keys cannot change', () => {
+    render(<FinanceWorkspace />);
+    const amount = screen.getByLabelText('Fee amount (KES, excl. VAT)');
+    expect(amount.type).toBe('text');
+    expect(amount.getAttribute('inputmode')).toBe('decimal');
+  });
+
   it('offers no second reversal of an entry already reversed', async () => {
     adminBillingService.getRegisters.mockResolvedValueOnce({ matters: [{ id: 'm-1', case_number: 'MAT-2026-00001', client_name: 'Grace Mwende', title: 'Unfair termination' }] });
     adminBillingService.getMatterLedger.mockResolvedValueOnce({ ledger: { currency: 'KES', cleared_balance: '25000.00', transactions: [

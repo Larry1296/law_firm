@@ -42,8 +42,13 @@ function Field({ label, children }) {
   return <label className='block text-sm'><span className='mb-1 block font-medium'>{label}</span>{children}</label>;
 }
 
-function Input({ label, ...props }) {
-  return <Field label={label}><input className={field} required {...props} /></Field>;
+// Amounts are typed, never stepped: a number field changes by itself under the mouse wheel or arrow keys,
+// which turned a fee of 25000 into 24999.75. A plain text field with a decimal keypad cannot drift.
+function Input({ label, type, min, max, step, ...props }) {
+  const amount = type === 'number'
+    ? { type: 'text', inputMode: 'decimal', autoComplete: 'off', pattern: '[0-9]+([.][0-9]{1,2})?', title: 'Digits only, with up to two decimal places, e.g. 25000 or 25000.50' }
+    : { type, min, max, step };
+  return <Field label={label}><input className={field} required {...amount} {...props} /></Field>;
 }
 
 function Select({ label, options, placeholder = 'Select…', required = true, emptyText, ...props }) {
