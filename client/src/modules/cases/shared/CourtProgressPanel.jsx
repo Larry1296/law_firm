@@ -176,10 +176,11 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   };
   const [entry, setEntry] = useState(freshEntry);
   const claimPapers = claimPapersFor(caseData);
-  // A paper filed with the claim carries the claim's filing date.
+  // A paper filed with the claim went in the same e-filing submission: it carries the claim's date and reference.
   const claimDate = claimPapers ? localDateTime(new Date(claimPapers.claim.filed_at)) : '';
+  const claimReference = claimPapers?.claim.efiling_reference || '';
   const startClaimPaper = (value) => {
-    setEntry({ ...freshEntry(), filing_type: value, filed_at: claimDate });
+    setEntry({ ...freshEntry(), filing_type: value, filed_at: claimDate, efiling_reference: claimReference });
     setEntryFeedback(null);
     document.getElementById('filing-register-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   };
@@ -257,7 +258,10 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const updateFiling = (event) => setFiling((current) => ({ ...current, [event.target.name]: event.target.value }));
   const updateEntry = (event) => setEntry((current) => {
     const next = { ...current, [event.target.name]: event.target.value };
-    if (event.target.name === 'filing_type' && CLAIM_PAPER_TYPES.has(event.target.value) && claimDate) next.filed_at = claimDate;
+    if (event.target.name === 'filing_type' && CLAIM_PAPER_TYPES.has(event.target.value) && claimDate) {
+      next.filed_at = claimDate;
+      next.efiling_reference = claimReference;
+    }
     if (['served_at', 'response_due_date'].includes(event.target.name) && !current.serviceEdited) {
       // Editing either service field starts from what the form was showing.
       next.served_at = event.target.name === 'served_at' ? event.target.value : servedAt;
