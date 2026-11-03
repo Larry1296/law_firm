@@ -1333,12 +1333,11 @@ class CaseLifecycleService:
             # ELRC rule 29(4) closes pleadings on a date; they cannot be closed before it.
             closes_on = FilingRegisterService.pleadings_close_date(case)
             if closes_on and timezone.localdate() < closes_on:
-                raise ValidationError({
-                    "to_state": (
-                        f"Pleadings close on {closes_on:%d %b %Y} (ELRC (Procedure) Rules, 2024, rule 29(4)). "
-                        "Close them on or after that date."
-                    ),
-                })
+                # Not tied to a form field: the user picks a step, not a "to_state".
+                raise ValidationError(
+                    f"Pleadings close on {closes_on:%d %b %Y} (ELRC (Procedure) Rules, 2024, rule 29(4)). "
+                    "Close them on or after that date."
+                )
 
         if (
             to_state

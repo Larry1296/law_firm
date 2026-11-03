@@ -385,6 +385,7 @@ class CaseLifecycleFrameworkTests(TestCase):
         response = self.transition(case, CaseLifecycleTransition.Dimension.COURT_STAGE, Case.CourtStage.PLEADINGS_CLOSED)
         self.assertEqual(response.status_code, 400, response.data)
         self.assertIn("rule 29(4)", str(response.data))
+        self.assertEqual(response.data["errors"], {})  # a plain message, not tied to the hidden to_state field
 
         closing.due_at = timezone.now() - timedelta(days=1)
         closing.save(update_fields=["due_at"])
