@@ -158,7 +158,7 @@ export default function CaseProceedingsWorkflow({ caseData }) {
             {form.next_event_type === 'OTHER_COURT_DIRECTED' && <AutoGrowTextarea required className='form-control md:col-span-2' placeholder='Details of the exceptional court direction' value={form.court_direction_details} onChange={(e) => setForm({ ...form, court_direction_details: e.target.value })} />}
           </div>
           {message && <p className='mt-3 text-sm'>{message}</p>}
-          <button disabled={saving} className='mt-3 rounded-lg bg-primary px-4 py-2 text-white disabled:opacity-60'>{saving ? 'Saving…' : 'Save proceeding'}</button>
+          <button disabled={saving} className='mt-3 inline-flex min-h-11 items-center rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50'>{saving ? 'Saving…' : 'Save proceeding'}</button>
         </form>
       )}
     </div>
