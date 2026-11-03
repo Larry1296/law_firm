@@ -23,6 +23,8 @@ const REGISTER_TYPES = [
   ['MEMORANDUM_OF_APPEARANCE', 'Memorandum of appearance received'],
   ['DEFENCE', 'Defence received'],
   ['REPLY_TO_DEFENCE', 'Reply to defence filed'],
+  ['VERIFYING_AFFIDAVIT', 'Verifying affidavit filed'],
+  ['LIST_OF_WITNESSES', 'List of witnesses filed'],
   ['LIST_OF_DOCUMENTS', 'List of documents filed'],
   ['WITNESS_STATEMENT', 'Witness statement filed'],
   ['NOTICE_OF_MOTION', 'Notice of motion filed'],
@@ -61,6 +63,27 @@ const nextPaper = (caseData) => {
   if (caseData.court_stage === 'AWAITING_RESPONSE') return 'DEFENCE';
   if (caseData.court_stage === 'PLEADINGS_OPEN' && !filed('REPLY_TO_DEFENCE')) return 'REPLY_TO_DEFENCE';
   return '';
+};
+// The papers a claimant files with the claim itself: ELRC (Procedure) Rules, 2024, rule 7(3), and for a
+// civil suit the Civil Procedure Rules, 2010, Order 3 rule 2. They go in with the claim, under its fees.
+const CLAIM_PAPERS = [
+  ['VERIFYING_AFFIDAVIT', 'Verifying affidavit'],
+  ['LIST_OF_WITNESSES', 'List of witnesses'],
+  ['WITNESS_STATEMENT', 'Witness statement(s)'],
+  ['LIST_OF_DOCUMENTS', 'Paginated list and copies of documents'],
+];
+const CLAIM_PAPER_TYPES = new Set(CLAIM_PAPERS.map(([value]) => value));
+const claimFiling = (caseData) => (caseData.filings || []).find((filing) => ['ORIGINATING_CLAIM', 'PLAINT'].includes(filing.filing_type));
+// Only a claimant's own filed claim carries these papers.
+const claimPapersFor = (caseData) => {
+  const claim = claimFiling(caseData);
+  const ours = (caseData.parties || []).find((party) => party.is_our_client);
+  if (!claim || !['EMPLOYMENT_CLAIM', 'CIVIL_SUIT'].includes(caseData.procedure_track) || !['CLAIMANT', 'PLAINTIFF'].includes(ours?.party_role)) return null;
+  return {
+    rule: caseData.procedure_track === 'EMPLOYMENT_CLAIM' ? 'ELRC (Procedure) Rules, 2024, rule 7(3)' : 'Civil Procedure Rules, 2010, Order 3 rule 2',
+    claim,
+    papers: CLAIM_PAPERS.map(([value, label]) => ({ value, label, filings: (caseData.filings || []).filter((filing) => filing.filing_type === value) })),
+  };
 };
 // A demand letter is not filed in court, and the other side's papers carry their own fees and receipts.
 const NOT_FILED_IN_COURT = new Set(['DEMAND_LETTER']);
@@ -102,6 +125,8 @@ const titleFor = (paper, caseData, label) => {
   const other = (caseData.parties || []).find((party) => party.is_adverse)?.name || caseData.defendant || 'the other side';
   const elrc = caseData.procedure_track === 'EMPLOYMENT_CLAIM';
   const claim = elrc ? 'statement of claim' : 'plaint';
+  const client = (caseData.parties || []).find((party) => party.is_our_client)?.name || caseData.client?.full_name || 'the client';
+  const role = elrc ? 'Claimant' : 'Plaintiff';
   const titles = {
     DEMAND_LETTER: `Demand letter to ${other}`,
     SUMMONS: `Summons and ${claim} served on ${other}`,
@@ -109,6 +134,10 @@ const titleFor = (paper, caseData, label) => {
     MEMORANDUM_OF_APPEARANCE: `Memorandum of appearance by ${other}`,
     DEFENCE: `${elrc ? 'Response' : 'Defence'} by ${other}`,
     REPLY_TO_DEFENCE: `Reply to ${elrc ? 'response' : 'defence'} of ${other}`,
+    VERIFYING_AFFIDAVIT: `Verifying affidavit of ${client}`,
+    LIST_OF_WITNESSES: `${role}'s list of witnesses`,
+    WITNESS_STATEMENT: `Witness statement of ${client}`,
+    LIST_OF_DOCUMENTS: `${role}'s paginated list and copies of documents`,
   };
   return titles[paper] || label;
 };
@@ -146,6 +175,14 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
     return { ...emptyEntry, filed_at: now, served_at: now, response_due_date: caseData.procedure_track === 'EMPLOYMENT_CLAIM' ? addDays(localDate(), ELRC_RESPONSE_DAYS) : '' };
   };
   const [entry, setEntry] = useState(freshEntry);
+  const claimPapers = claimPapersFor(caseData);
+  // A paper filed with the claim carries the claim's filing date.
+  const claimDate = claimPapers ? localDateTime(new Date(claimPapers.claim.filed_at)) : '';
+  const startClaimPaper = (value) => {
+    setEntry({ ...freshEntry(), filing_type: value, filed_at: claimDate });
+    setEntryFeedback(null);
+    document.getElementById('filing-register-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  };
   const registerTypes = registerTypesFor(caseData);
   const isElrc = caseData.procedure_track === 'EMPLOYMENT_CLAIM';
   // Until a paper is chosen, the form offers the one the matter needs next, following it as the matter moves on.
@@ -198,7 +235,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       response_period_days: paper === 'DEMAND_LETTER' ? Number(entry.response_period_days) : null,
       // Only the fields shown for this paper are sent.
       efiling_reference: NOT_FILED_IN_COURT.has(paper) ? null : entry.efiling_reference,
-      ...(NOT_FILED_IN_COURT.has(paper) || OTHER_SIDE_PAPERS.has(paper) ? {} : {
+      ...(NOT_FILED_IN_COURT.has(paper) || OTHER_SIDE_PAPERS.has(paper) || CLAIM_PAPER_TYPES.has(paper) ? {} : {
         court_fee_amount: entry.court_fee_amount,
         payment_reference: entry.payment_reference,
         receipt_number: entry.receipt_number,
@@ -220,6 +257,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const updateFiling = (event) => setFiling((current) => ({ ...current, [event.target.name]: event.target.value }));
   const updateEntry = (event) => setEntry((current) => {
     const next = { ...current, [event.target.name]: event.target.value };
+    if (event.target.name === 'filing_type' && CLAIM_PAPER_TYPES.has(event.target.value) && claimDate) next.filed_at = claimDate;
     if (['served_at', 'response_due_date'].includes(event.target.name) && !current.serviceEdited) {
       // Editing either service field starts from what the form was showing.
       next.served_at = event.target.name === 'served_at' ? event.target.value : servedAt;
@@ -248,9 +286,31 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       </dl>
       )}
 
+      {claimPapers && (
+        <section className={`rounded-xl border border-border-light p-4 dark:border-border-dark ${showStage ? 'mt-5' : ''}`} aria-label='Papers filed with the claim'>
+          <h4 className='font-semibold'>Papers filed with the claim</h4>
+          <p className='text-xs text-text-muted-light dark:text-text-muted-dark'>{claimPapers.rule}. Filed with the claim on {new Date(claimPapers.claim.filed_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}{claimPapers.claim.efiling_reference ? ` (${claimPapers.claim.efiling_reference})` : ''}; the copies stay in the physical matter file.</p>
+          <ul className='mt-3 space-y-2 text-sm'>
+            {claimPapers.papers.map((item) => (
+              <li key={item.value} className='flex flex-wrap items-center justify-between gap-2'>
+                <span>{item.label}</span>
+                {item.filings.length ? (
+                  <span className='font-semibold text-green-700 dark:text-green-300'>Recorded{item.filings[0].efiling_reference ? ` · ${item.filings[0].efiling_reference}` : ''}{item.filings.length > 1 ? ` · ${item.filings.length} entries` : ''}</span>
+                ) : (
+                  <span className='flex items-center gap-3'>
+                    <span className='font-semibold text-red-700 dark:text-red-300'>Not recorded</span>
+                    {canRecordFilings && <button type='button' onClick={() => startClaimPaper(item.value)} className='font-semibold text-brand-primary hover:underline'>Record</button>}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Papers are recorded first (a demand, a filing, service); the court stage then moves on them. */}
       {canRecordFilings && (
-        <form onSubmit={submitEntry} className={`grid gap-3 md:grid-cols-2 ${showStage ? 'mt-5' : ''}`} aria-label='Record in the filing register'>
+        <form id='filing-register-form' onSubmit={submitEntry} className={`grid gap-3 md:grid-cols-2 ${showStage || claimPapers ? 'mt-5' : ''}`} aria-label='Record in the filing register'>
           <div className='flex items-center gap-2 md:col-span-2'>
             <NotebookPen size={18} className='text-brand-primary' />
             <h4 className='font-semibold'>Filing register</h4>
@@ -288,7 +348,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
           {!NOT_FILED_IN_COURT.has(paper) && (
             <Field label='E-filing reference'><input name='efiling_reference' value={entry.efiling_reference} onChange={updateEntry} className={inputClass} /></Field>
           )}
-          {!NOT_FILED_IN_COURT.has(paper) && !OTHER_SIDE_PAPERS.has(paper) && (
+          {!NOT_FILED_IN_COURT.has(paper) && !OTHER_SIDE_PAPERS.has(paper) && !CLAIM_PAPER_TYPES.has(paper) && (
             <>
             <Field label='Court fees (KES)'><input type='number' step='0.01' min='0' name='court_fee_amount' value={entry.court_fee_amount} onChange={updateEntry} className={inputClass} /></Field>
             <Field label='Payment reference'><input name='payment_reference' value={entry.payment_reference} onChange={updateEntry} className={inputClass} /></Field>

@@ -332,6 +332,23 @@ class CaseLifecycleFrameworkTests(TestCase):
         )
         self.assertEqual(CaseFilingSerializer(demand).data["status_label"], "Issued")
 
+    def test_papers_filed_with_an_elrc_claim_are_recorded_without_moving_the_stage_or_charging_fees(self):
+        from apps.billing.models.finance import Disbursement
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
+        case = self.create_case()
+        case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
+        case.court_stage = Case.CourtStage.PLEADINGS_OPEN
+        case.save(update_fields=["procedure_track", "court_stage"])
+        # ELRC (Procedure) Rules, 2024, rule 7(3): the claim carries these papers.
+        for paper in ("VERIFYING_AFFIDAVIT", "LIST_OF_WITNESSES", "WITNESS_STATEMENT", "LIST_OF_DOCUMENTS"):
+            filing = FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": paper, "filed_at": timezone.now() - timedelta(days=4)})
+            self.assertEqual(filing.status, "FILED")
+        case.refresh_from_db()
+        self.assertEqual(case.court_stage, Case.CourtStage.PLEADINGS_OPEN)
+        self.assertEqual(case.filings.get(filing_type="LIST_OF_WITNESSES").title, "List of witnesses")
+        self.assertFalse(Disbursement.objects.filter(matter=case).exists())
+
     def test_elrc_pleadings_follow_rule_29_and_their_close_starts_the_pre_trial_period(self):
         from apps.cases.services.filing_register_service import FilingRegisterService
         from apps.events.services import EventService

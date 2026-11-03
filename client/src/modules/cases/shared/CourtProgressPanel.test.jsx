@@ -69,5 +69,36 @@ describe('summons service diary', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Record in register' }));
     await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/cases/case-1/filings/', expect.objectContaining({ filing_type: 'AFFIDAVIT_OF_SERVICE', served_at: served.toISOString(), response_due_date: '2026-11-20' })));
   });
+
+  it('lists the papers filed with an ELRC claim and records a missing one on the claim date without fees', async () => {
+    axios.post.mockResolvedValue({ data: { next_action: 'Pleadings close on 13 Nov 2026' } });
+    const caseData = {
+      id: 'case-1', court_stage: 'PLEADINGS_OPEN', procedure_track: 'EMPLOYMENT_CLAIM',
+      parties: [{ name: 'Grace Mwende', is_our_client: true, party_role: 'CLAIMANT' }, { name: 'Baraka Supplies Limited', is_adverse: true, party_role: 'RESPONDENT' }],
+      filings: [
+        { filing_type: 'ORIGINATING_CLAIM', filed_at: '2026-10-30T06:00:00Z', efiling_reference: 'EF-2026-118734' },
+        { filing_type: 'WITNESS_STATEMENT', filed_at: '2026-10-30T06:00:00Z', efiling_reference: '' },
+      ],
+    };
+    render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={caseData} showStage={false} /></QueryClientProvider>);
+    const checklist = screen.getByRole('region', { name: 'Papers filed with the claim' });
+    expect(checklist.textContent).toContain('rule 7(3)');
+    expect(checklist.textContent).toContain('Recorded');
+    expect(screen.getAllByRole('button', { name: 'Record' })).toHaveLength(3);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Record' })[0]);
+    expect(screen.getByLabelText('Paper')).toHaveProperty('value', 'VERIFYING_AFFIDAVIT');
+    expect(screen.getByLabelText('Title')).toHaveProperty('value', 'Verifying affidavit of Grace Mwende');
+    expect(screen.queryByLabelText('Court fees (KES)')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Record in register' }));
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/cases/case-1/filings/', expect.objectContaining({
+      filing_type: 'VERIFYING_AFFIDAVIT', filed_at: new Date('2026-10-30T06:00:00Z').toISOString(),
+    })));
+    expect(axios.post.mock.calls[0][1]).not.toHaveProperty('court_fee_amount');
+  });
+
+  it('shows no claim checklist when the client is the respondent', () => {
+    render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'PLEADINGS_OPEN', procedure_track: 'EMPLOYMENT_CLAIM', parties: [{ name: 'Acme Ltd', is_our_client: true, party_role: 'RESPONDENT' }], filings: [{ filing_type: 'ORIGINATING_CLAIM', filed_at: '2026-10-30T06:00:00Z' }] }} showStage={false} /></QueryClientProvider>);
+    expect(screen.queryByRole('region', { name: 'Papers filed with the claim' })).toBeNull();
+  });
 });
 

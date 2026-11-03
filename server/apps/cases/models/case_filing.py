@@ -20,6 +20,8 @@ class CaseFiling(TimestampedModel):
         AFFIDAVIT = "AFFIDAVIT", "Affidavit"
         REPLYING_AFFIDAVIT = "REPLYING_AFFIDAVIT", "Replying Affidavit"
         FURTHER_AFFIDAVIT = "FURTHER_AFFIDAVIT", "Further Affidavit"
+        VERIFYING_AFFIDAVIT = "VERIFYING_AFFIDAVIT", "Verifying affidavit"
+        LIST_OF_WITNESSES = "LIST_OF_WITNESSES", "List of witnesses"
         WITNESS_STATEMENT = "WITNESS_STATEMENT", "Witness Statement"
         LIST_OF_DOCUMENTS = "LIST_OF_DOCUMENTS", "List of Documents"
         SUBMISSIONS = "SUBMISSIONS", "Submissions"
