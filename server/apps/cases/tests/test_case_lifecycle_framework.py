@@ -403,6 +403,27 @@ class CaseLifecycleFrameworkTests(TestCase):
         })
         self.assertEqual(case.deadlines.get(source=f"PRE_TRIAL:{case.id}").status, "COMPLETED")
 
+    def test_an_elrc_hearing_fixed_at_pre_trial_moves_the_court_stage_without_case_management(self):
+        case = self.create_case()
+        case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
+        case.court_stage = Case.CourtStage.PLEADINGS_CLOSED
+        case.save(update_fields=["procedure_track", "court_stage"])
+        mention = CaseEvent.objects.create(
+            case=case, event_type=CaseEvent.EventType.MENTION, title="Mention",
+            description="Mention for pre-trial directions", starts_at=timezone.now() - timedelta(hours=1), created_by=self.admin,
+        )
+        hearing_on = timezone.now() + timedelta(days=60)
+        response = self.api.post(f"/api/cases/{case.id}/events/{mention.id}/record-outcome/", {
+            "proceeded": True, "outcome_code": "DIRECTIONS_ISSUED", "outcome": "Pre-trial directions given.",
+            "next_event_type": "HEARING", "next_date": hearing_on.isoformat(),
+        }, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        case.refresh_from_db()
+        self.assertEqual(case.court_stage, Case.CourtStage.AWAITING_HEARING)
+        stages = list(case.lifecycle_transitions.filter(dimension="COURT_STAGE").order_by("created_at").values_list("to_state", flat=True))
+        self.assertEqual(stages[-2:], [Case.CourtStage.PRE_TRIAL, Case.CourtStage.AWAITING_HEARING])
+        self.assertNotIn(Case.CourtStage.CASE_MANAGEMENT, stages)
+
     def test_a_court_fee_recorded_with_a_filing_awaits_approval_in_billing_once(self):
         from decimal import Decimal
 

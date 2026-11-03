@@ -485,7 +485,32 @@ class CaseLifecycleService:
         to have different workflows.
         """
 
+        if case.procedure_track == Case.ProcedureTrack.EMPLOYMENT_CLAIM:
+            return cls.employment_claim_transitions()
         return cls.CIVIL_SUIT_TRANSITIONS
+
+    @classmethod
+    def employment_claim_transitions(cls):
+        """The ELRC has no Order 11 case management step: after pleadings close the parties
+        move straight to a pre-trial conference (ELRC (Procedure) Rules, 2024, rule 40(1))."""
+        config = {dimension: dict(stages) for dimension, stages in cls.CIVIL_SUIT_TRANSITIONS.items()}
+        court = config[CaseLifecycleTransition.Dimension.COURT_STAGE]
+        court[Case.CourtStage.PLEADINGS_CLOSED] = {Case.CourtStage.PRE_TRIAL, Case.CourtStage.CONCLUDED}
+        return config
+
+    # From the close of pleadings to a fixed hearing date, by track.
+    HEARING_PATHS = {
+        "CIVIL": [Case.CourtStage.PLEADINGS_CLOSED, Case.CourtStage.CASE_MANAGEMENT, Case.CourtStage.PRE_TRIAL, Case.CourtStage.AWAITING_HEARING],
+        Case.ProcedureTrack.EMPLOYMENT_CLAIM: [Case.CourtStage.PLEADINGS_CLOSED, Case.CourtStage.PRE_TRIAL, Case.CourtStage.AWAITING_HEARING],
+    }
+
+    @classmethod
+    def path_to_hearing(cls, case):
+        """The court stages still to pass for a matter whose hearing date has been fixed."""
+        path = cls.HEARING_PATHS.get(case.procedure_track, cls.HEARING_PATHS["CIVIL"])
+        if case.court_stage not in path[:-1]:
+            return []
+        return path[path.index(case.court_stage) + 1:]
 
 
 

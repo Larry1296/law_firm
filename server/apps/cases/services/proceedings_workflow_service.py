@@ -535,6 +535,20 @@ class ProceedingsWorkflowService:
                 )
         case.lifecycle_stage = new_stage
         case.save(update_fields=["lifecycle_stage", "updated_at"])
+        if next_event is not None and next_type == CourtEventType.HEARING:
+            # A hearing is fixed only once pre-trial directions are given, so the court stage moves on with it.
+            from apps.cases.services.case_lifecycle_service import CaseLifecycleService
+            from apps.cases.services.filing_register_service import FilingRegisterService
+
+            stages = CaseLifecycleService.path_to_hearing(case)
+            if stages:
+                FilingRegisterService._advance(
+                    case, actor, stages,
+                    f"Pre-trial directions given at the {event.get_event_type_display().lower()}; hearing fixed for "
+                    f"{timezone.localtime(next_event.starts_at):%d %b %Y at %H:%M}.",
+                    metadata={"event_id": str(event.id), "next_event_id": str(next_event.id)},
+                )
+                case.refresh_from_db()
         cls._resync_next_action(case, actor=actor)
 
         for deadline in data.get("deadlines", []):
