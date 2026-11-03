@@ -61,7 +61,9 @@ export default function MatterLifecycleControls({ matter, onChanged }) {
   const [workstreamType, setWorkstreamType] = useState(matter.matter_nature === 'TRANSACTIONAL' ? 'TRANSACTIONAL' : 'LITIGATION');
   const [stageChecklist, setStageChecklist] = useState('work_complete,documents_saved,client_updated');
   const [stageReason, setStageReason] = useState('Stage work and recorded controls completed.');
-  const [deadline, setDeadline] = useState({ deadline_type: 'CLIENT_FOLLOW_UP', due_at: '', timezone: 'Africa/Nairobi', responsible_staff: user?.id || '', priority: 'MEDIUM', source: '', description: '', reminder_schedule: [] });
+  // The type is chosen each time (no default), and the form starts empty again after each deadline is recorded.
+  const freshDeadline = () => ({ deadline_type: '', due_at: '', timezone: 'Africa/Nairobi', responsible_staff: user?.id || '', priority: 'MEDIUM', source: '', description: '', reminder_schedule: [] });
+  const [deadline, setDeadline] = useState(freshDeadline);
   const [assessment, setAssessment] = useState({
     facts_understood: '', desired_outcome: '', parties_and_relationships: '', legal_issues: '', causes_or_defences: '',
     evidence_available: '', evidence_missing: '', witnesses: '', limitation_analysis: '', jurisdiction_analysis: '',
@@ -130,6 +132,7 @@ export default function MatterLifecycleControls({ matter, onChanged }) {
 
   const saveDeadline = (event) => { event.preventDefault(); return execute(async () => {
     await adminCasesService.createDeadline(matter.id, { ...deadline, due_at: new Date(deadline.due_at).toISOString(), responsible_staff: deadline.responsible_staff || user?.id }); await load();
+    setDeadline(freshDeadline());
   }, 'The critical deadline and reminders were recorded.'); };
   const resolveDeadline = (item, action) => setModal({ title: `${action === 'COMPLETE' ? 'Complete' : 'Cancel'} critical deadline`, summary: `${label(item.deadline_type)} — ${new Date(item.due_at).toLocaleString()}`, fields: [{ name: 'reason', label: 'Reason', type: 'textarea' }], submit: ({ reason }) => execute(async () => { await adminCasesService.resolveDeadline(item.id, { action, reason }); await load(); }, `Deadline ${action === 'COMPLETE' ? 'completed' : 'cancelled'} with history.`) });
   const openDeadlines = deadlines.filter((item) => item.status === 'OPEN').sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
@@ -223,7 +226,7 @@ export default function MatterLifecycleControls({ matter, onChanged }) {
         <div className='max-h-36 overflow-auto text-xs'>{workstreamRecord?.stage_records.map((item) => <p key={item.id}>{item.sequence}. {label(item.stage)} — {item.completed_at ? 'completed' : 'open'}</p>)}</div>
       </div>
       <div className='space-y-3 rounded-lg border p-4 dark:border-border-dark'><h3 className='font-semibold'>Critical deadline</h3>
-        <form className='space-y-2' onSubmit={saveDeadline}><select className={input} value={deadline.deadline_type} onChange={(e) => setDeadline({ ...deadline, deadline_type: e.target.value })}>{['LIMITATION','COURT','FILING','SERVICE','RESPONSE','HEARING','MENTION','SUBMISSIONS','COMPLETION','UNDERTAKING','RENEWAL','APPEAL_REVIEW','RETENTION_REVIEW','CLIENT_FOLLOW_UP'].map((item) => <option key={item} value={item}>{label(item)}</option>)}</select><input className={input} type='datetime-local' value={deadline.due_at} onChange={(e) => setDeadline({ ...deadline, due_at: e.target.value })} required/><AutoGrowTextarea className={input} placeholder='Source: order, statute or instruction' value={deadline.source} onChange={(e) => setDeadline({ ...deadline, source: e.target.value })} required/><AutoGrowTextarea className={input} placeholder='Description' value={deadline.description} onChange={(e) => setDeadline({ ...deadline, description: e.target.value })} required/><button disabled={busy} className={button}>Record deadline</button></form>
+        <form className='space-y-2' onSubmit={saveDeadline}><select required className={input} value={deadline.deadline_type} onChange={(e) => setDeadline({ ...deadline, deadline_type: e.target.value })}><option value=''>Select the type</option>{['LIMITATION','COURT','FILING','SERVICE','RESPONSE','HEARING','MENTION','SUBMISSIONS','COMPLETION','UNDERTAKING','RENEWAL','APPEAL_REVIEW','RETENTION_REVIEW','CLIENT_FOLLOW_UP'].map((item) => <option key={item} value={item}>{label(item)}</option>)}</select><input className={input} type='datetime-local' value={deadline.due_at} onChange={(e) => setDeadline({ ...deadline, due_at: e.target.value })} required/><AutoGrowTextarea className={input} placeholder='Source: order, statute or instruction' value={deadline.source} onChange={(e) => setDeadline({ ...deadline, source: e.target.value })} required/><AutoGrowTextarea className={input} placeholder='Description' value={deadline.description} onChange={(e) => setDeadline({ ...deadline, description: e.target.value })} required/><button disabled={busy} className={button}>Record deadline</button></form>
       </div>
     </div>}
     <div><h3 className='font-semibold'>Upcoming and overdue deadlines</h3>
