@@ -1,3 +1,5 @@
+import re
+
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -606,14 +608,20 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         critical_date = obj.deadlines.filter(status=MatterDeadline.Status.OPEN).order_by("due_at").first()
         key_deadline = CaseTaskSerializer(deadline).data if deadline else None
         if critical_date and (not deadline or critical_date.due_at < deadline.due_at):
+            # Name the deadline by what it is for ("Pleadings close"), not its broad type ("Filing").
+            purpose = re.split(r" \(|[.:]", critical_date.description or "", maxsplit=1)[0].strip()
             key_deadline = {
                 "id": str(critical_date.id),
-                "title": f"{critical_date.get_deadline_type_display()} on {timezone.localtime(critical_date.due_at):%d %b %Y}",
+                "title": f"{purpose or critical_date.get_deadline_type_display()} on {timezone.localtime(critical_date.due_at):%d %b %Y}",
                 "due_at": critical_date.due_at,
             }
         return {
             "current_stage": obj.lifecycle_stage,
-            "current_stage_label": obj.get_lifecycle_stage_display(),
+            # Once filed, the court stage is the stage people work to, as the matter header shows.
+            "current_stage_label": (
+                obj.get_court_stage_display() if obj.court_stage != Case.CourtStage.NOT_FILED
+                else obj.get_lifecycle_stage_display()
+            ),
             "last_completed_proceeding": completed.get_event_type_display() if completed else None,
             "next_event": EventSerializer(upcoming).data if upcoming else None,
             "key_pending_deadline": key_deadline,

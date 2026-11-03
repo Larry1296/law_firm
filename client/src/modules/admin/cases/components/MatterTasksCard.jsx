@@ -67,9 +67,9 @@ export default function MatterTasksCard({
       <div className='flex flex-wrap items-start justify-between gap-4'>
         <div>
           <p className='text-xs font-semibold uppercase tracking-[0.16em] text-brand-primary'>Priority work</p>
-          <h2 className='mt-1 text-xl font-semibold text-text-primary-light dark:text-text-primary-dark'>Tasks and deadlines</h2>
+          <h2 className='mt-1 text-xl font-semibold text-text-primary-light dark:text-text-primary-dark'>Internal tasks</h2>
           <p className='mt-1 max-w-2xl text-sm text-text-muted-light dark:text-text-muted-dark'>
-            Work that requires attention on this matter. Internal tasks do not create court events.
+            Office work on this matter. Internal tasks do not create court events; court and filing deadlines are listed under Matter record.
           </p>
         </div>
         {!isOpen && <FormButton type='button' onClick={() => setIsOpen(true)}>Create internal task</FormButton>}
@@ -98,7 +98,7 @@ export default function MatterTasksCard({
 
       <div className='mt-5'>
         {tasks.length === 0 ? (
-          <div className='rounded-xl border border-dashed border-border-light px-4 py-6 text-center text-sm text-text-muted-light dark:border-border-dark dark:text-text-muted-dark'>No tasks or deadlines recorded.</div>
+          <div className='rounded-xl border border-dashed border-border-light px-4 py-6 text-center text-sm text-text-muted-light dark:border-border-dark dark:text-text-muted-dark'>No internal tasks recorded.</div>
         ) : (
           <div className='grid gap-3 lg:grid-cols-2'>
             {tasks.map((task, index) => (

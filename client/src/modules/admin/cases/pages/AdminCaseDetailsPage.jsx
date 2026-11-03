@@ -176,7 +176,7 @@ const MatterNextSteps = ({ caseData, onOpenTab }) => {
       action: 'Record it',
       tab: 'court',
     })),
-    caseData.court_stage === 'NOT_FILED' && caseData.next_action && {
+    caseData.next_action && {
       text: `Next: ${caseData.next_action}.`,
       action: 'Go to court work',
       tab: 'court',

@@ -263,7 +263,7 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertEqual(deadline.deadline_type, "LIMITATION")
         self.assertEqual(timezone.localtime(deadline.due_at).date(), date(2029, 9, 6))
         detail = self.api.get(reverse("case-detail", args=[case.id]))
-        self.assertIn("Limitation on 06 Sep 2029", str(detail.data))
+        self.assertIn("Limitation period ends on 06 Sep 2029", str(detail.data))
 
     def test_an_employment_claim_waits_out_its_demand_and_is_begun_by_a_statement_of_claim(self):
         from apps.cases.models import CaseFiling
