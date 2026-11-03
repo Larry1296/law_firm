@@ -57,6 +57,22 @@ describe('finance workspace forms', () => {
     await waitFor(() => expect(adminBillingService.getDisbursements.mock.calls.length).toBeGreaterThan(before));
   });
 
+  it('links the ticked disbursements to a draft fee note', async () => {
+    adminBillingService.getInvoices.mockResolvedValue({ invoices: [{ id: 'i-1', invoice_number: 'INV-0001', client_name: 'Grace Mwende', case_number: 'MAT-2026-00001', matter: 'm-1', currency: 'KES', total_amount: '50000.00', amount_paid: '0', credited_amount: '0', balance: '50000.00', status: 'DRAFT' }] });
+    adminBillingService.getDisbursements.mockResolvedValue({ disbursements: [
+      { id: 'd-1', matter: 'm-1', approval_status: 'APPROVED', invoice: null, date_incurred: '2026-10-30', description: 'Court fee: Statement of claim', currency: 'KES', amount: '1650.00', case_number: 'MAT-2026-00001' },
+      { id: 'd-2', matter: 'm-1', approval_status: 'APPROVED', invoice: null, date_incurred: '2026-10-30', description: 'Court fee: Reply', currency: 'KES', amount: '500.00', case_number: 'MAT-2026-00001' },
+    ] });
+    render(<FinanceWorkspace />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Link billables' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Statement of claim/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Reply/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+    await waitFor(() => expect(adminBillingService.addInvoiceBillables).toHaveBeenCalledWith('i-1', expect.objectContaining({ disbursement_ids: ['d-1', 'd-2'] })));
+    adminBillingService.getInvoices.mockResolvedValue({});
+    adminBillingService.getDisbursements.mockResolvedValue({});
+  });
+
   it('offers no second reversal of an entry already reversed', async () => {
     adminBillingService.getRegisters.mockResolvedValueOnce({ matters: [{ id: 'm-1', case_number: 'MAT-2026-00001', client_name: 'Grace Mwende', title: 'Unfair termination' }] });
     adminBillingService.getMatterLedger.mockResolvedValueOnce({ ledger: { currency: 'KES', cleared_balance: '25000.00', transactions: [

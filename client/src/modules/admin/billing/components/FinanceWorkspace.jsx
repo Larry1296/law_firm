@@ -151,14 +151,14 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   const cancelInvoice = (id) => setModal({ title: 'Cancel invoice', summary: 'Available only before issue; an audit record is kept.', fields: [{ name: 'reason', label: 'Cancellation reason', type: 'textarea' }], submit: ({ reason }) => run(() => adminBillingService.invoiceAction(id, 'cancel', { reason }), 'Invoice cancelled with reason and audit history.') });
   const linkBillables = (item) => setModal({
     title: `Link approved billables to ${item.invoice_number}`,
-    summary: 'Only approved time and disbursements on this matter are listed.',
+    summary: 'Tick the approved time and disbursements on this matter to add to the fee note.',
     fields: [
       { name: 'time_entry_ids', label: 'Approved time entries', type: 'select', multiple: true, required: false, options: timeEntries.filter((entry) => entry.approval_status === 'APPROVED' && !entry.invoice && entry.matter === item.matter).map((entry) => ({ value: entry.id, label: `${entry.entry_date} · ${entry.activity} · ${entry.duration_minutes} min` })) },
       { name: 'disbursement_ids', label: 'Approved disbursements', type: 'select', multiple: true, required: false, options: disbursements.filter((entry) => entry.approval_status === 'APPROVED' && !entry.invoice && entry.matter === item.matter).map((entry) => ({ value: entry.id, label: `${entry.date_incurred} · ${entry.description} · ${money(entry.currency, entry.amount)}` })) },
     ],
     submit: (values) => (values.time_entry_ids?.length || values.disbursement_ids?.length
       ? run(() => adminBillingService.addInvoiceBillables(item.id, values), 'Approved billable records linked to the draft invoice.')
-      : Promise.resolve()),
+      : Swal.fire('Nothing selected', 'Tick at least one approved time entry or disbursement to add to this fee note.', 'warning').then(() => false)),
   });
   // Newest first from the API; the one in use is the latest active version already in effect.
   const currentTax = taxConfigurations.find((item) => item.is_active && item.effective_from <= today);
