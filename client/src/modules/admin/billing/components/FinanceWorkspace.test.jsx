@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import adminBillingService from '../services/adminBillingService';
 import FinanceWorkspace from './FinanceWorkspace';
+import { lockSession, unlockSession } from '@/core/auth/sessionLock';
 
 vi.mock('@/core/hooks/useAuth', () => ({ default: () => ({ user: { id: 'user-1' } }) }));
 vi.mock('@/core/utils/themedSwal', () => ({ default: { fire: vi.fn() } }));
@@ -35,6 +36,25 @@ describe('finance workspace forms', () => {
     fireEvent.submit(name.closest('form'));
     await waitFor(() => expect(adminBillingService.createAccount).toHaveBeenCalled());
     expect(name).toHaveProperty('value', 'Duplicate account');
+  });
+
+  it('names only refused permissions, not a locked session', async () => {
+    const forbidden = Object.assign(new Error('forbidden'), { response: { status: 403 } });
+    const locked = Object.assign(new Error('Your session is locked. Unlock it to continue.'), { isSessionLocked: true });
+    adminBillingService.getCreditNotes.mockRejectedValueOnce(forbidden);
+    adminBillingService.getDisbursements.mockRejectedValueOnce(locked);
+    render(<FinanceWorkspace />);
+    const notice = await screen.findByRole('status');
+    expect(notice.textContent).toContain('Credit notes');
+    expect(notice.textContent).not.toContain('Disbursements');
+  });
+
+  it('reloads once a locked session is unlocked', async () => {
+    render(<FinanceWorkspace />);
+    await waitFor(() => expect(adminBillingService.getDisbursements).toHaveBeenCalled());
+    const before = adminBillingService.getDisbursements.mock.calls.length;
+    lockSession(); unlockSession();
+    await waitFor(() => expect(adminBillingService.getDisbursements.mock.calls.length).toBeGreaterThan(before));
   });
 
   it('offers no second reversal of an entry already reversed', async () => {

@@ -7,6 +7,7 @@ import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import adminBillingService from '../services/adminBillingService';
 import ActionModal from '@/components/ui/ActionModal';
 import { localDateInput } from '@/core/utils/dateFormatter';
+import { subscribeToSessionLock } from '@/core/auth/sessionLock';
 
 const field = 'w-full rounded-lg border border-border-light bg-surface-light px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-dark';
 const button = 'rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50';
@@ -99,7 +100,8 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
     ];
     const results = await Promise.allSettled(calls.map(([, call]) => call));
     const value = (index) => (results[index].status === 'fulfilled' ? results[index].value : {});
-    setUnavailable(calls.filter((_, index) => results[index].status === 'rejected').map(([name]) => name));
+    // Only a 403 is a missing permission; a locked session or lost connection is not.
+    setUnavailable(calls.filter((_, index) => results[index].status === 'rejected' && results[index].reason?.response?.status === 403).map(([name]) => name));
     setRegisters({ matters: [], clients: [], fee_earners: [], retainer_targets: [], ...value(0) });
     setInvoices(value(1).invoices || []); setAccounts(value(2).accounts || []);
     setPayments(value(3).payment_instructions || []); setTimeEntries(value(4).time_entries || []);
@@ -111,6 +113,8 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   // The initial fetch synchronizes this page with the finance API.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, []);
+  // Requests refused while the screen was locked load again once it is unlocked.
+  useEffect(() => subscribeToSessionLock((locked) => { if (!locked) load(); }), []);
 
   const update = (setter) => (event) => setter((current) => ({ ...current, [event.target.name]: event.target.value }));
   // Postings to the ledgers cannot be edited afterwards, so `confirm` asks before they are made.

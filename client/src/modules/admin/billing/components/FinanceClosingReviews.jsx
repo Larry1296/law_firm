@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from '@/core/api/axios';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
+import { subscribeToSessionLock } from '@/core/auth/sessionLock';
 
 export default function FinanceClosingReviews() {
   const [reviews, setReviews] = useState([]);
@@ -11,8 +12,11 @@ export default function FinanceClosingReviews() {
     setReviews(data.closing_reviews || []);
     setError('');
   };
+  const refresh = () => load().catch((err) => { if (err?.isActionCancelled) return; return setError(getApiErrorMessage(err, 'Financial-clearance access is required.')); });
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { load().catch((err) => { if (err?.isActionCancelled) return; return setError(getApiErrorMessage(err, 'Financial-clearance access is required.')); }); }, []);
+  useEffect(() => { refresh(); }, []);
+  // A review list refused while the screen was locked loads again once it is unlocked.
+  useEffect(() => subscribeToSessionLock((locked) => { if (!locked) refresh(); }), []);
   const approve = async (review) => {
     setBusy(true);
     try {
