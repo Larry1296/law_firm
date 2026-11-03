@@ -54,7 +54,6 @@ describe('summons service diary', () => {
     expect(screen.getByLabelText('Paper')).toHaveProperty('value', 'DEMAND_LETTER');
     expect(screen.queryByLabelText('E-filing reference')).toBeNull();
     expect(screen.queryByLabelText('Court fees (KES)')).toBeNull();
-    expect(screen.getByLabelText('E-filing reference')).toHaveProperty('value', 'EF-2026-118734');
     fireEvent.change(screen.getByLabelText('Paper'), { target: { value: 'DEFENCE' } });
     expect(screen.getByLabelText('E-filing reference')).toBeTruthy();
     expect(screen.queryByLabelText('Receipt number')).toBeNull();
@@ -89,6 +88,7 @@ describe('summons service diary', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Record' })[0]);
     expect(screen.getByLabelText('Paper')).toHaveProperty('value', 'VERIFYING_AFFIDAVIT');
     expect(screen.getByLabelText('Title')).toHaveProperty('value', 'Verifying affidavit of Grace Mwende');
+    expect(screen.getByLabelText('E-filing reference')).toHaveProperty('value', 'EF-2026-118734');
     expect(screen.queryByLabelText('Court fees (KES)')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Record in register' }));
     await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/cases/case-1/filings/', expect.objectContaining({
