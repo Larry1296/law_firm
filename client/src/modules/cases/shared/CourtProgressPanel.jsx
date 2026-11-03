@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Gavel, NotebookPen } from 'lucide-react';
@@ -402,7 +403,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
         )}
 
         <Field label='Reason / note for the record' wide>
-          <input value={reason} onChange={(event) => setReason(event.target.value)} className={inputClass} required placeholder='e.g. Claim filed through the Judiciary e-filing portal' />
+          <AutoGrowTextarea value={reason} onChange={(event) => setReason(event.target.value)} className={inputClass} required placeholder='e.g. Claim filed through the Judiciary e-filing portal' />
         </Field>
         <div className='md:col-span-2'>
           <button type='submit' disabled={busy || !selected} className='inline-flex min-h-11 items-center rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50'>

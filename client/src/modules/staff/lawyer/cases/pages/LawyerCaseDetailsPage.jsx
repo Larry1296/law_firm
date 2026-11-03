@@ -667,7 +667,7 @@ export default function LawyerCaseDetailsPage() {
             <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
               Status Note
             </label>
-            <input
+            <AutoGrowTextarea
               value={statusNote}
               onChange={(event) => setStatusNote(event.target.value)}
               placeholder='Optional update note'

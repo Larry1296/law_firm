@@ -433,7 +433,7 @@ export default function PlatformRegisterFirmPage() {
                 <input value={form.firm.postal_address} onChange={set('firm', 'postal_address')} className={inputClass} placeholder='P.O. Box 1234-00100 Nairobi' />
               </Field>
               <Field label='Physical address' required hint='Building, floor and street of the head office.' error={err('firm.physical_address')} className='md:col-span-2'>
-                <input value={form.firm.physical_address} onChange={set('firm', 'physical_address')} className={inputClass} />
+                <AutoGrowTextarea value={form.firm.physical_address} onChange={set('firm', 'physical_address')} className={inputClass} />
               </Field>
               <Field label='County' required error={err('firm.county')}>
                 <select value={form.firm.county} onChange={set('firm', 'county')} className={inputClass}>

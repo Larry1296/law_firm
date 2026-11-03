@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useMemo, useState } from 'react';
 import { MessageSquare, Send, UserRound, Users } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -241,7 +242,7 @@ export default function AdminChatPage() {
             )}
           />
 
-          <input
+          <AutoGrowTextarea
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             placeholder='Optional opening message'

@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -71,7 +72,7 @@ function RequestCard({ item, onChanged }) {
       <div className='mt-3 flex max-w-2xl gap-2'>
         <label className='flex-1'>
           <span className='sr-only'>Internal notes</span>
-          <input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder='Internal notes (not shared with the firm)' className={inputClass} />
+          <AutoGrowTextarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder='Internal notes (not shared with the firm)' className={inputClass} />
         </label>
         <Button size='sm' variant='secondary' disabled={notes === item.internal_notes} onClick={() => update({ internal_notes: notes })}>Save</Button>
       </div>

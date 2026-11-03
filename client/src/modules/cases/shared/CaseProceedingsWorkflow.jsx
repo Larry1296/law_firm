@@ -131,7 +131,7 @@ export default function CaseProceedingsWorkflow({ caseData }) {
                 </label>
                 <label className='space-y-1 font-semibold'>
                   <span>Reason for the correction</span>
-                  <input required className='form-control' value={correction.reason} onChange={(e) => setCorrection({ ...correction, reason: e.target.value })} placeholder='e.g. Day and month entered the wrong way round' />
+                  <AutoGrowTextarea required className='form-control' value={correction.reason} onChange={(e) => setCorrection({ ...correction, reason: e.target.value })} placeholder='e.g. Day and month entered the wrong way round' />
                 </label>
                 <div className='flex flex-wrap items-center gap-3 md:col-span-2'>
                   <button disabled={saving} className={button}>{saving ? 'Saving…' : 'Save corrected date'}</button>
@@ -188,7 +188,7 @@ export default function CaseProceedingsWorkflow({ caseData }) {
             </select>
             <AutoGrowTextarea required className='form-control md:col-span-2' placeholder='Outcome' value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })} />
             <input className='form-control' placeholder='Appearances, comma-separated' value={form.attendance} onChange={(e) => setForm({ ...form, attendance: e.target.value })} />
-            <input className='form-control' placeholder='Court orders and directions' value={form.orders_directions} onChange={(e) => setForm({ ...form, orders_directions: e.target.value })} />
+            <AutoGrowTextarea className='form-control' placeholder='Court orders and directions' value={form.orders_directions} onChange={(e) => setForm({ ...form, orders_directions: e.target.value })} />
             {form.outcome_code === 'ADJOURNED' && <AutoGrowTextarea required className='form-control md:col-span-2' placeholder='Adjournment reason (carried into the re-listed event)' value={form.adjournment_reason} onChange={(e) => setForm({ ...form, adjournment_reason: e.target.value })} />}
             <select className='form-control' value={form.next_event_type} onChange={(e) => {
               const selected = options.find((option) => option.value === e.target.value);

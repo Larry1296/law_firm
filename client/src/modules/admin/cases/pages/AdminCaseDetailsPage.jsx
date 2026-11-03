@@ -1,3 +1,4 @@
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { useState } from "react";
 import { useParams } from 'react-router-dom';
 import Swal from '@/core/utils/themedSwal';
@@ -1479,7 +1480,7 @@ const AdminCaseDetailsPage = () => {
                       <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                         Virtual access instructions
                       </label>
-                      <input
+                      <AutoGrowTextarea
                         value={eventDraft.virtual_access_instructions}
                         onChange={(event) => setEventDraft((current) => ({ ...current, virtual_access_instructions: event.target.value }))}
                         placeholder='Meeting ID, cause list note, or access instruction'
@@ -1525,7 +1526,7 @@ const AdminCaseDetailsPage = () => {
                   <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                     Next action
                   </label>
-                  <input
+                  <AutoGrowTextarea
                     value={eventDraft.next_action}
                     onChange={(event) => setEventDraft((current) => ({ ...current, next_action: event.target.value }))}
                     className='form-control w-full'
