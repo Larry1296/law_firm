@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.cases.models import CaseEvent
@@ -32,6 +33,11 @@ class EventSerializer(serializers.ModelSerializer):
     case = serializers.SerializerMethodField()
     virtual_courtroom_is_available = serializers.SerializerMethodField()
     client_awareness = serializers.SerializerMethodField()
+    # Decided by the server's clock, the same one record_outcome checks, not the viewer's device.
+    has_started = serializers.SerializerMethodField()
+
+    def get_has_started(self, obj):
+        return obj.starts_at <= timezone.now()
 
     def get_case(self, obj):
         case = obj.case
@@ -90,6 +96,7 @@ class EventSerializer(serializers.ModelSerializer):
             "title",
             "description",
             "starts_at",
+            "has_started",
             "ends_at",
             "actual_start",
             "actual_end",

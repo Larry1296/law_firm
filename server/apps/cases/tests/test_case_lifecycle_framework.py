@@ -599,6 +599,18 @@ class CaseLifecycleFrameworkTests(TestCase):
         case.refresh_from_db()
         self.assertEqual(case.court_stage, Case.CourtStage.FILED)
 
+    def test_an_event_reports_from_the_server_clock_whether_it_has_started(self):
+        from apps.events.serializers import EventSerializer
+
+        case = self.create_case()
+        sitting = CaseEvent.objects.create(
+            case=case, event_type=CaseEvent.EventType.MENTION, title="Mention",
+            starts_at=timezone.now() + timedelta(hours=1), created_by=self.admin,
+        )
+        self.assertFalse(EventSerializer(sitting).data["has_started"])
+        sitting.starts_at = timezone.now() - timedelta(minutes=1)
+        self.assertTrue(EventSerializer(sitting).data["has_started"])
+
     def test_pretrial_completion_may_make_case_ready_for_hearing(self):
         case = self.case_at_stage(Case.CourtStage.PRE_TRIAL)
         response = self.transition(case, CaseLifecycleTransition.Dimension.COURT_STAGE, Case.CourtStage.AWAITING_HEARING)
