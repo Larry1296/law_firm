@@ -1,25 +1,38 @@
+import { useState } from 'react';
 import Card from '@/components/ui/Card';
 import { renderDateTime, renderEnum } from '@/modules/cases/shared/casePresentation';
 
 const emptyText = 'No records yet.';
 
-const ProcedureList = ({ title, items, renderItem }) => (
-  <Card className='p-6'>
-    <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-      {title}
-    </h3>
+const SHOWN = 5;
 
-    {items?.length ? (
-      <div className='space-y-3'>
-        {items.slice(0, 5).map(renderItem)}
-      </div>
-    ) : (
-      <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
-        {emptyText}
-      </p>
-    )}
-  </Card>
-);
+// The newest few show first; the rest of the record is one click away, never cut off.
+const ProcedureList = ({ title, items, renderItem }) => {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? items : items.slice(0, SHOWN);
+  return (
+    <Card className='p-6'>
+      <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+        {title}
+      </h3>
+
+      {items?.length ? (
+        <div className='space-y-3'>
+          {shown.map(renderItem)}
+          {items.length > SHOWN && (
+            <button type='button' onClick={() => setShowAll((value) => !value)} className='text-sm font-semibold text-brand-primary hover:underline'>
+              {showAll ? 'Show fewer' : `Show all ${items.length}`}
+            </button>
+          )}
+        </div>
+      ) : (
+        <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
+          {emptyText}
+        </p>
+      )}
+    </Card>
+  );
+};
 
 export default function CaseProcedurePanels({ caseData }) {
   return (
