@@ -344,7 +344,7 @@ class FinanceRegisterView(APIView):
         matters = (
             Case.objects.filter(firm=firm)
             .exclude(matter_status__in=[Case.MatterStatus.ARCHIVED, Case.MatterStatus.CANCELLED])
-            .select_related("client")
+            .select_related("client", "client_ledger")
             .order_by("-created_at")
         )
         clients = Client.objects.filter(firm=firm, is_active=True).order_by("full_name")
@@ -370,6 +370,8 @@ class FinanceRegisterView(APIView):
                     "id": str(matter.id), "case_number": matter.case_number, "title": matter.title,
                     "client_id": str(matter.client_id), "client_name": matter.client.full_name,
                     "matter_status": matter.get_matter_status_display(),
+                    # Client money held for the matter, so a transfer to office can offer it.
+                    "client_money_held": str(getattr(getattr(matter, "client_ledger", None), "cleared_balance", 0) or 0),
                 }
                 for matter in matters
             ],

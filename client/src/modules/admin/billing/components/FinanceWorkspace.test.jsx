@@ -73,6 +73,27 @@ describe('finance workspace forms', () => {
     adminBillingService.getDisbursements.mockResolvedValue({});
   });
 
+  it('fills a transfer to office from the fee note and the sole accounts', async () => {
+    adminBillingService.getRegisters.mockResolvedValueOnce({ matters: [{ id: 'm-1', case_number: 'MAT-2026-00001', client_name: 'Grace Mwende', title: 'Unfair termination', client_money_held: '25000.00' }] });
+    adminBillingService.getAccounts.mockResolvedValueOnce({ accounts: [
+      { id: 'a-c', account_type: 'CLIENT', name: 'Client Account', account_reference: '0170291234567' },
+      { id: 'a-o', account_type: 'OFFICE', name: 'Office Account', account_reference: '0170297654321' },
+    ] });
+    adminBillingService.getInvoices.mockResolvedValueOnce({ invoices: [{ id: 'i-1', invoice_number: 'INV-0001', client_name: 'Grace Mwende', case_number: 'MAT-2026-00001', matter: 'm-1', currency: 'KES', total_amount: '52150.00', amount_paid: '0', credited_amount: '0', balance: '52150.00', status: 'ISSUED', invoice_date: '2026-11-03', issued_at: '2026-11-03T04:34:00Z' }] });
+    render(<FinanceWorkspace />);
+    const invoice = await screen.findByLabelText('Issued invoice');
+    fireEvent.change(invoice, { target: { value: 'i-1' } });
+    expect(screen.getByLabelText('From client account')).toHaveProperty('value', 'a-c');
+    expect(screen.getByLabelText('To office account')).toHaveProperty('value', 'a-o');
+    expect(screen.getAllByLabelText('Amount').find((input) => input.value === '25000.00')).toBeTruthy();
+    expect(screen.getByLabelText('Basis').value).toContain('INV-0001');
+  });
+
+  it('explains an empty list of accepted instructions', async () => {
+    render(<FinanceWorkspace />);
+    expect(await screen.findByText(/No accepted instructions are waiting/)).toBeTruthy();
+  });
+
   it('offers no second reversal of an entry already reversed', async () => {
     adminBillingService.getRegisters.mockResolvedValueOnce({ matters: [{ id: 'm-1', case_number: 'MAT-2026-00001', client_name: 'Grace Mwende', title: 'Unfair termination' }] });
     adminBillingService.getMatterLedger.mockResolvedValueOnce({ ledger: { currency: 'KES', cleared_balance: '25000.00', transactions: [
