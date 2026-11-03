@@ -39,3 +39,8 @@ class ProceedingOutcomeSerializer(serializers.Serializer):
                 raise serializers.ValidationError("Invalid deadline task type.")
             item["due_at"] = serializers.DateTimeField().to_internal_value(item["due_at"])
         return value
+
+
+class CourtDateCorrectionSerializer(serializers.Serializer):
+    starts_at = serializers.DateTimeField()
+    reason = serializers.CharField()

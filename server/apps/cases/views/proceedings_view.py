@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.cases.serializers import CaseDetailSerializer, ProceedingOutcomeSerializer
+from apps.cases.serializers import CaseDetailSerializer, CourtDateCorrectionSerializer, ProceedingOutcomeSerializer
 from apps.cases.services import CaseService
 from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
 from apps.events.serializers import EventSerializer
@@ -50,3 +50,21 @@ class RecordProceedingOutcomeView(APIView):
             "next_event": EventSerializer(next_event).data if next_event else None,
             "case": CaseDetailSerializer(case, context={"request": request}).data,
         })
+
+
+class CorrectCourtDateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, case_id, event_id):
+        serializer = CourtDateCorrectionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            case = CaseService.get_case(request.user, case_id)
+            event = ProceedingsWorkflowService.correct_event_date(
+                case=case, event_id=event_id, actor=request.user, **serializer.validated_data
+            )
+        except ObjectDoesNotExist:
+            return Response({"detail": "Case or event not found."}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"event": EventSerializer(event).data})

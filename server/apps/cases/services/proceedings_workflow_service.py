@@ -325,6 +325,48 @@ class ProceedingsWorkflowService:
         EventService.ensure_can_manage(actor, case)
 
     @classmethod
+    @transaction.atomic
+    def correct_event_date(cls, *, case, event_id, actor, starts_at, reason):
+        """Correct a wrongly entered court date, keeping the old date and the reason in the matter history."""
+        case = Case.objects.select_for_update().get(pk=case.pk)
+        event = CaseEvent.objects.select_for_update().get(pk=event_id, case=case)
+        cls.ensure_can_record(actor, case)
+        if event.status not in {CaseEvent.EventStatus.SCHEDULED, CaseEvent.EventStatus.CONFIRMED}:
+            raise ValidationError("Only a court date that is still to come can be corrected.")
+        reason = reason.strip()
+        if not reason:
+            raise ValidationError({"reason": "Give the reason for correcting the date."})
+        if starts_at == event.starts_at:
+            raise ValidationError({"starts_at": "That is already the recorded date."})
+        previous = event.starts_at
+        label = event.get_event_type_display()
+        event.starts_at = starts_at
+        if event.ends_at and event.ends_at <= starts_at:
+            event.ends_at = None
+        event.save(update_fields=["starts_at", "ends_at", "updated_at"])
+
+        def when(value):
+            return f"{timezone.localtime(value):%a %d %b %Y at %H:%M}"
+
+        summary = f"{label} date corrected from {when(previous)} to {when(starts_at)}. Reason: {reason}"
+        CaseTimeline.objects.create(case=case, action=f"{label} date corrected", description=summary, created_by=actor)
+        CaseActivity.objects.create(
+            case=case, action="COURT_DATE_CORRECTED", description=summary, actor=actor,
+            metadata={"event_id": str(event.id), "previous_starts_at": previous.isoformat(), "starts_at": starts_at.isoformat(), "reason": reason},
+        )
+        # The client was told the old date, if at all, so they must be told the new one.
+        awareness = EventService.awareness_for_event(event)
+        if awareness.status != awareness.AwarenessStatus.NOT_NOTIFIED:
+            awareness.status = awareness.AwarenessStatus.NOT_NOTIFIED
+            awareness.notified_at = None
+            awareness.confirmed_at = None
+            awareness.updated_by = actor
+            awareness.save(update_fields=["status", "notified_at", "confirmed_at", "updated_by", "updated_at"])
+        cls._resync_next_action(case, actor=actor)
+        EventService.notify_event(event, actor=actor, reason="rescheduled")
+        return event
+
+    @classmethod
     def allowed_next_events(cls, case, current_event=None):
         current_event = current_event or case.events.order_by("-starts_at", "-created_at").first()
         current_type = current_event.event_type if current_event else None

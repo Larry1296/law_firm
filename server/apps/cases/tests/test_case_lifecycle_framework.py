@@ -616,6 +616,32 @@ class CaseLifecycleFrameworkTests(TestCase):
         response = self.transition(case, CaseLifecycleTransition.Dimension.COURT_STAGE, Case.CourtStage.AWAITING_HEARING)
         self.assertEqual(response.status_code, 200, response.data)
 
+    def test_a_wrong_court_date_is_corrected_with_its_reason_kept_in_history(self):
+        case = self.create_case()
+        wrong = timezone.now() + timedelta(days=100)
+        hearing = CaseEvent.objects.create(
+            case=case, event_type=CaseEvent.EventType.HEARING, title="Hearing", starts_at=wrong, created_by=self.admin,
+        )
+        url = f"/api/cases/{case.id}/events/{hearing.id}/correct-date/"
+        right = wrong - timedelta(days=27)
+        self.assertEqual(self.api.post(url, {"starts_at": right.isoformat(), "reason": " "}, format="json").status_code, 400)
+        response = self.api.post(url, {"starts_at": right.isoformat(), "reason": "Entered month and day the wrong way round."}, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        hearing.refresh_from_db()
+        self.assertEqual(hearing.starts_at, right)
+        activity = case.activities.get(action="COURT_DATE_CORRECTED")
+        self.assertEqual(activity.metadata["previous_starts_at"], wrong.isoformat())
+        self.assertIn("wrong way round", activity.description)
+        # A client with a portal account is sent the new date at once.
+        self.assertEqual(hearing.client_awareness.status, "NOTIFIED")
+        from apps.notifications.models import Notification
+        self.assertTrue(Notification.objects.filter(case=case, message__contains="is moved to").exists())
+
+        hearing.status = CaseEvent.EventStatus.COMPLETED
+        hearing.save(update_fields=["status"])
+        response = self.api.post(url, {"starts_at": wrong.isoformat(), "reason": "Late change"}, format="json")
+        self.assertEqual(response.status_code, 400)
+
     def test_multiday_hearing_events_are_supported(self):
         case = self.create_case()
         starts = timezone.now() + timedelta(days=30)

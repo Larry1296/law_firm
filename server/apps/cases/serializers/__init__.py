@@ -39,5 +39,5 @@ __all__ = [
     "CaseTaskSerializer",
     "CaseUpdateSerializer",
 ]
-from .proceedings_serializer import ProceedingOutcomeSerializer
+from .proceedings_serializer import CourtDateCorrectionSerializer, ProceedingOutcomeSerializer
 from .court_serializer import CourtSerializer

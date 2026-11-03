@@ -420,7 +420,8 @@ class EventService:
         awareness = cls.awareness_for_event(event)
         notifications = []
         local_time = timezone.localtime(event.starts_at).strftime("%d %b %Y %H:%M")
-        verb = "updated" if reason == "updated" else "scheduled"
+        verb = {"updated": "updated", "rescheduled": "moved"}.get(reason, "scheduled")
+        key_reason = f"{reason}:{event.starts_at.isoformat()}" if reason == "rescheduled" else reason
 
         for recipient in cls.participant_users(event):
             notification = NotificationService.create(
@@ -430,9 +431,9 @@ class EventService:
                 case=event.case,
                 notification_type=Notification.NotificationType.CASE_EVENT,
                 title=f"Case event {verb}: {event.case.case_number}",
-                message=f"{event.title} is {verb} for {local_time}.",
+                message=f"{event.title} is {verb} {'to' if reason == 'rescheduled' else 'for'} {local_time}.",
                 action_url=cls.action_url_for(recipient, event),
-                event_key=f"CASE_EVENT:{reason}:{event.id}:{recipient.id}",
+                event_key=f"CASE_EVENT:{key_reason}:{event.id}:{recipient.id}",
             )
             if notification is not None:
                 notifications.append(notification)

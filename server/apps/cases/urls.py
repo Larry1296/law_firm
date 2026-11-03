@@ -17,6 +17,7 @@ from apps.cases.views import (
     VirtualCourtroomTodayView,
     AllowedNextEventsView,
     RecordProceedingOutcomeView,
+    CorrectCourtDateView,
 )
 from apps.cases.views.matter_governance_view import (
     ClosingDocumentGenerateView, DestructionView, LegalHoldView, MatterArchiveView,
@@ -44,6 +45,7 @@ urlpatterns = [
     path("<uuid:case_id>/filings/", CaseFilingRegisterView.as_view(), name="case-filing-register"),
     path("<uuid:case_id>/allowed-next-events/", AllowedNextEventsView.as_view(), name="allowed-next-events"),
     path("<uuid:case_id>/events/<uuid:event_id>/record-outcome/", RecordProceedingOutcomeView.as_view(), name="record-proceeding-outcome"),
+    path("<uuid:case_id>/events/<uuid:event_id>/correct-date/", CorrectCourtDateView.as_view(), name="correct-court-date"),
     path("<uuid:case_id>/transitions/", CaseLifecycleTransitionView.as_view(), name="case-lifecycle-transition"),
     path("<uuid:case_id>/conflict-check/", CaseConflictCheckView.as_view(), name="case-conflict-check"),
     path("<uuid:case_id>/conflict-check/actions/", CaseConflictCheckActionView.as_view(), name="case-conflict-check-action"),

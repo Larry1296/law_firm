@@ -3,7 +3,16 @@ import { useEffect, useMemo, useState } from 'react';
 
 import axiosInstance from '@/core/api/axios';
 import { formatDateTime } from '@/core/utils/dateFormatter';
+import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { currentProceeding } from './caseProceedingsUtils';
+
+// A date written out in words ("Wednesday, 3 February 2027 at 09:00"), so a day/month mix-up in the picker shows before saving.
+const spelledOut = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+};
+const button = 'inline-flex min-h-11 items-center rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50';
 
 const box = 'rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark';
 
@@ -26,6 +35,8 @@ export default function CaseProceedingsWorkflow({ caseData }) {
     adjournment_reason: '',
   });
   const [message, setMessage] = useState('');
+  const [correction, setCorrection] = useState(null);
+  const [correctionMessage, setCorrectionMessage] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -64,6 +75,23 @@ export default function CaseProceedingsWorkflow({ caseData }) {
 
   // The server says whether the sitting has started, so a wrong device clock cannot hide or show the form.
   const hasStarted = current ? (current.has_started ?? new Date(current.starts_at) <= new Date()) : false;
+  const saveCorrection = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setCorrectionMessage('');
+    try {
+      await axiosInstance.post(`/cases/${caseData.id}/events/${current.id}/correct-date/`, {
+        starts_at: new Date(correction.starts_at).toISOString(),
+        reason: correction.reason,
+      });
+      window.location.reload();
+    } catch (error) { if (error?.isActionCancelled) return;
+      setCorrectionMessage(getApiErrorMessage(error, 'The date could not be corrected.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const summary = caseData.lifecycle_summary || {};
   const jurisdiction = caseData.jurisdiction_history?.[0];
   const cts = caseData.judiciary_cts_snapshots?.[0];
@@ -90,6 +118,28 @@ export default function CaseProceedingsWorkflow({ caseData }) {
           <div className='mt-2 text-sm'>
             <p className='font-medium'>{current.event_type_label} — {formatDateTime(current.starts_at)}</p>
             <p>{current.court_station || current.court || 'Venue pending'} {current.virtual_meeting_url ? '· Virtual link recorded' : ''}</p>
+            {!hasStarted && !correction && (
+              <button type='button' onClick={() => setCorrection({ starts_at: '', reason: '' })} className='mt-2 font-semibold text-brand-primary hover:underline'>Correct date</button>
+            )}
+            {/* A wrongly entered date is corrected with a reason; the old date stays in the matter history. */}
+            {correction && (
+              <form onSubmit={saveCorrection} className='mt-3 grid gap-3 md:grid-cols-2' aria-label='Correct the court date'>
+                <label className='space-y-1 font-semibold'>
+                  <span>Correct date and time</span>
+                  <input type='datetime-local' required className='form-control' value={correction.starts_at} onChange={(e) => setCorrection({ ...correction, starts_at: e.target.value })} />
+                  {correction.starts_at && <span className='block text-sm font-normal'>{current.event_type_label} on <strong>{spelledOut(correction.starts_at)}</strong></span>}
+                </label>
+                <label className='space-y-1 font-semibold'>
+                  <span>Reason for the correction</span>
+                  <input required className='form-control' value={correction.reason} onChange={(e) => setCorrection({ ...correction, reason: e.target.value })} placeholder='e.g. Day and month entered the wrong way round' />
+                </label>
+                <div className='flex flex-wrap items-center gap-3 md:col-span-2'>
+                  <button disabled={saving} className={button}>{saving ? 'Saving…' : 'Save corrected date'}</button>
+                  <button type='button' onClick={() => { setCorrection(null); setCorrectionMessage(''); }} className='font-semibold text-brand-primary hover:underline'>Cancel</button>
+                </div>
+                {correctionMessage && <p className='text-sm text-red-700 dark:text-red-300 md:col-span-2'>{correctionMessage}</p>}
+              </form>
+            )}
           </div>
         ) : <p className='mt-2 text-sm'>No active court event is scheduled.</p>}
       </section>
@@ -154,11 +204,14 @@ export default function CaseProceedingsWorkflow({ caseData }) {
               )}
               {options.map((option) => <option key={option.value} value={option.value}>{option.recommended ? 'Recommended: ' : ''}{option.label}</option>)}
             </select>
-            <input type='datetime-local' className='form-control' value={form.next_date} onChange={(e) => setForm({ ...form, next_date: e.target.value })} />
+            <div>
+              <input type='datetime-local' className='form-control w-full' value={form.next_date} onChange={(e) => setForm({ ...form, next_date: e.target.value })} />
+              {form.next_date && <p className='mt-1 text-sm'>Next date: <strong>{spelledOut(form.next_date)}</strong></p>}
+            </div>
             {form.next_event_type === 'OTHER_COURT_DIRECTED' && <AutoGrowTextarea required className='form-control md:col-span-2' placeholder='Details of the exceptional court direction' value={form.court_direction_details} onChange={(e) => setForm({ ...form, court_direction_details: e.target.value })} />}
           </div>
           {message && <p className='mt-3 text-sm'>{message}</p>}
-          <button disabled={saving} className='mt-3 inline-flex min-h-11 items-center rounded-lg bg-brand-primary px-4 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50'>{saving ? 'Saving…' : 'Save proceeding'}</button>
+          <button disabled={saving} className={`mt-3 ${button}`}>{saving ? 'Saving…' : 'Save proceeding'}</button>
         </form>
       )}
     </div>

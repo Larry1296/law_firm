@@ -12,7 +12,7 @@ from .case_lifecycle_transition_view import CaseLifecycleTransitionView
 from .case_status_view import CaseStatusView
 from .case_task_view import CaseTaskListCreateView
 from .matter_physical_file_view import MatterPhysicalFileView
-from .proceedings_view import AllowedNextEventsView, RecordProceedingOutcomeView
+from .proceedings_view import AllowedNextEventsView, CorrectCourtDateView, RecordProceedingOutcomeView
 
 __all__ = [
     "CaseEventListCreateView",
@@ -31,4 +31,5 @@ __all__ = [
     "VirtualCourtroomTodayView",
     "AllowedNextEventsView",
     "RecordProceedingOutcomeView",
+    "CorrectCourtDateView",
 ]
