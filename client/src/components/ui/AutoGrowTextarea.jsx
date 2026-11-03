@@ -53,6 +53,7 @@ const AutoGrowTextarea = forwardRef(function AutoGrowTextarea(
         if (value === undefined) fit();
         onInput?.(event);
       }}
+      data-autogrow=''
       className={`resize-none ${className}`}
       style={style}
       {...props}

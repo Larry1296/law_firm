@@ -36,7 +36,8 @@ const localInput = (value) => {
   const date = new Date(value);
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
-const input = 'w-full rounded-lg border border-border-light bg-transparent px-3 py-2 text-sm dark:border-border-dark';
+// A solid background, not transparent: the browser paints a select's option list from it, so options stay readable in dark mode.
+const input = 'w-full rounded-lg border border-border-light bg-surface-light px-3 py-2 text-sm text-text-primary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark';
 const button = 'rounded-lg bg-brand-primary px-3 py-2 text-sm font-semibold text-white disabled:opacity-50';
 const today = () => localDateInput();
 const split = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);

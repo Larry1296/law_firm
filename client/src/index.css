@@ -1037,7 +1037,8 @@ html:not(.dark) .public-home #home [class*="via-black"] {
     border-color: var(--form-danger);
   }
 
-  :where(textarea).form-control {
+  /* Elastic boxes start at one line and grow; only fixed textareas get the tall minimum. */
+  :where(textarea:not([data-autogrow])).form-control {
     min-height: 96px;
     resize: vertical;
   }
