@@ -6,6 +6,7 @@ import { Gavel, NotebookPen } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import axiosInstance from '@/core/api/axios';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
+import { serverNow } from '@/core/utils/serverClock';
 
 const COURT_DIMENSIONS = ['COURT_STAGE', 'OUTCOME_STATUS', 'ENFORCEMENT_STATUS', 'APPEAL_STATUS'];
 const DIMENSION_LABELS = {
@@ -178,10 +179,9 @@ const ELRC_RESPONSE_DAYS = 28;
 const compact = (object) => Object.fromEntries(Object.entries(object).filter(([, value]) => value !== '' && value !== null));
 
 export default function CourtProgressPanel({ caseData, canRecordFilings = true, showStage = true }) {
-  // Dates default to the server's clock (sent with the matter), so a wrong device clock does not date a record.
-  const [clockOffset] = useState(() => (caseData.server_now ? new Date(caseData.server_now).getTime() - Date.now() : 0));
-  const today = () => localDate(new Date(Date.now() + clockOffset));
-  const nowLocal = () => localDateTime(new Date(Date.now() + clockOffset));
+  // Dates default to the server's clock, so a wrong device clock does not date a record.
+  const today = () => localDate(serverNow());
+  const nowLocal = () => localDateTime(serverNow());
   const queryClient = useQueryClient();
   const caseId = caseData.id;
   const [selected, setSelected] = useState('');

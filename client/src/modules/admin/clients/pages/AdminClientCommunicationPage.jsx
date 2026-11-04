@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import axiosInstance from '@/core/api/axios';
 import useAuth from '@/core/hooks/useAuth';
 import { FormAlert, FormButton, FormCard, FormGrid, FormHeader, FormPage, FormSection, SelectInput, TextArea, TextInput } from '@/components/forms';
+import { serverNow } from '@/core/utils/serverClock';
 import adminClientsService from '../services/adminClientsService';
 
 const CHANNELS = [
@@ -20,7 +21,7 @@ const CHANNEL_LABEL = Object.fromEntries(CHANNELS.map((option) => [option.value,
 const DIRECTIONS = [{ value: 'OUTGOING', label: 'Firm contacted the client' }, { value: 'INCOMING', label: 'Client contacted the firm' }];
 
 const nowLocal = () => {
-  const now = new Date();
+  const now = serverNow();
   now.setSeconds(0, 0);
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };

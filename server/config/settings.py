@@ -305,6 +305,8 @@ CORS_ALLOWED_ORIGINS = config(
     default="http://localhost:5173,http://127.0.0.1:5173",
     cast=Csv(),
 )
+# The client reads the server's Date header to date its forms by the server's clock.
+CORS_EXPOSE_HEADERS = ["Date"]
 
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@sheriamaster.local")
