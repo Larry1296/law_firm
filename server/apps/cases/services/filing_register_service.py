@@ -83,14 +83,23 @@ class FilingRegisterService:
         filed_at = data.get("filed_at") or timezone.now()
         served_at = data.get("served_at")
         response_due_date = None
+        served_filing = cls._served_filing(case, filing_type, data.get("served_filing"))
+        if filing_type == CaseFiling.FilingType.HEARING_NOTICE and not served_at:
+            raise ValidationError({"served_at": "Record the date the hearing notice was served."})
         if filing_type == CaseFiling.FilingType.DEMAND_LETTER:
             period = data.get("response_period_days")
             if period not in cls.DEMAND_PERIODS:
                 raise ValidationError({"response_period_days": "Choose a demand period of 7, 14 or 21 days."})
             response_due_date = timezone.localdate(filed_at) + timedelta(days=period)
-        if filing_type in {CaseFiling.FilingType.SUMMONS, CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE} and not served_at:
+        proves_summons = filing_type == CaseFiling.FilingType.SUMMONS or (
+            filing_type == CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE and served_filing is None
+        )
+        if served_filing is not None:
+            # The affidavit swears to service already recorded for that paper.
+            served_at = served_filing.served_at
+        if proves_summons and not served_at:
             raise ValidationError({"served_at": "Record the date the summons was served; the appearance period runs from service."})
-        if filing_type in {CaseFiling.FilingType.SUMMONS, CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE}:
+        if proves_summons:
             response_due_date = data.get("response_due_date")
             if not response_due_date:
                 raise ValidationError({"response_due_date": "Record the appearance due date prescribed by the summons or court order; an advocate must verify it."})
@@ -123,6 +132,7 @@ class FilingRegisterService:
             receipt_number=(data.get("receipt_number") or "").strip(),
             source="FILING_REGISTER",
             filed_by_party=filed_by_party,
+            served_filing=served_filing,
             filed_by=user,
             is_client_visible=data.get("is_client_visible", True),
         )
@@ -135,7 +145,7 @@ class FilingRegisterService:
             actor=user,
             metadata={"filing_id": str(filing.id), "filing_type": filing_type},
         )
-        if filing_type == CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE:
+        if filing_type == CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE and proves_summons:
             cls._advance_to_awaiting_response(case, user)
         elif filing_type == CaseFiling.FilingType.DEFENCE:
             case.refresh_from_db()
@@ -153,6 +163,44 @@ class FilingRegisterService:
 
     # Papers only the other side files: its appearance and its answer to the claim.
     OTHER_SIDE_TYPES = {CaseFiling.FilingType.MEMORANDUM_OF_APPEARANCE, CaseFiling.FilingType.DEFENCE}
+
+    @staticmethod
+    def _served_filing(case, filing_type, filing_id):
+        """An affidavit of service names the paper it proves; without one it proves the summons."""
+        if not filing_id:
+            return None
+        if filing_type != CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE:
+            raise ValidationError({"served_filing": "Only an affidavit of service proves service of another paper."})
+        served = case.filings.filter(id=filing_id, served_at__isnull=False).first()
+        if not served:
+            raise ValidationError({"served_filing": "Choose a paper of this matter that has been served."})
+        if served.filing_type == CaseFiling.FilingType.SUMMONS:
+            return None
+        return served
+
+    @classmethod
+    def hearing_notice_step(cls, case, sitting):
+        """Before a hearing: serve a hearing notice and file the affidavit of service.
+
+        ELRC (Procedure) Rules, 2024, rule 60(1): the Court may proceed in a party's absence only where a
+        hearing notice was served on the parties and an affidavit of service has been filed.
+        """
+        from apps.common.choices import CourtEventType
+
+        if sitting is None or sitting.event_type != CourtEventType.HEARING or case.procedure_track != Case.ProcedureTrack.EMPLOYMENT_CLAIM:
+            return None
+        notice = (
+            case.filings.filter(filing_type=CaseFiling.FilingType.HEARING_NOTICE, served_at__gte=sitting.created_at)
+            .exclude(status__in=[CaseFiling.FilingStatus.WITHDRAWN, CaseFiling.FilingStatus.REJECTED])
+            .order_by("-served_at")
+            .first()
+        )
+        day = f"{timezone.localtime(sitting.starts_at):%d %b %Y}"
+        if notice is None:
+            return f"Serve hearing notice for the hearing on {day}"
+        if not notice.service_affidavits.exists():
+            return f"File affidavit of service of the hearing notice for {day}"
+        return None
 
     @classmethod
     def _filing_party(cls, case, filing_type, party_id):
@@ -313,7 +361,7 @@ class FilingRegisterService:
                 due=filing.response_due_date, deadline_type=MatterDeadline.Type.RESPONSE, priority="HIGH",
                 description=f"Demand period expires. If unpaid, prepare the {cls.originating_document(case)} for advocate review.",
             )
-        elif filing.filing_type in {CaseFiling.FilingType.SUMMONS, CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE} and filing.served_at:
+        elif filing.filing_type in {CaseFiling.FilingType.SUMMONS, CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE} and filing.served_at and filing.served_filing_id is None:
             cls._deadline(
                 case, user, key=f"APPEARANCE:{case.id}",
                 due=filing.response_due_date,

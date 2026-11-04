@@ -38,6 +38,7 @@ class CaseFiling(TimestampedModel):
         RULING = "RULING", "Ruling"
         JUDGMENT = "JUDGMENT", "Judgment"
         AFFIDAVIT_OF_SERVICE = "AFFIDAVIT_OF_SERVICE", "Affidavit of Service"
+        HEARING_NOTICE = "HEARING_NOTICE", "Hearing notice"
         ORIGINATING_CLAIM = "ORIGINATING_CLAIM", "Originating claim"
         OTHER = "OTHER", "Other"
 
@@ -67,6 +68,14 @@ class CaseFiling(TimestampedModel):
     payment_date = models.DateField(null=True, blank=True)
     receipt_number = models.CharField(max_length=120, blank=True, default="")
     source = models.CharField(max_length=120, blank=True, default="")
+    # For an affidavit of service: the paper whose service it proves (a summons or a hearing notice).
+    served_filing = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="service_affidavits",
+    )
     # The party whose paper this is: papers such as witness statements are filed by either side.
     filed_by_party = models.ForeignKey(
         "cases.CaseParty",

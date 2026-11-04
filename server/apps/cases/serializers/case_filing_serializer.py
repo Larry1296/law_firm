@@ -51,6 +51,7 @@ class CaseFilingSerializer(serializers.ModelSerializer):
             "source",
             "filed_by_party",
             "filed_by_party_name",
+            "served_filing",
             "filed_by_adverse",
             "is_client_visible",
             "created_at",
@@ -73,4 +74,5 @@ class CaseFilingRecordSerializer(serializers.Serializer):
     payment_date = serializers.DateField(required=False, allow_null=True)
     receipt_number = serializers.CharField(max_length=120, required=False, allow_blank=True)
     filed_by_party = serializers.UUIDField(required=False, allow_null=True)
+    served_filing = serializers.UUIDField(required=False, allow_null=True)
     is_client_visible = serializers.BooleanField(required=False, default=True)

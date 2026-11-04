@@ -21,6 +21,7 @@ const REGISTER_TYPES = [
   ['DEMAND_LETTER', 'Demand letter issued'],
   ['SUMMONS', 'Summons served'],
   ['AFFIDAVIT_OF_SERVICE', 'Affidavit of service filed'],
+  ['HEARING_NOTICE', 'Hearing notice served'],
   ['MEMORANDUM_OF_APPEARANCE', 'Memorandum of appearance received'],
   ['DEFENCE', 'Defence received'],
   ['REPLY_TO_DEFENCE', 'Reply to defence filed'],
@@ -39,7 +40,10 @@ const REGISTER_TYPES = [
   ['NOTICE_OF_APPEAL', 'Notice of appeal filed'],
   ['OTHER', 'Other paper'],
 ];
-const SERVICE_TYPES = new Set(['SUMMONS', 'AFFIDAVIT_OF_SERVICE']);
+const SERVICE_TYPES = new Set(['SUMMONS', 'AFFIDAVIT_OF_SERVICE', 'HEARING_NOTICE']);
+// Papers whose service an affidavit of service proves.
+const SERVED_PAPER_TYPES = new Set(['SUMMONS', 'HEARING_NOTICE']);
+const shortDate = (value) => new Date(value).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' });
 
 // The ELRC (Procedure) Rules, 2024 have no separate appearance: the respondent enters appearance and
 // files a response within 28 days of service (rule 29(1)) and the claimant may reply within 7 days (rule 29(3)).
@@ -63,6 +67,12 @@ const nextPaper = (caseData) => {
   }
   if (caseData.court_stage === 'AWAITING_RESPONSE') return 'DEFENCE';
   if (caseData.court_stage === 'PLEADINGS_OPEN' && !filed('REPLY_TO_DEFENCE')) return 'REPLY_TO_DEFENCE';
+  // Before a hearing the claimant serves a hearing notice and proves it by affidavit (ELRC Rules, 2024, rule 60(1)).
+  if (caseData.court_stage === 'AWAITING_HEARING' && caseData.procedure_track === 'EMPLOYMENT_CLAIM') {
+    const notice = (caseData.filings || []).find((filing) => filing.filing_type === 'HEARING_NOTICE' && filing.served_at);
+    if (!notice) return 'HEARING_NOTICE';
+    if (!(caseData.filings || []).some((filing) => filing.served_filing === notice.id)) return 'AFFIDAVIT_OF_SERVICE';
+  }
   return '';
 };
 // The papers a claimant files with the claim itself: ELRC (Procedure) Rules, 2024, rule 7(3), and for a
@@ -145,6 +155,7 @@ const titleFor = (paper, caseData, label, filer) => {
     DEMAND_LETTER: `Demand letter to ${other}`,
     SUMMONS: `Summons and ${claim} served on ${other}`,
     AFFIDAVIT_OF_SERVICE: `Affidavit of service on ${other}`,
+    HEARING_NOTICE: `Hearing notice${caseData.next_court_date ? ` for ${shortDate(caseData.next_court_date)}` : ''} served on ${other}`,
     MEMORANDUM_OF_APPEARANCE: `Memorandum of appearance by ${other}`,
     DEFENCE: `${elrc ? 'Response' : 'Defence'} by ${other}`,
     REPLY_TO_DEFENCE: `Reply to ${elrc ? 'response' : 'defence'} of ${other}`,
@@ -208,16 +219,28 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const paper = entry.filing_type || nextPaper(caseData);
   // An affidavit of service swears to the service already recorded, so it repeats that date and the response it set.
   const summons = (caseData.filings || []).find((filing) => filing.filing_type === 'SUMMONS' && filing.served_at);
-  const fromSummons = paper === 'AFFIDAVIT_OF_SERVICE' && summons && !entry.serviceEdited;
-  const servedAt = fromSummons ? localDateTime(new Date(summons.served_at)) : entry.served_at;
+  // An affidavit of service names the paper it proves: the latest served paper without one, unless chosen.
+  const servedPapers = (caseData.filings || []).filter((filing) => SERVED_PAPER_TYPES.has(filing.filing_type) && filing.served_at);
+  const unproved = servedPapers.find((filing) => filing.filing_type !== 'SUMMONS' && !(caseData.filings || []).some((other) => other.served_filing === filing.id));
+  const provedPaper = paper === 'AFFIDAVIT_OF_SERVICE'
+    ? servedPapers.find((filing) => filing.id === entry.served_filing) || unproved || summons
+    : null;
+  const provesNotice = provedPaper?.filing_type === 'HEARING_NOTICE';
+  const fromSummons = paper === 'AFFIDAVIT_OF_SERVICE' && summons && !provesNotice && !entry.serviceEdited;
+  const servedAt = provesNotice ? localDateTime(new Date(provedPaper.served_at)) : fromSummons ? localDateTime(new Date(summons.served_at)) : entry.served_at;
   const responseDue = fromSummons ? summons.response_due_date || entry.response_due_date : entry.response_due_date;
+  // Only the summons starts the response period; a hearing notice gives the hearing date.
+  const startsResponse = paper === 'SUMMONS' || (paper === 'AFFIDAVIT_OF_SERVICE' && !provesNotice);
   // Who filed the paper: the other side for its own papers, a chosen party for papers either side files.
   const filingParties = (caseData.parties || []).filter((party) => party.is_our_client || party.is_adverse);
   const ourParty = filingParties.find((party) => party.is_our_client);
   const filerId = EITHER_SIDE_PAPERS.has(paper) ? (entry.filed_by_party || ourParty?.id || '') : '';
   const filer = filingParties.find((party) => party.id === filerId);
   const theirPaper = OTHER_SIDE_PAPERS.has(paper) || Boolean(filer?.is_adverse);
-  const title = entry.title || titleFor(paper, caseData, registerTypes.find(([value]) => value === paper)?.[1] || '', filer);
+  const defaultTitle = provesNotice
+    ? `Affidavit of service of hearing notice on ${(caseData.parties || []).find((party) => party.is_adverse)?.name || 'the other side'}`
+    : titleFor(paper, caseData, registerTypes.find(([value]) => value === paper)?.[1] || '', filer);
+  const title = entry.title || defaultTitle;
   const [busy, setBusy] = useState(false);
   const [stageFeedback, setStageFeedback] = useState(null);
   const [entryFeedback, setEntryFeedback] = useState(null);
@@ -256,7 +279,8 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       title,
       filed_at: toIso(entry.filed_at),
       served_at: SERVICE_TYPES.has(paper) ? toIso(servedAt) : null,
-      response_due_date: SERVICE_TYPES.has(paper) ? responseDue : null,
+      response_due_date: startsResponse ? responseDue : null,
+      served_filing: provesNotice ? provedPaper.id : null,
       response_period_days: paper === 'DEMAND_LETTER' ? Number(entry.response_period_days) : null,
       // Only the fields shown for this paper are sent.
       efiling_reference: NOT_FILED_IN_COURT.has(paper) ? null : entry.efiling_reference,
@@ -291,6 +315,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       next.title = '';
     }
     if (event.target.name === 'filed_by_party' && !adverseChosen) next.title = '';
+    if (['served_filing', 'filing_type'].includes(event.target.name)) next.title = '';
     if (event.target.name === 'filing_type' && CLAIM_PAPER_TYPES.has(event.target.value) && claimDate && !adverseChosen) {
       next.filed_at = claimDate;
       next.efiling_reference = claimReference;
@@ -378,14 +403,21 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
               </select>
             </Field>
           )}
+          {paper === 'AFFIDAVIT_OF_SERVICE' && servedPapers.length > 1 && (
+            <Field label='Proves service of'>
+              <select name='served_filing' value={provedPaper?.id || ''} onChange={updateEntry} className={inputClass} required>
+                {servedPapers.map((filing) => <option key={filing.id} value={filing.id}>{filing.title} (served {shortDate(filing.served_at)})</option>)}
+              </select>
+            </Field>
+          )}
           {SERVICE_TYPES.has(paper) && (
             <>
-            <Field label={isElrc ? 'Response due date (28 days after service)' : 'Appearance due date in summons / court order'}>
+            {startsResponse && <Field label={isElrc ? 'Response due date (28 days after service)' : 'Appearance due date in summons / court order'}>
               <input type='date' name='response_due_date' value={responseDue} onChange={updateEntry} className={inputClass} required />
               <span className='block text-xs font-normal'>The advocate verifies this date in the matter deadlines before relying on it.</span>
-            </Field>
+            </Field>}
             <Field label='Date served'>
-              <input type='datetime-local' name='served_at' max={nowLocal()} value={servedAt} onChange={updateEntry} className={inputClass} required />
+              <input type='datetime-local' name='served_at' max={nowLocal()} value={servedAt} onChange={updateEntry} className={inputClass} required readOnly={provesNotice} />
             </Field>
             </>
           )}

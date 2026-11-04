@@ -374,6 +374,41 @@ class CaseLifecycleFrameworkTests(TestCase):
         with self.assertRaises(ValidationError):
             FilingRegisterService.record(user=self.admin, case=self.create_case(), data={"filing_type": "WITNESS_STATEMENT", "filed_by_party": respondent.id})
 
+    def test_a_hearing_notice_is_served_and_proved_before_the_hearing_without_reopening_the_response(self):
+        from rest_framework.exceptions import ValidationError
+
+        from apps.cases.models import CaseParty
+        from apps.cases.services.filing_register_service import FilingRegisterService
+        from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
+        from apps.common.choices import CourtEventType
+
+        case = self.create_case()
+        case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
+        case.court_stage = Case.CourtStage.AWAITING_HEARING
+        case.save(update_fields=["procedure_track", "court_stage"])
+        CaseParty.objects.create(case=case, name="Baraka Supplies Limited", party_role="RESPONDENT", is_adverse=True)
+        hearing = CaseEvent.objects.create(
+            case=case, event_type=CourtEventType.HEARING, title="Hearing",
+            starts_at=timezone.now() + timedelta(days=60), created_by=self.admin,
+        )
+        day = f"{timezone.localtime(hearing.starts_at):%d %b %Y}"
+        # ELRC (Procedure) Rules, 2024, rule 60(1): service of a hearing notice, proved by affidavit.
+        ProceedingsWorkflowService._resync_next_action(case, actor=self.admin)
+        self.assertEqual(case.next_action, f"Serve hearing notice for the hearing on {day}")
+        with self.assertRaises(ValidationError):
+            FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "HEARING_NOTICE"})
+        notice = FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "HEARING_NOTICE", "served_at": timezone.now()})
+        self.assertEqual(notice.status, "SERVED")
+        case.refresh_from_db()
+        self.assertEqual(case.next_action, f"File affidavit of service of the hearing notice for {day}")
+        affidavit = FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "AFFIDAVIT_OF_SERVICE", "served_filing": notice.id})
+        self.assertEqual(affidavit.served_filing, notice)
+        self.assertEqual(affidavit.served_at, notice.served_at)
+        case.refresh_from_db()
+        self.assertEqual(case.court_stage, Case.CourtStage.AWAITING_HEARING)
+        self.assertFalse(case.deadlines.filter(source=f"APPEARANCE:{case.id}").exists())
+        self.assertEqual(case.next_action, "Hearing")
+
     def test_elrc_pleadings_follow_rule_29_and_their_close_starts_the_pre_trial_period(self):
         from apps.cases.services.filing_register_service import FilingRegisterService
         from apps.events.services import EventService
