@@ -67,6 +67,14 @@ class CaseFiling(TimestampedModel):
     payment_date = models.DateField(null=True, blank=True)
     receipt_number = models.CharField(max_length=120, blank=True, default="")
     source = models.CharField(max_length=120, blank=True, default="")
+    # The party whose paper this is: papers such as witness statements are filed by either side.
+    filed_by_party = models.ForeignKey(
+        "cases.CaseParty",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="filings",
+    )
     filed_by = models.ForeignKey(
         "users.User",
         on_delete=models.SET_NULL,

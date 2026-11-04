@@ -100,6 +100,11 @@ class FilingRegisterService:
             if existing and timezone.localdate(existing.due_at) != response_due_date:
                 raise ValidationError({"response_due_date": "A different appearance deadline is already recorded. Use the audited deadline-change action first."})
 
+        filed_by_party = cls._filing_party(case, filing_type, data.get("filed_by_party"))
+        if filed_by_party and filed_by_party.is_adverse:
+            # The other side pays its own court fees; nothing of theirs goes on our client's fee note.
+            data = {**data, "court_fee_amount": None, "payment_reference": "", "payment_date": None, "receipt_number": ""}
+
         status = CaseFiling.FilingStatus.SERVED if served_at or filing_type == CaseFiling.FilingType.DEMAND_LETTER else CaseFiling.FilingStatus.FILED
         filing = CaseFiling.objects.create(
             case=case,
@@ -117,6 +122,7 @@ class FilingRegisterService:
             payment_date=data.get("payment_date"),
             receipt_number=(data.get("receipt_number") or "").strip(),
             source="FILING_REGISTER",
+            filed_by_party=filed_by_party,
             filed_by=user,
             is_client_visible=data.get("is_client_visible", True),
         )
@@ -144,6 +150,20 @@ class FilingRegisterService:
 
         ProceedingsWorkflowService._resync_next_action(case, actor=user)
         return filing
+
+    # Papers only the other side files: its appearance and its answer to the claim.
+    OTHER_SIDE_TYPES = {CaseFiling.FilingType.MEMORANDUM_OF_APPEARANCE, CaseFiling.FilingType.DEFENCE}
+
+    @classmethod
+    def _filing_party(cls, case, filing_type, party_id):
+        if party_id:
+            party = case.parties.filter(id=party_id).first()
+            if not party:
+                raise ValidationError({"filed_by_party": "Choose a party to this matter."})
+            return party
+        if filing_type in cls.OTHER_SIDE_TYPES:
+            return case.parties.filter(is_adverse=True).order_by("party_order").first()
+        return None
 
     SERVICE_PATH = [Case.CourtStage.AWAITING_SERVICE, Case.CourtStage.SERVICE_IN_PROGRESS, Case.CourtStage.AWAITING_RESPONSE]
 

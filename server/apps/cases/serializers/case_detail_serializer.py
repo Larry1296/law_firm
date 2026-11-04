@@ -48,6 +48,8 @@ class CaseDetailSerializer(serializers.ModelSerializer):
     timeline = CaseTimelineSerializer(many=True, read_only=True)
     events = serializers.SerializerMethodField()
     filings = serializers.SerializerMethodField()
+    # Forms default their dates to the server's clock, not the viewer's device.
+    server_now = serializers.SerializerMethodField()
     documents = serializers.SerializerMethodField()
     notes = serializers.SerializerMethodField()
     tasks = serializers.SerializerMethodField()
@@ -250,6 +252,9 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             queryset = queryset.filter(is_client_visible=True)
         return CaseTaskSerializer(queryset, many=True).data
 
+    def get_server_now(self, obj):
+        return timezone.now()
+
     def get_parties(self, obj):
         queryset = obj.parties.all()
         if self._client_visible_only():
@@ -366,6 +371,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
             "timeline",
             "events",
             "filings",
+            "server_now",
             "documents",
             "notes",
             "tasks",

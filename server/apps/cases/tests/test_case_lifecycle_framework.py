@@ -349,6 +349,31 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertEqual(case.filings.get(filing_type="LIST_OF_WITNESSES").title, "List of witnesses")
         self.assertFalse(Disbursement.objects.filter(matter=case).exists())
 
+    def test_the_other_sides_papers_are_recorded_as_theirs_without_charging_our_client_fees(self):
+        from apps.billing.models.finance import Disbursement
+        from decimal import Decimal
+
+        from rest_framework.exceptions import ValidationError
+
+        from apps.cases.models import CaseParty
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
+        case = self.create_case()
+        respondent = CaseParty.objects.create(case=case, name="Baraka Supplies Limited", party_role="RESPONDENT", is_adverse=True)
+        # A court direction gave the respondent time to file and serve its witness statements.
+        filing = FilingRegisterService.record(user=self.admin, case=case, data={
+            "filing_type": "WITNESS_STATEMENT", "title": "Respondent's witness statement(s)",
+            "filed_by_party": respondent.id, "court_fee_amount": Decimal("500.00"), "payment_reference": "XYZ",
+        })
+        self.assertEqual(filing.filed_by_party, respondent)
+        self.assertIsNone(filing.court_fee_amount)
+        self.assertFalse(Disbursement.objects.filter(matter=case).exists())
+        # The response is always the other side's.
+        response = FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "DEFENCE", "title": "Response"})
+        self.assertEqual(response.filed_by_party, respondent)
+        with self.assertRaises(ValidationError):
+            FilingRegisterService.record(user=self.admin, case=self.create_case(), data={"filing_type": "WITNESS_STATEMENT", "filed_by_party": respondent.id})
+
     def test_elrc_pleadings_follow_rule_29_and_their_close_starts_the_pre_trial_period(self):
         from apps.cases.services.filing_register_service import FilingRegisterService
         from apps.events.services import EventService

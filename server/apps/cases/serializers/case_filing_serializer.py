@@ -14,6 +14,8 @@ ELRC_FILING_LABELS = {
 class CaseFilingSerializer(serializers.ModelSerializer):
     filing_type_label = serializers.SerializerMethodField()
     status_label = serializers.SerializerMethodField()
+    filed_by_party_name = serializers.CharField(source="filed_by_party.name", read_only=True, default="")
+    filed_by_adverse = serializers.BooleanField(source="filed_by_party.is_adverse", read_only=True, default=False)
 
     def get_filing_type_label(self, obj):
         if obj.case.procedure_track == Case.ProcedureTrack.EMPLOYMENT_CLAIM and obj.filing_type in ELRC_FILING_LABELS:
@@ -47,6 +49,9 @@ class CaseFilingSerializer(serializers.ModelSerializer):
             "payment_date",
             "receipt_number",
             "source",
+            "filed_by_party",
+            "filed_by_party_name",
+            "filed_by_adverse",
             "is_client_visible",
             "created_at",
             "updated_at",
@@ -67,4 +72,5 @@ class CaseFilingRecordSerializer(serializers.Serializer):
     payment_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)
     payment_date = serializers.DateField(required=False, allow_null=True)
     receipt_number = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    filed_by_party = serializers.UUIDField(required=False, allow_null=True)
     is_client_visible = serializers.BooleanField(required=False, default=True)

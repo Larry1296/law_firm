@@ -83,12 +83,14 @@ const claimPapersFor = (caseData) => {
   return {
     rule: caseData.procedure_track === 'EMPLOYMENT_CLAIM' ? 'ELRC (Procedure) Rules, 2024, rule 7(3)' : 'Civil Procedure Rules, 2010, Order 3 rule 2',
     claim,
-    papers: CLAIM_PAPERS.map(([value, label]) => ({ value, label, filings: (caseData.filings || []).filter((filing) => filing.filing_type === value) })),
+    papers: CLAIM_PAPERS.map(([value, label]) => ({ value, label, filings: (caseData.filings || []).filter((filing) => filing.filing_type === value && !filing.filed_by_adverse) })),
   };
 };
 // A demand letter is not filed in court, and the other side's papers carry their own fees and receipts.
 const NOT_FILED_IN_COURT = new Set(['DEMAND_LETTER']);
 const OTHER_SIDE_PAPERS = new Set(['DEFENCE', 'MEMORANDUM_OF_APPEARANCE']);
+// Papers either side files, e.g. the respondent's witness statements served under a court direction.
+const EITHER_SIDE_PAPERS = new Set(['LIST_OF_WITNESSES', 'WITNESS_STATEMENT', 'LIST_OF_DOCUMENTS', 'NOTICE_OF_MOTION', 'SUBMISSIONS', 'OTHER']);
 
 const inputClass = 'form-control';
 const friendly = (value) => (value || '').replaceAll('_', ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
@@ -99,7 +101,7 @@ const emptyFiling = {
 };
 const emptyEntry = {
   filing_type: '', title: '', filed_at: '', served_at: '', response_period_days: '14', response_due_date: '',
-  efiling_reference: '', court_fee_amount: '', payment_reference: '', receipt_number: '',
+  efiling_reference: '', court_fee_amount: '', payment_reference: '', receipt_number: '', filed_by_party: '',
 };
 
 function Field({ label, children, wide = false }) {
@@ -122,12 +124,23 @@ function Feedback({ feedback }) {
 
 const toIso = (value) => (value ? new Date(value).toISOString() : null);
 // A register title written from the paper and the other side, e.g. "Summons and statement of claim served on Baraka Supplies Limited".
-const titleFor = (paper, caseData, label) => {
+const titleFor = (paper, caseData, label, filer) => {
   const other = (caseData.parties || []).find((party) => party.is_adverse)?.name || caseData.defendant || 'the other side';
   const elrc = caseData.procedure_track === 'EMPLOYMENT_CLAIM';
   const claim = elrc ? 'statement of claim' : 'plaint';
   const client = (caseData.parties || []).find((party) => party.is_our_client)?.name || caseData.client?.full_name || 'the client';
   const role = elrc ? 'Claimant' : 'Plaintiff';
+  if (filer?.is_adverse) {
+    const theirs = filer.role_label || 'Respondent';
+    const adverseTitles = {
+      LIST_OF_WITNESSES: `${theirs}'s list of witnesses`,
+      WITNESS_STATEMENT: `${theirs}'s witness statement(s)`,
+      LIST_OF_DOCUMENTS: `${theirs}'s list and copies of documents`,
+      NOTICE_OF_MOTION: `${theirs}'s notice of motion`,
+      SUBMISSIONS: `${theirs}'s written submissions`,
+    };
+    if (adverseTitles[paper]) return adverseTitles[paper];
+  }
   const titles = {
     DEMAND_LETTER: `Demand letter to ${other}`,
     SUMMONS: `Summons and ${claim} served on ${other}`,
@@ -154,14 +167,18 @@ const ELRC_RESPONSE_DAYS = 28;
 const compact = (object) => Object.fromEntries(Object.entries(object).filter(([, value]) => value !== '' && value !== null));
 
 export default function CourtProgressPanel({ caseData, canRecordFilings = true, showStage = true }) {
+  // Dates default to the server's clock (sent with the matter), so a wrong device clock does not date a record.
+  const [clockOffset] = useState(() => (caseData.server_now ? new Date(caseData.server_now).getTime() - Date.now() : 0));
+  const today = () => localDate(new Date(Date.now() + clockOffset));
+  const nowLocal = () => localDateTime(new Date(Date.now() + clockOffset));
   const queryClient = useQueryClient();
   const caseId = caseData.id;
   const [selected, setSelected] = useState('');
   const [reason, setReason] = useState('');
   const freshFiling = () => ({
     ...emptyFiling,
-    filing_date: localDate(),
-    payment_date: localDate(),
+    filing_date: today(),
+    payment_date: today(),
     // What the matter already records about its court is carried in, not typed again.
     court_station: caseData.court_station || '',
     registry: caseData.registry || '',
@@ -171,9 +188,9 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const [serviceFiled, setServiceFiled] = useState(false);
   // What is recorded has just happened, so its times start at now; at the ELRC the response is due 28 days after service.
   const freshEntry = () => {
-    const now = localDateTime();
+    const now = nowLocal();
     // Each paper has its own e-filing reference, fees and receipt, read from that paper's e-filing record.
-    return { ...emptyEntry, filed_at: now, served_at: now, response_due_date: caseData.procedure_track === 'EMPLOYMENT_CLAIM' ? addDays(localDate(), ELRC_RESPONSE_DAYS) : '' };
+    return { ...emptyEntry, filed_at: now, served_at: now, response_due_date: caseData.procedure_track === 'EMPLOYMENT_CLAIM' ? addDays(today(), ELRC_RESPONSE_DAYS) : '' };
   };
   const [entry, setEntry] = useState(freshEntry);
   const claimPapers = claimPapersFor(caseData);
@@ -194,7 +211,13 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const fromSummons = paper === 'AFFIDAVIT_OF_SERVICE' && summons && !entry.serviceEdited;
   const servedAt = fromSummons ? localDateTime(new Date(summons.served_at)) : entry.served_at;
   const responseDue = fromSummons ? summons.response_due_date || entry.response_due_date : entry.response_due_date;
-  const title = entry.title || titleFor(paper, caseData, registerTypes.find(([value]) => value === paper)?.[1] || '');
+  // Who filed the paper: the other side for its own papers, a chosen party for papers either side files.
+  const filingParties = (caseData.parties || []).filter((party) => party.is_our_client || party.is_adverse);
+  const ourParty = filingParties.find((party) => party.is_our_client);
+  const filerId = EITHER_SIDE_PAPERS.has(paper) ? (entry.filed_by_party || ourParty?.id || '') : '';
+  const filer = filingParties.find((party) => party.id === filerId);
+  const theirPaper = OTHER_SIDE_PAPERS.has(paper) || Boolean(filer?.is_adverse);
+  const title = entry.title || titleFor(paper, caseData, registerTypes.find(([value]) => value === paper)?.[1] || '', filer);
   const [busy, setBusy] = useState(false);
   const [stageFeedback, setStageFeedback] = useState(null);
   const [entryFeedback, setEntryFeedback] = useState(null);
@@ -237,7 +260,8 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       response_period_days: paper === 'DEMAND_LETTER' ? Number(entry.response_period_days) : null,
       // Only the fields shown for this paper are sent.
       efiling_reference: NOT_FILED_IN_COURT.has(paper) ? null : entry.efiling_reference,
-      ...(NOT_FILED_IN_COURT.has(paper) || OTHER_SIDE_PAPERS.has(paper) || CLAIM_PAPER_TYPES.has(paper) ? {} : {
+      filed_by_party: filerId || null,
+      ...(NOT_FILED_IN_COURT.has(paper) || theirPaper || CLAIM_PAPER_TYPES.has(paper) ? {} : {
         court_fee_amount: entry.court_fee_amount,
         payment_reference: entry.payment_reference,
         receipt_number: entry.receipt_number,
@@ -259,7 +283,15 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const updateFiling = (event) => setFiling((current) => ({ ...current, [event.target.name]: event.target.value }));
   const updateEntry = (event) => setEntry((current) => {
     const next = { ...current, [event.target.name]: event.target.value };
-    if (event.target.name === 'filing_type' && CLAIM_PAPER_TYPES.has(event.target.value) && claimDate) {
+    const adverseChosen = filingParties.find((party) => party.id === next.filed_by_party)?.is_adverse;
+    if (event.target.name === 'filed_by_party' && adverseChosen) {
+      // The other side's paper is dated when it reaches us and carries its own reference, not our claim's.
+      next.filed_at = nowLocal();
+      next.efiling_reference = '';
+      next.title = '';
+    }
+    if (event.target.name === 'filed_by_party' && !adverseChosen) next.title = '';
+    if (event.target.name === 'filing_type' && CLAIM_PAPER_TYPES.has(event.target.value) && claimDate && !adverseChosen) {
       next.filed_at = claimDate;
       next.efiling_reference = claimReference;
     }
@@ -326,9 +358,16 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
               {registerTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </Field>
+          {EITHER_SIDE_PAPERS.has(paper) && filingParties.length > 1 && (
+            <Field label='Filed by'>
+              <select name='filed_by_party' value={filerId} onChange={updateEntry} className={inputClass} required>
+                {filingParties.map((party) => <option key={party.id} value={party.id}>{party.name} ({party.role_label}{party.is_our_client ? ', our client' : ''})</option>)}
+              </select>
+            </Field>
+          )}
           <Field label='Title'><input name='title' value={title} onChange={updateEntry} className={inputClass} /></Field>
-          <Field label={paper === 'DEMAND_LETTER' ? 'Date issued' : 'Date filed / received'}>
-            <input type='datetime-local' name='filed_at' max={localDateTime()} value={entry.filed_at} onChange={updateEntry} className={inputClass} />
+          <Field label={paper === 'DEMAND_LETTER' ? 'Date issued' : theirPaper ? 'Date served on us' : 'Date filed / received'}>
+            <input type='datetime-local' name='filed_at' max={nowLocal()} value={entry.filed_at} onChange={updateEntry} className={inputClass} />
           </Field>
           {paper === 'DEMAND_LETTER' && (
             <Field label='Demand period'>
@@ -346,14 +385,14 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
               <span className='block text-xs font-normal'>The advocate verifies this date in the matter deadlines before relying on it.</span>
             </Field>
             <Field label='Date served'>
-              <input type='datetime-local' name='served_at' max={localDateTime()} value={servedAt} onChange={updateEntry} className={inputClass} required />
+              <input type='datetime-local' name='served_at' max={nowLocal()} value={servedAt} onChange={updateEntry} className={inputClass} required />
             </Field>
             </>
           )}
           {!NOT_FILED_IN_COURT.has(paper) && (
             <Field label='E-filing reference'><input name='efiling_reference' value={entry.efiling_reference} onChange={updateEntry} className={inputClass} /></Field>
           )}
-          {!NOT_FILED_IN_COURT.has(paper) && !OTHER_SIDE_PAPERS.has(paper) && !CLAIM_PAPER_TYPES.has(paper) && (
+          {!NOT_FILED_IN_COURT.has(paper) && !theirPaper && !CLAIM_PAPER_TYPES.has(paper) && (
             <>
             <Field label='Court fees (KES)'><input type='number' step='0.01' min='0' name='court_fee_amount' value={entry.court_fee_amount} onChange={updateEntry} className={inputClass} /></Field>
             <Field label='Payment reference'><input name='payment_reference' value={entry.payment_reference} onChange={updateEntry} className={inputClass} /></Field>
@@ -384,14 +423,14 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
 
         {dimension === 'COURT_STAGE' && toState === 'FILED' && (
           <>
-            <Field label='Filing date'><input type='date' name='filing_date' max={localDate()} value={filing.filing_date} onChange={updateFiling} className={inputClass} required /></Field>
+            <Field label='Filing date'><input type='date' name='filing_date' max={today()} value={filing.filing_date} onChange={updateFiling} className={inputClass} required /></Field>
             <Field label='Court case number'><input name='official_court_case_number' value={filing.official_court_case_number} onChange={updateFiling} placeholder='As stamped by the court, e.g. ELRC Cause No. E512 of 2026' className={inputClass} required /></Field>
             <Field label='E-filing reference'><input name='efiling_reference' value={filing.efiling_reference} onChange={updateFiling} className={inputClass} /></Field>
             <Field label='Court station'><input name='court_station' value={filing.court_station} onChange={updateFiling} placeholder={caseData.court_station || 'Milimani Commercial Courts'} className={inputClass} required={!caseData.court_station} /></Field>
             <Field label='Registry'><input name='registry' value={filing.registry} onChange={updateFiling} className={inputClass} required={!caseData.registry} /></Field>
             <Field label='Court fees paid (KES)'><input type='number' step='0.01' min='0' name='court_fee_amount' value={filing.court_fee_amount} onChange={updateFiling} className={inputClass} /></Field>
             <Field label='Payment reference (e.g. M-Pesa code)'><input name='payment_reference' value={filing.payment_reference} onChange={updateFiling} className={inputClass} /></Field>
-            <Field label='Payment date'><input type='date' name='payment_date' max={localDate()} value={filing.payment_date} onChange={updateFiling} className={inputClass} /></Field>
+            <Field label='Payment date'><input type='date' name='payment_date' max={today()} value={filing.payment_date} onChange={updateFiling} className={inputClass} /></Field>
           </>
         )}
 
