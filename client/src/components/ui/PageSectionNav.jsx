@@ -39,17 +39,19 @@ export default function PageSectionNav({ sections, ariaLabel = 'Page sections', 
   };
 
   return (
-    <nav aria-label={ariaLabel} className={`sticky top-2 z-20 flex gap-1 overflow-x-auto rounded-xl border border-border-light bg-surface-light/95 p-2 shadow-sm backdrop-blur dark:border-border-dark dark:bg-surface-dark/95 ${className}`}>
+    // Sections sit in even columns; a part-filled last row is centred.
+    <nav aria-label={ariaLabel} className={`flex flex-wrap justify-center rounded-xl border border-border-light bg-surface-light p-1.5 shadow-sm dark:border-border-dark dark:bg-surface-dark ${className}`}>
       {visibleSections.map(({ id, label }) => (
-        <a
-          key={id}
-          href={`#${id}`}
-          onClick={(event) => scrollToSection(event, id)}
-          aria-current={activeSection === id ? 'location' : undefined}
-          className={`shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${activeSection === id ? 'bg-brand-primary text-white shadow-sm' : 'text-text-primary-light hover:bg-slate-100 dark:text-text-primary-dark dark:hover:bg-slate-800'}`}
-        >
-          {label}
-        </a>
+        <div key={id} className='w-1/2 p-0.5 sm:w-1/3 lg:w-1/4'>
+          <a
+            href={`#${id}`}
+            onClick={(event) => scrollToSection(event, id)}
+            aria-current={activeSection === id ? 'location' : undefined}
+            className={`block rounded-lg px-3 py-2 text-center text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${activeSection === id ? 'bg-brand-primary text-white shadow-sm' : 'text-text-primary-light hover:bg-slate-100 dark:text-text-primary-dark dark:hover:bg-slate-800'}`}
+          >
+            {label}
+          </a>
+        </div>
       ))}
     </nav>
   );
