@@ -85,6 +85,22 @@ class CourtPreparationTests(TestCase):
         first.refresh_from_db()
         self.assertFalse(first.is_current)
 
+    def test_an_elrc_hearing_needs_our_own_papers_and_a_proved_hearing_notice(self):
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
+        self.case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
+        self.case.save(update_fields=["procedure_track"])
+        respondent = CaseParty.objects.create(case=self.case, name="Other Side Ltd", party_role="RESPONDENT", is_adverse=True)
+        CaseFiling.objects.create(case=self.case, filing_type=CaseFiling.FilingType.WITNESS_STATEMENT, status=CaseFiling.FilingStatus.FILED,
+                                  title="Respondent's witness statement(s)", filed_by_party=respondent)
+        checks = {item["key"]: item["passed"] for item in CourtPreparationService.advocate_checks(self.hearing)}
+        self.assertFalse(checks["witness_statements"])
+        self.assertFalse(checks["hearing_notice"])
+        notice = FilingRegisterService.record(user=self.owner, case=self.case, data={"filing_type": "HEARING_NOTICE", "served_at": timezone.now()})
+        self.assertFalse({item["key"]: item["passed"] for item in CourtPreparationService.advocate_checks(self.hearing)}["hearing_notice"])
+        FilingRegisterService.record(user=self.owner, case=self.case, data={"filing_type": "AFFIDAVIT_OF_SERVICE", "served_filing": notice.id})
+        self.assertTrue({item["key"]: item["passed"] for item in CourtPreparationService.advocate_checks(self.hearing)}["hearing_notice"])
+
     def test_secretaries_unassigned_advocates_and_advocates_without_ai_permission_get_nothing(self):
         self.assertEqual(self.get(self.secretary_user, "/api/staff/lawyer/ai/court-preparation/").status_code, 403)
         LawyerPermissionGrant.objects.create(lawyer=self.other_user.lawyer_profile, code=LawyerPermission.USE_AI_TOOLS, granted_by=self.owner)

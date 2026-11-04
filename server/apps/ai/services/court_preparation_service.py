@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from apps.ai.models import CourtPreparationBrief
 from apps.ai.services.court_preparation_playbooks import KIND_BY_EVENT_TYPE, form_of_address, playbook_for
-from apps.cases.models import CaseEvent, CaseFiling, CaseTask, MatterDeadline
+from apps.cases.models import Case, CaseEvent, CaseFiling, CaseTask, MatterDeadline
 from apps.common.choices import UserRole
 from apps.notifications.models import Notification
 from apps.notifications.services import NotificationService
@@ -111,9 +111,21 @@ class CourtPreparationService:
 
     # ------------------------------------------------------------------ checks
     @staticmethod
-    def _filed(case, *types):
-        return case.filings.filter(filing_type__in=types).exclude(
+    def _filed(case, *types, ours=False):
+        filings = case.filings.filter(filing_type__in=types).exclude(
             status__in=[CaseFiling.FilingStatus.WITHDRAWN, CaseFiling.FilingStatus.REJECTED]
+        )
+        if ours:
+            # The other side's papers do not prepare our client's case.
+            filings = filings.exclude(filed_by_party__is_adverse=True)
+        return filings.exists()
+
+    @staticmethod
+    def _hearing_notice_proved(event):
+        """ELRC (Procedure) Rules, 2024, rule 60(1): a served hearing notice, proved by an affidavit of service."""
+        return event.case.filings.filter(
+            filing_type=CaseFiling.FilingType.HEARING_NOTICE, served_at__gte=event.created_at,
+            service_affidavits__isnull=False,
         ).exists()
 
     @classmethod
@@ -137,8 +149,13 @@ class CourtPreparationService:
         pending = list(case.document_requests.exclude(status__in=["ACCEPTED", "CANCELLED"]).values_list("title", flat=True))
         checks.append(_check("client_documents", "Documents requested from the client received and accepted", not pending, "; ".join(pending[:5])))
         if kind == "HEARING" or kind == "PRE_TRIAL":
-            checks.append(_check("witness_statements", "Witness statements filed", cls._filed(case, CaseFiling.FilingType.WITNESS_STATEMENT)))
-            checks.append(_check("list_of_documents", "List of documents filed", cls._filed(case, CaseFiling.FilingType.LIST_OF_DOCUMENTS)))
+            checks.append(_check("witness_statements", "Our witness statements filed", cls._filed(case, CaseFiling.FilingType.WITNESS_STATEMENT, ours=True)))
+            checks.append(_check("list_of_documents", "Our list of documents filed", cls._filed(case, CaseFiling.FilingType.LIST_OF_DOCUMENTS, ours=True)))
+        if kind == "HEARING" and case.procedure_track == Case.ProcedureTrack.EMPLOYMENT_CLAIM:
+            checks.append(_check(
+                "hearing_notice", "Hearing notice served and affidavit of service filed", cls._hearing_notice_proved(event),
+                "ELRC (Procedure) Rules, 2024, rule 60(1): without both, the court cannot proceed if the other side does not attend.",
+            ))
         if kind == "APPLICATION":
             checks.append(_check("application_papers", "Application and affidavits on the register", cls._filed(
                 case, CaseFiling.FilingType.NOTICE_OF_MOTION, CaseFiling.FilingType.CHAMBER_SUMMONS,
