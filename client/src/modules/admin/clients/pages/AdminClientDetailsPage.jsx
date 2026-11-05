@@ -224,8 +224,13 @@ export default function AdminClientDetailsPage() {
         ariaLabel='Client page sections'
         sections={[
           { id: 'client-overview', label: 'Overview' },
-          { id: 'client-identity', label: 'Identity' },
+          { id: 'client-identity', label: 'Basic information' },
+          { id: 'client-education', label: 'Education profile', hidden: !client.education_profile },
+          { id: 'client-owners', label: 'Beneficial owners', hidden: !(client.beneficial_owners?.length > 0) },
+          { id: 'client-privacy', label: 'Privacy', hidden: !client.privacy },
           { id: 'client-kyc', label: 'KYC & due diligence' },
+          { id: 'client-portal', label: 'Portal access', hidden: client.client_type !== 'INDIVIDUAL' },
+          { id: 'client-profile', label: `${enumLabel(client.client_type)} profile`, hidden: !(profileFields.length > 0) },
           { id: 'client-matters', label: 'Proposed matters' },
           { id: 'accepted-proposals', label: 'Accepted proposals' },
           { id: 'declined-proposals', label: 'Declined / withdrawn' },
@@ -272,13 +277,13 @@ export default function AdminClientDetailsPage() {
         </div>
       </Card>
 
-      {client.education_profile && <Card className='p-6'><h3 className='mb-4 text-lg font-semibold'>Education Regulatory Profile</h3><div className='grid gap-4 md:grid-cols-3'>{[
+      {client.education_profile && <Card id='client-education' className='scroll-mt-28 p-6'><h3 className='mb-4 text-lg font-semibold'>Education Regulatory Profile</h3><div className='grid gap-4 md:grid-cols-3'>{[
         ['Institution',client.education_profile.institution_official_name],['Education regime',client.education_profile.education_regime_label],['Ownership',client.education_profile.ownership_label],['Legal owner / operator',client.education_profile.operator_legal_name],['Registration / accreditation',client.education_profile.registration_number],['Regulator',client.education_profile.regulator],['Levels',(client.education_profile.education_levels||[]).map(enumLabel).join(', ')],['University category',enumLabel(client.education_profile.university_category)],['TVET category',enumLabel(client.education_profile.tvet_category)],['Verification source',client.education_profile.verification_source],
       ].filter(([,v])=>hasValue(v)).map(([label,value])=><div key={label}><strong>{label}</strong><p>{value}</p></div>)}</div>{client.education_profile.curricula?.length>0&&<div className='mt-4'><strong>Curricula</strong><p>{client.education_profile.curricula.map((c)=>c.framework_label).join(', ')}</p></div>}</Card>}
 
-      {client.beneficial_owners?.length > 0 && <Card className='p-6'><h3 className='mb-4 text-lg font-semibold'>Beneficial Owners / Control</h3><div className='space-y-3'>{client.beneficial_owners.map((owner)=><div key={owner.id} className='rounded-lg border p-3'><strong>{owner.full_legal_name}</strong><p>{enumLabel(owner.ownership_mode)} · Ownership {owner.ownership_percentage ?? 'not percentage-based'} · Voting {owner.voting_percentage ?? 'not recorded'}</p><p>{owner.nature_of_ownership_or_control}</p></div>)}</div></Card>}
+      {client.beneficial_owners?.length > 0 && <Card id='client-owners' className='scroll-mt-28 p-6'><h3 className='mb-4 text-lg font-semibold'>Beneficial Owners / Control</h3><div className='space-y-3'>{client.beneficial_owners.map((owner)=><div key={owner.id} className='rounded-lg border p-3'><strong>{owner.full_legal_name}</strong><p>{enumLabel(owner.ownership_mode)} · Ownership {owner.ownership_percentage ?? 'not percentage-based'} · Voting {owner.voting_percentage ?? 'not recorded'}</p><p>{owner.nature_of_ownership_or_control}</p></div>)}</div></Card>}
 
-      {client.privacy && <Card className='p-6'><h3 className='mb-4 text-lg font-semibold'>Privacy / Data Processing</h3><div className='grid gap-4 md:grid-cols-3'><div><strong>Lawful basis</strong><p>{client.privacy.lawful_basis_label}</p></div><div><strong>Notice version</strong><p>{client.privacy.privacy_notice_version}</p></div><div><strong>Notice delivered</strong><p>{client.privacy.privacy_notice_delivered?'Yes':'No'}</p></div><div><strong>Retention category</strong><p>{client.privacy.retention_category||'Not recorded'}</p></div></div></Card>}
+      {client.privacy && <Card id='client-privacy' className='scroll-mt-28 p-6'><h3 className='mb-4 text-lg font-semibold'>Privacy / Data Processing</h3><div className='grid gap-4 md:grid-cols-3'><div><strong>Lawful basis</strong><p>{client.privacy.lawful_basis_label}</p></div><div><strong>Notice version</strong><p>{client.privacy.privacy_notice_version}</p></div><div><strong>Notice delivered</strong><p>{client.privacy.privacy_notice_delivered?'Yes':'No'}</p></div><div><strong>Retention category</strong><p>{client.privacy.retention_category||'Not recorded'}</p></div></div></Card>}
 
       <Card id='client-kyc' className='scroll-mt-28 p-6'>
         <h3 className='mb-4 text-lg font-semibold'>KYC and Due Diligence</h3>
@@ -288,7 +293,7 @@ export default function AdminClientDetailsPage() {
       </Card>
 
       {client.client_type === 'INDIVIDUAL' && (
-        <Card className='p-6'>
+        <Card id='client-portal' className='scroll-mt-28 p-6'>
           <h3 className='text-lg font-semibold mb-4'>Portal Access</h3>
           {client.portal_access_exists ? (
             <div className='grid md:grid-cols-2 gap-4'>
@@ -316,7 +321,7 @@ export default function AdminClientDetailsPage() {
       )}
 
       {profileFields.length > 0 && (
-        <Card className='p-6'>
+        <Card id='client-profile' className='scroll-mt-28 p-6'>
           <h3 className='text-lg font-semibold mb-4'>
             {enumLabel(client.client_type)} Profile
           </h3>
