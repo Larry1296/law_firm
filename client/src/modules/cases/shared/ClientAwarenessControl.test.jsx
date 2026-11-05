@@ -9,7 +9,7 @@ import ClientAwarenessControl from './ClientAwarenessControl';
 const updateAwareness = vi.hoisted(() => vi.fn(async () => ({})));
 vi.mock('@/modules/events/services/eventsService', () => ({ default: { updateAwareness } }));
 
-const event = { id: 'event-1', is_client_visible: true, starts_at: '2099-11-18T06:00:00Z', client_awareness: { status: 'NOT_NOTIFIED' } };
+const event = { id: 'event-1', status: 'SCHEDULED', is_client_visible: true, starts_at: '2099-11-18T06:00:00Z', client_awareness: { status: 'NOT_NOTIFIED' } };
 const renderControl = (props) => render(
   <QueryClientProvider client={new QueryClient()}><ClientAwarenessControl clientName='Grace Mwende' clientPhone='0711234567' {...props} /></QueryClientProvider>,
 );
@@ -26,5 +26,10 @@ describe('ClientAwarenessControl', () => {
   it('shows once the client has been told', () => {
     renderControl({ event: { ...event, client_awareness: { status: 'NOTIFIED', confirmation_channel: 'PHONE' } } });
     expect(screen.getByText('Grace Mwende was told (Phone call)')).toBeInTheDocument();
+  });
+
+  it('asks nothing for a sitting already held, even when the date is still ahead on this computer', () => {
+    const { container } = renderControl({ event: { ...event, status: 'COMPLETED' } });
+    expect(container).toBeEmptyDOMElement();
   });
 });

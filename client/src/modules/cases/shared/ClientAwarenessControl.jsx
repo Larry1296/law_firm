@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import eventsService from '@/modules/events/services/eventsService';
+import { serverNow } from '@/core/utils/serverClock';
 
 const CHANNELS = [
   { value: 'PHONE', label: 'Phone call' },
@@ -27,7 +28,8 @@ export default function ClientAwarenessControl({ event, clientName, clientPhone 
     onSuccess: () => queryClient.invalidateQueries(),
   });
 
-  if (!event.is_client_visible || new Date(event.starts_at) < new Date()) return null;
+  // Only a date still to come is worth telling; a sitting already held (or past on the server's clock) is not.
+  if (!event.is_client_visible || event.status !== 'SCHEDULED' || new Date(event.starts_at) < serverNow()) return null;
   const status = awareness?.status || 'NOT_NOTIFIED';
   const told = ['NOTIFIED', 'CONFIRMED'].includes(status);
 
