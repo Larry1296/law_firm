@@ -493,6 +493,28 @@ class CaseLifecycleFrameworkTests(TestCase):
         })
         self.assertEqual(case.deadlines.get(source=f"PRE_TRIAL:{case.id}").status, "COMPLETED")
 
+    def test_a_follow_up_promised_in_an_attendance_note_is_diarised_and_kept_in_step(self):
+        from apps.cases.models import MatterDeadline
+        from apps.communications.services.client_communication_service import ClientCommunicationService
+
+        case = self.create_case()
+        due = timezone.now() + timedelta(days=7)
+        note = ClientCommunicationService.create(user=self.admin, matter_id=case.id, data={
+            "occurred_at": timezone.now(), "channel": "TELEPHONE", "direction": "OUTGOING",
+            "subject": "Judgment delivered — result and appeal advice", "summary": "Reported the judgment.",
+            "responsible_staff": self.admin, "follow_up_required": True, "follow_up_deadline": due,
+        })
+        follow_up = MatterDeadline.objects.get(matter=case, source=f"COMMUNICATION:{note.id}")
+        self.assertEqual((follow_up.deadline_type, follow_up.status, follow_up.due_at), ("CLIENT_FOLLOW_UP", "OPEN", due))
+        self.assertIn("Judgment delivered", follow_up.description)
+        later = due + timedelta(days=2)
+        ClientCommunicationService.amend(user=self.admin, communication_id=note.id, changes={"follow_up_deadline": later}, reason="Client asked for two more days.")
+        follow_up.refresh_from_db()
+        self.assertEqual(follow_up.due_at, later)
+        ClientCommunicationService.amend(user=self.admin, communication_id=note.id, changes={"follow_up_required": False}, reason="Client called back with instructions.")
+        follow_up.refresh_from_db()
+        self.assertEqual(follow_up.status, "CANCELLED")
+
     def test_a_hearing_that_goes_ahead_moves_the_court_stage_to_submissions(self):
         case = self.create_case()
         case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
