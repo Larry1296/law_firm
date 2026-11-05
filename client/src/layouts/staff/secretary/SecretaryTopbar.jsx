@@ -1,3 +1,4 @@
+import WorkspaceSearch from '@/components/navigation/WorkspaceSearch';
 import { Menu, Sun, Moon } from 'lucide-react';
 import { useContext } from 'react';
 import ThemeContext from '@/core/store/ThemeContext';
@@ -35,6 +36,8 @@ export default function SecretaryTopbar({ onMenuClick }) {
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
+
+        <WorkspaceSearch />
 
         <LockWorkspaceButton className={`px-3 py-2 rounded ${hoverEffect}`} />
         <NotificationBellDropdown

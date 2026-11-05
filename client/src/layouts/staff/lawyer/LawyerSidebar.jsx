@@ -1,3 +1,4 @@
+import { usePublishFeatures } from '@/core/navigation/workspaceFeatures';
 import { HelpNavigation } from '@/modules/tutorials/HelpNavigation';
 import { X } from 'lucide-react';
 import { useContext } from 'react';
@@ -145,6 +146,7 @@ export default function LawyerSidebar({ onClose }) {
     && (!link.feature || hasFeature(link.feature)));
 
   const bgSidebar = 'shell-surface';
+  usePublishFeatures(visibleLinks);
   const sidebarGroups = groupLinks(visibleLinks);
 
   return (

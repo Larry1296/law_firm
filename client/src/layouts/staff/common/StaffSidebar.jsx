@@ -1,3 +1,4 @@
+import { usePublishFeatures } from '@/core/navigation/workspaceFeatures';
 import { HelpNavigation } from '@/modules/tutorials/HelpNavigation';
 import { useContext } from 'react';
 import { X, User } from 'lucide-react';
@@ -26,6 +27,7 @@ export default function StaffSidebar({ config, onClose }) {
     user?.full_name || user?.profile?.full_name || user?.email || 'User';
   const systemRole = config?.label || user?.firm_role || 'Staff';
   const bgSidebar = 'shell-surface';
+  usePublishFeatures(config.navLinks);
   const sidebarGroups = groupLinks(config.navLinks);
 
   return (

@@ -1,3 +1,4 @@
+import { usePublishFeatures } from '@/core/navigation/workspaceFeatures';
 import { HelpNavigation } from '@/modules/tutorials/HelpNavigation';
 import { useContext } from 'react';
 import AuthContext from '@/core/store/AuthContext';
@@ -104,6 +105,7 @@ export default function SecretarySidebar({ onClose }) {
   const visibleLinks = links.filter((link) =>
     hasPermission(permissions, link.permission),
   );
+  usePublishFeatures(visibleLinks);
   const sidebarGroups = groupLinks(visibleLinks);
   const displayName = user?.full_name || user?.profile?.full_name || user?.email || 'User';
   const systemRole = user?.role || 'User';

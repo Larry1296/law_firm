@@ -1,3 +1,4 @@
+import { usePublishFeatures } from '@/core/navigation/workspaceFeatures';
 import { HelpNavigation } from '@/modules/tutorials/HelpNavigation';
 import { useContext } from 'react';
 import AuthContext from '@/core/store/AuthContext';
@@ -83,6 +84,7 @@ export default function ClientSidebar({ onClose }) {
   const systemRole = user?.role || 'User';
 
   const bgSidebar = 'shell-surface';
+  usePublishFeatures(links);
   const sidebarGroups = groupLinks(links);
 
   const handleClose = () => {

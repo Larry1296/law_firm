@@ -1,3 +1,4 @@
+import { usePublishFeatures } from '@/core/navigation/workspaceFeatures';
 import { HelpNavigation } from '@/modules/tutorials/HelpNavigation';
 import {
   X,
@@ -68,6 +69,8 @@ const links = [
   },
 ];
 
+const portalLinks = links.flatMap((group) => group.items.map((item) => ({ ...item, section: group.section })));
+
 export default function ClientSidebar({ onClose }) {
   const { user } = useContext(AuthContext);
   const { data: notificationData } = useUnreadNotifications();
@@ -75,6 +78,7 @@ export default function ClientSidebar({ onClose }) {
   const displayName = user?.full_name || user?.profile?.full_name || user?.email || 'User';
   const systemRole = user?.role || 'User';
 
+  usePublishFeatures(portalLinks);
   const bgSidebar = 'shell-surface';
 
   return (

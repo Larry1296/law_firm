@@ -1,3 +1,4 @@
+import WorkspaceSearch from '@/components/navigation/WorkspaceSearch';
 import { Menu, Sun, Moon } from 'lucide-react';
 import { useContext } from 'react';
 import ThemeContext from '@/core/store/ThemeContext';
@@ -34,6 +35,8 @@ export default function ClientTopbar({ onMenuClick }) {
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
+
+        <WorkspaceSearch />
 
         <LockWorkspaceButton className={`h-11 px-3 rounded-xl ${hoverEffect}`} />
         <NotificationBellDropdown
