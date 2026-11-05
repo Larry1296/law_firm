@@ -916,6 +916,7 @@ const AdminCaseDetailsPage = () => {
           court: [
               { id: 'court-record', label: 'Court proceeding record', hidden: !isCourtMatter },
               { id: 'court-progress', label: 'Court progress & filing register' },
+              { id: 'court-progress-steps', label: 'Court stage & outcome' },
               { id: 'court-next-date', label: 'Record the next date' },
               { id: 'court-events', label: 'Court events' },
               { id: 'court-activity', label: 'Hearings, filings, tasks & notes' },

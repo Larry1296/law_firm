@@ -459,7 +459,12 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       )}
 
       {showStage && (<>
-      <form onSubmit={submitTransition} className={`grid gap-3 md:grid-cols-2 ${canRecordFilings ? 'mt-6 border-t border-border-light pt-6 dark:border-border-dark' : 'mt-5'}`} aria-label='Record court progress'>
+      <form id='court-progress-steps' onSubmit={submitTransition} className={`scroll-mt-28 grid gap-3 md:grid-cols-2 ${canRecordFilings ? 'mt-6 border-t border-border-light pt-6 dark:border-border-dark' : 'mt-5'}`} aria-label='Record court progress'>
+        {/* Its own heading, so it is not read as part of the filing register above it. */}
+        <div className='flex items-center gap-2 md:col-span-2'>
+          <Gavel size={18} className='text-brand-primary' />
+          <h4 className='font-semibold'>Court stage, outcome, enforcement and appeal</h4>
+        </div>
         <Field label='What has happened' wide>
           <select value={selected} onChange={(event) => { setSelected(event.target.value); setStageFeedback(null); }} className={inputClass} required>
             <option value=''>{transitions.length ? 'Select the step reached' : 'No court step is available at this stage'}</option>
