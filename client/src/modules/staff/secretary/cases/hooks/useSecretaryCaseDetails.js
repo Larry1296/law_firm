@@ -1,48 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import secretaryCasesService from '@/modules/staff/secretary/cases/services/secretaryCaseService';
 
+// Held in the shared query cache, so the matter stays current after changes without a page refresh.
 const useSecretaryCaseDetails = (caseId) => {
-  const [caseData, setCaseData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (!caseId) return;
-
-    let isMounted = true;
-
-    const loadCase = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const data = await secretaryCasesService.getMyCaseById(caseId);
-
-        if (isMounted) {
-          setCaseData(data);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadCase();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [caseId]);
-
+  const query = useQuery({
+    queryKey: ['secretary-case', caseId],
+    queryFn: () => secretaryCasesService.getMyCaseById(caseId),
+    enabled: Boolean(caseId),
+  });
   return {
-    caseData,
-    loading,
-    error,
+    caseData: query.data ?? null,
+    loading: query.isLoading,
+    error: query.error,
   };
 };
 

@@ -1,49 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import secretaryCasesService from '@/modules/staff/secretary/cases/services/secretaryCaseService';
 
+// Held in the shared query cache, so the list stays current after changes without a page refresh.
 const useSecretaryCases = (params = {}) => {
-  const [cases, setCases] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const loadCases = async (isMounted = true) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await secretaryCasesService.getMyCases(params);
-
-      if (isMounted) {
-        setCases(response.cases || []);
-      }
-    } catch (err) {
-      if (isMounted) {
-        setError(err);
-      }
-    } finally {
-      if (isMounted) {
-        setLoading(false);
-      }
-    }
-  };
-
-  useEffect(() => {
-    let isMounted = true;
-
-    // Initial data loading intentionally synchronizes this hook with the API.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadCases(isMounted);
-
-    return () => {
-      isMounted = false;
-    };
-  }, []); // keep empty only if params never change
-
+  const query = useQuery({
+    queryKey: ['secretary-cases', params],
+    queryFn: () => secretaryCasesService.getMyCases(params),
+  });
   return {
-    cases,
-    loading,
-    error,
-    refetch: () => loadCases(true),
+    cases: query.data?.cases || [],
+    loading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
   };
 };
 

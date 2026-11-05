@@ -16,24 +16,27 @@ const button = 'inline-flex min-h-11 items-center rounded-lg bg-brand-primary px
 
 const box = 'rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark';
 
+// A fresh outcome form, also used once an outcome is saved.
+const emptyOutcome = () => ({
+  proceeded: true,
+  outcome_code: 'PROCEEDED',
+  outcome: '',
+  attendance: '',
+  orders_directions: '',
+  next_event_type: '',
+  next_event_title: '',
+  next_date: '',
+  court_direction_details: '',
+  adjournment_reason: '',
+});
+
 export default function CaseProceedingsWorkflow({ caseData }) {
   const current = useMemo(
     () => currentProceeding(caseData.events || []),
     [caseData.events],
   );
   const [options, setOptions] = useState([]);
-  const [form, setForm] = useState({
-    proceeded: true,
-    outcome_code: 'PROCEEDED',
-    outcome: '',
-    attendance: '',
-    orders_directions: '',
-    next_event_type: '',
-    next_event_title: '',
-    next_date: '',
-    court_direction_details: '',
-    adjournment_reason: '',
-  });
+  const [form, setForm] = useState(emptyOutcome);
   const [message, setMessage] = useState('');
   const [correction, setCorrection] = useState(null);
   const [correctionMessage, setCorrectionMessage] = useState('');
@@ -65,7 +68,8 @@ export default function CaseProceedingsWorkflow({ caseData }) {
         },
       );
       setMessage('Proceeding recorded. The lifecycle, next event, calendar, tasks and audit history were updated.');
-      window.location.reload();
+      // The saved change refreshes the matter on screen by itself; the form starts fresh for the next sitting.
+      setForm(emptyOutcome());
     } catch (error) { if (error?.isActionCancelled) return;
       setMessage(error.response?.data?.detail || error.response?.data?.outcome?.[0] || 'Unable to record the proceeding.');
     } finally {
@@ -84,7 +88,7 @@ export default function CaseProceedingsWorkflow({ caseData }) {
         starts_at: new Date(correction.starts_at).toISOString(),
         reason: correction.reason,
       });
-      window.location.reload();
+      setCorrection(null);
     } catch (error) { if (error?.isActionCancelled) return;
       setCorrectionMessage(getApiErrorMessage(error, 'The date could not be corrected.'));
     } finally {

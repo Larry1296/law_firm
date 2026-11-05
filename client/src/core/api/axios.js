@@ -2,6 +2,7 @@ import axios from 'axios';
 import { captureConfirmationOptions, releaseCriticalAction, requireCriticalConfirmation } from './criticalActionGuard';
 import { reportRefused, reportSaved } from './actionFeedback';
 import { syncServerClock } from '@/core/utils/serverClock';
+import { announceDataChanged, changesData } from '@/core/live/liveData';
 
 import {
   clearAuthSession,
@@ -130,7 +131,11 @@ const forceLogoutToLogin = () => {
    RESPONSE INTERCEPTOR (AUTO REFRESH)
 ========================================================= */
 axiosInstance.interceptors.response.use(
-  (response) => { syncServerClock(response.headers?.date); reportSaved(response.config); releaseCriticalAction(response.config); return response; },
+  (response) => {
+    syncServerClock(response.headers?.date); reportSaved(response.config); releaseCriticalAction(response.config);
+    if (changesData(response.config)) announceDataChanged();
+    return response;
+  },
   async (error) => {
     syncServerClock(error.response?.headers?.date);
     const originalRequest = error.config;

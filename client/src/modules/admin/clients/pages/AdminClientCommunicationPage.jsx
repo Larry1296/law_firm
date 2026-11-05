@@ -5,6 +5,7 @@ import useAuth from '@/core/hooks/useAuth';
 import { FormAlert, FormButton, FormCard, FormGrid, FormHeader, FormPage, FormSection, SelectInput, TextArea, TextInput } from '@/components/forms';
 import { serverNow } from '@/core/utils/serverClock';
 import adminClientsService from '../services/adminClientsService';
+import useLiveRefresh from '@/core/live/useLiveRefresh';
 
 const CHANNELS = [
   ['TELEPHONE', 'Telephone'],
@@ -46,6 +47,7 @@ export default function AdminClientCommunicationPage() {
   }, [id]);
   const loadRecords = (matter) => axiosInstance.get(`/communications/matters/${matter}/records/`).then(({ data }) => setRecords(data.communications || []));
   useEffect(() => { if (matterId) loadRecords(matterId); }, [matterId]);
+  useLiveRefresh(() => loadRecords(matterId), { enabled: Boolean(matterId) });
 
   const matterOptions = useMemo(() => (client?.cases || []).map((matter) => ({ value: matter.id, label: `${matter.reference} · ${matter.title}` })), [client]);
   const change = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.type === 'checkbox' ? event.target.checked : event.target.value }));

@@ -9,6 +9,7 @@ import { formatDateTime } from '@/core/utils/dateFormatter';
 import adminCasesService from '../services/adminCasesService';
 import ActionModal from '@/components/ui/ActionModal';
 import { localDateInput } from '@/core/utils/dateFormatter';
+import useLiveRefresh from '@/core/live/useLiveRefresh';
 
 const WORKSTREAM_STAGES = {
   LITIGATION: ['PRE_ACTION','NOTICE','DRAFTING','FILING','REGISTRY_ACCEPTANCE','SERVICE','PLEADINGS','INTERIM_APPLICATIONS','CASE_MANAGEMENT','PRE_TRIAL','HEARING','SUBMISSIONS','JUDGMENT','DECREE','APPEAL_REVIEW','ENFORCEMENT','SETTLEMENT','CONCLUSION'],
@@ -106,6 +107,8 @@ export default function MatterLifecycleControls({ matter, onChanged }) {
     setLoadError('');
     onChanged?.();
   };
+  // Deadlines, closures and assessments others record appear without a page refresh.
+  useLiveRefresh(() => load().catch(() => {}));
   // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => { load().catch((error) => { if (error?.isActionCancelled) return; return setLoadError(getApiErrorMessage(error, 'Unable to load lifecycle records. Refresh before making changes.')); }); }, [matter.id]);
 

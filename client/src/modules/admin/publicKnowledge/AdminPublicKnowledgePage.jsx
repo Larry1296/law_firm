@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, Plus, RefreshCw } from 'lucide-react';
 
 import { actOnPublicKnowledge, createPublicKnowledge, listPublicKnowledge, updatePublicKnowledge } from './publicKnowledgeService';
+import useLiveRefresh from '@/core/live/useLiveRefresh';
 
 const EMPTY = { title: '', public_category: 'firm_overview', summary: '', body: '', visibility: 'public', source_type: 'public_page', source_url: '', expires_at: '' };
 
@@ -18,6 +19,7 @@ export default function AdminPublicKnowledgePage() {
     try { setData(await listPublicKnowledge(filters)); } catch (error) { if (error?.isActionCancelled) return;  setState((value) => ({ ...value, error: error.message || 'Could not load public knowledge.' })); } finally { setState((value) => ({ ...value, loading: false })); }
   };
   useEffect(() => { load(); }, [filters.search, filters.category, filters.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLiveRefresh(load);
 
   const edit = (item) => { setSelected(item); setForm({ ...EMPTY, ...item, expires_at: item.expires_at?.slice(0, 16) || '' }); };
   const save = async (event) => {

@@ -8,6 +8,7 @@ import adminBillingService from '../services/adminBillingService';
 import ActionModal from '@/components/ui/ActionModal';
 import { localDateInput } from '@/core/utils/dateFormatter';
 import { subscribeToSessionLock } from '@/core/auth/sessionLock';
+import useLiveRefresh from '@/core/live/useLiveRefresh';
 
 const field = 'w-full rounded-lg border border-border-light bg-surface-light px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-dark';
 const button = 'rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50';
@@ -122,6 +123,8 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   // The initial fetch synchronizes this page with the finance API.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, []);
+  // Invoices, receipts and transfers others record appear without a page refresh.
+  useLiveRefresh(load);
   // Requests refused while the screen was locked load again once it is unlocked.
   useEffect(() => subscribeToSessionLock((locked) => { if (!locked) load(); }), []);
 

@@ -1,48 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import adminCasesService from '@/modules/admin/cases/services/adminCasesService';
 
+// Held in the shared query cache, so a staff change shows without a page refresh.
 export default function useFirmSecretaries() {
-  const [secretaries, setSecretaries] = useState([]);
-
-  const fetchSecretaries = async () => {
-    try {
-      const res = await adminCasesService.getSecretaries();
-
-      setSecretaries(res?.data?.secretaries || []);
-    } catch (err) {
-      console.error('Failed to load secretaries:', err);
-      setSecretaries([]);
-    }
-  };
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadSecretaries = async () => {
-      try {
-        const res = await adminCasesService.getSecretaries();
-
-        if (!mounted) return;
-
-        setSecretaries(res?.data?.secretaries || []);
-      } catch (err) {
-        console.error('Failed to load secretaries:', err);
-
-        if (mounted) {
-          setSecretaries([]);
-        }
-      }
-    };
-
-    loadSecretaries();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
+  const query = useQuery({
+    queryKey: ['firm-secretaries'],
+    queryFn: async () => (await adminCasesService.getSecretaries())?.data?.secretaries || [],
+  });
   return {
-    secretaries,
-    refetch: fetchSecretaries,
+    secretaries: query.data || [],
+    refetch: query.refetch,
   };
 }

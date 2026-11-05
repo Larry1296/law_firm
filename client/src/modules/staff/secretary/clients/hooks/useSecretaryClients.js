@@ -1,28 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import secretaryClientsService from '@/modules/staff/secretary/clients/services/secretaryClientServices';
 
+// Held in the shared query cache, so the list stays current after changes without a page refresh.
 export function useSecretaryClients() {
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchClients = async () => {
-    try {
-      setLoading(true);
-      const res = await secretaryClientsService.getClients();
-
-      setClients(res.clients || []);
-    } catch {
-      setClients([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // Initial data loading intentionally synchronizes this hook with the API.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchClients();
-  }, []);
-
-  return { clients, loading, refetch: fetchClients };
+  const query = useQuery({
+    queryKey: ['secretary-clients'],
+    queryFn: () => secretaryClientsService.getClients(),
+  });
+  return { clients: query.data?.clients || [], loading: query.isLoading, refetch: query.refetch };
 }
