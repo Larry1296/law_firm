@@ -16,6 +16,7 @@ import {
   StatTile,
   StatusBadge,
 } from '@/modules/platform/components/ui';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 import { formatDateTime } from '@/modules/platform/components/styles';
 
 // Validated against the light and dark chart surfaces (single series, no legend).
@@ -118,7 +119,21 @@ export default function PlatformOverviewPage() {
         </div>
       )}
 
-      <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
+      <PageSectionNav
+        ariaLabel='Overview sections'
+        className='mb-6'
+        sections={[
+          { id: 'overview-figures', label: 'Key figures' },
+          { id: 'overview-new-firms', label: 'New firms per month' },
+          { id: 'overview-status', label: 'Subscriptions by status' },
+          { id: 'overview-plans', label: 'Firms by plan' },
+          { id: 'overview-recent', label: 'Recently registered' },
+          { id: 'overview-trials', label: 'Trials ending soon' },
+          { id: 'overview-activity', label: 'Recent activity' },
+        ]}
+      />
+
+      <div id='overview-figures' className='grid scroll-mt-28 gap-4 sm:grid-cols-2 xl:grid-cols-4'>
         <StatTile label='Law firms' value={firms.total} hint={`${firms.new_this_month} new this month · ${firms.suspended} suspended`} icon={Building2} />
         <StatTile label='Monthly recurring revenue' value={formatKes(subscriptions.monthly_recurring_revenue)} hint='Active and grace-period subscriptions, excluding VAT' icon={TrendingUp} />
         <StatTile label='Firm owners' value={owners.total} hint={`${owners.active} active accounts`} icon={Users} />
@@ -126,11 +141,11 @@ export default function PlatformOverviewPage() {
       </div>
 
       <div className='mt-6 grid gap-6 xl:grid-cols-3'>
-        <Panel title='New firms per month' description='Last twelve months' className='xl:col-span-2'>
+        <Panel id='overview-new-firms' title='New firms per month' description='Last twelve months' className='xl:col-span-2'>
           <NewFirmsChart data={data.new_firms_by_month} />
         </Panel>
         <div className='space-y-6'>
-          <Panel title='Subscriptions by status'>
+          <Panel id='overview-status' title='Subscriptions by status'>
             <ul className='space-y-2'>
               {subscriptions.by_status.map((row) => (
                 <li key={row.status} className='flex items-center justify-between text-sm'>
@@ -140,7 +155,7 @@ export default function PlatformOverviewPage() {
               ))}
             </ul>
           </Panel>
-          <Panel title='Firms by plan'>
+          <Panel id='overview-plans' title='Firms by plan'>
             {subscriptions.by_plan.length
               ? <CountList rows={subscriptions.by_plan.map((row) => ({ key: row.plan, label: row.plan, count: row.count }))} />
               : <EmptyState>No firms yet.</EmptyState>}
@@ -149,7 +164,7 @@ export default function PlatformOverviewPage() {
       </div>
 
       <div className='mt-6 grid gap-6 xl:grid-cols-2'>
-        <Panel title='Recently registered' bodyClassName='p-0'>
+        <Panel id='overview-recent' title='Recently registered' bodyClassName='p-0'>
           {data.recent_firms.length ? (
             <ul className='divide-y divide-border-light dark:divide-border-dark'>
               {data.recent_firms.map((firm) => (
@@ -167,7 +182,7 @@ export default function PlatformOverviewPage() {
           ) : <EmptyState>No firms registered yet.</EmptyState>}
         </Panel>
 
-        <Panel title='Trials ending within 7 days' bodyClassName='p-0'>
+        <Panel id='overview-trials' title='Trials ending within 7 days' bodyClassName='p-0'>
           {data.trials_ending_soon.length ? (
             <ul className='divide-y divide-border-light dark:divide-border-dark'>
               {data.trials_ending_soon.map((firm) => (
@@ -183,7 +198,7 @@ export default function PlatformOverviewPage() {
         </Panel>
       </div>
 
-      <Panel title='Recent platform activity' className='mt-6' bodyClassName='p-0'>
+      <Panel id='overview-activity' title='Recent platform activity' className='mt-6' bodyClassName='p-0'>
         {data.recent_activity.length ? (
           <ul className='divide-y divide-border-light dark:divide-border-dark'>
             {data.recent_activity.map((item) => (

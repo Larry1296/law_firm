@@ -12,9 +12,9 @@ export function PageHeader({ title, description, actions }) {
   );
 }
 
-export function Panel({ title, description, actions, children, className = '', bodyClassName = 'p-5' }) {
+export function Panel({ id, title, description, actions, children, className = '', bodyClassName = 'p-5' }) {
   return (
-    <section className={`rounded-2xl border border-border-light bg-surface-light shadow-soft dark:border-border-dark dark:bg-surface-dark ${className}`}>
+    <section id={id} className={`scroll-mt-28 rounded-2xl border border-border-light bg-surface-light shadow-soft dark:border-border-dark dark:bg-surface-dark ${className}`}>
       {(title || actions) && (
         <header className='flex flex-wrap items-start justify-between gap-3 border-b border-border-light px-5 py-4 dark:border-border-dark'>
           <div className='min-w-0'>

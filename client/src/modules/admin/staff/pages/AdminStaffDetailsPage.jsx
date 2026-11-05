@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import staffService from '@/modules/admin/staff/services/adminStaffService';
 import StatsCard from '@/components/ui/StatsCard';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { Input3D } from '@/components/ui/Input3D';
@@ -114,8 +115,26 @@ const SingleStaffDetailsPage = () => {
         title={pageTitle}
         subtitle={`${safe(membership.role, 'Staff')} details and permissions`}
       />
+      <PageSectionNav
+        ariaLabel='Staff page sections'
+        className='mb-6'
+        sections={[
+          { id: 'staff-profile', label: 'Profile' },
+          { id: 'staff-summary', label: 'Membership' },
+          { id: 'staff-permissions', label: 'Permissions' },
+          { id: 'staff-reception', label: 'Reception duties', hidden: membership.role !== 'SECRETARY' },
+          { id: 'staff-advocates', label: 'Advocates supported', hidden: membership.role !== 'SECRETARY' },
+          { id: 'staff-workload', label: 'Workload', hidden: membership.role !== 'LAWYER' },
+          { id: 'staff-secretary-metrics', label: 'Secretary metrics', hidden: membership.role !== 'SECRETARY' },
+          { id: 'staff-it', label: 'IT management', hidden: membership.role !== 'IT' },
+          { id: 'staff-recent-cases', label: 'Recent cases', hidden: membership.role !== 'LAWYER' },
+          { id: 'staff-recent-activity', label: 'Recent activity', hidden: membership.role !== 'SECRETARY' },
+        ]}
+      />
       {/* STAFF HEADER */}
       <div
+        id='staff-profile'
+        className='scroll-mt-28'
         style={{
           marginBottom: 24,
           padding: 20,
@@ -167,6 +186,8 @@ const SingleStaffDetailsPage = () => {
       </div>
       {/* MEMBERSHIP + SUMMARY */}
       <div
+        id='staff-summary'
+        className='scroll-mt-28'
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
@@ -182,7 +203,7 @@ const SingleStaffDetailsPage = () => {
         <StatsCard title='Permissions' value={permissions.length} />
       </div>
 
-      <Card className='mb-6 space-y-4 p-5'>
+      <Card id='staff-permissions' className='mb-6 scroll-mt-28 space-y-4 p-5'>
         <div>
           <h2 className='text-lg font-bold'>Permissions</h2>
           <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
@@ -219,7 +240,7 @@ const SingleStaffDetailsPage = () => {
       </Card>
 
       {membership.role === 'SECRETARY' && (
-        <Card className='mb-6 space-y-3 p-5'>
+        <Card id='staff-reception' className='mb-6 scroll-mt-28 space-y-3 p-5'>
           <h2 className='text-lg font-bold'>Reception duties</h2>
           <label className='flex items-center gap-2'>
             <input type='checkbox' checked={Boolean(staff.secretary?.is_receptionist)} disabled={updateReceptionistMutation.isPending} onChange={(event) => updateReceptionistMutation.mutate(event.target.checked)} />
@@ -231,7 +252,7 @@ const SingleStaffDetailsPage = () => {
       )}
 
       {membership.role === 'SECRETARY' && (
-        <Card className='mb-6 space-y-4 p-5'>
+        <Card id='staff-advocates' className='mb-6 scroll-mt-28 space-y-4 p-5'>
           <div>
             <h2 className='text-lg font-bold'>Advocates supported</h2>
             <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
@@ -260,6 +281,8 @@ const SingleStaffDetailsPage = () => {
       {/* ROLE-SPECIFIC METRICS */}
       {membership.role === 'LAWYER' && (
         <div
+          id='staff-workload'
+          className='scroll-mt-28'
           style={{
             marginBottom: 24,
             padding: 20,
@@ -291,6 +314,8 @@ const SingleStaffDetailsPage = () => {
       )}
       {membership.role === 'SECRETARY' && (
         <div
+          id='staff-secretary-metrics'
+          className='scroll-mt-28'
           style={{
             marginBottom: 24,
             padding: 20,
@@ -329,6 +354,8 @@ const SingleStaffDetailsPage = () => {
       )}
       {membership.role === 'IT' && (
         <div
+          id='staff-it'
+          className='scroll-mt-28'
           style={{
             marginBottom: 24,
             padding: 20,
@@ -373,6 +400,8 @@ const SingleStaffDetailsPage = () => {
       {/* RECENT CASES */}
       {membership.role === 'LAWYER' && (
         <section
+          id='staff-recent-cases'
+          className='scroll-mt-28'
           style={{
             padding: 20,
             border: '1px solid #e5e7eb',
@@ -406,6 +435,8 @@ const SingleStaffDetailsPage = () => {
       {/* SECRETARY ACTIVITY */}
       {membership.role === 'SECRETARY' && (
         <section
+          id='staff-recent-activity'
+          className='scroll-mt-28'
           style={{
             padding: 20,
             border: '1px solid #e5e7eb',

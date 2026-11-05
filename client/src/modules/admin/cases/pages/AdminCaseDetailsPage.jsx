@@ -31,6 +31,7 @@ const MATTER_TABS = [
 ];
 import { COURT_LEVELS, COURT_TYPES } from '@/modules/cases/shared/create/caseCreateOptions';
 import CourtProgressPanel from '@/modules/cases/shared/CourtProgressPanel';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 
 const PRIORITIES = [
   { value: 'LOW', label: 'Low' },
@@ -1000,8 +1001,18 @@ const AdminCaseDetailsPage = () => {
 
       {activeTab === 'court' && (
         <div className='space-y-6'>
+          <PageSectionNav
+            ariaLabel='Court tab sections'
+            sections={[
+              { id: 'court-record', label: 'Court proceeding record', hidden: !isCourtMatter },
+              { id: 'court-progress', label: 'Court progress & filing register' },
+              { id: 'court-next-date', label: 'Record the next date' },
+              { id: 'court-events', label: 'Court events' },
+              { id: 'court-activity', label: 'Hearings, filings, tasks & notes' },
+            ]}
+          />
           {isCourtMatter && (
-            <Card className='p-6'>
+            <Card id='court-record' className='scroll-mt-28 p-6'>
               <div className='mb-5 flex flex-col gap-2 md:flex-row md:items-start md:justify-between'>
                 <div>
                   <h3 className='text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
@@ -1292,15 +1303,19 @@ const AdminCaseDetailsPage = () => {
             </Card>
           )}
 
+          <div id='court-progress' className='scroll-mt-28'>
           <CourtProgressPanel caseData={caseData} />
+          </div>
 
+          <div id='court-next-date' className='scroll-mt-28'>
           <CreateNextCaseEventPanel
             caseData={caseData}
             onCreateEvent={createCaseEvent}
             isCreating={isCreatingCaseEvent}
           />
+          </div>
 
-          <Card className='p-6'>
+          <Card id='court-events' className='scroll-mt-28 p-6'>
             <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
               Court Events
             </h3>
@@ -1624,13 +1639,27 @@ const AdminCaseDetailsPage = () => {
             )}
           </Card>
 
+          <div id='court-activity' className='scroll-mt-28'>
           <CaseProcedurePanels caseData={caseData} />
+          </div>
         </div>
       )}
 
       {activeTab === 'record' && (
         <div className='space-y-6'>
-          <Card className='p-6'>
+          <PageSectionNav
+            ariaLabel='Matter record sections'
+            sections={[
+              { id: 'record-details', label: 'Matter details' },
+              { id: 'record-conflict', label: 'Conflict check' },
+              { id: 'record-parties', label: 'Parties' },
+              { id: 'record-relief', label: 'Monetary relief' },
+              { id: 'record-lifecycle', label: 'Lifecycles' },
+              { id: 'record-transitions', label: 'Lifecycle transitions' },
+              { id: 'record-controls', label: 'Deadlines, workstream & closing' },
+            ]}
+          />
+          <Card id='record-details' className='scroll-mt-28 p-6'>
             <div className='mb-5 flex flex-col gap-3 border-b border-border-light pb-5 dark:border-border-dark md:flex-row md:items-start md:justify-between'>
               <div>
                 <p className='text-sm font-semibold uppercase tracking-wide text-text-muted-light dark:text-text-muted-dark'>
@@ -1691,7 +1720,7 @@ const AdminCaseDetailsPage = () => {
             </div>
           </Card>
 
-          <Card className='p-6'>
+          <Card id='record-conflict' className='scroll-mt-28 p-6'>
             <div className='mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between'>
               <h3 className='text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
                 {conflictDisplayTitle}
@@ -1896,7 +1925,7 @@ const AdminCaseDetailsPage = () => {
             )}
           </Card>
 
-          <Card className='p-6'>
+          <Card id='record-parties' className='scroll-mt-28 p-6'>
             <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
               Parties
             </h3>
@@ -1943,7 +1972,7 @@ const AdminCaseDetailsPage = () => {
             )}
           </Card>
 
-          <Card className='p-6'>
+          <Card id='record-relief' className='scroll-mt-28 p-6'>
             <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
               Monetary Relief
             </h3>
@@ -1984,7 +2013,7 @@ const AdminCaseDetailsPage = () => {
             )}
           </Card>
 
-          <div className='grid gap-4 lg:grid-cols-2'>
+          <div id='record-lifecycle' className='grid scroll-mt-28 gap-4 lg:grid-cols-2'>
             <Card className='p-6'>
               <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
                 Firm Matter Lifecycle
@@ -2040,7 +2069,7 @@ const AdminCaseDetailsPage = () => {
             </Card>
           </div>
 
-          <Card className='p-6'>
+          <Card id='record-transitions' className='scroll-mt-28 p-6'>
             <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
               Lifecycle Transitions
             </h3>
@@ -2105,7 +2134,9 @@ const AdminCaseDetailsPage = () => {
             )}
           </Card>
 
+          <div id='record-controls' className='scroll-mt-28'>
           <MatterLifecycleControls matter={caseData} />
+          </div>
         </div>
       )}
 

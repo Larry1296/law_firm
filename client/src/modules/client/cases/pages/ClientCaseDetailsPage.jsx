@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import StatsCard from '@/components/ui/StatsCard';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 import SectionHeading from '@/components/ui/SectionHeading';
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
@@ -81,6 +82,20 @@ export default function ClientCaseDetailsPage() {
         subtitle='Your legal matter overview'
       />
 
+      <PageSectionNav
+        ariaLabel='Matter page sections'
+        sections={[
+          { id: 'matter-details', label: 'Matter details' },
+          { id: 'matter-court', label: 'Court registry' },
+          { id: 'matter-parties', label: 'Parties' },
+          { id: 'matter-progress', label: 'Progress' },
+          { id: 'matter-documents', label: 'Documents' },
+          { id: 'matter-courtroom', label: 'Courtroom' },
+          { id: 'matter-summary', label: 'Summary' },
+          { id: 'matter-communication', label: 'Communication' },
+        ]}
+      />
+
       <div className='md:hidden'>
         <Link to={`/client/cases/${id}/communication`}>
           <Button3D className='w-full justify-center'>
@@ -89,7 +104,7 @@ export default function ClientCaseDetailsPage() {
         </Link>
       </div>
 
-      <Card className='p-6'>
+      <Card id='matter-details' className='scroll-mt-28 p-6'>
         <div className='grid gap-6 md:grid-cols-2'>
           <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
             <p>
@@ -150,7 +165,7 @@ export default function ClientCaseDetailsPage() {
         </div>
       </Card>
 
-      <Card className='p-6'>
+      <Card id='matter-court' className='scroll-mt-28 p-6'>
         <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
           Court Registry
         </h3>
@@ -177,7 +192,7 @@ export default function ClientCaseDetailsPage() {
         </div>
       </Card>
 
-      <Card className='p-6'>
+      <Card id='matter-parties' className='scroll-mt-28 p-6'>
         <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
           Parties
         </h3>
@@ -199,17 +214,17 @@ export default function ClientCaseDetailsPage() {
         )}
       </Card>
 
-      <CaseProcedurePanels caseData={caseData} />
+      <div id='matter-progress' className='scroll-mt-28'><CaseProcedurePanels caseData={caseData} /></div>
 
-      <ClientDocumentWorkspace caseId={id} compact />
+      <div id='matter-documents' className='scroll-mt-28'><ClientDocumentWorkspace caseId={id} compact /></div>
 
-      <CaseCourtroomPanel
+      <div id='matter-courtroom' className='scroll-mt-28'><CaseCourtroomPanel
         caseId={id}
         title='Case Courtroom'
         emptyMessage='Your firm has not attached a courtroom session to this case yet.'
-      />
+      /></div>
 
-      <div className='grid gap-4 sm:grid-cols-3'>
+      <div id='matter-summary' className='grid scroll-mt-28 gap-4 sm:grid-cols-3'>
         <StatsCard title='Events' value={caseData.analytics?.events_count || 0} />
         <StatsCard title='Status' value={safe(matterStatus, friendly(caseData.status))} />
         <StatsCard title='Priority' value={friendly(caseData.priority)} />
@@ -226,7 +241,14 @@ export default function ClientCaseDetailsPage() {
         </p>
       </Card>
 
-      <div className='hidden md:block'>
+      <div id='matter-communication' className='scroll-mt-28'>
+        {/* On a phone the conversation opens on its own page. */}
+        <Link to={`/client/cases/${id}/communication`} className='md:hidden'>
+          <Button3D className='w-full justify-center'>
+            Open case communication
+          </Button3D>
+        </Link>
+        <div className='hidden md:block'>
         <ChatWorkspace
           title='Case Communication'
           subtitle='Secure communication for this legal matter.'
@@ -245,6 +267,7 @@ export default function ClientCaseDetailsPage() {
           emptyThreadMessage='No case communication thread yet.'
           hideSingleThreadSidebarOnMobile
         />
+        </div>
       </div>
     </div>
   );

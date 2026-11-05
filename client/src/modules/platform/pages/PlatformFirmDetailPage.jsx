@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import DeleteTrialFirmButton from '../components/DeleteTrialFirmButton';
 import PlanChangePanel from '../components/PlanChangePanel';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Copy, ImagePlus, KeyRound, Pause, Pencil, Play } from 'lucide-react';
 
@@ -357,10 +358,24 @@ export default function PlatformFirmDetailPage() {
 
       {actionError && <div className='mb-4'><ErrorNotice>{actionError}</ErrorNotice></div>}
 
+      <PageSectionNav
+        ariaLabel='Firm sections'
+        className='mb-6'
+        sections={[
+          { id: 'platform-firm-details', label: 'Firm details' },
+          { id: 'platform-firm-owner', label: 'Firm owner' },
+          { id: 'platform-firm-subscription', label: 'Subscription' },
+          { id: 'platform-firm-plan', label: 'Change plan' },
+          { id: 'platform-firm-invoices', label: 'Subscription invoices' },
+          { id: 'platform-firm-activity', label: 'Activity' },
+        ]}
+      />
+
       <div className='grid gap-6 xl:grid-cols-5'>
         <div className='space-y-6 xl:col-span-3'>
-          <ProfilePanel firm={firm} meta={meta.data} onSaved={refresh} />
+          <div id='platform-firm-details' className='scroll-mt-28'><ProfilePanel firm={firm} meta={meta.data} onSaved={refresh} /></div>
 
+          <div id='platform-firm-owner' className='scroll-mt-28'>
           <Panel title='Firm owner' description='The firm administrator and the only person at the firm the platform deals with. The firm’s staff, clients and matters stay private to the firm.'>
             <dl className='grid gap-x-6 sm:grid-cols-2'>
               <Detail label='Name'>{firm.owner.full_name}{firm.owner.job_title ? ` · ${firm.owner.job_title}` : ''}</Detail>
@@ -396,18 +411,20 @@ export default function PlatformFirmDetailPage() {
               )}
             </div>
           </Panel>
+          </div>
         </div>
 
-        <div className='xl:col-span-2'>
+        <div id='platform-firm-subscription' className='scroll-mt-28 xl:col-span-2'>
           <SubscriptionPanel key={JSON.stringify(firm.subscription)} firm={firm} meta={meta.data} onSaved={refresh} />
         </div>
       </div>
 
-      <div className='mt-6'>
+      <div id='platform-firm-plan' className='mt-6 scroll-mt-28'>
         <PlanChangePanel firmId={firm.id} onChanged={() => queryClient.invalidateQueries({ queryKey: ['platform', 'firm', id], exact: true })} />
       </div>
 
       <div className='mt-6 grid gap-6 xl:grid-cols-2'>
+        <div id='platform-firm-invoices' className='scroll-mt-28'>
         <Panel title='Subscription invoices' bodyClassName='p-0'>
           {firm.invoices.length ? (
             <Table caption='Subscription invoices' columns={['Invoice', 'Plan', 'Total', 'Status']}>
@@ -422,7 +439,9 @@ export default function PlatformFirmDetailPage() {
             </Table>
           ) : <EmptyState>No invoices yet.</EmptyState>}
         </Panel>
+        </div>
 
+        <div id='platform-firm-activity' className='scroll-mt-28'>
         <Panel title='Activity' bodyClassName='p-0'>
           {firm.activity.length ? (
             <ul className='divide-y divide-border-light dark:divide-border-dark'>
@@ -435,6 +454,7 @@ export default function PlatformFirmDetailPage() {
             </ul>
           ) : <EmptyState>No activity recorded.</EmptyState>}
         </Panel>
+        </div>
       </div>
     </>
   );

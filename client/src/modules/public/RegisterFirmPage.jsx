@@ -10,6 +10,7 @@ import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import AuthFormCard from '@/modules/auth/components/AuthFormCard';
 import platformService from '@/modules/platform/services/platformService';
 import PlanOptions from '@/modules/subscription/components/PlanOptions';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 import subscriptionService from '@/modules/subscription/services/subscriptionService';
 
 const FirmSignup = lazy(() => import('@/modules/auth/pages/FirmSignup'));
@@ -48,11 +49,11 @@ function Field({ label, required, error, hint, children, className = '' }) {
   );
 }
 
-function Section({ title, description, children }) {
+function Section({ id, title, description, children }) {
   return (
     <>
       <hr className='form-divider' />
-      <fieldset className='grid gap-4 sm:grid-cols-2'>
+      <fieldset id={id} className='grid scroll-mt-28 gap-4 sm:grid-cols-2'>
         <legend className='mb-2 text-base font-semibold'>{title}</legend>
         {description && <p className='form-hint -mt-1 sm:col-span-2'>{description}</p>}
         {children}
@@ -150,7 +151,19 @@ function OnboardingRequestForm({ plans, includedInEveryPlan, onSent }) {
       title='Register your firm'
       onSubmit={(event) => { event.preventDefault(); submit.mutate(); }}
     >
-      <Section title='Firm identity' description='Who the firm is, as registered with BRS and KRA.'>
+      <PageSectionNav
+        ariaLabel='Registration form sections'
+        topClass='top-20 md:top-24'
+        sections={[
+          { id: 'register-identity', label: 'Firm identity' },
+          { id: 'register-contact', label: 'Contact & office' },
+          { id: 'register-reception', label: 'Reception structure' },
+          { id: 'register-practice', label: 'Practice areas' },
+          { id: 'register-partner', label: 'Managing partner' },
+          { id: 'register-plan', label: 'Plan' },
+        ]}
+      />
+      <Section id='register-identity' title='Firm identity' description='Who the firm is, as registered with BRS and KRA.'>
         {text('firm', 'name', 'Registered firm name', { required: true, className: 'sm:col-span-2', placeholder: 'e.g. Achieng & Mwangi Advocates' })}
         <Field label='Business structure' required error={err('firm.business_structure')}>
           <select name='firm.business_structure' value={form.firm.business_structure} onChange={set('firm', 'business_structure')} className={inputClass}>
@@ -167,7 +180,7 @@ function OnboardingRequestForm({ plans, includedInEveryPlan, onSent }) {
         </Field>
       </Section>
 
-      <Section title='Contact & office' description='Where the firm is and how clients reach it.'>
+      <Section id='register-contact' title='Contact & office' description='Where the firm is and how clients reach it.'>
         {text('firm', 'email', 'Firm email', { required: true, type: 'email' })}
         {text('firm', 'phone_number', 'Firm phone', { required: true, type: 'tel', placeholder: '+254 7XX XXX XXX' })}
         {text('firm', 'physical_address', 'Physical address', { required: true, className: 'sm:col-span-2', placeholder: 'Building, floor and street' })}
@@ -188,7 +201,7 @@ function OnboardingRequestForm({ plans, includedInEveryPlan, onSent }) {
         </label>
       </Section>
 
-      <Section title='Reception structure' description='Choose how secretaries receive clients. You can update coverage and room labels after registration.'>
+      <Section id='register-reception' title='Reception structure' description='Choose how secretaries receive clients. You can update coverage and room labels after registration.'>
         <Field label='Reception coverage' className='sm:col-span-2'>
           <select name='settings.queue_reception_mode' className={inputClass} value={form.settings.queue_reception_mode} onChange={set('settings', 'queue_reception_mode')}>
             <option value='SHARED'>Shared reception — secretaries cover all advocates</option>
@@ -197,7 +210,7 @@ function OnboardingRequestForm({ plans, includedInEveryPlan, onSent }) {
         </Field>
       </Section>
 
-      <Section title='Practice areas' description='The kinds of work the firm takes on. Choose at least one.'>
+      <Section id='register-practice' title='Practice areas' description='The kinds of work the firm takes on. Choose at least one.'>
         <div className='flex flex-wrap gap-2 sm:col-span-2'>
           {[...new Set([...suggestions, ...form.practice_areas])].map((area) => {
             const chosen = form.practice_areas.includes(area);
@@ -233,7 +246,7 @@ function OnboardingRequestForm({ plans, includedInEveryPlan, onSent }) {
         {err('practice_areas') && <p role='alert' className='form-error text-xs sm:col-span-2'>{err('practice_areas')}</p>}
       </Section>
 
-      <Section title='Managing partner' description='The advocate who will own and administer the firm’s account. They receive the sign-in link.'>
+      <Section id='register-partner' title='Managing partner' description='The advocate who will own and administer the firm’s account. They receive the sign-in link.'>
         {text('owner', 'first_name', 'First name', { required: true, autoComplete: 'given-name' })}
         {text('owner', 'last_name', 'Last name', { required: true, autoComplete: 'family-name' })}
         {text('owner', 'email', 'Email (used to sign in)', { required: true, type: 'email', autoComplete: 'email' })}
@@ -244,7 +257,7 @@ function OnboardingRequestForm({ plans, includedInEveryPlan, onSent }) {
         {text('owner', 'office_location', 'Managing partner’s office / room', { placeholder: 'e.g. Room 201, second floor', hint: 'Shown to reception when ushering clients in. You can change it later.' })}
       </Section>
 
-      <Section title='Plan'>
+      <Section id='register-plan' title='Plan'>
         <fieldset className='sm:col-span-2'>
           <legend className='mb-2 text-sm font-medium'>Plan you are interested in</legend>
           <PlanOptions

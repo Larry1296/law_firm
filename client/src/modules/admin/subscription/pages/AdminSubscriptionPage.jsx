@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Minus, Smartphone } from 'lucide-react';
 
 import Card from '@/components/ui/Card';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 import SectionHeading from '@/components/ui/SectionHeading';
 import Swal from '@/core/utils/themedSwal';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
@@ -192,7 +193,17 @@ export default function AdminSubscriptionPage() {
         as='h1'
       />
 
-      <Card className='p-6'>
+      <PageSectionNav
+        ariaLabel='Subscription sections'
+        sections={[
+          { id: 'subscription-current', label: 'Current plan' },
+          { id: 'subscription-pending', label: 'Payment awaiting confirmation', hidden: !pending },
+          { id: 'subscription-plans', label: 'Plans' },
+          { id: 'subscription-invoices', label: 'Invoices', hidden: invoices.length === 0 },
+        ]}
+      />
+
+      <Card id='subscription-current' className='scroll-mt-28 p-6'>
         <div className='flex flex-wrap items-start justify-between gap-4'>
           <div>
             <p className='text-sm text-gray-500 dark:text-gray-400'>Current plan</p>
@@ -215,10 +226,12 @@ export default function AdminSubscriptionPage() {
       </Card>
 
       {pending && (
-        <PendingInvoice invoice={pending} instructions={subscription.payment_instructions} onPaid={refresh} />
+        <div id='subscription-pending' className='scroll-mt-28'>
+          <PendingInvoice invoice={pending} instructions={subscription.payment_instructions} onPaid={refresh} />
+        </div>
       )}
 
-      <section aria-labelledby='plans-heading' className='space-y-4'>
+      <section id='subscription-plans' aria-labelledby='plans-heading' className='scroll-mt-28 space-y-4'>
         <div className='flex flex-wrap items-center justify-between gap-3'>
           <h2 id='plans-heading' className='text-xl font-bold'>Plans</h2>
           <div role='group' aria-label='Billing cycle' className='inline-flex rounded-lg border border-border-light p-1 dark:border-border-dark'>
@@ -267,7 +280,7 @@ export default function AdminSubscriptionPage() {
       </section>
 
       {invoices.length > 0 && (
-        <Card className='overflow-x-auto p-6'>
+        <Card id='subscription-invoices' className='scroll-mt-28 overflow-x-auto p-6'>
           <h2 className='mb-4 text-lg font-semibold'>Invoices</h2>
           <table className='w-full min-w-[640px] text-left text-sm'>
             <thead className='text-gray-500 dark:text-gray-400'>

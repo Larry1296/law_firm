@@ -14,6 +14,7 @@ import {
 import adminFirmService from '@/modules/admin/firm/services/adminFirmService';
 
 import Card from '@/components/ui/Card';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 import SectionHeading from '@/components/ui/SectionHeading';
 import StatsCard from '@/components/ui/StatsCard';
 import TableHeaderText from '@/components/ui/TableHeaderText';
@@ -718,9 +719,23 @@ export default function AdminFirmPage() {
         as='h1'
       />
 
-      <QueueConfiguration />
+      <PageSectionNav
+        ariaLabel='Firm page sections'
+        sections={[
+          { id: 'firm-offices', label: 'Offices & reception' },
+          { id: 'firm-summary', label: 'Summary' },
+          { id: 'firm-profile', label: 'Firm profile' },
+          { id: 'firm-delegation', label: 'Administrative delegation' },
+          { id: 'firm-settings', label: 'Firm settings' },
+          { id: 'firm-branches', label: 'Branches' },
+          { id: 'firm-departments', label: 'Departments' },
+          { id: 'firm-roles', label: 'Role breakdown' },
+        ]}
+      />
 
-      <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
+      <div id='firm-offices' className='scroll-mt-28'><QueueConfiguration /></div>
+
+      <div id='firm-summary' className='grid scroll-mt-28 gap-4 md:grid-cols-2 xl:grid-cols-4'>
         <StatsCard
           title='Active Staff'
           value={staffSummary.active_members ?? 0}
@@ -751,7 +766,7 @@ export default function AdminFirmPage() {
         />
       </div>
 
-      <Card className='p-6'>
+      <Card id='firm-profile' className='scroll-mt-28 p-6'>
         <div className='mb-2'>
           <SectionHeading
             hero={false}
@@ -883,7 +898,7 @@ export default function AdminFirmPage() {
         />
       </Card>
 
-      <Card className='p-6'>
+      <Card id='firm-delegation' className='scroll-mt-28 p-6'>
         <div className='mb-2'>
           <SectionHeading
             hero={false}
@@ -939,7 +954,7 @@ export default function AdminFirmPage() {
         </div>
       </Card>
 
-      <Card className='p-6'>
+      <Card id='firm-settings' className='scroll-mt-28 p-6'>
         <div className='mb-2'>
           <SectionHeading
             hero={false}
@@ -1078,7 +1093,7 @@ export default function AdminFirmPage() {
         ))}
       </Card>
 
-      <Card className='p-6'>
+      <Card id='firm-branches' className='scroll-mt-28 p-6'>
         <div className='mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
           <div className='flex items-center gap-3'>
             <Building2 className='text-brand-primary' size={24} />
@@ -1184,7 +1199,7 @@ export default function AdminFirmPage() {
       </Card>
 
       <div className='grid gap-6 xl:grid-cols-[1.2fr_0.8fr]'>
-        <Card className='p-6'>
+        <Card id='firm-departments' className='scroll-mt-28 p-6'>
           <div className='mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
             <div className='flex items-center gap-3'>
               <FolderTree className='text-brand-primary' size={24} />
@@ -1283,7 +1298,7 @@ export default function AdminFirmPage() {
           </div>
         </Card>
 
-        <Card className='p-6'>
+        <Card id='firm-roles' className='scroll-mt-28 p-6'>
           <div className='mb-5 flex items-center gap-3'>
             <ShieldCheck className='text-brand-primary' size={24} />
             <SectionHeading

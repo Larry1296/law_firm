@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import Card from '@/components/ui/Card';
+import PageSectionNav from '@/components/ui/PageSectionNav';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import adminReportsService from '@/modules/admin/reports/services/adminReportsService';
@@ -54,7 +55,17 @@ export default function AdminReportsPage() {
         as='h1'
       />
 
-      <section aria-labelledby='matters-heading' className='space-y-4'>
+      <PageSectionNav
+        ariaLabel='Report sections'
+        sections={[
+          { id: 'report-matters', label: 'Matters and court work' },
+          { id: 'report-finance', label: 'Fees and client money' },
+          { id: 'report-workload', label: 'Advocate workload' },
+          { id: 'report-clients', label: 'Clients with the most matters' },
+        ]}
+      />
+
+      <section id='report-matters' aria-labelledby='matters-heading' className='scroll-mt-28 space-y-4'>
         <h2 id='matters-heading' className='text-xl font-bold'>Matters and court work</h2>
         <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
           <Stat label='Active matters' value={matters.active} />
@@ -82,7 +93,7 @@ export default function AdminReportsPage() {
         </Card>
       </section>
 
-      <section aria-labelledby='finance-heading' className='space-y-4'>
+      <section id='report-finance' aria-labelledby='finance-heading' className='scroll-mt-28 space-y-4'>
         <h2 id='finance-heading' className='text-xl font-bold'>Fees and client money</h2>
         <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-5'>
           <Stat label='Invoiced (issued)' value={kes(finance.invoiced)} />
@@ -94,7 +105,7 @@ export default function AdminReportsPage() {
       </section>
 
       <section aria-labelledby='people-heading' className='grid gap-4 xl:grid-cols-2'>
-        <Card className='overflow-x-auto p-5'>
+        <Card id='report-workload' className='scroll-mt-28 overflow-x-auto p-5'>
           <h2 id='people-heading' className='font-semibold'>Advocate workload</h2>
           <table className='mt-3 w-full min-w-[520px] text-left text-sm'>
             <thead className='text-[color:var(--text-muted)]'><tr>{['Advocate', 'Active', 'Closed', 'Hearings (30 days)', 'Overdue deadlines'].map((h) => <th key={h} className='py-2 pr-3 font-medium'>{h}</th>)}</tr></thead>
@@ -111,7 +122,7 @@ export default function AdminReportsPage() {
             </tbody>
           </table>
         </Card>
-        <Card className='p-5'>
+        <Card id='report-clients' className='scroll-mt-28 p-5'>
           <h2 className='font-semibold'>Clients with the most matters</h2>
           {topClients.length === 0 && <p className='mt-2 text-sm text-[color:var(--text-muted)]'>No matters recorded.</p>}
           <ol className='mt-3 space-y-1 text-sm'>

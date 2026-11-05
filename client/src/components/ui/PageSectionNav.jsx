@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 // How long a clicked link stays active while the page scrolls to it, so a short last section is not overtaken.
 const CLICK_HOLD_MS = 900;
 
-export default function PageSectionNav({ sections, ariaLabel = 'Page sections', className = '' }) {
+// topClass sets where the bar pins; pages under a fixed site header pin it below that header.
+export default function PageSectionNav({ sections, ariaLabel = 'Page sections', className = '', topClass = 'top-2' }) {
   const visibleSections = useMemo(
     () => sections.filter((section) => section && section.id && section.label && section.hidden !== true),
     [sections],
@@ -48,7 +49,9 @@ export default function PageSectionNav({ sections, ariaLabel = 'Page sections', 
     const target = document.getElementById(sectionId);
     if (!target) return;
     // Land the section just below the bar, however many rows of links it has.
-    target.style.scrollMarginTop = `${(navRef.current?.offsetHeight || 0) + 16}px`;
+    const nav = navRef.current;
+    const pinnedAt = nav ? parseFloat(window.getComputedStyle(nav).top) || 0 : 0;
+    target.style.scrollMarginTop = `${pinnedAt + (nav?.offsetHeight || 0) + 16}px`;
     const reduceMotion = typeof window.matchMedia === 'function'
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     heldUntil.current = event.timeStamp + CLICK_HOLD_MS;
@@ -59,7 +62,7 @@ export default function PageSectionNav({ sections, ariaLabel = 'Page sections', 
 
   return (
     // Sections sit in even columns in page order, a part-filled last row centred, and stay in view while scrolling.
-    <nav ref={navRef} aria-label={ariaLabel} className={`sticky top-2 z-20 flex flex-wrap justify-center rounded-xl border border-border-light bg-surface-light/95 p-1.5 shadow-sm backdrop-blur dark:border-border-dark dark:bg-surface-dark/95 ${className}`}>
+    <nav ref={navRef} aria-label={ariaLabel} className={`sticky ${topClass} z-20 flex flex-wrap justify-center rounded-xl border border-border-light bg-surface-light/95 p-1.5 shadow-sm backdrop-blur dark:border-border-dark dark:bg-surface-dark/95 ${className}`}>
       {visibleSections.map(({ id, label }) => (
         <div key={id} className='w-1/2 p-0.5 sm:w-1/3 lg:w-1/4'>
           <a
