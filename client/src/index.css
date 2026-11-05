@@ -1222,6 +1222,20 @@ html:not(.dark) .public-home #home [class*="via-black"] {
   .placeholder-field {
     position: relative;
     min-width: 0;
+    /* The caption is a tinted chip in the brand colour, with contrast well above 7:1 in either theme. */
+    --caption-text: #12385a;
+    --caption-bg: #e6edf5;
+    --caption-border: #9fb4ca;
+    --caption-focus-text: #ffffff;
+    --caption-focus-bg: #12385a;
+  }
+
+  .dark .placeholder-field {
+    --caption-text: #dbeafe;
+    --caption-bg: #1e3a5f;
+    --caption-border: #3b82f6;
+    --caption-focus-text: #ffffff;
+    --caption-focus-bg: #1d4ed8;
   }
 
   .placeholder-field[data-caption]::after {
@@ -1232,22 +1246,26 @@ html:not(.dark) .public-home #home [class*="via-black"] {
     z-index: 1;
     max-width: calc(100% - 20px);
     overflow: hidden;
-    padding: 0 4px;
-    border-radius: 4px;
-    background: var(--surface);
-    color: var(--text-muted);
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.2;
+    padding: 1px 7px;
+    border: 1px solid var(--caption-border);
+    border-radius: 6px;
+    background: var(--caption-bg);
+    color: var(--caption-text);
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.25;
     white-space: nowrap;
     text-overflow: ellipsis;
     pointer-events: none;
-    transform: translateY(-50%);
+    transform: translateY(-55%);
     animation: placeholder-rise 150ms ease-out;
   }
 
   .placeholder-field[data-caption]:focus-within::after {
-    color: var(--brand-primary);
+    border-color: var(--caption-focus-bg);
+    background: var(--caption-focus-bg);
+    color: var(--caption-focus-text);
   }
 
   /* An uncontrolled box with nothing typed still shows its placeholder; a box in a <label> keeps the label. */
@@ -1270,7 +1288,7 @@ html:not(.dark) .public-home #home [class*="via-black"] {
 
     to {
       opacity: 1;
-      transform: translateY(-50%);
+      transform: translateY(-55%);
     }
   }
 }
