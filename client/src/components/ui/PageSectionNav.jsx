@@ -7,7 +7,8 @@ const CLICK_HOLD_MS = 900;
 
 // topClass sets where the bar pins; pages under a fixed site header pin it below that header.
 // pinned={false} renders the links bare, for a page that pins them inside its own bar (e.g. under its tabs).
-export default function PageSectionNav({ sections, ariaLabel = 'Page sections', className = '', topClass = 'top-2', pinned = true }) {
+// minSections: below this many visible sections the links are not worth showing.
+export default function PageSectionNav({ sections, ariaLabel = 'Page sections', className = '', topClass = 'top-2', pinned = true, minSections = 2 }) {
   const visibleSections = useMemo(
     () => sections.filter((section) => section && section.id && section.label && section.hidden !== true),
     [sections],
@@ -46,7 +47,7 @@ export default function PageSectionNav({ sections, ariaLabel = 'Page sections', 
     };
   }, [visibleSections]);
 
-  if (visibleSections.length < 2) return null;
+  if (visibleSections.length < minSections) return null;
 
   const scrollToSection = (event, sectionId) => {
     event.preventDefault();

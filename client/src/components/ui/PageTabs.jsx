@@ -10,7 +10,8 @@ const WIDE_COLUMNS = { 1: 'lg:w-full', 2: 'lg:w-1/2', 3: 'lg:w-1/3', 4: 'lg:w-1/
  * A record page split into tabs, each a page of its own. The tabs and the open tab's section links
  * stay pinned together in one bar while the page scrolls.
  *
- * tabs: [[key, label], ...]; sections: the open tab's [{ id, label, hidden }] (links show when there are two or more).
+ * tabs: [[key, label], ...]; sections: the open tab's [{ id, label, hidden }]. Links show only for three or more
+ * sections: a tab of one or two parts already names them (e.g. "Addresses & contacts").
  */
 export default function PageTabs({ tabs, active, onChange, ariaLabel, sections = [], sectionsLabel }) {
   const columns = WIDE_COLUMNS[tabs.length] || 'lg:w-1/4';
@@ -45,6 +46,7 @@ export default function PageTabs({ tabs, active, onChange, ariaLabel, sections =
         className='border-t border-border-light pt-1.5 dark:border-border-dark'
         ariaLabel={sectionsLabel || `${tabs.find(([key]) => key === active)?.[1] || ''} sections`}
         sections={sections}
+        minSections={3}
       />
     </div>
     </>
