@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
+from apps.audit_logs.services import AuditService
 from apps.cases.models import Case, CaseActivity, CaseFiling, MatterDeadline
 from apps.common.choices import UserRole
 
@@ -159,6 +160,57 @@ class FilingRegisterService:
         from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
 
         ProceedingsWorkflowService._resync_next_action(case, actor=user)
+        return filing
+
+    @classmethod
+    def correct(cls, *, user, case, filing, data):
+        """Corrects a register entry recorded wrongly: who filed it, its title or its e-filing reference.
+
+        The entry is a record of the court file, so it is corrected in place with a stated reason and an
+        audit trail, never deleted and re-entered. Dates, service and fees drive deadlines and the fee note,
+        so they are not changed here.
+        """
+        if not cls.can_record(user, case):
+            raise PermissionDenied("Only the assigned advocate, the matter secretary or the firm owner can correct the filing register.")
+        if case.matter_status in {Case.MatterStatus.CLOSED, Case.MatterStatus.ARCHIVED, Case.MatterStatus.CANCELLED}:
+            raise ValidationError({"case": "Entries on a closed matter cannot be corrected."})
+        reason = (data.get("reason") or "").strip()
+        if not reason:
+            raise ValidationError({"reason": "State why the entry is being corrected."})
+        previous = {
+            "filed_by_party": str(filing.filed_by_party_id or ""),
+            "title": filing.title,
+            "efiling_reference": filing.efiling_reference,
+        }
+        if "filed_by_party" in data:
+            party = cls._filing_party(case, filing.filing_type, data.get("filed_by_party"))
+            if party and party.is_adverse and filing.court_fee_amount:
+                raise ValidationError({"filed_by_party": "This entry carries our court fees, so it cannot be the other side's paper."})
+            filing.filed_by_party = party
+        if "title" in data:
+            title = (data.get("title") or "").strip()
+            if not title:
+                raise ValidationError({"title": "Give the paper a title."})
+            filing.title = title
+        if "efiling_reference" in data:
+            filing.efiling_reference = (data.get("efiling_reference") or "").strip()
+        new = {
+            "filed_by_party": str(filing.filed_by_party_id or ""),
+            "title": filing.title,
+            "efiling_reference": filing.efiling_reference,
+        }
+        if new == previous:
+            raise ValidationError({"detail": "Nothing was changed."})
+        filing.save(update_fields=["filed_by_party", "title", "efiling_reference", "updated_at"])
+        changed = ", ".join(key.replace("_", " ") for key in new if new[key] != previous[key])
+        CaseActivity.objects.create(
+            case=case,
+            action="FILING_REGISTER_CORRECTED",
+            description=f"{filing.get_filing_type_display()}: {filing.title} corrected ({changed}). Reason: {reason}",
+            actor=user,
+            metadata={"filing_id": str(filing.id), "previous": previous, "new": new, "reason": reason},
+        )
+        AuditService.record(firm=case.firm, user=user, action="CASE_FILING_CORRECTED", obj=filing, previous=previous, new=new, reason=reason)
         return filing
 
     # Papers only the other side files: its appearance and its answer to the claim.

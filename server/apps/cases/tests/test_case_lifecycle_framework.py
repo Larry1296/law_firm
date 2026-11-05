@@ -374,6 +374,36 @@ class CaseLifecycleFrameworkTests(TestCase):
         with self.assertRaises(ValidationError):
             FilingRegisterService.record(user=self.admin, case=self.create_case(), data={"filing_type": "WITNESS_STATEMENT", "filed_by_party": respondent.id})
 
+    def test_a_register_entry_recorded_as_ours_is_corrected_to_the_other_sides_with_a_reason(self):
+        from decimal import Decimal
+
+        from rest_framework.exceptions import ValidationError
+
+        from apps.audit_logs.models import AuditEvent
+        from apps.cases.models import CaseParty
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
+        case = self.create_case()
+        claimant = CaseParty.objects.create(case=case, name="Grace Mwende", party_role="CLAIMANT", is_our_client=True)
+        respondent = CaseParty.objects.create(case=case, name="Baraka Supplies Limited", party_role="RESPONDENT", is_adverse=True)
+        filing = FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "SUBMISSIONS", "filed_by_party": claimant.id, "efiling_reference": "EF-1"})
+        with self.assertRaises(ValidationError):
+            FilingRegisterService.correct(user=self.admin, case=case, filing=filing, data={"filed_by_party": respondent.id, "reason": " "})
+        FilingRegisterService.correct(user=self.admin, case=case, filing=filing, data={
+            "filed_by_party": respondent.id, "title": "Respondent's written submissions", "reason": "Recorded under the wrong party.",
+        })
+        filing.refresh_from_db()
+        self.assertEqual(filing.filed_by_party, respondent)
+        self.assertEqual(filing.title, "Respondent's written submissions")
+        self.assertEqual(filing.efiling_reference, "EF-1")
+        event = AuditEvent.objects.get(action="CASE_FILING_CORRECTED")
+        self.assertEqual(event.reason, "Recorded under the wrong party.")
+        self.assertTrue(case.activities.filter(action="FILING_REGISTER_CORRECTED").exists())
+        # Our own paper with our court fees on the fee note cannot be passed off as the other side's.
+        paid = FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "LIST_OF_DOCUMENTS", "filed_by_party": claimant.id, "court_fee_amount": Decimal("200.00")})
+        with self.assertRaises(ValidationError):
+            FilingRegisterService.correct(user=self.admin, case=case, filing=paid, data={"filed_by_party": respondent.id, "reason": "x"})
+
     def test_a_hearing_notice_is_served_and_proved_before_the_hearing_without_reopening_the_response(self):
         from rest_framework.exceptions import ValidationError
 

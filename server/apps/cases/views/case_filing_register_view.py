@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.cases.serializers.case_filing_serializer import CaseFilingRecordSerializer, CaseFilingSerializer
+from apps.cases.serializers.case_filing_serializer import CaseFilingCorrectionSerializer, CaseFilingRecordSerializer, CaseFilingSerializer
 from apps.cases.models import Case
 from apps.cases.services import CaseService
 from apps.cases.services.filing_register_service import FilingRegisterService
@@ -37,3 +37,19 @@ class CaseFilingRegisterView(APIView):
             {"filing": CaseFilingSerializer(filing).data, "next_action": case.next_action},
             status=status.HTTP_201_CREATED,
         )
+
+
+class CaseFilingCorrectView(APIView):
+    """Corrects one register entry, with a reason, instead of recording it a second time."""
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, case_id, filing_id):
+        case = scoped_case(request.user, case_id)
+        filing = case.filings.filter(id=filing_id).first()
+        if filing is None:
+            raise NotFound("Filing not found.")
+        serializer = CaseFilingCorrectionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        filing = FilingRegisterService.correct(user=request.user, case=case, filing=filing, data=serializer.validated_data)
+        return Response({"filing": CaseFilingSerializer(filing).data})

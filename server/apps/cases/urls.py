@@ -28,7 +28,7 @@ from apps.cases.views.matter_operations_view import (
     WorkstreamStageCompleteView,
 )
 from apps.cases.views.court_view import CourtDetailView, CourtListView
-from apps.cases.views.case_filing_register_view import CaseFilingRegisterView
+from apps.cases.views.case_filing_register_view import CaseFilingCorrectView, CaseFilingRegisterView
 
 urlpatterns = [
     path("closing-reviews/finance/", FinanceClosingReviewView.as_view(), name="finance-closing-reviews"),
@@ -43,6 +43,7 @@ urlpatterns = [
     path("<uuid:case_id>/tasks/", CaseTaskListCreateView.as_view(), name="case-task-list-create"),
     path("<uuid:case_id>/physical-file/", MatterPhysicalFileView.as_view(), name="matter-physical-file"),
     path("<uuid:case_id>/filings/", CaseFilingRegisterView.as_view(), name="case-filing-register"),
+    path("<uuid:case_id>/filings/<uuid:filing_id>/", CaseFilingCorrectView.as_view(), name="case-filing-correct"),
     path("<uuid:case_id>/allowed-next-events/", AllowedNextEventsView.as_view(), name="allowed-next-events"),
     path("<uuid:case_id>/events/<uuid:event_id>/record-outcome/", RecordProceedingOutcomeView.as_view(), name="record-proceeding-outcome"),
     path("<uuid:case_id>/events/<uuid:event_id>/correct-date/", CorrectCourtDateView.as_view(), name="correct-court-date"),

@@ -76,3 +76,10 @@ class CaseFilingRecordSerializer(serializers.Serializer):
     filed_by_party = serializers.UUIDField(required=False, allow_null=True)
     served_filing = serializers.UUIDField(required=False, allow_null=True)
     is_client_visible = serializers.BooleanField(required=False, default=True)
+
+
+class CaseFilingCorrectionSerializer(serializers.Serializer):
+    filed_by_party = serializers.UUIDField(required=False, allow_null=True)
+    title = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    efiling_reference = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    reason = serializers.CharField()

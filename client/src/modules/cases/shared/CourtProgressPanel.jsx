@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card';
 import axiosInstance from '@/core/api/axios';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { serverNow } from '@/core/utils/serverClock';
+import FilingRegisterEntries from '@/modules/cases/shared/FilingRegisterEntries';
 
 const COURT_DIMENSIONS = ['COURT_STAGE', 'OUTCOME_STATUS', 'ENFORCEMENT_STATUS', 'APPEAL_STATUS'];
 const DIMENSION_LABELS = {
@@ -209,7 +210,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   const claimDate = claimPapers ? localDateTime(new Date(claimPapers.claim.filed_at)) : '';
   const claimReference = claimPapers?.claim.efiling_reference || '';
   const startClaimPaper = (value) => {
-    setEntry({ ...freshEntry(), filing_type: value, filed_at: claimDate, efiling_reference: claimReference });
+    setEntry({ ...freshEntry(), filing_type: value, filed_at: claimDate, efiling_reference: claimReference, filed_by_party: ourParty?.id || '' });
     setEntryFeedback(null);
     document.getElementById('filing-register-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   };
@@ -234,7 +235,8 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   // Who filed the paper: the other side for its own papers, a chosen party for papers either side files.
   const filingParties = (caseData.parties || []).filter((party) => party.is_our_client || party.is_adverse);
   const ourParty = filingParties.find((party) => party.is_our_client);
-  const filerId = EITHER_SIDE_PAPERS.has(paper) ? (entry.filed_by_party || ourParty?.id || '') : '';
+  // Either side files these, so who filed this one is chosen each time; with only our client on record it is ours.
+  const filerId = EITHER_SIDE_PAPERS.has(paper) ? (entry.filed_by_party || (filingParties.length > 1 ? '' : ourParty?.id || '')) : '';
   const filer = filingParties.find((party) => party.id === filerId);
   const theirPaper = OTHER_SIDE_PAPERS.has(paper) || Boolean(filer?.is_adverse);
   const defaultTitle = provesNotice
@@ -319,6 +321,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
     if (event.target.name === 'filing_type' && CLAIM_PAPER_TYPES.has(event.target.value) && claimDate && !adverseChosen) {
       next.filed_at = claimDate;
       next.efiling_reference = claimReference;
+      next.filed_by_party = ourParty?.id || '';
     }
     if (['served_at', 'response_due_date'].includes(event.target.name) && !current.serviceEdited) {
       // Editing either service field starts from what the form was showing.
@@ -370,6 +373,16 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
         </section>
       )}
 
+      <FilingRegisterEntries
+        caseId={caseId}
+        filings={caseData.filings}
+        parties={filingParties}
+        eitherSidePapers={EITHER_SIDE_PAPERS}
+        canCorrect={canRecordFilings}
+        inputClass={inputClass}
+        onCorrected={refresh}
+      />
+
       {/* Papers are recorded first (a demand, a filing, service); the court stage then moves on them. */}
       {canRecordFilings && (
         <form id='filing-register-form' onSubmit={submitEntry} className={`grid gap-3 md:grid-cols-2 ${showStage || claimPapers ? 'mt-5' : ''}`} aria-label='Record in the filing register'>
@@ -386,6 +399,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
           {EITHER_SIDE_PAPERS.has(paper) && filingParties.length > 1 && (
             <Field label='Filed by'>
               <select name='filed_by_party' value={filerId} onChange={updateEntry} className={inputClass} required>
+                <option value=''>Select who filed it</option>
                 {filingParties.map((party) => <option key={party.id} value={party.id}>{party.name} ({party.role_label}{party.is_our_client ? ', our client' : ''})</option>)}
               </select>
             </Field>
