@@ -31,8 +31,7 @@ const MATTER_TABS = [
 ];
 import { COURT_LEVELS, COURT_TYPES } from '@/modules/cases/shared/create/caseCreateOptions';
 import CourtProgressPanel from '@/modules/cases/shared/CourtProgressPanel';
-import PageSectionNav from '@/components/ui/PageSectionNav';
-import { sectionLinkClass } from '@/components/ui/sectionLinkClass';
+import PageTabs from '@/components/ui/PageTabs';
 
 const PRIORITIES = [
   { value: 'LOW', label: 'Low' },
@@ -140,24 +139,6 @@ const MatterHeader = ({ caseData }) => {
   );
 };
 
-// The matter's tabs, in the same look as page section links, in even columns.
-const MatterTabs = ({ tabs, active, onChange }) => (
-  <div role='tablist' aria-label='Matter' className='flex flex-wrap justify-center'>
-    {tabs.map(([key, label]) => (
-      <div key={key} className='w-1/2 p-0.5 sm:w-1/3 lg:w-1/6'>
-        <button
-          type='button'
-          role='tab'
-          aria-selected={active === key}
-          onClick={() => onChange(key)}
-          className={sectionLinkClass(active === key)}
-        >
-          {label}
-        </button>
-      </div>
-    ))}
-  </div>
-);
 
 // Upcoming dates a client without the portal has not yet been told about.
 const untoldDates = (caseData) => (caseData.client?.portal_access_exists ? [] : (caseData.events || []).filter((event) => (
@@ -924,31 +905,20 @@ const AdminCaseDetailsPage = () => {
     <div className='mx-auto max-w-[1200px] space-y-6 p-4 md:p-6 animate-fadeIn'>
 
       <MatterHeader caseData={caseData} />
-      {/* Tabs and the open tab's section links stay pinned together while the page scrolls. */}
-      <div className='sticky top-2 z-20 space-y-1.5 rounded-xl border border-border-light bg-surface-light/95 p-1.5 shadow-sm backdrop-blur dark:border-border-dark dark:bg-surface-dark/95'>
-        <MatterTabs tabs={visibleTabs} active={activeTab} onChange={setActiveTab} />
-        {activeTab === 'court' && (
-          <PageSectionNav
-            key='court'
-            pinned={false}
-            className='border-t border-border-light pt-1.5 dark:border-border-dark'
-            ariaLabel='Court tab sections'
-            sections={[
+      <PageTabs
+        ariaLabel='Matter'
+        tabs={visibleTabs}
+        active={activeTab}
+        onChange={setActiveTab}
+        sections={{
+          court: [
               { id: 'court-record', label: 'Court proceeding record', hidden: !isCourtMatter },
               { id: 'court-progress', label: 'Court progress & filing register' },
               { id: 'court-next-date', label: 'Record the next date' },
               { id: 'court-events', label: 'Court events' },
               { id: 'court-activity', label: 'Hearings, filings, tasks & notes' },
-            ]}
-          />
-        )}
-        {activeTab === 'record' && (
-          <PageSectionNav
-            key='record'
-            pinned={false}
-            className='border-t border-border-light pt-1.5 dark:border-border-dark'
-            ariaLabel='Matter record sections'
-            sections={[
+            ],
+          record: [
               { id: 'record-details', label: 'Matter details' },
               { id: 'record-conflict', label: 'Conflict check' },
               { id: 'record-parties', label: 'Parties' },
@@ -956,10 +926,9 @@ const AdminCaseDetailsPage = () => {
               { id: 'record-lifecycle', label: 'Lifecycles' },
               { id: 'record-transitions', label: 'Lifecycle transitions' },
               { id: 'record-controls', label: 'Deadlines, workstream & closing' },
-            ]}
-          />
-        )}
-      </div>
+            ],
+        }[activeTab] || []}
+      />
 
       {activeTab === 'overview' && (
         <div className='space-y-6'>

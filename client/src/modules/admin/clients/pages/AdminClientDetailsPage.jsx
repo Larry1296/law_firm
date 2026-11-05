@@ -1,5 +1,5 @@
 import ProspectiveClientActions from '@/modules/clients/shared/ProspectiveClientActions';
-import React from 'react';
+import React, { useState } from 'react';
 import ResendTemporaryPasswordButton from '@/modules/admin/components/ResendTemporaryPasswordButton';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -11,15 +11,27 @@ import Card from '@/components/ui/Card';
 import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
 import Button3D from '@/components/ui/Button3D';
-import PageSectionNav from '@/components/ui/PageSectionNav';
+import PageTabs from '@/components/ui/PageTabs';
 import TableHeaderText from '@/components/ui/TableHeaderText';
 
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { titleCase, enumLabel } from '@/core/utils/textFormatter';
 
+// Each tab is a page of the client file, in the order a firm works through it.
+const CLIENT_TABS = [
+  ['overview', 'Overview'],
+  ['kyc', 'KYC & compliance'],
+  ['matters', 'Matters'],
+  ['representatives', 'Representatives'],
+  ['contacts', 'Addresses & contacts'],
+  ['billing', 'Billing'],
+  ['records', 'Documents & communications'],
+];
+
 export default function AdminClientDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('overview');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-client', id],
@@ -220,114 +232,65 @@ export default function AdminClientDetailsPage() {
         subtitle='Client Details'
       />
       <ProspectiveClientActions client={client} workspace='admin' />
-      <PageSectionNav
-        ariaLabel='Client page sections'
-        sections={[
-          { id: 'client-overview', label: 'Overview' },
-          { id: 'client-identity', label: 'Basic information' },
-          { id: 'client-education', label: 'Education profile', hidden: !client.education_profile },
-          { id: 'client-owners', label: 'Beneficial owners', hidden: !(client.beneficial_owners?.length > 0) },
-          { id: 'client-privacy', label: 'Privacy', hidden: !client.privacy },
-          { id: 'client-kyc', label: 'KYC & due diligence' },
-          { id: 'client-portal', label: 'Portal access', hidden: client.client_type !== 'INDIVIDUAL' },
-          { id: 'client-profile', label: `${enumLabel(client.client_type)} profile`, hidden: !(profileFields.length > 0) },
-          { id: 'client-matters', label: 'Proposed matters' },
-          { id: 'accepted-proposals', label: 'Accepted proposals' },
-          { id: 'declined-proposals', label: 'Declined / withdrawn' },
-          { id: 'active-matters', label: 'Active matters' },
-          { id: 'closed-archived', label: 'Closed / archived' },
-          { id: 'client-authority', label: 'Representatives' },
-          { id: 'client-finance', label: 'Financial summary' },
-          { id: 'client-record-links', label: 'Documents & communications' },
-          { id: 'client-addresses', label: 'Addresses' },
-          { id: 'client-contacts', label: 'Contacts' },
-        ]}
-      />
       {client.portal_access_exists && <ResendTemporaryPasswordButton clientId={id} />}
       <div className='flex justify-end'><Button3D variant='primary' onClick={() => navigate(`/admin/clients/${id}/documents`)}>Open Physical Document Register</Button3D></div>
+      <PageTabs
+        ariaLabel='Client'
+        tabs={CLIENT_TABS}
+        active={activeTab}
+        onChange={setActiveTab}
+        sections={{
+          overview: [
+            { id: 'client-overview', label: 'Summary' },
+            { id: 'client-identity', label: 'Basic information' },
+            { id: 'client-profile', label: `${enumLabel(client.client_type)} profile`, hidden: !(profileFields.length > 0) },
+            { id: 'client-portal', label: 'Portal access', hidden: client.client_type !== 'INDIVIDUAL' },
+          ],
+          kyc: [
+            { id: 'client-kyc', label: 'KYC & due diligence' },
+            { id: 'client-education', label: 'Education profile', hidden: !client.education_profile },
+            { id: 'client-owners', label: 'Beneficial owners', hidden: !(client.beneficial_owners?.length > 0) },
+            { id: 'client-privacy', label: 'Privacy', hidden: !client.privacy },
+          ],
+          matters: [
+            { id: 'client-matters', label: 'Proposed matters' },
+            { id: 'accepted-proposals', label: 'Accepted proposals' },
+            { id: 'declined-proposals', label: 'Declined / withdrawn' },
+            { id: 'active-matters', label: 'Active matters' },
+            { id: 'closed-archived', label: 'Closed / archived' },
+          ],
+          contacts: [
+            { id: 'client-addresses', label: 'Addresses' },
+            { id: 'client-contacts', label: 'Contacts' },
+          ],
+        }[activeTab] || []}
+      />
 
-      <div id='client-overview' className='scroll-mt-28 grid grid-cols-1 gap-4 md:grid-cols-4'>
-        <StatsCard title='Addresses' value={analytics.addresses ?? 0} color='blue' />
+      {activeTab === 'overview' && (
+        <div className='space-y-6'>
+        <div id='client-overview' className='scroll-mt-28 grid grid-cols-1 gap-4 md:grid-cols-4'>
+          <StatsCard title='Addresses' value={analytics.addresses ?? 0} color='blue' />
 
-        <StatsCard title='Contacts' value={analytics.contacts ?? 0} color='green' />
+          <StatsCard title='Contacts' value={analytics.contacts ?? 0} color='green' />
 
-        <StatsCard
-          title='Documents'
-          value={analytics.documents ?? 0}
-          color='purple'
-        />
+          <StatsCard
+            title='Documents'
+            value={analytics.documents ?? 0}
+            color='purple'
+          />
 
-        <StatsCard
-          title='Status'
-          value={enumLabel(analytics.lifecycle_status ?? client.lifecycle_status)}
-          color='yellow'
-        />
-      </div>
-
-      <Card id='client-identity' className='scroll-mt-28 p-6'>
-        <h3 className='text-lg font-semibold mb-4'>Basic Information</h3>
-
-        <div className='grid md:grid-cols-2 gap-4'>
-          {basicInformation.map((field) => (
-            <div key={field.label}>
-              <strong>{field.label}</strong>
-              <p>{field.value}</p>
-            </div>
-          ))}
+          <StatsCard
+            title='Status'
+            value={enumLabel(analytics.lifecycle_status ?? client.lifecycle_status)}
+            color='yellow'
+          />
         </div>
-      </Card>
 
-      {client.education_profile && <Card id='client-education' className='scroll-mt-28 p-6'><h3 className='mb-4 text-lg font-semibold'>Education Regulatory Profile</h3><div className='grid gap-4 md:grid-cols-3'>{[
-        ['Institution',client.education_profile.institution_official_name],['Education regime',client.education_profile.education_regime_label],['Ownership',client.education_profile.ownership_label],['Legal owner / operator',client.education_profile.operator_legal_name],['Registration / accreditation',client.education_profile.registration_number],['Regulator',client.education_profile.regulator],['Levels',(client.education_profile.education_levels||[]).map(enumLabel).join(', ')],['University category',enumLabel(client.education_profile.university_category)],['TVET category',enumLabel(client.education_profile.tvet_category)],['Verification source',client.education_profile.verification_source],
-      ].filter(([,v])=>hasValue(v)).map(([label,value])=><div key={label}><strong>{label}</strong><p>{value}</p></div>)}</div>{client.education_profile.curricula?.length>0&&<div className='mt-4'><strong>Curricula</strong><p>{client.education_profile.curricula.map((c)=>c.framework_label).join(', ')}</p></div>}</Card>}
+        <Card id='client-identity' className='scroll-mt-28 p-6'>
+          <h3 className='text-lg font-semibold mb-4'>Basic Information</h3>
 
-      {client.beneficial_owners?.length > 0 && <Card id='client-owners' className='scroll-mt-28 p-6'><h3 className='mb-4 text-lg font-semibold'>Beneficial Owners / Control</h3><div className='space-y-3'>{client.beneficial_owners.map((owner)=><div key={owner.id} className='rounded-lg border p-3'><strong>{owner.full_legal_name}</strong><p>{enumLabel(owner.ownership_mode)} · Ownership {owner.ownership_percentage ?? 'not percentage-based'} · Voting {owner.voting_percentage ?? 'not recorded'}</p><p>{owner.nature_of_ownership_or_control}</p></div>)}</div></Card>}
-
-      {client.privacy && <Card id='client-privacy' className='scroll-mt-28 p-6'><h3 className='mb-4 text-lg font-semibold'>Privacy / Data Processing</h3><div className='grid gap-4 md:grid-cols-3'><div><strong>Lawful basis</strong><p>{client.privacy.lawful_basis_label}</p></div><div><strong>Notice version</strong><p>{client.privacy.privacy_notice_version}</p></div><div><strong>Notice delivered</strong><p>{client.privacy.privacy_notice_delivered?'Yes':'No'}</p></div><div><strong>Retention category</strong><p>{client.privacy.retention_category||'Not recorded'}</p></div></div></Card>}
-
-      <Card id='client-kyc' className='scroll-mt-28 p-6'>
-        <h3 className='mb-4 text-lg font-semibold'>KYC and Due Diligence</h3>
-        <div className='grid gap-4 md:grid-cols-3'>
-          {[['Identity', compliance?.identity_status], ['Authority to instruct', compliance?.authority_status], ['Beneficial ownership', compliance?.beneficial_ownership_status], ['Due diligence', compliance?.due_diligence_status], ['Source of funds', compliance?.source_of_funds_status], ['Restriction', compliance?.restriction_reason || 'None recorded']].map(([label, value]) => <div key={label}><strong>{label}</strong><p>{value ? enumLabel(value) : 'Legacy review required / not recorded'}</p></div>)}
-        </div>
-      </Card>
-
-      {client.client_type === 'INDIVIDUAL' && (
-        <Card id='client-portal' className='scroll-mt-28 p-6'>
-          <h3 className='text-lg font-semibold mb-4'>Portal Access</h3>
-          {client.portal_access_exists ? (
-            <div className='grid md:grid-cols-2 gap-4'>
-              <div>
-                <strong>Portal login email</strong>
-                <p>{client.portal_login_email}</p>
-              </div>
-              <div>
-                <strong>Account status</strong>
-                <p>Created</p>
-              </div>
-              <div>
-                <strong>Access type</strong>
-                <p>{enumLabel(client.access_type)}</p>
-              </div>
-              <div>
-                <strong>Lifecycle</strong>
-                <p>{enumLabel(client.lifecycle_status)}</p>
-              </div>
-            </div>
-          ) : (
-            <p>No portal account has been created.</p>
-          )}
-        </Card>
-      )}
-
-      {profileFields.length > 0 && (
-        <Card id='client-profile' className='scroll-mt-28 p-6'>
-          <h3 className='text-lg font-semibold mb-4'>
-            {enumLabel(client.client_type)} Profile
-          </h3>
-
-          <div className='grid md:grid-cols-3 gap-4'>
-            {profileFields.map((field) => (
+          <div className='grid md:grid-cols-2 gap-4'>
+            {basicInformation.map((field) => (
               <div key={field.label}>
                 <strong>{field.label}</strong>
                 <p>{field.value}</p>
@@ -335,212 +298,297 @@ export default function AdminClientDetailsPage() {
             ))}
           </div>
         </Card>
+
+        {profileFields.length > 0 && (
+          <Card id='client-profile' className='scroll-mt-28 p-6'>
+            <h3 className='text-lg font-semibold mb-4'>
+              {enumLabel(client.client_type)} Profile
+            </h3>
+
+            <div className='grid md:grid-cols-3 gap-4'>
+              {profileFields.map((field) => (
+                <div key={field.label}>
+                  <strong>{field.label}</strong>
+                  <p>{field.value}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {client.client_type === 'INDIVIDUAL' && (
+          <Card id='client-portal' className='scroll-mt-28 p-6'>
+            <h3 className='text-lg font-semibold mb-4'>Portal Access</h3>
+            {client.portal_access_exists ? (
+              <div className='grid md:grid-cols-2 gap-4'>
+                <div>
+                  <strong>Portal login email</strong>
+                  <p>{client.portal_login_email}</p>
+                </div>
+                <div>
+                  <strong>Account status</strong>
+                  <p>Created</p>
+                </div>
+                <div>
+                  <strong>Access type</strong>
+                  <p>{enumLabel(client.access_type)}</p>
+                </div>
+                <div>
+                  <strong>Lifecycle</strong>
+                  <p>{enumLabel(client.lifecycle_status)}</p>
+                </div>
+              </div>
+            ) : (
+              <p>No portal account has been created.</p>
+            )}
+          </Card>
+        )}
+        </div>
       )}
 
-      <Card id='client-matters' className='scroll-mt-28 p-6'>
-        <div className='mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
-          <h3 className='text-lg font-semibold'>Proposed Matters and Conflict Checks</h3>
-          <Button3D variant='primary' onClick={() => navigate(`/admin/clients/${id}/conflict-checks/new`)}>
-            Start New Proposed Matter
-          </Button3D>
-        </div>
-        {conflictChecks.length === 0 ? (
-          <p>No proposed-matter conflict checks recorded.</p>
-        ) : (
-          <div className='overflow-x-auto'>
-            <table className='min-w-full text-left text-sm'>
-              <thead className='text-text-muted-light dark:text-text-muted-dark'>
-                <tr>
-                  {['Reference', 'Proposed matter', 'Adverse parties', 'Responsible advocate', 'Status', 'Urgency / deadline', 'Linked case', 'Action'].map((label) => (
-                    <th key={label} className='py-2 pr-4'><TableHeaderText>{label}</TableHeaderText></th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {conflictChecks.map((check) => {
-                  const action = actionForConflictCheck(check);
-                  return (
-                    <tr key={check.id} className='border-t border-border-light dark:border-border-dark'>
-                      <td className='py-3 pr-4 font-medium'>{check.reference_number}</td>
-                      <td className='py-3 pr-4'>{check.proposed_matter_title}</td>
-                      <td className='py-3 pr-4'>{(check.adverse_parties || []).join(', ') || '-'}</td>
-                      <td className='py-3 pr-4'>{check.responsible_lawyer_name || '-'}</td>
-                      <td className='py-3 pr-4'>{check.status_label || enumLabel(check.status)}</td>
-                      <td className='py-3 pr-4'>{[enumLabel(check.urgency_level), check.limitation_or_deadline_date].filter(Boolean).join(' / ') || '-'}</td>
-                      <td className='py-3 pr-4'>{check.created_case_number || '-'}</td>
-                      <td className='py-3 pr-4'>
-                        <Button3D size='sm' variant='outlineLight' onClick={() => navigate(action.path)}>
-                          {action.label}
-                        </Button3D>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {activeTab === 'kyc' && (
+        <div className='space-y-6'>
+        <Card id='client-kyc' className='scroll-mt-28 p-6'>
+          <h3 className='mb-4 text-lg font-semibold'>KYC and Due Diligence</h3>
+          <div className='grid gap-4 md:grid-cols-3'>
+            {[['Identity', compliance?.identity_status], ['Authority to instruct', compliance?.authority_status], ['Beneficial ownership', compliance?.beneficial_ownership_status], ['Due diligence', compliance?.due_diligence_status], ['Source of funds', compliance?.source_of_funds_status], ['Restriction', compliance?.restriction_reason || 'None recorded']].map(([label, value]) => <div key={label}><strong>{label}</strong><p>{value ? enumLabel(value) : 'Legacy review required / not recorded'}</p></div>)}
           </div>
-        )}
-      </Card>
+        </Card>
 
-      {[['accepted-proposals', 'Accepted Proposed Matters', acceptedProposals], ['declined-proposals', 'Declined or Withdrawn Proposed Matters', declinedProposals]].map(([sectionId, title, records]) => <Card id={sectionId} className='scroll-mt-28 p-6' key={sectionId}><h3 className='mb-3 text-lg font-semibold'>{title}</h3>{records.length ? <div className='space-y-2'>{records.map((item) => <button className='block w-full rounded-lg border p-3 text-left dark:border-border-dark' key={item.id} onClick={() => navigate(`/admin/clients/${id}/conflict-checks/${item.id}`)}><b>{item.proposed_matter_title}</b><br/><span className='text-sm'>{item.reference_number} · {enumLabel(item.acceptance_decision)}</span></button>)}</div> : <p>No records in this register.</p>}</Card>)}
+        {client.education_profile && <Card id='client-education' className='scroll-mt-28 p-6'><h3 className='mb-4 text-lg font-semibold'>Education Regulatory Profile</h3><div className='grid gap-4 md:grid-cols-3'>{[
+          ['Institution',client.education_profile.institution_official_name],['Education regime',client.education_profile.education_regime_label],['Ownership',client.education_profile.ownership_label],['Legal owner / operator',client.education_profile.operator_legal_name],['Registration / accreditation',client.education_profile.registration_number],['Regulator',client.education_profile.regulator],['Levels',(client.education_profile.education_levels||[]).map(enumLabel).join(', ')],['University category',enumLabel(client.education_profile.university_category)],['TVET category',enumLabel(client.education_profile.tvet_category)],['Verification source',client.education_profile.verification_source],
+        ].filter(([,v])=>hasValue(v)).map(([label,value])=><div key={label}><strong>{label}</strong><p>{value}</p></div>)}</div>{client.education_profile.curricula?.length>0&&<div className='mt-4'><strong>Curricula</strong><p>{client.education_profile.curricula.map((c)=>c.framework_label).join(', ')}</p></div>}</Card>}
 
-      <Card id='active-matters' className='scroll-mt-28 p-6'><h3 className='mb-3 text-lg font-semibold'>Active Matters</h3>{activeMatters.length ? activeMatters.map((matter) => <button className='mb-2 block w-full rounded-lg border p-3 text-left dark:border-border-dark' key={matter.id} onClick={() => navigate(`/admin/cases/${matter.id}`)}><b>{matter.title}</b> · {matter.reference}<br/><span className='text-sm'>{enumLabel(matter.matter_status)}</span></button>) : <p>No active matters.</p>}</Card>
+        {client.beneficial_owners?.length > 0 && <Card id='client-owners' className='scroll-mt-28 p-6'><h3 className='mb-4 text-lg font-semibold'>Beneficial Owners / Control</h3><div className='space-y-3'>{client.beneficial_owners.map((owner)=><div key={owner.id} className='rounded-lg border p-3'><strong>{owner.full_legal_name}</strong><p>{enumLabel(owner.ownership_mode)} · Ownership {owner.ownership_percentage ?? 'not percentage-based'} · Voting {owner.voting_percentage ?? 'not recorded'}</p><p>{owner.nature_of_ownership_or_control}</p></div>)}</div></Card>}
 
-      <Card id='closed-archived' className='scroll-mt-28 p-6'><h3 className='mb-3 text-lg font-semibold'>Closed and Archived Matters</h3><div className='grid gap-4 md:grid-cols-2'><div><strong>Closed</strong>{closedMatters.map((matter) => <p key={matter.id}>{matter.reference} · {matter.title}</p>)}</div><div><strong>Archived</strong>{archivedMatters.map((matter) => <p key={matter.id}>{matter.reference} · {matter.title}</p>)}</div></div></Card>
+        {client.privacy && <Card id='client-privacy' className='scroll-mt-28 p-6'><h3 className='mb-4 text-lg font-semibold'>Privacy / Data Processing</h3><div className='grid gap-4 md:grid-cols-3'><div><strong>Lawful basis</strong><p>{client.privacy.lawful_basis_label}</p></div><div><strong>Notice version</strong><p>{client.privacy.privacy_notice_version}</p></div><div><strong>Notice delivered</strong><p>{client.privacy.privacy_notice_delivered?'Yes':'No'}</p></div><div><strong>Retention category</strong><p>{client.privacy.retention_category||'Not recorded'}</p></div></div></Card>}
+        </div>
+      )}
 
-      <Card id='client-authority' className='scroll-mt-28 p-6'>
-        <h3 className='text-lg font-semibold mb-4'>
-          Authorized Representatives and Officeholders
-        </h3>
-
-        {(client.representatives ?? []).length === 0 ? (
-          <p>No authorized representatives recorded.</p>
-        ) : (
-          client.representatives.map((representative) => (
-            <div
-              key={representative.id}
-              className='border border-border-light dark:border-border-dark rounded-xl p-4 mb-4'
-            >
-              <div className='grid md:grid-cols-3 gap-4'>
-                {representativeFields(representative).map((field) => (
-                  <div key={field.label}>
-                    <strong>{field.label}</strong>
-                    <p>{field.value}</p>
-                  </div>
-                ))}
-              </div>
+      {activeTab === 'matters' && (
+        <div className='space-y-6'>
+        <Card id='client-matters' className='scroll-mt-28 p-6'>
+          <div className='mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
+            <h3 className='text-lg font-semibold'>Proposed Matters and Conflict Checks</h3>
+            <Button3D variant='primary' onClick={() => navigate(`/admin/clients/${id}/conflict-checks/new`)}>
+              Start New Proposed Matter
+            </Button3D>
+          </div>
+          {conflictChecks.length === 0 ? (
+            <p>No proposed-matter conflict checks recorded.</p>
+          ) : (
+            <div className='overflow-x-auto'>
+              <table className='min-w-full text-left text-sm'>
+                <thead className='text-text-muted-light dark:text-text-muted-dark'>
+                  <tr>
+                    {['Reference', 'Proposed matter', 'Adverse parties', 'Responsible advocate', 'Status', 'Urgency / deadline', 'Linked case', 'Action'].map((label) => (
+                      <th key={label} className='py-2 pr-4'><TableHeaderText>{label}</TableHeaderText></th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {conflictChecks.map((check) => {
+                    const action = actionForConflictCheck(check);
+                    return (
+                      <tr key={check.id} className='border-t border-border-light dark:border-border-dark'>
+                        <td className='py-3 pr-4 font-medium'>{check.reference_number}</td>
+                        <td className='py-3 pr-4'>{check.proposed_matter_title}</td>
+                        <td className='py-3 pr-4'>{(check.adverse_parties || []).join(', ') || '-'}</td>
+                        <td className='py-3 pr-4'>{check.responsible_lawyer_name || '-'}</td>
+                        <td className='py-3 pr-4'>{check.status_label || enumLabel(check.status)}</td>
+                        <td className='py-3 pr-4'>{[enumLabel(check.urgency_level), check.limitation_or_deadline_date].filter(Boolean).join(' / ') || '-'}</td>
+                        <td className='py-3 pr-4'>{check.created_case_number || '-'}</td>
+                        <td className='py-3 pr-4'>
+                          <Button3D size='sm' variant='outlineLight' onClick={() => navigate(action.path)}>
+                            {action.label}
+                          </Button3D>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          ))
-        )}
-      </Card>
+          )}
+        </Card>
 
-      <Card id='client-finance' className='scroll-mt-28 p-6'><h3 className='mb-3 text-lg font-semibold'>Financial Summary</h3><div className='grid gap-4 md:grid-cols-3'><div><strong>Invoices</strong><p>{invoices.length}</p></div><div><strong>Outstanding balance</strong><p>KES {outstandingBalance.toLocaleString()}</p></div><div><strong>Access</strong><p>Detailed client-money ledgers remain restricted to authorised finance staff.</p></div></div><Button3D className='mt-4' variant='outlineLight' onClick={() => navigate(`/admin/clients/${id}/billing`)}>Open Client Billing</Button3D></Card>
+        {[['accepted-proposals', 'Accepted Proposed Matters', acceptedProposals], ['declined-proposals', 'Declined or Withdrawn Proposed Matters', declinedProposals]].map(([sectionId, title, records]) => <Card id={sectionId} className='scroll-mt-28 p-6' key={sectionId}><h3 className='mb-3 text-lg font-semibold'>{title}</h3>{records.length ? <div className='space-y-2'>{records.map((item) => <button className='block w-full rounded-lg border p-3 text-left dark:border-border-dark' key={item.id} onClick={() => navigate(`/admin/clients/${id}/conflict-checks/${item.id}`)}><b>{item.proposed_matter_title}</b><br/><span className='text-sm'>{item.reference_number} · {enumLabel(item.acceptance_decision)}</span></button>)}</div> : <p>No records in this register.</p>}</Card>)}
 
-      <Card id='client-record-links' className='scroll-mt-28 p-6'><h3 className='mb-3 text-lg font-semibold'>Documents and Communications</h3><div className='flex flex-wrap gap-3'><Button3D variant='outlineLight' onClick={() => navigate(`/admin/clients/${id}/documents`)}>Document Register ({client.documents?.length || 0})</Button3D><Button3D variant='outlineLight' onClick={() => navigate(`/admin/clients/${id}/communication`)}>Communication Records</Button3D></div></Card>
+        <Card id='active-matters' className='scroll-mt-28 p-6'><h3 className='mb-3 text-lg font-semibold'>Active Matters</h3>{activeMatters.length ? activeMatters.map((matter) => <button className='mb-2 block w-full rounded-lg border p-3 text-left dark:border-border-dark' key={matter.id} onClick={() => navigate(`/admin/cases/${matter.id}`)}><b>{matter.title}</b> · {matter.reference}<br/><span className='text-sm'>{enumLabel(matter.matter_status)}</span></button>) : <p>No active matters.</p>}</Card>
 
-      <Card id='client-addresses' className='scroll-mt-28 p-6'>
-        <h3 className='text-lg font-semibold mb-4'>Addresses</h3>
+        <Card id='closed-archived' className='scroll-mt-28 p-6'><h3 className='mb-3 text-lg font-semibold'>Closed and Archived Matters</h3><div className='grid gap-4 md:grid-cols-2'><div><strong>Closed</strong>{closedMatters.map((matter) => <p key={matter.id}>{matter.reference} · {matter.title}</p>)}</div><div><strong>Archived</strong>{archivedMatters.map((matter) => <p key={matter.id}>{matter.reference} · {matter.title}</p>)}</div></div></Card>
+        </div>
+      )}
 
-        {(client.addresses ?? []).length === 0 ? (
-          <p>No addresses available.</p>
-        ) : (
-          client.addresses.map((address) => {
-            const addressFields = [
-              {
-                label: 'Type',
-                value: enumLabel(address.address_type),
-              },
-              {
-                label: 'Country',
-                value: titleCase(address.country),
-              },
-              {
-                label: 'County',
-                value: titleCase(address.county),
-              },
-              {
-                label: 'City',
-                value: titleCase(address.city),
-              },
-              {
-                label: 'Street',
-                value: titleCase(address.street),
-              },
-              {
-                label: 'Postal Code',
-                value: address.postal_code,
-              },
-              {
-                label: 'Full Address',
-                value: titleCase(address.full_address),
-              },
-            ].filter((field) => hasValue(field.value));
+      {activeTab === 'representatives' && (
+        <div className='space-y-6'>
+        <Card id='client-authority' className='scroll-mt-28 p-6'>
+          <h3 className='text-lg font-semibold mb-4'>
+            Authorized Representatives and Officeholders
+          </h3>
 
-            return (
+          {(client.representatives ?? []).length === 0 ? (
+            <p>No authorized representatives recorded.</p>
+          ) : (
+            client.representatives.map((representative) => (
               <div
-                key={address.id}
+                key={representative.id}
                 className='border border-border-light dark:border-border-dark rounded-xl p-4 mb-4'
               >
-                {addressFields.map((field) => (
-                  <p key={field.label}>
-                    <strong>{field.label}:</strong> {field.value}
-                  </p>
-                ))}
+                <div className='grid md:grid-cols-3 gap-4'>
+                  {representativeFields(representative).map((field) => (
+                    <div key={field.label}>
+                      <strong>{field.label}</strong>
+                      <p>{field.value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            );
-          })
-        )}
-      </Card>
+            ))
+          )}
+        </Card>
+        </div>
+      )}
 
-      <Card id='client-contacts' className='scroll-mt-28 p-6'>
-        <h3 className='text-lg font-semibold mb-4'>Contacts</h3>
+      {activeTab === 'contacts' && (
+        <div className='space-y-6'>
+        <Card id='client-addresses' className='scroll-mt-28 p-6'>
+          <h3 className='text-lg font-semibold mb-4'>Addresses</h3>
 
-        {(client.contacts ?? []).length === 0 ? (
-          <p>No contacts available.</p>
-        ) : (
-          client.contacts.map((contact) => {
-            const contactFields = [
-              {
-                label: 'Name',
-                value: titleCase(contact.full_name),
-              },
-              {
-                label: 'Phone',
-                value: contact.phone_number,
-              },
-              {
-                label: 'Alternative Phone',
-                value: contact.alternative_phone_number,
-              },
-              {
-                label: 'Email',
-                value: contact.email?.toLowerCase(),
-              },
-              {
-                label: 'National ID',
-                value: contact.national_id_number,
-              },
-              {
-                label: 'Relationship / Role',
-                value: titleCase(contact.role_or_designation),
-              },
-              {
-                label: 'Contact Type',
-                value: enumLabel(contact.contact_type),
-              },
-              {
-                label: 'Preferred Channel',
-                value: enumLabel(contact.preferred_channel),
-              },
-              {
-                label: 'Primary',
-                value: contact.is_primary ? 'Yes' : 'No',
-              },
-              {
-                label: 'Verified',
-                value: contact.is_verified ? 'Yes' : 'No',
-              },
-              {
-                label: 'Notes',
-                value: contact.notes,
-              },
-            ].filter((field) => hasValue(field.value));
+          {(client.addresses ?? []).length === 0 ? (
+            <p>No addresses available.</p>
+          ) : (
+            client.addresses.map((address) => {
+              const addressFields = [
+                {
+                  label: 'Type',
+                  value: enumLabel(address.address_type),
+                },
+                {
+                  label: 'Country',
+                  value: titleCase(address.country),
+                },
+                {
+                  label: 'County',
+                  value: titleCase(address.county),
+                },
+                {
+                  label: 'City',
+                  value: titleCase(address.city),
+                },
+                {
+                  label: 'Street',
+                  value: titleCase(address.street),
+                },
+                {
+                  label: 'Postal Code',
+                  value: address.postal_code,
+                },
+                {
+                  label: 'Full Address',
+                  value: titleCase(address.full_address),
+                },
+              ].filter((field) => hasValue(field.value));
 
-            return (
-              <div
-                key={contact.id}
-                className='border border-border-light dark:border-border-dark rounded-xl p-4 mb-4'
-              >
-                {contactFields.map((field) => (
-                  <p key={field.label}>
-                    <strong>{field.label}:</strong> {field.value}
-                  </p>
-                ))}
-              </div>
-            );
-          })
-        )}
-      </Card>
+              return (
+                <div
+                  key={address.id}
+                  className='border border-border-light dark:border-border-dark rounded-xl p-4 mb-4'
+                >
+                  {addressFields.map((field) => (
+                    <p key={field.label}>
+                      <strong>{field.label}:</strong> {field.value}
+                    </p>
+                  ))}
+                </div>
+              );
+            })
+          )}
+        </Card>
+
+        <Card id='client-contacts' className='scroll-mt-28 p-6'>
+          <h3 className='text-lg font-semibold mb-4'>Contacts</h3>
+
+          {(client.contacts ?? []).length === 0 ? (
+            <p>No contacts available.</p>
+          ) : (
+            client.contacts.map((contact) => {
+              const contactFields = [
+                {
+                  label: 'Name',
+                  value: titleCase(contact.full_name),
+                },
+                {
+                  label: 'Phone',
+                  value: contact.phone_number,
+                },
+                {
+                  label: 'Alternative Phone',
+                  value: contact.alternative_phone_number,
+                },
+                {
+                  label: 'Email',
+                  value: contact.email?.toLowerCase(),
+                },
+                {
+                  label: 'National ID',
+                  value: contact.national_id_number,
+                },
+                {
+                  label: 'Relationship / Role',
+                  value: titleCase(contact.role_or_designation),
+                },
+                {
+                  label: 'Contact Type',
+                  value: enumLabel(contact.contact_type),
+                },
+                {
+                  label: 'Preferred Channel',
+                  value: enumLabel(contact.preferred_channel),
+                },
+                {
+                  label: 'Primary',
+                  value: contact.is_primary ? 'Yes' : 'No',
+                },
+                {
+                  label: 'Verified',
+                  value: contact.is_verified ? 'Yes' : 'No',
+                },
+                {
+                  label: 'Notes',
+                  value: contact.notes,
+                },
+              ].filter((field) => hasValue(field.value));
+
+              return (
+                <div
+                  key={contact.id}
+                  className='border border-border-light dark:border-border-dark rounded-xl p-4 mb-4'
+                >
+                  {contactFields.map((field) => (
+                    <p key={field.label}>
+                      <strong>{field.label}:</strong> {field.value}
+                    </p>
+                  ))}
+                </div>
+              );
+            })
+          )}
+        </Card>
+        </div>
+      )}
+
+      {activeTab === 'billing' && (
+        <div className='space-y-6'>
+        <Card id='client-finance' className='scroll-mt-28 p-6'><h3 className='mb-3 text-lg font-semibold'>Financial Summary</h3><div className='grid gap-4 md:grid-cols-3'><div><strong>Invoices</strong><p>{invoices.length}</p></div><div><strong>Outstanding balance</strong><p>KES {outstandingBalance.toLocaleString()}</p></div><div><strong>Access</strong><p>Detailed client-money ledgers remain restricted to authorised finance staff.</p></div></div><Button3D className='mt-4' variant='outlineLight' onClick={() => navigate(`/admin/clients/${id}/billing`)}>Open Client Billing</Button3D></Card>
+        </div>
+      )}
+
+      {activeTab === 'records' && (
+        <div className='space-y-6'>
+        <Card id='client-record-links' className='scroll-mt-28 p-6'><h3 className='mb-3 text-lg font-semibold'>Documents and Communications</h3><div className='flex flex-wrap gap-3'><Button3D variant='outlineLight' onClick={() => navigate(`/admin/clients/${id}/documents`)}>Document Register ({client.documents?.length || 0})</Button3D><Button3D variant='outlineLight' onClick={() => navigate(`/admin/clients/${id}/communication`)}>Communication Records</Button3D></div></Card>
+        </div>
+      )}
     </div>
   );
 }
