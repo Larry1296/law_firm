@@ -92,7 +92,7 @@ export default function AdminClientCommunicationPage() {
               <TextInput label='Subject' name='subject' required value={form.subject} onChange={change} />
               <TextArea label='What was discussed' name='summary' required value={form.summary} onChange={change} />
               <TextArea label='Advice given' name='advice_given' optional value={form.advice_given} onChange={change} />
-              <TextArea label='Instructions received' name='instructions_received' optional minRows={2} value={form.instructions_received} onChange={change} />
+              <TextArea label='Instructions received' name='instructions_received' optional value={form.instructions_received} onChange={change} />
               <label className='flex items-center gap-2 text-sm'><input type='checkbox' name='instructions_confirmed_in_writing' checked={form.instructions_confirmed_in_writing} onChange={change} />Instructions confirmed in writing</label>
               <label className='flex items-center gap-2 text-sm'><input type='checkbox' name='follow_up_required' checked={form.follow_up_required} onChange={change} />Follow-up needed</label>
               {form.follow_up_required && <TextInput label='Follow up by' name='follow_up_deadline' type='datetime-local' required value={form.follow_up_deadline} min={nowLocal()} onChange={change} />}
