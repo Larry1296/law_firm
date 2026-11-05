@@ -452,6 +452,8 @@ class ProceedingsWorkflowService:
             case, actor, stages,
             f"{event.get_event_type_display()} on {timezone.localtime(event.starts_at):%d %b %Y} proceeded; {done}{when}.",
             metadata={"event_id": str(event.id), "next_event_id": str(next_event.id) if next_event else None},
+            # The appeal period runs from the day judgment was read, not the day it was recorded.
+            effective_at=event.starts_at if target == Case.CourtStage.JUDGMENT_DELIVERED else None,
         )
         case.refresh_from_db()
 

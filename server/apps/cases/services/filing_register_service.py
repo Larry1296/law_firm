@@ -278,7 +278,7 @@ class FilingRegisterService:
         cls._advance(case, user, cls.SERVICE_PATH[start:], "Service proved by the affidavit of service recorded in the filing register.", {"affidavit_of_service_filed": True})
 
     @staticmethod
-    def _advance(case, user, stages, reason, metadata=None):
+    def _advance(case, user, stages, reason, metadata=None, effective_at=None):
         from apps.cases.services.case_lifecycle_service import CaseLifecycleService
         from apps.cases.models import CaseLifecycleTransition
 
@@ -288,7 +288,7 @@ class FilingRegisterService:
                 for stage in stages:
                     CaseLifecycleService.transition(
                         case=case, actor=user, dimension=CaseLifecycleTransition.Dimension.COURT_STAGE, to_state=stage,
-                        reason=reason, metadata=metadata or {},
+                        reason=reason, metadata=metadata or {}, effective_at=effective_at,
                     )
                     case.refresh_from_db()
         except (PermissionDenied, ValidationError):

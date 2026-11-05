@@ -516,16 +516,17 @@ class EndToEndLitigationTests(TestCase):
         self.assertEqual(accepted["status"], "ACCEPTED")
 
     def step_judgment_decree_and_enforcement(self, matter, judgment_event):
-        # Judgment day has come.
-        type(judgment_event).objects.filter(id=judgment_event.id).update(starts_at=timezone.now() - timedelta(minutes=1))
+        # Judgment was read 35 days ago, so the appeal period has run by the time the file is closed.
+        delivered = timezone.now() - timedelta(days=35)
+        type(judgment_event).objects.filter(id=judgment_event.id).update(starts_at=delivered)
         self.ok(self.as_user(self.advocate_user).post(f"/api/cases/{matter.id}/events/{judgment_event.id}/record-outcome/", {
             "proceeded": True, "outcome_code": "JUDGMENT_DELIVERED",
             "outcome": "Judgment for the plaintiff for KES 1,850,000 with interest at court rates and costs.",
             "party_favoured": "Plaintiff",
         }, format="json"))
-        # Judgment was delivered 35 days ago, so the appeal period has run by the time the file is closed.
-        delivered = timezone.now() - timedelta(days=35)
-        self.transition(self.advocate_user, matter, "JUDGMENT_DELIVERED", "Judgment delivered for the plaintiff.", effective_at=delivered)
+        # Recording the judgment moves the court stage on, dated the day it was read.
+        matter.refresh_from_db()
+        self.assertEqual(matter.court_stage, "JUDGMENT_DELIVERED")
         # The judgment goes into the register and opens the 30-day appeal window (section 79G, Civil Procedure Act).
         self.assertTrue(matter.filings.filter(filing_type="JUDGMENT").exists())
         appeal = matter.deadlines.get(source__startswith="APPEAL_WINDOW:")
