@@ -427,9 +427,14 @@ class ProceedingsWorkflowService:
         from apps.cases.services.case_lifecycle_service import CaseLifecycleService
         from apps.cases.services.filing_register_service import FilingRegisterService
 
-        if event.event_type not in cls.TRIAL_SITTINGS or not event.proceeded or event.outcome_code in cls.NOT_HEARD:
+        if event.event_type == CourtEventType.JUDGMENT:
+            # Judgment read on its date ends the trial; recording it registers the judgment and opens the appeal window.
+            if not event.proceeded or event.outcome_code != CourtEventOutcome.JUDGMENT_DELIVERED:
+                return
+            target, done = Case.CourtStage.JUDGMENT_DELIVERED, "judgment delivered"
+        elif event.event_type not in cls.TRIAL_SITTINGS or not event.proceeded or event.outcome_code in cls.NOT_HEARD:
             return
-        if next_type == CourtEventType.JUDGMENT and event.event_type == CourtEventType.SUBMISSIONS:
+        elif next_type == CourtEventType.JUDGMENT and event.event_type == CourtEventType.SUBMISSIONS:
             target, done = Case.CourtStage.JUDGMENT_RESERVED, "judgment reserved"
         elif next_type in {CourtEventType.SUBMISSIONS, CourtEventType.JUDGMENT}:
             # A hearing usually closes with written submissions directed, often with the judgment date fixed at once;

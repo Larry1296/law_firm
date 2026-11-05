@@ -512,6 +512,39 @@ class CaseLifecycleFrameworkTests(TestCase):
         stages = list(case.lifecycle_transitions.filter(dimension="COURT_STAGE").order_by("created_at").values_list("to_state", flat=True))
         self.assertEqual(stages[-2:], [Case.CourtStage.HEARING_IN_PROGRESS, Case.CourtStage.SUBMISSIONS])
 
+    def test_judgment_read_on_its_date_moves_the_court_stage_to_judgment_delivered(self):
+        case = self.create_case()
+        case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
+        case.court_stage = Case.CourtStage.JUDGMENT_RESERVED
+        case.save(update_fields=["procedure_track", "court_stage"])
+        judgment = CaseEvent.objects.create(
+            case=case, event_type=CaseEvent.EventType.JUDGMENT, title="Judgment",
+            starts_at=timezone.now() - timedelta(hours=1), created_by=self.admin,
+        )
+        read = self.api.post(f"/api/cases/{case.id}/events/{judgment.id}/record-outcome/", {
+            "proceeded": True, "outcome_code": "JUDGMENT_DELIVERED", "outcome": "Judgment delivered for the claimant.",
+        }, format="json")
+        self.assertEqual(read.status_code, 200, read.data)
+        case.refresh_from_db()
+        self.assertEqual(case.court_stage, Case.CourtStage.JUDGMENT_DELIVERED)
+        # The judgment is registered, which opens the appeal window.
+        self.assertTrue(case.filings.filter(filing_type="JUDGMENT").exists())
+
+    def test_a_judgment_date_put_off_leaves_judgment_reserved(self):
+        case = self.create_case()
+        case.court_stage = Case.CourtStage.JUDGMENT_RESERVED
+        case.save(update_fields=["court_stage"])
+        judgment = CaseEvent.objects.create(
+            case=case, event_type=CaseEvent.EventType.JUDGMENT, title="Judgment",
+            starts_at=timezone.now() - timedelta(hours=1), created_by=self.admin,
+        )
+        self.api.post(f"/api/cases/{case.id}/events/{judgment.id}/record-outcome/", {
+            "proceeded": False, "outcome_code": "ADJOURNED", "outcome": "Judgment not ready.", "adjournment_reason": "Judgment not ready",
+            "next_event_type": "JUDGMENT", "next_date": (timezone.now() + timedelta(days=21)).isoformat(),
+        }, format="json")
+        case.refresh_from_db()
+        self.assertEqual(case.court_stage, Case.CourtStage.JUDGMENT_RESERVED)
+
     def test_an_elrc_hearing_fixed_at_pre_trial_moves_the_court_stage_without_case_management(self):
         case = self.create_case()
         case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM

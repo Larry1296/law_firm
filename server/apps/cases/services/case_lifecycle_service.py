@@ -509,7 +509,7 @@ class CaseLifecycleService:
         """The court stages from where the matter is up to target along the trial: hearing, submissions, judgment."""
         trial = [
             Case.CourtStage.AWAITING_HEARING, Case.CourtStage.HEARING_IN_PROGRESS,
-            Case.CourtStage.SUBMISSIONS, Case.CourtStage.JUDGMENT_RESERVED,
+            Case.CourtStage.SUBMISSIONS, Case.CourtStage.JUDGMENT_RESERVED, Case.CourtStage.JUDGMENT_DELIVERED,
         ]
         if case.court_stage not in trial or target not in trial:
             return []
