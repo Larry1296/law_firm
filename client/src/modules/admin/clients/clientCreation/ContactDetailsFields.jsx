@@ -11,8 +11,32 @@ const INDIVIDUAL_RELATIONSHIPS = ['Spouse', 'Parent', 'Child', 'Sibling', 'Next 
 const CONTACT_CHANNELS = [['PHONE', 'Phone'], ['SMS', 'SMS'], ['WHATSAPP', 'WhatsApp'], ['EMAIL', 'Email'], ['IN_PERSON', 'In person'], ['OTHER', 'Other']];
 const options = (pairs) => pairs.map(([value, label]) => ({ value, label }));
 
+// The full address written from its parts in the usual Kenyan order, e.g.
+// "Mutiso Plaza, Ngei Road, Machakos, Machakos County, P.O. Box 123-90100". The country is added outside Kenya.
+const composeAddress = (values) => {
+  const box = String(values.postal_address || '').trim().replace(/^(p\.?\s*o\.?\s*)?box\s*/i, '');
+  const code = String(values.postal_code || '').trim();
+  return [
+    values.building_or_plot, values.street, values.city,
+    values.county ? `${values.county} County` : '',
+    box ? `P.O. Box ${box}${code ? `-${code}` : ''}` : code,
+    values.country && values.country !== 'Kenya' ? values.country : '',
+  ].map((part) => String(part || '').trim()).filter(Boolean).join(', ');
+};
+const ADDRESS_PARTS = ['building_or_plot', 'street', 'city', 'county', 'postal_address', 'postal_code', 'country'];
+
 // The address and contact fields, shared by client creation and the client's record.
-export function AddressFields({ values, set, isIndividual, required = true }) {
+export function AddressFields({ values, set: setValues, isIndividual, required = true }) {
+  // Until the full address is typed by hand, it follows the parts as they are filled in.
+  const set = (changes) => {
+    if ('full_address' in changes) {
+      setValues({ ...changes, _fullAddressTyped: Boolean(String(changes.full_address).trim()) });
+      return;
+    }
+    const next = { ...values, ...changes };
+    const follows = !values._fullAddressTyped && Object.keys(changes).some((key) => ADDRESS_PARTS.includes(key));
+    setValues(follows ? { ...changes, full_address: composeAddress(next) } : changes);
+  };
   return (
     <>
             <SelectField label='Type of address' required={required} value={values.address_type} onChange={(value) => set({ address_type: value })} options={options(ADDRESS_TYPES[isIndividual ? 'INDIVIDUAL' : 'ORGANISATION'])} />

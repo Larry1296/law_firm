@@ -3,4 +3,4 @@ export const freshAddress = (isIndividual) => ({ address_type: isIndividual ? 'H
 export const freshContact = () => ({ contact_type: 'EMERGENCY', full_name: '', role_or_designation: '', phone_number: '', email: '', preferred_channel: 'PHONE', is_primary: false });
 
 // Only filled-in fields are sent.
-export const filledFields = (values) => Object.fromEntries(Object.entries(values).filter(([, value]) => value !== ''));
+export const filledFields = (values) => Object.fromEntries(Object.entries(values).filter(([key, value]) => value !== '' && !key.startsWith('_')));
