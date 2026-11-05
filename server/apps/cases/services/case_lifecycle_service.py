@@ -505,6 +505,18 @@ class CaseLifecycleService:
     }
 
     @classmethod
+    def path_after_sitting(cls, case, *, target):
+        """The court stages from where the matter is up to target along the trial: hearing, submissions, judgment."""
+        trial = [
+            Case.CourtStage.AWAITING_HEARING, Case.CourtStage.HEARING_IN_PROGRESS,
+            Case.CourtStage.SUBMISSIONS, Case.CourtStage.JUDGMENT_RESERVED,
+        ]
+        if case.court_stage not in trial or target not in trial:
+            return []
+        start, end = trial.index(case.court_stage), trial.index(target)
+        return trial[start + 1:end + 1] if end > start else []
+
+    @classmethod
     def path_to_hearing(cls, case):
         """The court stages still to pass for a matter whose hearing date has been fixed."""
         path = cls.HEARING_PATHS.get(case.procedure_track, cls.HEARING_PATHS["CIVIL"])

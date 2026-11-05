@@ -417,6 +417,39 @@ class ProceedingsWorkflowService:
                 {"case": "Substantive proceedings require registry acceptance and an official court case number."}
             )
 
+    # A sitting that went ahead moves the court stage along the trial: what comes next decides how far.
+    TRIAL_SITTINGS = {CourtEventType.HEARING, CourtEventType.FURTHER_HEARING, CourtEventType.DEFENCE_HEARING, CourtEventType.SUBMISSIONS}
+    NOT_HEARD = {CourtEventOutcome.ADJOURNED, CourtEventOutcome.DID_NOT_PROCEED, CourtEventOutcome.VACATED, CourtEventOutcome.TAKEN_OUT}
+
+    @classmethod
+    def _advance_trial_stage(cls, case, event, next_event, next_type, actor):
+        from apps.cases.models import Case
+        from apps.cases.services.case_lifecycle_service import CaseLifecycleService
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
+        if event.event_type not in cls.TRIAL_SITTINGS or not event.proceeded or event.outcome_code in cls.NOT_HEARD:
+            return
+        if next_type == CourtEventType.JUDGMENT and event.event_type == CourtEventType.SUBMISSIONS:
+            target, done = Case.CourtStage.JUDGMENT_RESERVED, "judgment reserved"
+        elif next_type in {CourtEventType.SUBMISSIONS, CourtEventType.JUDGMENT}:
+            # A hearing usually closes with written submissions directed, often with the judgment date fixed at once;
+            # judgment is reserved once the submissions are in.
+            target, done = Case.CourtStage.SUBMISSIONS, "hearing closed"
+        elif event.event_type != CourtEventType.SUBMISSIONS:
+            target, done = Case.CourtStage.HEARING_IN_PROGRESS, "hearing continues"
+        else:
+            return
+        stages = CaseLifecycleService.path_after_sitting(case, target=target)
+        if not stages:
+            return
+        when = f" ({next_event.get_event_type_display().lower()} on {timezone.localtime(next_event.starts_at):%d %b %Y})" if next_event else ""
+        FilingRegisterService._advance(
+            case, actor, stages,
+            f"{event.get_event_type_display()} on {timezone.localtime(event.starts_at):%d %b %Y} proceeded; {done}{when}.",
+            metadata={"event_id": str(event.id), "next_event_id": str(next_event.id) if next_event else None},
+        )
+        case.refresh_from_db()
+
     @classmethod
     @transaction.atomic
     def record_outcome(cls, *, case, event_id, actor, data):
@@ -553,6 +586,7 @@ class ProceedingsWorkflowService:
                     metadata={"event_id": str(event.id), "next_event_id": str(next_event.id)},
                 )
                 case.refresh_from_db()
+        cls._advance_trial_stage(case, event, next_event, next_type, actor)
         cls._resync_next_action(case, actor=actor)
 
         for deadline in data.get("deadlines", []):

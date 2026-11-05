@@ -437,7 +437,8 @@ class EndToEndLitigationTests(TestCase):
             "orders_directions": "Plaintiff to file submissions in 7 days, defendant 7 days thereafter.",
             "next_event_type": "JUDGMENT", "next_date": judgment_on.isoformat(),
         }, format="json"))
-        self.transition(self.advocate_user, matter, "SUBMISSIONS", "Directions on written submissions issued.")
+        # Closing the hearing with a judgment date moves the matter to submissions by itself.
+        self.assertEqual(Case.objects.get(pk=matter.id).court_stage, Case.CourtStage.SUBMISSIONS)
         self.register(self.advocate_user, matter, "SUBMISSIONS", title="Plaintiff's written submissions")
         self.transition(self.advocate_user, matter, "JUDGMENT_RESERVED", "Submissions filed; judgment reserved.")
         return matter.events.get(event_type="JUDGMENT")
