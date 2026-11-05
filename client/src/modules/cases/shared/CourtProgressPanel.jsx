@@ -11,6 +11,9 @@ import FilingRegisterEntries from '@/modules/cases/shared/FilingRegisterEntries'
 import CaptionedInput from '@/components/ui/CaptionedInput';
 
 const COURT_DIMENSIONS = ['COURT_STAGE', 'OUTCOME_STATUS', 'ENFORCEMENT_STATUS', 'APPEAL_STATUS'];
+// Outcomes in the order an advocate weighs a result: judgment first, then the ways a matter ends without one.
+const OUTCOME_ORDER = ['WON', 'PARTLY_WON', 'LOST', 'SETTLED', 'CONSENT_RECORDED', 'WITHDRAWN', 'DISMISSED', 'STRUCK_OUT', 'ABATED', 'OTHER'];
+const likelihood = (state) => (OUTCOME_ORDER.includes(state) ? OUTCOME_ORDER.indexOf(state) : 0);
 const DIMENSION_LABELS = {
   COURT_STAGE: 'Court stage',
   OUTCOME_STATUS: 'Outcome',
@@ -460,11 +463,21 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
         <Field label='What has happened' wide>
           <select value={selected} onChange={(event) => { setSelected(event.target.value); setStageFeedback(null); }} className={inputClass} required>
             <option value=''>{transitions.length ? 'Select the step reached' : 'No court step is available at this stage'}</option>
-            {transitions.map((item) => (
-              <option key={`${item.dimension}:${item.to_state}`} value={`${item.dimension}:${item.to_state}`}>
-                {DIMENSION_LABELS[item.dimension]}: {item.label || friendly(item.to_state)}
-              </option>
-            ))}
+            {/* Grouped under Court stage, Outcome, Enforcement and Appeal, the likeliest result first in each. */}
+            {COURT_DIMENSIONS.map((group) => {
+              const items = transitions.filter((item) => item.dimension === group)
+                .sort((a, b) => likelihood(a.to_state) - likelihood(b.to_state));
+              if (!items.length) return null;
+              return (
+                <optgroup key={group} label={DIMENSION_LABELS[group]}>
+                  {items.map((item) => (
+                    <option key={`${item.dimension}:${item.to_state}`} value={`${item.dimension}:${item.to_state}`}>
+                      {DIMENSION_LABELS[item.dimension]}: {item.label || friendly(item.to_state)}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
           </select>
         </Field>
 
