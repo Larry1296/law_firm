@@ -39,8 +39,8 @@ export default function PageSectionNav({ sections, ariaLabel = 'Page sections', 
   };
 
   return (
-    // Sections sit in even columns; a part-filled last row is centred.
-    <nav aria-label={ariaLabel} className={`flex flex-wrap justify-center rounded-xl border border-border-light bg-surface-light p-1.5 shadow-sm dark:border-border-dark dark:bg-surface-dark ${className}`}>
+    // Sections sit in even columns, a part-filled last row centred, and stay in view while scrolling.
+    <nav aria-label={ariaLabel} className={`sticky top-2 z-20 flex flex-wrap justify-center rounded-xl border border-border-light bg-surface-light/95 p-1.5 shadow-sm backdrop-blur dark:border-border-dark dark:bg-surface-dark/95 ${className}`}>
       {visibleSections.map(({ id, label }) => (
         <div key={id} className='w-1/2 p-0.5 sm:w-1/3 lg:w-1/4'>
           <a
