@@ -3,7 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from apps.audit_logs.services import AuditService
-from apps.clients.models import Client, ClientDueDiligence, ClientPrivacyRecord, ClientRepresentative
+from apps.clients.models import Client, ClientAddress, ClientContact, ClientDueDiligence, ClientPrivacyRecord, ClientRepresentative
 from apps.clients.prospective_metadata import PROSPECTIVE_PROFILES
 from apps.clients.services.onboarding_service import PROFILE_MODELS
 from apps.common.choices import UserRole
@@ -73,6 +73,8 @@ class ProspectiveClientService:
         privacy.update(lawful_basis=config.lawful_basis, privacy_notice_version=config.policy_version)
         profile_data = values.pop('legal_profile')
         rep = values.pop('representative', None)
+        address = values.pop('address', None)
+        contact = values.pop('contact', None)
         acting_for_self = values.pop('acting_for_self')
         kind = values['client_type']
         client = Client.objects.create(
@@ -102,6 +104,10 @@ class ProspectiveClientService:
                 raise ValidationError({'legal_profile': exc.message_dict}) from exc
         if rep:
             ClientRepresentative.objects.create(client=client, is_primary=True, **rep)
+        if address:
+            ClientAddress.objects.create(client=client, **{**address, 'is_primary': True})
+        if contact:
+            ClientContact.objects.create(client=client, **{**contact, 'is_primary': True})
         ClientDueDiligence.objects.create(client=client, acting_for_self=acting_for_self if kind == 'INDIVIDUAL' else False)
         ClientPrivacyRecord.objects.create(client=client, delivered_by=user, delivered_at=timezone.now(), **privacy)
         AuditService.record(firm=firm, user=user, action='PROSPECTIVE_CLIENT_CREATED', obj=client,

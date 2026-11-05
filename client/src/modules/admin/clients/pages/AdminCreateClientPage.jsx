@@ -3,6 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Field, SelectField, StepPanel } from '../clientCreation/Fields';
 import { buildProspectivePayload, onboardingReducer, onboardingStateFromSearch } from '../clientCreation/onboardingState';
 import { prospectiveClientService as service, creationError } from '@/modules/clients/shared/prospectiveClientService';
+import { AddressFields, ContactFields } from '../clientCreation/ContactDetailsFields';
+import { filledFields, freshAddress, freshContact } from '../clientCreation/contactDetailsDefaults';
+
+// An address or contact counts as given once any of its own details is typed in (not the preset type or country).
+const ADDRESS_DETAILS = ['county', 'city', 'street', 'building_or_plot', 'postal_address', 'postal_code', 'full_address'];
+const CONTACT_DETAILS = ['full_name', 'phone_number', 'email', 'role_or_designation'];
+const given = (values, keys) => keys.some((key) => String(values[key] || '').trim());
 
 const ACCESS_OPTIONS = [
   { value: 'ASSISTED', id: 'FIRM_MANAGED', label: 'Firm-managed — no portal login' },
@@ -28,6 +35,9 @@ export default function AdminCreateClientPage() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState(null);
+  // Optional at creation; the client's Addresses & contacts tab takes them later.
+  const [address, setAddress] = useState(() => ({ ...freshAddress(true), address_type: '' }));
+  const [contact, setContact] = useState(freshContact);
   // The advocate creates the prospective client from the consultation: prefill from the arrival, linked on save.
   const visitId = new URLSearchParams(location.search).get('visit');
   const [visit, setVisit] = useState(null);
@@ -62,9 +72,17 @@ export default function AdminCreateClientPage() {
     if (!state.privacy.privacy_notice_delivered) return setError('Confirm delivery of the privacy notice.');
     if (showRep && (!rep?.full_legal_name || !rep?.role_title || !rep?.representative_category)) return setError('Record the representative name and capacity.');
     if (portal && kind !== 'INDIVIDUAL' && (!rep?.is_portal_contact || !rep?.email)) return setError('Select an authorised portal contact and enter their email.');
+    const hasAddress = given(address, ADDRESS_DETAILS);
+    const hasContact = given(contact, CONTACT_DETAILS);
+    if (hasAddress && !address.full_address.trim()) return setError('Write the full address, or clear the address fields.');
+    if (hasContact && !contact.full_name.trim()) return setError('Name the contact person, or clear the contact fields.');
+    const contactDetails = {
+      ...(hasAddress ? { address: filledFields({ ...address, address_type: address.address_type || (kind === 'INDIVIDUAL' ? 'HOME' : 'REGISTERED') }) } : {}),
+      ...(hasContact ? { contact: filledFields(contact) } : {}),
+    };
     setSaving(true);
     try {
-      setCreated((await service.create(workspace, { ...buildProspectivePayload(state, metadata), ...(visit ? { visit: visit.id } : {}) })).client);
+      setCreated((await service.create(workspace, { ...buildProspectivePayload(state, metadata), ...contactDetails, ...(visit ? { visit: visit.id } : {}) })).client);
     }
     catch (e) { if (e?.isActionCancelled) return;  setError(creationError(e)); }
     finally { setSaving(false); }
@@ -122,6 +140,14 @@ export default function AdminCreateClientPage() {
           <Field label='Representative telephone' type='tel' value={rep?.telephone} onChange={(telephone) => setRep({ telephone })} />
           {portal && kind !== 'INDIVIDUAL' && <Field type='checkbox' label='Use this authorised portal contact' required value={rep?.is_portal_contact} onChange={(is_portal_contact) => setRep({ is_portal_contact })} />}
         </div></StepPanel>}
+        <StepPanel title='Address and contact (optional)' description="Record them now if the client gives them. They can also be added later on the client's Addresses & contacts tab.">
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <AddressFields values={address} set={(changes) => setAddress((current) => ({ ...current, ...changes }))} isIndividual={kind === 'INDIVIDUAL'} required={given(address, ADDRESS_DETAILS)} />
+          </div>
+          <div className='grid gap-4 border-t border-[color:var(--border)] pt-4 sm:grid-cols-2'>
+            <ContactFields values={contact} set={(changes) => setContact((current) => ({ ...current, ...changes }))} isIndividual={kind === 'INDIVIDUAL'} clientType={kind} required={given(contact, CONTACT_DETAILS)} />
+          </div>
+        </StepPanel>
         <StepPanel title='Privacy notice delivery'><div className='grid gap-4 sm:grid-cols-2'>
           {!metadata.intake_privacy && <p role='alert' className='rounded-lg bg-amber-50 p-3 text-amber-900 sm:col-span-2 dark:bg-amber-950/40 dark:text-amber-200'>An approved active firm intake-privacy configuration is required before creation. Ask your firm administrator to configure and approve it. Lawful basis and privacy notice version are filled automatically and cannot be typed here.</p>}
           <label className='block text-sm text-[color:var(--text-primary)]'><span className='mb-1 block font-medium'>Lawful basis</span><input className='form-control w-full' placeholder='No approved configuration' readOnly value={metadata.intake_privacy?.lawful_basis_label || ''} /></label>

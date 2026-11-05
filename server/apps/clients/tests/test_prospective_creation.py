@@ -86,6 +86,16 @@ class ProspectiveCreationTests(TestCase):
         self.assertEqual(ClientMatterConflictCheck.objects.count(), 0)
         self.assertEqual(EngagementRecord.objects.count(), 0)
 
+    def test_an_address_and_a_contact_given_at_creation_are_kept_as_primary(self):
+        payload = prospect_payload()
+        payload['address'] = {'address_type': 'HOME', 'country': 'Kenya', 'county': 'Machakos', 'full_address': 'Plot 12, Ngei Road, Machakos'}
+        payload['contact'] = {'contact_type': 'EMERGENCY', 'full_name': 'John Mwende', 'phone_number': '0722000000'}
+        response = self.api.post(self.url, payload, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        client = Client.objects.get(full_name=payload['full_name'])
+        self.assertTrue(client.addresses.get().is_primary)
+        self.assertEqual(client.contacts.get().full_name, 'John Mwende')
+
     def test_multiple_companies_without_registration_number(self):
         self.create('COMPANY')
         second = self.create('COMPANY')

@@ -2,6 +2,7 @@ from rest_framework import serializers
 from apps.clients.models import Client, ClientRepresentative
 from apps.clients.onboarding_metadata import CANONICAL_CLIENT_TYPES
 from apps.clients.prospective_metadata import PROSPECTIVE_PROFILES, REPRESENTATIVE_TYPES
+from apps.clients.serializers.onboarding_serializers import AddressOnboardingSerializer, ContactOnboardingSerializer
 from apps.clients.services.onboarding_service import PROFILE_MODELS
 
 
@@ -46,6 +47,9 @@ class ProspectiveClientCreateSerializer(StrictSerializer):
     acting_for_self = serializers.BooleanField(default=True)
     legal_profile = serializers.DictField(default=dict)
     representative = PreliminaryRepresentativeSerializer(required=False, allow_null=True)
+    # Optional at creation; both can also be added later on the client's record.
+    address = AddressOnboardingSerializer(required=False, allow_null=True)
+    contact = ContactOnboardingSerializer(required=False, allow_null=True)
     provisional_legal_description = serializers.CharField(required=False, allow_blank=True)
     classification_review_reason = serializers.CharField(required=False, allow_blank=True)
     classification_evidence_reference = serializers.CharField(max_length=255, required=False, allow_blank=True)
