@@ -2,6 +2,7 @@ from apps.clients.views.intake_privacy_views import IntakePrivacyConfigView
 from apps.clients.views.prospective_client_views import ClientOnboardingCompletionView
 from apps.clients.views.prospective_client_views import ProspectiveClientCreateView, ProspectivePortalInviteView, ProspectiveEntryOptionsView, ProspectiveClientDetailView
 from django.urls import path
+from apps.clients.views.client_admin_contact_details_view import ClientAdminAddressCreateView, ClientAdminContactCreateView
 from apps.clients.views.onboarding_views import ClientOnboardingCreateView, ClientOnboardingMetadataView
 from apps.clients.views.proposed_matter_entry_view import ProposedMatterEntryView
 
@@ -110,6 +111,8 @@ urlpatterns = [
     path("rejected-matters/", ClientMatterConflictCheckRejectedListView.as_view(), name="admin-rejected-matters"),
     path("rejected-matters/<uuid:check_id>/", ClientMatterConflictCheckRejectedDetailView.as_view(), name="admin-rejected-matter-detail"),
     path("<uuid:client_id>/", ClientAdminDetailView.as_view(), name="admin-client-detail"),
+    path("<uuid:client_id>/addresses/", ClientAdminAddressCreateView.as_view(), name="admin-client-address-create"),
+    path("<uuid:client_id>/contacts/", ClientAdminContactCreateView.as_view(), name="admin-client-contact-create"),
     path("<uuid:client_id>/compliance-review/", ClientComplianceReviewView.as_view(), name="admin-client-compliance-review"),
     path("<uuid:client_id>/documents/<uuid:document_id>/release-requests/", DocumentReleaseListCreateView.as_view(), name="admin-document-release-list"),
     path("<uuid:client_id>/documents/<uuid:document_id>/release-requests/<uuid:release_id>/decision/", DocumentReleaseDecisionView.as_view(), name="admin-document-release-decision"),

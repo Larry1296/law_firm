@@ -12,6 +12,7 @@ import StatsCard from '@/components/ui/StatsCard';
 import SectionHeading from '@/components/ui/SectionHeading';
 import Button3D from '@/components/ui/Button3D';
 import PageTabs from '@/components/ui/PageTabs';
+import ClientContactDetailsForms from '@/modules/admin/clients/components/ClientContactDetailsForms';
 import TableHeaderText from '@/components/ui/TableHeaderText';
 
 import { formatDateTime } from '@/core/utils/dateFormatter';
@@ -456,7 +457,7 @@ export default function AdminClientDetailsPage() {
           <h3 className='text-lg font-semibold mb-4'>Addresses</h3>
 
           {(client.addresses ?? []).length === 0 ? (
-            <p>No addresses available.</p>
+            <p>No address recorded yet.</p>
           ) : (
             client.addresses.map((address) => {
               const addressFields = [
@@ -504,13 +505,14 @@ export default function AdminClientDetailsPage() {
               );
             })
           )}
+          <ClientContactDetailsForms client={client} kind='address' />
         </Card>
 
         <Card id='client-contacts' className='scroll-mt-28 p-6'>
           <h3 className='text-lg font-semibold mb-4'>Contacts</h3>
 
           {(client.contacts ?? []).length === 0 ? (
-            <p>No contacts available.</p>
+            <p>No contact recorded yet.</p>
           ) : (
             client.contacts.map((contact) => {
               const contactFields = [
@@ -574,6 +576,7 @@ export default function AdminClientDetailsPage() {
               );
             })
           )}
+          <ClientContactDetailsForms client={client} kind='contact' />
         </Card>
         </div>
       )}
