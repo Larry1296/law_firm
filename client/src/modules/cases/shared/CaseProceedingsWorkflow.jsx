@@ -1,5 +1,6 @@
 import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import axiosInstance from '@/core/api/axios';
 import { formatDateTime } from '@/core/utils/dateFormatter';
@@ -42,22 +43,19 @@ export default function CaseProceedingsWorkflow({ caseData }) {
     () => currentProceeding(caseData.events || []),
     [caseData.events],
   );
-  const [options, setOptions] = useState([]);
   const [form, setForm] = useState(emptyOutcome);
   const [message, setMessage] = useState('');
   const [correction, setCorrection] = useState(null);
   const [correctionMessage, setCorrectionMessage] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!current?.id) return;
-    axiosInstance
-      .get(`/cases/${caseData.id}/allowed-next-events/`, {
-        params: { event_id: current.id },
-      })
-      .then((response) => setOptions(response.data.allowed_next_events || []))
-      .catch(() => setOptions([]));
-  }, [caseData.id, current?.id]);
+  // The steps the court may fix next, from the server; a failed load says so rather than leaving the list short.
+  const nextEvents = useQuery({
+    queryKey: ['allowed-next-events', caseData.id, current?.id],
+    queryFn: async () => (await axiosInstance.get(`/cases/${caseData.id}/allowed-next-events/`, { params: { event_id: current.id } })).data.allowed_next_events || [],
+    enabled: Boolean(current?.id),
+  });
+  const options = useMemo(() => nextEvents.data || [], [nextEvents.data]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -215,6 +213,12 @@ export default function CaseProceedingsWorkflow({ caseData }) {
               )}
               {options.map((option) => <option key={option.value} value={option.value}>{option.recommended ? 'Recommended: ' : ''}{option.label}</option>)}
             </select>
+            {nextEvents.isError && (
+              <p role='alert' className='text-sm font-semibold text-red-700 dark:text-red-300 md:col-span-2'>
+                {getApiErrorMessage(nextEvents.error, 'The next steps could not be loaded.')}{' '}
+                <button type='button' className='underline' onClick={() => nextEvents.refetch()}>Try again</button>
+              </p>
+            )}
             <div>
               <input type='datetime-local' className='form-control w-full' value={form.next_date} onChange={(e) => setForm({ ...form, next_date: e.target.value })} />
               {form.next_date && <p className='mt-1 text-sm'>Next date: <strong>{spelledOut(form.next_date)}</strong></p>}
