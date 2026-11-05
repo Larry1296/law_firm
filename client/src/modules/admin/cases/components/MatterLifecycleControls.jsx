@@ -59,6 +59,7 @@ export default function MatterLifecycleControls({ matter, onChanged }) {
   const [workstreamRecord, setWorkstreamRecord] = useState(null);
   const [archive, setArchive] = useState(null);
   const [archivePurpose, setArchivePurpose] = useState('Closing, retention and compliance administration.');
+  const courtTracked = matter.forum === 'COURT' || Boolean(matter.court_proceeding);
   const [workstreamType, setWorkstreamType] = useState(matter.matter_nature === 'TRANSACTIONAL' ? 'TRANSACTIONAL' : 'LITIGATION');
   const [stageChecklist, setStageChecklist] = useState('work_complete,documents_saved,client_updated');
   const [stageReason, setStageReason] = useState('Stage work and recorded controls completed.');
@@ -221,13 +222,15 @@ export default function MatterLifecycleControls({ matter, onChanged }) {
     </details>}
 
     {!isArchived && <div className='grid gap-4 xl:grid-cols-2'>
-      <div className='space-y-3 rounded-lg border p-4 dark:border-border-dark'><h3 className='font-semibold'>Specialised workstream</h3>
+      {/* A court matter's stage moves itself as filings and sittings are recorded, so a hand-kept litigation
+          stage would only repeat it; the workstream is for matters outside court, or one already started. */}
+      {(!courtTracked || workstreamRecord) && <div className='space-y-3 rounded-lg border p-4 dark:border-border-dark'><h3 className='font-semibold'>Specialised workstream</h3>
         {!workstreamRecord && <select className={input} value={workstreamType} onChange={(e) => setWorkstreamType(e.target.value)}>{Object.keys(WORKSTREAM_STAGES).map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>}
         <p className='text-sm'>Current: {workstreamRecord ? `${label(workstreamRecord.workstream_type)} — ${label(workstreamRecord.current_stage)}` : 'Not created'}</p>
         {workstreamRecord && !workstreamRecord.stage_records.at(-1)?.completed_at && <><input className={input} value={stageChecklist} onChange={(e) => setStageChecklist(e.target.value)} placeholder='Checklist keys, comma separated'/><AutoGrowTextarea className={input} value={stageReason} onChange={(e) => setStageReason(e.target.value)}/><button disabled={busy} type='button' className={button} onClick={completeStage}>Complete current stage</button></>}
         {(!workstreamRecord || workstreamRecord.stage_records.at(-1)?.completed_at) && nextStage && <button disabled={busy} type='button' className={button} onClick={applyWorkstream}>{workstreamRecord ? `Open next: ${label(nextStage)}` : `Start: ${label(nextStage)}`}</button>}
         <div className='max-h-36 overflow-auto text-xs'>{workstreamRecord?.stage_records.map((item) => <p key={item.id}>{item.sequence}. {label(item.stage)} — {item.completed_at ? 'completed' : 'open'}</p>)}</div>
-      </div>
+      </div>}
       <div className='space-y-3 rounded-lg border p-4 dark:border-border-dark'><h3 className='font-semibold'>Critical deadline</h3>
         <form className='space-y-2' onSubmit={saveDeadline}><select required className={input} value={deadline.deadline_type} onChange={(e) => setDeadline({ ...deadline, deadline_type: e.target.value })}><option value=''>Select the type</option>{['LIMITATION','COURT','FILING','SERVICE','RESPONSE','HEARING','MENTION','SUBMISSIONS','COMPLETION','UNDERTAKING','RENEWAL','APPEAL_REVIEW','RETENTION_REVIEW','CLIENT_FOLLOW_UP'].map((item) => <option key={item} value={item}>{label(item)}</option>)}</select><input className={input} type='datetime-local' value={deadline.due_at} onChange={(e) => setDeadline({ ...deadline, due_at: e.target.value })} required/><AutoGrowTextarea className={input} placeholder='Source: order, statute or instruction' value={deadline.source} onChange={(e) => setDeadline({ ...deadline, source: e.target.value })} required/><AutoGrowTextarea className={input} placeholder='Description' value={deadline.description} onChange={(e) => setDeadline({ ...deadline, description: e.target.value })} required/><button disabled={busy} className={button}>Record deadline</button></form>
       </div>

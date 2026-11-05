@@ -32,6 +32,12 @@ describe('MatterLifecycleControls', () => {
     adminCasesService.getWorkstream.mockResolvedValue({ workstream: null });
   });
 
+  it('leaves the workstream out of a court matter, whose court stage moves itself', async () => {
+    render(<MatterLifecycleControls matter={{ ...matter, matter_nature: 'LITIGATION', forum: 'COURT' }} />);
+    expect(await screen.findByText(/Critical deadline/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Specialised workstream/i)).toBeNull();
+  });
+
   it('loads authoritative lifecycle state and exposes non-litigation workstream and closing controls', async () => {
     render(<MatterLifecycleControls matter={matter} />);
     expect(await screen.findByText(/Specialised workstream/i)).toBeInTheDocument();
