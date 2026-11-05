@@ -476,6 +476,12 @@ select,
   cursor: auto;
 }
 
+/* A read-only or disabled box cannot be typed in, so clicking it shows no text cursor either. */
+input:read-only,
+textarea:read-only {
+  caret-color: transparent;
+}
+
 a,
 button,
 [role='button'],
