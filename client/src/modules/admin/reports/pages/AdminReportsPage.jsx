@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import Card from '@/components/ui/Card';
-import PageSectionNav from '@/components/ui/PageSectionNav';
+import PageTabs from '@/components/ui/PageTabs';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import adminReportsService from '@/modules/admin/reports/services/adminReportsService';
@@ -37,7 +38,15 @@ function Breakdown({ title, rows }) {
   );
 }
 
+// Each tab is a page of its own.
+const REPORT_TABS = [
+  ['matters', 'Matters and court work'],
+  ['finance', 'Fees and client money'],
+  ['people', 'Advocates and clients'],
+];
+
 export default function AdminReportsPage() {
+  const [activeTab, setActiveTab] = useState('matters');
   const { data, isLoading, error } = useQuery({ queryKey: ['admin-firm-report'], queryFn: adminReportsService.getFirmReport });
 
   if (isLoading) return <div className='flex min-h-[420px] items-center justify-center'>Building the firm report…</div>;
@@ -55,81 +64,93 @@ export default function AdminReportsPage() {
         as='h1'
       />
 
-      <PageSectionNav
-        ariaLabel='Report sections'
-        sections={[
-          { id: 'report-matters', label: 'Matters and court work' },
-          { id: 'report-finance', label: 'Fees and client money' },
-          { id: 'report-workload', label: 'Advocate workload' },
-          { id: 'report-clients', label: 'Clients with the most matters' },
-        ]}
+      <PageTabs
+        ariaLabel='Reports'
+        tabs={REPORT_TABS}
+        active={activeTab}
+        onChange={setActiveTab}
+        sections={{
+          people: [{ id: 'report-workload', label: 'Advocate workload' }, { id: 'report-clients', label: 'Clients with the most matters' }],
+        }[activeTab] || []}
       />
 
-      <section id='report-matters' aria-labelledby='matters-heading' className='scroll-mt-28 space-y-4'>
-        <h2 id='matters-heading' className='text-xl font-bold'>Matters and court work</h2>
-        <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
-          <Stat label='Active matters' value={matters.active} />
-          <Stat label='Opened this month' value={matters.opened_this_month} />
-          <Stat label='Hearings in the next 30 days' value={data.hearings_next_30_days} />
-          <Stat label='Overdue deadlines' value={deadlines.overdue} tone={deadlines.overdue ? 'bad' : undefined} />
-        </div>
-        <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
-          <Breakdown title='By matter status' rows={matters.by_status} />
-          <Breakdown title='By practice area' rows={matters.by_type} />
-          <Breakdown title='Active matters by court' rows={matters.by_court} />
-          <Breakdown title='Active matters by court stage' rows={matters.by_court_stage} />
-        </div>
-        <Card className='p-5'>
-          <h3 className='font-semibold'>New matters per month</h3>
-          <div className='mt-4 flex h-40 items-end gap-2' role='img' aria-label='New matters opened per month for the last twelve months'>
-            {matters.monthly_intake.map((row) => (
-              <div key={row.month} className='flex flex-1 flex-col items-center gap-1'>
-                <span className='text-xs tabular-nums'>{row.count || ''}</span>
-                <div className='w-full rounded-t bg-blue-600 dark:bg-blue-400' style={{ height: `${(row.count / maxIntake) * 100}%`, minHeight: row.count ? 4 : 0 }} />
-                <span className='text-[10px] text-[color:var(--text-muted)]'>{row.month.split(' ')[0]}</span>
+      {activeTab === 'matters' && (
+        <div className='space-y-6'>
+          <section id='report-matters' aria-labelledby='matters-heading' className='scroll-mt-28 space-y-4'>
+            <h2 id='matters-heading' className='text-xl font-bold'>Matters and court work</h2>
+            <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+              <Stat label='Active matters' value={matters.active} />
+              <Stat label='Opened this month' value={matters.opened_this_month} />
+              <Stat label='Hearings in the next 30 days' value={data.hearings_next_30_days} />
+              <Stat label='Overdue deadlines' value={deadlines.overdue} tone={deadlines.overdue ? 'bad' : undefined} />
+            </div>
+            <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-4'>
+              <Breakdown title='By matter status' rows={matters.by_status} />
+              <Breakdown title='By practice area' rows={matters.by_type} />
+              <Breakdown title='Active matters by court' rows={matters.by_court} />
+              <Breakdown title='Active matters by court stage' rows={matters.by_court_stage} />
+            </div>
+            <Card className='p-5'>
+              <h3 className='font-semibold'>New matters per month</h3>
+              <div className='mt-4 flex h-40 items-end gap-2' role='img' aria-label='New matters opened per month for the last twelve months'>
+                {matters.monthly_intake.map((row) => (
+                  <div key={row.month} className='flex flex-1 flex-col items-center gap-1'>
+                    <span className='text-xs tabular-nums'>{row.count || ''}</span>
+                    <div className='w-full rounded-t bg-blue-600 dark:bg-blue-400' style={{ height: `${(row.count / maxIntake) * 100}%`, minHeight: row.count ? 4 : 0 }} />
+                    <span className='text-[10px] text-[color:var(--text-muted)]'>{row.month.split(' ')[0]}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </Card>
-      </section>
-
-      <section id='report-finance' aria-labelledby='finance-heading' className='scroll-mt-28 space-y-4'>
-        <h2 id='finance-heading' className='text-xl font-bold'>Fees and client money</h2>
-        <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-5'>
-          <Stat label='Invoiced (issued)' value={kes(finance.invoiced)} />
-          <Stat label='Collected' value={kes(finance.collected)} />
-          <Stat label='Outstanding' value={kes(finance.outstanding)} />
-          <Stat label={`Overdue (${finance.overdue_invoices} invoices)`} value={kes(finance.overdue_amount)} tone={finance.overdue_invoices ? 'bad' : undefined} />
-          <Stat label='Client money held' value={kes(finance.client_money_held)} />
+            </Card>
+          </section>
         </div>
-      </section>
+      )}
 
-      <section aria-labelledby='people-heading' className='grid gap-4 xl:grid-cols-2'>
-        <Card id='report-workload' className='scroll-mt-28 overflow-x-auto p-5'>
-          <h2 id='people-heading' className='font-semibold'>Advocate workload</h2>
-          <table className='mt-3 w-full min-w-[520px] text-left text-sm'>
-            <thead className='text-[color:var(--text-muted)]'><tr>{['Advocate', 'Active', 'Closed', 'Hearings (30 days)', 'Overdue deadlines'].map((h) => <th key={h} className='py-2 pr-3 font-medium'>{h}</th>)}</tr></thead>
-            <tbody>
-              {advocates.map((row) => (
-                <tr key={row.name} className='border-t border-border-light dark:border-border-dark'>
-                  <td className='py-2 pr-3 font-medium'>{row.name}</td>
-                  <td className='py-2 pr-3 tabular-nums'>{row.active_matters}</td>
-                  <td className='py-2 pr-3 tabular-nums'>{row.closed_matters}</td>
-                  <td className='py-2 pr-3 tabular-nums'>{row.hearings_next_30_days}</td>
-                  <td className={`py-2 pr-3 tabular-nums ${row.overdue_deadlines ? 'font-semibold text-red-700 dark:text-red-300' : ''}`}>{row.overdue_deadlines}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-        <Card id='report-clients' className='scroll-mt-28 p-5'>
-          <h2 className='font-semibold'>Clients with the most matters</h2>
-          {topClients.length === 0 && <p className='mt-2 text-sm text-[color:var(--text-muted)]'>No matters recorded.</p>}
-          <ol className='mt-3 space-y-1 text-sm'>
-            {topClients.map((row) => <li key={row.name} className='flex justify-between'><span>{row.name}</span><span className='tabular-nums'>{row.matters}</span></li>)}
-          </ol>
-        </Card>
-      </section>
+      {activeTab === 'finance' && (
+        <div className='space-y-6'>
+          <section id='report-finance' aria-labelledby='finance-heading' className='scroll-mt-28 space-y-4'>
+            <h2 id='finance-heading' className='text-xl font-bold'>Fees and client money</h2>
+            <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-5'>
+              <Stat label='Invoiced (issued)' value={kes(finance.invoiced)} />
+              <Stat label='Collected' value={kes(finance.collected)} />
+              <Stat label='Outstanding' value={kes(finance.outstanding)} />
+              <Stat label={`Overdue (${finance.overdue_invoices} invoices)`} value={kes(finance.overdue_amount)} tone={finance.overdue_invoices ? 'bad' : undefined} />
+              <Stat label='Client money held' value={kes(finance.client_money_held)} />
+            </div>
+          </section>
+        </div>
+      )}
+
+      {activeTab === 'people' && (
+        <div className='space-y-6'>
+          <section aria-labelledby='people-heading' className='grid gap-4 xl:grid-cols-2'>
+            <Card id='report-workload' className='scroll-mt-28 overflow-x-auto p-5'>
+              <h2 id='people-heading' className='font-semibold'>Advocate workload</h2>
+              <table className='mt-3 w-full min-w-[520px] text-left text-sm'>
+                <thead className='text-[color:var(--text-muted)]'><tr>{['Advocate', 'Active', 'Closed', 'Hearings (30 days)', 'Overdue deadlines'].map((h) => <th key={h} className='py-2 pr-3 font-medium'>{h}</th>)}</tr></thead>
+                <tbody>
+                  {advocates.map((row) => (
+                    <tr key={row.name} className='border-t border-border-light dark:border-border-dark'>
+                      <td className='py-2 pr-3 font-medium'>{row.name}</td>
+                      <td className='py-2 pr-3 tabular-nums'>{row.active_matters}</td>
+                      <td className='py-2 pr-3 tabular-nums'>{row.closed_matters}</td>
+                      <td className='py-2 pr-3 tabular-nums'>{row.hearings_next_30_days}</td>
+                      <td className={`py-2 pr-3 tabular-nums ${row.overdue_deadlines ? 'font-semibold text-red-700 dark:text-red-300' : ''}`}>{row.overdue_deadlines}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+            <Card id='report-clients' className='scroll-mt-28 p-5'>
+              <h2 className='font-semibold'>Clients with the most matters</h2>
+              {topClients.length === 0 && <p className='mt-2 text-sm text-[color:var(--text-muted)]'>No matters recorded.</p>}
+              <ol className='mt-3 space-y-1 text-sm'>
+                {topClients.map((row) => <li key={row.name} className='flex justify-between'><span>{row.name}</span><span className='tabular-nums'>{row.matters}</span></li>)}
+              </ol>
+            </Card>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

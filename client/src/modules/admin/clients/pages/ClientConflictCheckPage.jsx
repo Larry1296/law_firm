@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { FormButton as Button3D } from '@/components/forms';
 import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
-import PageSectionNav from '@/components/ui/PageSectionNav';
+import PageTabs from '@/components/ui/PageTabs';
 import Select3D from '@/components/ui/Select3D';
 import ElasticTextInput from '@/components/ui/ElasticTextInput';
 import { Input3D } from '@/components/ui/Input3D';
@@ -231,7 +231,19 @@ const hasText = (value) => typeof value === 'string' && value.trim().length > 0;
 
 const isDirectClearance = (check) => check.status === 'CLEARED' && !hasText(check.first_reviewer_findings);
 
+// Each tab is a page of its own.
+const CONFLICT_TABS = [
+  ['overview', 'Overview'],
+  ['search', 'Search & decision'],
+  ['acceptance', 'Firm acceptance'],
+  ['kyc', 'KYC & engagement'],
+  ['jurisdiction', 'Jurisdiction'],
+  ['history', 'History'],
+];
+
 export default function ClientConflictCheckPage() {
+  // Until a tab is chosen, the check opens on the step that needs doing next.
+  const [chosenTab, setActiveTab] = useState(null);
   const { id: clientId, checkId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -532,330 +544,362 @@ export default function ClientConflictCheckPage() {
     ? check.first_reviewer_findings
     : 'Not applicable — direct clearance';
   const isOutcomeBlocked = !actionDraft.next_status || actionMutation.isPending;
+  const nextStepTab = (check.status !== 'CLEARED' && (hasSearch || nextOptions.length > 0) && 'search')
+    || (canRecordAcceptance && 'acceptance')
+    || (check.status === 'CLEARED' && !isLawyer && !check.created_case && 'kyc')
+    || 'overview';
+  const activeTab = chosenTab || nextStepTab;
 
   return (
     <div className='space-y-6 p-4 md:p-6'>
       <SectionHeading title={check.reference_number} subtitle={check.proposed_matter_title} />
-      <PageSectionNav
-        ariaLabel='Conflict workflow sections'
-        sections={[
-          { id: 'conflict-overview', label: 'Overview' },
-          { id: 'conflict-search', label: 'Conflict search', hidden: !hasSearch },
-          { id: 'conflict-outcome', label: 'Conflict decision', hidden: nextOptions.length === 0 },
-          { id: 'conflict-acceptance', label: 'Firm acceptance', hidden: !canRecordAcceptance },
-          { id: 'client-compliance-review', label: 'KYC review', hidden: isLawyer || check.status !== 'CLEARED' || !complianceReview },
-          { id: 'engagement-management', label: 'Engagement', hidden: isLawyer || check.status !== 'CLEARED' },
-          { id: 'conflict-jurisdiction', label: 'Jurisdiction', hidden: check.status !== 'CLEARED' },
-          { id: 'matter-opening-readiness', label: 'Opening readiness' },
-          { id: 'conflict-history', label: 'History' },
-        ]}
+      <PageTabs
+        ariaLabel='Conflict check'
+        // Only the steps this check has reached and this user may take.
+        tabs={CONFLICT_TABS.filter(([key]) => ({
+          search: hasSearch || nextOptions.length > 0,
+          acceptance: canRecordAcceptance,
+          kyc: !isLawyer && check.status === 'CLEARED',
+          jurisdiction: check.status === 'CLEARED',
+        })[key] ?? true)}
+        active={activeTab}
+        onChange={setActiveTab}
+        sections={{
+          overview: [{ id: 'conflict-overview', label: 'Overview' }, { id: 'matter-opening-readiness', label: 'Opening readiness' }],
+          search: [{ id: 'conflict-search', label: 'Conflict search', hidden: !hasSearch }, { id: 'conflict-outcome', label: 'Conflict decision', hidden: nextOptions.length === 0 }],
+          kyc: [{ id: 'client-compliance-review', label: 'KYC review', hidden: !complianceReview }, { id: 'engagement-management', label: 'Engagement' }],
+        }[activeTab] || []}
       />
 
-      <Card id='conflict-overview' className='scroll-mt-28 p-6'>
-        <div className='grid gap-4 md:grid-cols-3'>
-          <p><strong>Client:</strong> {check.client_name || clientData?.client?.full_name || 'Recorded'}</p>
-          <p><strong>Status:</strong> {check.status_label || enumLabel(check.status)}</p>
-          <p><strong>Responsible advocate:</strong> {check.responsible_lawyer_name || 'Not recorded'}</p>
-          <p><strong>Deadline:</strong> {check.limitation_or_deadline_date || 'Not recorded'}</p>
-          <p><strong>Linked matter:</strong> {check.created_case_number || '-'}</p>
-          <p><strong>Consumed:</strong> {check.consumed_at ? formatDateTime(check.consumed_at) : 'No'}</p>
-          <p><strong>Firm acceptance:</strong> {enumLabel(check.acceptance_decision || 'PENDING')}</p>
-          <p><strong>Accepted at:</strong> {check.accepted_at ? formatDateTime(check.accepted_at) : 'Not recorded'}</p>
-        </div>
-        <div className='mt-4 grid gap-4 md:grid-cols-2'>
-          <p><strong>Instructions:</strong> {check.proposed_instructions}</p>
-          <p><strong>Factual summary:</strong> {check.factual_summary || 'Not recorded'}</p>
-          <p><strong>Desired outcome:</strong> {check.desired_outcome || 'Not recorded'}</p>
-          <p><strong>Parties:</strong> {(check.parties || []).map((party) => `${party.name} (${partyRoleLabel(party.role)})`).join(', ') || 'None recorded'}</p>
-          {showFirstReviewerFindings && <p><strong>First-reviewer findings:</strong> {firstReviewerFindingsText}</p>}
-          {showClearanceResult && <p><strong>Clearance result:</strong> {check.result_summary || 'Not recorded'}</p>}
-          {showInternalConflictReason && <p><strong>Internal conflict reason:</strong> {check.internal_reason || 'Not recorded'}</p>}
-          <p><strong>Names checked:</strong> {(check.names_checked || []).join(', ') || 'Not recorded'}</p>
-          <p><strong>Sources checked:</strong> {(check.source_categories_checked || []).map(sourceLabel).join(', ') || 'Not recorded'}</p>
-          <p><strong>Deciding advocate:</strong> {check.decided_by_name || 'Not recorded'}</p>
-          <p><strong>Decision date and time:</strong> {check.decided_at ? formatDateTime(check.decided_at) : 'Not recorded'}</p>
-        </div>
-        <div className='mt-5 flex flex-wrap gap-3'>
-          {canCreateCase && (
-            <Button3D variant='primary' onClick={() => navigate(`${basePath}/clients/${clientId}/conflict-checks/${check.id}/open-matter`)}>
-              Open Matter
-            </Button3D>
-          )}
-          {canViewCase && (
-            <Button3D variant='primary' onClick={() => navigate(`${basePath}/cases/${check.created_case}`)}>
-              View Matter
-            </Button3D>
-          )}
-        </div>
-      </Card>
+      {activeTab === 'overview' && (
+        <div className='space-y-6'>
+          <Card id='conflict-overview' className='scroll-mt-28 p-6'>
+            <div className='grid gap-4 md:grid-cols-3'>
+              <p><strong>Client:</strong> {check.client_name || clientData?.client?.full_name || 'Recorded'}</p>
+              <p><strong>Status:</strong> {check.status_label || enumLabel(check.status)}</p>
+              <p><strong>Responsible advocate:</strong> {check.responsible_lawyer_name || 'Not recorded'}</p>
+              <p><strong>Deadline:</strong> {check.limitation_or_deadline_date || 'Not recorded'}</p>
+              <p><strong>Linked matter:</strong> {check.created_case_number || '-'}</p>
+              <p><strong>Consumed:</strong> {check.consumed_at ? formatDateTime(check.consumed_at) : 'No'}</p>
+              <p><strong>Firm acceptance:</strong> {enumLabel(check.acceptance_decision || 'PENDING')}</p>
+              <p><strong>Accepted at:</strong> {check.accepted_at ? formatDateTime(check.accepted_at) : 'Not recorded'}</p>
+            </div>
+            <div className='mt-4 grid gap-4 md:grid-cols-2'>
+              <p><strong>Instructions:</strong> {check.proposed_instructions}</p>
+              <p><strong>Factual summary:</strong> {check.factual_summary || 'Not recorded'}</p>
+              <p><strong>Desired outcome:</strong> {check.desired_outcome || 'Not recorded'}</p>
+              <p><strong>Parties:</strong> {(check.parties || []).map((party) => `${party.name} (${partyRoleLabel(party.role)})`).join(', ') || 'None recorded'}</p>
+              {showFirstReviewerFindings && <p><strong>First-reviewer findings:</strong> {firstReviewerFindingsText}</p>}
+              {showClearanceResult && <p><strong>Clearance result:</strong> {check.result_summary || 'Not recorded'}</p>}
+              {showInternalConflictReason && <p><strong>Internal conflict reason:</strong> {check.internal_reason || 'Not recorded'}</p>}
+              <p><strong>Names checked:</strong> {(check.names_checked || []).join(', ') || 'Not recorded'}</p>
+              <p><strong>Sources checked:</strong> {(check.source_categories_checked || []).map(sourceLabel).join(', ') || 'Not recorded'}</p>
+              <p><strong>Deciding advocate:</strong> {check.decided_by_name || 'Not recorded'}</p>
+              <p><strong>Decision date and time:</strong> {check.decided_at ? formatDateTime(check.decided_at) : 'Not recorded'}</p>
+            </div>
+            <div className='mt-5 flex flex-wrap gap-3'>
+              {canCreateCase && (
+                <Button3D variant='primary' onClick={() => navigate(`${basePath}/clients/${clientId}/conflict-checks/${check.id}/open-matter`)}>
+                  Open Matter
+                </Button3D>
+              )}
+              {canViewCase && (
+                <Button3D variant='primary' onClick={() => navigate(`${basePath}/cases/${check.created_case}`)}>
+                  View Matter
+                </Button3D>
+              )}
+            </div>
+          </Card>
 
-      {hasSearch && (
-        <Card id='conflict-search' className='scroll-mt-28 p-6'>
-          <ConflictSearchPanel
-            check={check}
-            busy={searchMutation.isPending || sourceReviewMutation.isPending || clearanceMutation.isPending}
-            onRunSearch={() => searchMutation.mutate()}
-            onReviewSource={(payload, done) => sourceReviewMutation.mutate({ payload, done })}
-            onClear={(resultSummary) => confirmThen(DECISION_CONFIRMS.CLEARED, () => clearanceMutation.mutate(resultSummary))}
-            onRecordPotential={(findings) => prepareOutcome({ next_status: 'POTENTIAL_CONFLICT', first_reviewer_findings: findings })}
-            onRequestInformation={(missing) => prepareOutcome({ next_status: 'AWAITING_INFORMATION', information_missing: missing })}
-          />
-        </Card>
-      )}
-
-      {nextOptions.length > 0 && (
-        <Card id='conflict-outcome' className='scroll-mt-28 p-6'>
-          <h3 className='mb-4 text-lg font-semibold'>Next outcome</h3>
-          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); if (!isOutcomeBlocked) confirmThen(DECISION_CONFIRMS[actionDraft.next_status], () => actionMutation.mutate()); }}>
-            <Select3D value={actionDraft.next_status} onChange={(e) => setActionDraft((v) => ({ ...v, next_status: e.target.value }))} options={nextOptions} placeholder='Select next outcome' />
-            {actionDraft.next_status === 'AWAITING_INFORMATION' && <TextArea label='Information missing' value={actionDraft.information_missing} onChange={(value) => setActionDraft((v) => ({ ...v, information_missing: value }))} required />}
-            {actionDraft.next_status === 'POTENTIAL_CONFLICT' && <TextArea label='First reviewer findings' value={actionDraft.first_reviewer_findings} onChange={(value) => setActionDraft((v) => ({ ...v, first_reviewer_findings: value }))} required />}
-            {actionDraft.next_status === 'ESCALATED_FOR_REVIEW' && <Select3D label='Review advocate' value={actionDraft.review_assigned_to_id} onChange={(e) => setActionDraft((v) => ({ ...v, review_assigned_to_id: e.target.value }))} options={lawyerOptions} placeholder='Select reviewer' />}
-            {actionDraft.next_status === 'ESCALATED_FOR_REVIEW' && <TextArea label='Escalation summary' value={actionDraft.summary} onChange={(value) => setActionDraft((v) => ({ ...v, summary: value }))} required />}
-            {actionDraft.next_status === 'CLEARED' && <TextArea label='Clearance summary: why the matches reviewed do not prevent the firm acting' value={actionDraft.result_summary} onChange={(value) => setActionDraft((v) => ({ ...v, result_summary: value }))} required />}
-            {actionDraft.next_status === 'CONFLICT_CONFIRMED' && <TextArea label='Internal reason' value={actionDraft.internal_reason} onChange={(value) => setActionDraft((v) => ({ ...v, internal_reason: value }))} required />}
-            {actionDraft.next_status === 'CLOSED_WITHOUT_DECISION' && <TextArea label='Closure reason' value={actionDraft.closure_reason} onChange={(value) => setActionDraft((v) => ({ ...v, closure_reason: value }))} required />}
-            {['CLEARED', 'CONFLICT_CONFIRMED'].includes(actionDraft.next_status) && <label className='flex items-center gap-2 text-sm md:col-span-2'><input type='checkbox' checked={actionDraft.decision_confirmation} onChange={(e) => setActionDraft((v) => ({ ...v, decision_confirmation: e.target.checked }))} />I confirm this professional conflict decision for these proposed instructions only.</label>}
-            <Button3D type='submit' variant='primary' disabled={isOutcomeBlocked}>{actionMutation.isPending ? 'Recording...' : 'Record Outcome'}</Button3D>
-          </form>
-        </Card>
-      )}
-
-      {canRecordAcceptance && (
-        <Card id='conflict-acceptance' className='scroll-mt-28 p-6'>
-          <h3 className='mb-4 text-lg font-semibold'>Firm Acceptance Decision</h3>
-          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); confirmThen(ACCEPTANCE_CONFIRMS[acceptanceDraft.decision], () => acceptanceMutation.mutate()); }}>
-            <Select3D label='Decision' value={acceptanceDraft.decision} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, decision: e.target.value }))} options={[{ value: 'ACCEPTED', label: 'Accept instructions' }, { value: 'DECLINED', label: 'Decline instructions' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }]} required />
-            <Select3D label='Engagement preparation stage' value={acceptanceDraft.engagement_status} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, engagement_status: e.target.value }))} options={[{ value: 'DRAFTING', label: 'Drafting' }, { value: 'SENT_TO_CLIENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed document received (formal approval still required)' }, { value: 'FEE_ARRANGEMENT_CONFIRMED', label: 'Fee terms confirmed (formal approval still required)' }]} />
-            {acceptanceDraft.decision !== 'ACCEPTED' && <Select3D label='Reason category' value={acceptanceDraft.reason_category} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, reason_category: e.target.value }))} options={[{ value: 'OUTSIDE_EXPERTISE', label: 'Outside expertise' }, { value: 'CAPACITY_CONSTRAINT', label: 'Capacity constraint' }, { value: 'COMMERCIAL_TERMS', label: 'Commercial terms' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }, { value: 'CDD_RESTRICTED', label: 'CDD restricted' }, { value: 'OTHER', label: 'Other' }]} required />}
-            <TextArea label='Scope confirmation' value={acceptanceScope} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, scope_confirmation: value }))} required={acceptanceDraft.decision === 'ACCEPTED'} />
-            {acceptanceDraft.decision !== 'ACCEPTED' && <TextArea label='Restricted internal reason' value={acceptanceDraft.internal_reason} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, internal_reason: value }))} required />}
-            <Button3D type='submit' variant='primary' disabled={acceptanceMutation.isPending}>
-              {acceptanceMutation.isPending ? 'Recording...' : 'Record Acceptance Decision'}
-            </Button3D>
-          </form>
-        </Card>
-      )}
-
-      {!isLawyer && check.status === 'CLEARED' && complianceReview && (
-        <Card id='client-compliance-review' className='scroll-mt-28 p-6'>
-          <h3 className='mb-2 text-lg font-semibold'>KYC, Authority and Due-Diligence Review</h3>
-          <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
-            Final decisions are recorded in immutable history. A blocked or incomplete review prevents matter opening.
-          </p>
-          <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); complianceMutation.mutate(); }}>
-            <Select3D label='Identity verification' value={complianceDraft.identity_status || complianceReview.identity_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, identity_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
-            <Select3D label='Authority to instruct' value={complianceDraft.authority_status || complianceReview.authority_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, authority_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
-            <Select3D label='Beneficial ownership' value={complianceDraft.beneficial_ownership_status || complianceReview.beneficial_ownership_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, beneficial_ownership_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'NOT_APPLICABLE', label: 'Not applicable' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
-            <Select3D label='Due-diligence decision' value={complianceDraft.due_diligence_status || complianceReview.due_diligence_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, due_diligence_status: e.target.value }))} options={[{ value: 'CLEARED', label: 'Cleared' }, { value: 'ENHANCED_DUE_DILIGENCE', label: 'Enhanced due diligence required' }, { value: 'RESTRICTED', label: 'Opening restricted' }]} required />
-            <label className='flex items-center gap-2 text-sm md:col-span-2'>
-              <input type='checkbox' checked={complianceDraft.source_of_funds_required ?? complianceReview.source_of_funds_required} onChange={(e) => setComplianceDraft((value) => ({ ...value, source_of_funds_required: e.target.checked, source_of_funds_status: e.target.checked ? 'UNKNOWN' : 'NOT_APPLICABLE' }))} />
-              Source-of-funds verification is required
-            </label>
-            {(complianceDraft.source_of_funds_required ?? complianceReview.source_of_funds_required) && (
-              <Select3D label='Source-of-funds verification' value={complianceDraft.source_of_funds_status || complianceReview.source_of_funds_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, source_of_funds_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
-            )}
-            <TextArea label='Restriction or escalation reason' value={complianceDraft.restriction_reason || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, restriction_reason: value }))} />
-            <TextArea label='Review notes and evidence references' value={complianceDraft.review_notes || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, review_notes: value }))} />
-            <TextArea label='Reason for this decision' value={complianceDraft.reason || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, reason: value }))} required />
-            <Button3D type='submit' variant='primary' disabled={complianceMutation.isPending || !complianceDraft.reason?.trim()}>
-              {complianceMutation.isPending ? 'Recording...' : 'Record Compliance Decision'}
-            </Button3D>
-          </form>
-          {complianceReview.reviewed_at && <p className='mt-4 text-sm'>Last reviewed by {complianceReview.reviewed_by_name || 'Authorised reviewer'} on {formatDateTime(complianceReview.reviewed_at)}</p>}
-        </Card>
-      )}
-
-      {!isLawyer && check.status === 'CLEARED' && (
-        <Card id='engagement-management' className='scroll-mt-28 p-6'>
-          <h3 className='mb-2 text-lg font-semibold'>Formal Engagement</h3>
-          <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
-            Scope, fees, signature, approval and exceptions are versioned. Marking the intake stage “signed” does not authorise opening.
-          </p>
-          {engagements.length > 0 && (
-            <div className='mb-6 space-y-3'>
-              {engagements.map((engagement) => (
-                <div key={engagement.id} className='rounded-xl border border-border-light p-4 dark:border-border-dark'>
-                  <div className='flex flex-wrap items-center justify-between gap-2'>
-                    <p className='font-semibold'>Version {engagement.version} · {enumLabel(engagement.status)}</p>
-                    <span className={engagement.permits_opening ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'}>{engagement.permits_opening ? 'Opening control satisfied' : 'Not approved for opening'}</span>
-                  </div>
-                  <p className='mt-2 text-sm'><strong>Scope:</strong> {engagement.scope_of_work}</p>
-                  <p className='text-sm'><strong>Fee terms:</strong> {enumLabel(engagement.fee_arrangement_type)} — {engagement.fee_arrangement_description}</p>
-                  {Number(engagement.required_retainer || 0) > 0 && (
-                    <div className='mt-3 rounded-lg border border-border-light p-3 dark:border-border-dark'>
-                      <p className='text-sm'><strong>Required retainer:</strong> {engagement.required_retainer} · {engagement.retainer_received ? 'Received and verified' : 'Awaiting verified receipt'}</p>
-                      {!engagement.retainer_received && !['SUPERSEDED', 'CANCELLED'].includes(engagement.status) && (
-                        <form className='mt-3 grid gap-3 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); confirmThen({ title: 'Post this retainer receipt?', text: 'It is held as unallocated client money until the matter opens. Once posted it cannot be edited; a correction needs a linked reversal.', confirmText: 'Post receipt', tone: 'warning' }, () => receiveRetainerMutation.mutate(engagement.id)); }}>
-                          <Select3D label='Client account' value={retainerDraft.account} onChange={(event) => setRetainerDraft((value) => ({ ...value, account: event.target.value }))} options={clientAccountOptions} required />
-                          <Input3D label='Receipt number' value={retainerDraft.receipt_number} onChange={(event) => setRetainerDraft((value) => ({ ...value, receipt_number: event.target.value }))} required />
-                          <Input3D label='Amount received' type='number' value={retainerDraft.amount_received} onChange={(event) => setRetainerDraft((value) => ({ ...value, amount_received: event.target.value }))} required />
-                          <Input3D label='Currency' value={retainerDraft.currency} onChange={(event) => setRetainerDraft((value) => ({ ...value, currency: event.target.value.toUpperCase() }))} required />
-                          <Input3D label='Payment date' type='date' value={retainerDraft.payment_date} onChange={(event) => setRetainerDraft((value) => ({ ...value, payment_date: event.target.value }))} required />
-                          <Select3D label='Payment method' value={retainerDraft.payment_method} onChange={(event) => setRetainerDraft((value) => ({ ...value, payment_method: event.target.value }))} options={[{ value: 'BANK_TRANSFER', label: 'Bank transfer' }, { value: 'CARD', label: 'Card' }, { value: 'CHEQUE', label: 'Cheque' }, { value: 'CASH', label: 'Cash' }, { value: 'MOBILE_MONEY', label: 'Mobile money' }, { value: 'OTHER', label: 'Other' }]} required />
-                          <Input3D label='Bank or transaction reference' value={retainerDraft.bank_transaction_reference} onChange={(event) => setRetainerDraft((value) => ({ ...value, bank_transaction_reference: event.target.value }))} required />
-                          <Button3D type='submit' variant='primary' disabled={receiveRetainerMutation.isPending}>{receiveRetainerMutation.isPending ? 'Posting receipt...' : 'Post Retainer Receipt'}</Button3D>
-                        </form>
-                      )}
-                    </div>
-                  )}
-                  {engagement.exception_reason && <p className='text-sm'><strong>Exception:</strong> {engagement.exception_reason} ({engagement.exception_policy_basis})</p>}
-                  {!['SUPERSEDED', 'CANCELLED', 'READY', 'WAIVED', 'NOT_REQUIRED'].includes(engagement.status) && (
-                    <div className='mt-4 grid gap-3 md:grid-cols-2'>
-                      <Button3D type='button' variant='primary' onClick={() => confirmThen({ title: 'Approve the signed engagement?', text: 'You confirm the client has signed this version. It becomes the current engagement for opening the matter.', confirmText: 'Approve engagement' }, () => approveEngagementMutation.mutate(engagement.id))} disabled={approveEngagementMutation.isPending}>Approve Signed Engagement</Button3D>
-                      <Select3D label='Exception type' value={engagementAction.status} onChange={(e) => setEngagementAction((value) => ({ ...value, status: e.target.value }))} options={[{ value: 'WAIVED', label: 'Waived with approval' }, { value: 'NOT_REQUIRED', label: 'Not required under firm policy' }]} />
-                      <TextArea label='Exception reason' value={engagementAction.reason} onChange={(value) => setEngagementAction((current) => ({ ...current, reason: value }))} />
-                      <TextArea label='Firm policy basis' value={engagementAction.policy_basis} onChange={(value) => setEngagementAction((current) => ({ ...current, policy_basis: value }))} />
-                      <Button3D type='button' variant='secondary' onClick={() => confirmThen({ title: 'Approve this engagement exception?', text: `The matter may open without a signed engagement (${enumLabel(engagementAction.status)}). The reason and policy basis are recorded.`, confirmText: 'Approve exception', tone: 'warning' }, () => exceptionEngagementMutation.mutate(engagement.id))} disabled={exceptionEngagementMutation.isPending || !engagementAction.reason.trim() || !engagementAction.policy_basis.trim()}>Approve Exception</Button3D>
-                      <TextArea label='Supersession reason' value={engagementAction.supersede_reason} onChange={(value) => setEngagementAction((current) => ({ ...current, supersede_reason: value }))} />
-                      <Button3D type='button' variant='secondary' onClick={() => confirmThen({ title: 'Supersede this engagement version?', text: 'It stops being current. The version is kept in the history.', confirmText: 'Supersede', tone: 'warning' }, () => supersedeEngagementMutation.mutate(engagement.id))} disabled={supersedeEngagementMutation.isPending || !engagementAction.supersede_reason.trim()}>Supersede Version</Button3D>
-                    </div>
-                  )}
+          <Card id='matter-opening-readiness' className='scroll-mt-28 p-6'>
+            <h3 className='mb-2 text-lg font-semibold'>Matter-Opening Readiness</h3>
+            <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+              The backend enforces every listed control. A preparation-stage label does not replace a formally approved engagement record.
+            </p>
+            <div className='space-y-2'>
+              {(check.opening_readiness?.checks || []).map((item) => (
+                <div key={item.code} className={`rounded-lg border p-3 text-sm ${item.complete ? 'border-green-300 bg-green-50 text-green-900 dark:bg-green-950/40 dark:text-green-200 dark:border-green-800' : 'border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800'}`}>
+                  <strong>{item.complete ? 'Complete' : 'Blocked'}:</strong> {item.label}
                 </div>
               ))}
             </div>
-          )}
-          {!engagements.some((item) => !['SUPERSEDED', 'CANCELLED'].includes(item.status)) && (
-            <EngagementForm
-              client={clientData?.client}
-              lawyerOptions={lawyerOptions}
-              defaultAdvocate={check.responsible_lawyer || (lawyerOptions.length === 1 ? lawyerOptions[0].value : '')}
-              defaultScope={check.scope_confirmation || check.proposed_instructions}
-              busy={createEngagementMutation.isPending}
-              onSubmit={(payload) => createEngagementMutation.mutate(payload)}
-            />
-          )}
-          {unallocatedFundsData?.ledger && (
-            <p className='mt-4 rounded-lg bg-surface-muted-light p-3 text-sm dark:bg-surface-muted-dark'>
-              Client funds awaiting matter allocation: <strong>{unallocatedFundsData.ledger.currency} {unallocatedFundsData.ledger.cleared_balance}</strong>. These funds move to the matter ledger atomically when the matter opens.
-            </p>
-          )}
-        </Card>
+          </Card>
+        </div>
       )}
 
-      {check.status === 'CLEARED' && (
-        <Card id='conflict-jurisdiction' className='scroll-mt-28 p-6'>
-          <h3 className='text-lg font-semibold'>Jurisdiction Suggestion and Advocate Decision</h3>
-          <p className='mt-2 text-sm text-text-muted-light dark:text-text-muted-dark'>
-            This is a system-generated jurisdiction suggestion. The responsible advocate must independently review and confirm the appropriate court or tribunal.
-          </p>
-          {!check.jurisdiction?.is_final && (
-            <form className='mt-5 grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); jurisdictionSuggestionMutation.mutate(); }}>
-              <Select3D label='Dispute category' value={jurisdictionFacts.dispute_category} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, dispute_category: e.target.value }))} options={DISPUTE_CATEGORIES} placeholder='Select what the dispute is about' />
-              <Select3D label='Practice area' value={jurisdictionFacts.practice_area} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, practice_area: e.target.value }))} options={PRACTICE_AREAS} placeholder='Select the proposed matter practice area' required />
-              <Input3D
-                label='Claim value (KES)'
-                type='number'
-                min='0'
-                step='0.01'
-                value={jurisdictionFacts.claim_value}
-                onChange={(e) => setJurisdictionFacts((v) => ({ ...v, claim_value: e.target.value }))}
-                onWheel={(event) => event.currentTarget.blur()}
-                onKeyDown={(event) => {
-                  if (['ArrowUp', 'ArrowDown'].includes(event.key)) event.preventDefault();
-                }}
+      {activeTab === 'search' && (
+        <div className='space-y-6'>
+          {hasSearch && (
+            <Card id='conflict-search' className='scroll-mt-28 p-6'>
+              <ConflictSearchPanel
+                check={check}
+                busy={searchMutation.isPending || sourceReviewMutation.isPending || clearanceMutation.isPending}
+                onRunSearch={() => searchMutation.mutate()}
+                onReviewSource={(payload, done) => sourceReviewMutation.mutate({ payload, done })}
+                onClear={(resultSummary) => confirmThen(DECISION_CONFIRMS.CLEARED, () => clearanceMutation.mutate(resultSummary))}
+                onRecordPotential={(findings) => prepareOutcome({ next_status: 'POTENTIAL_CONFLICT', first_reviewer_findings: findings })}
+                onRequestInformation={(missing) => prepareOutcome({ next_status: 'AWAITING_INFORMATION', information_missing: missing })}
               />
-              <Input3D label='Cause-of-action location' value={jurisdictionFacts.cause_of_action_location} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, cause_of_action_location: e.target.value }))} />
-              <TextArea label='Relief sought' value={jurisdictionFacts.relief_sought} onChange={(value) => setJurisdictionFacts((v) => ({ ...v, relief_sought: value }))} />
-              <Button3D
-                type='submit'
-                variant='primary'
-                className='md:self-end md:justify-self-start'
-                disabled={jurisdictionSuggestionMutation.isPending}
-              >
-                {jurisdictionSuggestionMutation.isPending ? 'Generating...' : 'Generate / Refresh Suggestion'}
-              </Button3D>
-            </form>
+            </Card>
           )}
 
-          {check.jurisdiction?.suggestion?.label && (
-            <div className='mt-5 rounded-xl border border-border-light p-4 dark:border-border-dark'>
-              <p><strong>System suggestion:</strong> {check.jurisdiction.suggestion.label}</p>
-              <p><strong>Level:</strong> {enumLabel(check.jurisdiction.suggestion.court_level)}</p>
-              <p><strong>Possible station:</strong> {check.jurisdiction.suggestion.station || 'Advocate input required'}</p>
-              <p><strong>Completeness:</strong> {check.jurisdiction.completeness}%</p>
-              {(check.jurisdiction.suggestion.reasons || []).map((reason) => <p key={reason} className='mt-2'>{reason}</p>)}
-              {(check.jurisdiction.missing_information || []).length > 0 && (
-                <p className='mt-2 text-amber-700 dark:text-amber-300'><strong>Missing information:</strong> {check.jurisdiction.missing_information.map(enumLabel).join(', ')}</p>
-              )}
-              {(check.jurisdiction.warnings || []).map((warning) => <p key={warning} className='mt-2 text-amber-700 dark:text-amber-300'>{warning}</p>)}
-              <p className='mt-2 text-xs'>Rules: {check.jurisdiction.rule_version}</p>
-            </div>
+          {nextOptions.length > 0 && (
+            <Card id='conflict-outcome' className='scroll-mt-28 p-6'>
+              <h3 className='mb-4 text-lg font-semibold'>Next outcome</h3>
+              <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); if (!isOutcomeBlocked) confirmThen(DECISION_CONFIRMS[actionDraft.next_status], () => actionMutation.mutate()); }}>
+                <Select3D value={actionDraft.next_status} onChange={(e) => setActionDraft((v) => ({ ...v, next_status: e.target.value }))} options={nextOptions} placeholder='Select next outcome' />
+                {actionDraft.next_status === 'AWAITING_INFORMATION' && <TextArea label='Information missing' value={actionDraft.information_missing} onChange={(value) => setActionDraft((v) => ({ ...v, information_missing: value }))} required />}
+                {actionDraft.next_status === 'POTENTIAL_CONFLICT' && <TextArea label='First reviewer findings' value={actionDraft.first_reviewer_findings} onChange={(value) => setActionDraft((v) => ({ ...v, first_reviewer_findings: value }))} required />}
+                {actionDraft.next_status === 'ESCALATED_FOR_REVIEW' && <Select3D label='Review advocate' value={actionDraft.review_assigned_to_id} onChange={(e) => setActionDraft((v) => ({ ...v, review_assigned_to_id: e.target.value }))} options={lawyerOptions} placeholder='Select reviewer' />}
+                {actionDraft.next_status === 'ESCALATED_FOR_REVIEW' && <TextArea label='Escalation summary' value={actionDraft.summary} onChange={(value) => setActionDraft((v) => ({ ...v, summary: value }))} required />}
+                {actionDraft.next_status === 'CLEARED' && <TextArea label='Clearance summary: why the matches reviewed do not prevent the firm acting' value={actionDraft.result_summary} onChange={(value) => setActionDraft((v) => ({ ...v, result_summary: value }))} required />}
+                {actionDraft.next_status === 'CONFLICT_CONFIRMED' && <TextArea label='Internal reason' value={actionDraft.internal_reason} onChange={(value) => setActionDraft((v) => ({ ...v, internal_reason: value }))} required />}
+                {actionDraft.next_status === 'CLOSED_WITHOUT_DECISION' && <TextArea label='Closure reason' value={actionDraft.closure_reason} onChange={(value) => setActionDraft((v) => ({ ...v, closure_reason: value }))} required />}
+                {['CLEARED', 'CONFLICT_CONFIRMED'].includes(actionDraft.next_status) && <label className='flex items-center gap-2 text-sm md:col-span-2'><input type='checkbox' checked={actionDraft.decision_confirmation} onChange={(e) => setActionDraft((v) => ({ ...v, decision_confirmation: e.target.checked }))} />I confirm this professional conflict decision for these proposed instructions only.</label>}
+                <Button3D type='submit' variant='primary' disabled={isOutcomeBlocked}>{actionMutation.isPending ? 'Recording...' : 'Record Outcome'}</Button3D>
+              </form>
+            </Card>
           )}
-
-          {check.jurisdiction && !check.jurisdiction.is_final && (
-            <form className='mt-5 grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); jurisdictionDecisionMutation.mutate(); }}>
-              <Select3D label='Advocate action' value={jurisdictionDecision.action} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, action: e.target.value }))} options={[
-                { value: 'ACCEPT', label: 'Accept suggestion' },
-                { value: 'MODIFY', label: 'Modify suggested jurisdiction' },
-                { value: 'REJECT', label: 'Reject and select another forum' },
-                { value: 'REQUEST_INFORMATION', label: 'Request more information' },
-                { value: 'DEFER', label: 'Defer decision' },
-              ]} />
-              {jurisdictionDecision.action !== 'ACCEPT' && <TextArea label='Override / decision reason' value={jurisdictionDecision.override_reason} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, override_reason: value }))} required={['MODIFY', 'REJECT'].includes(jurisdictionDecision.action)} />}
-              {['MODIFY', 'REJECT'].includes(jurisdictionDecision.action) && <>
-                <Input3D label='Selected forum' value={jurisdictionDecision.final_forum} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, final_forum: e.target.value }))} required />
-                <Input3D label='Selected court / tribunal' value={jurisdictionDecision.final_court_type} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, final_court_type: e.target.value }))} required />
-                <Input3D label='Court level' value={jurisdictionDecision.final_court_level} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, final_court_level: e.target.value }))} required />
-                <Input3D label='Station' value={jurisdictionDecision.final_station} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, final_station: e.target.value }))} />
-              </>}
-              <TextArea label='Subject-matter basis' value={jurisdictionDecision.subject_matter_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, subject_matter_basis: value }))} />
-              <TextArea label='Pecuniary basis' value={jurisdictionDecision.pecuniary_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, pecuniary_basis: value }))} />
-              <TextArea label='Territorial basis' value={jurisdictionDecision.territorial_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, territorial_basis: value }))} />
-              <TextArea label='Legal / procedural basis' value={jurisdictionDecision.legal_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, legal_basis: value }))} />
-              <TextArea label='Advocate findings' value={jurisdictionDecision.advocate_findings} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, advocate_findings: value }))} />
-              <Button3D
-                type='submit'
-                variant='primary'
-                className='md:self-end md:justify-self-start'
-                disabled={jurisdictionDecisionMutation.isPending}
-              >
-                Record Advocate Decision
-              </Button3D>
-              {['ACCEPTED', 'MODIFIED', 'REJECTED'].includes(check.jurisdiction.status) && (
-                <Button3D type='button' variant='primary' onClick={() => confirmThen({ title: 'Confirm the jurisdiction?', text: 'The forum and jurisdiction become final for opening this matter. Reopening them needs a recorded reason.', confirmText: 'Confirm jurisdiction' }, () => jurisdictionConfirmMutation.mutate())} disabled={jurisdictionConfirmMutation.isPending}>
-                  Confirm Final Jurisdiction
-                </Button3D>
-              )}
-            </form>
-          )}
-
-          {check.jurisdiction?.is_final && (
-            <div className='mt-5 rounded-xl border border-green-300 bg-green-50 p-4 text-green-900 dark:bg-green-950/40 dark:text-green-200 dark:border-green-800'>
-              <p><strong>Advocate-confirmed jurisdiction:</strong> {enumLabel(check.jurisdiction.final_court_type)}</p>
-              <p>{enumLabel(check.jurisdiction.final_court_level)} · {check.jurisdiction.final_station || 'Station not recorded'}</p>
-              <p>Confirmed by {check.jurisdiction.confirmed_by_name} on {formatDateTime(check.jurisdiction.confirmed_at)}</p>
-            </div>
-          )}
-        </Card>
+        </div>
       )}
 
-      <Card id='matter-opening-readiness' className='scroll-mt-28 p-6'>
-        <h3 className='mb-2 text-lg font-semibold'>Matter-Opening Readiness</h3>
-        <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
-          The backend enforces every listed control. A preparation-stage label does not replace a formally approved engagement record.
-        </p>
-        <div className='space-y-2'>
-          {(check.opening_readiness?.checks || []).map((item) => (
-            <div key={item.code} className={`rounded-lg border p-3 text-sm ${item.complete ? 'border-green-300 bg-green-50 text-green-900 dark:bg-green-950/40 dark:text-green-200 dark:border-green-800' : 'border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800'}`}>
-              <strong>{item.complete ? 'Complete' : 'Blocked'}:</strong> {item.label}
-            </div>
-          ))}
+      {activeTab === 'acceptance' && (
+        <div className='space-y-6'>
+          {canRecordAcceptance && (
+            <Card id='conflict-acceptance' className='scroll-mt-28 p-6'>
+              <h3 className='mb-4 text-lg font-semibold'>Firm Acceptance Decision</h3>
+              <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); confirmThen(ACCEPTANCE_CONFIRMS[acceptanceDraft.decision], () => acceptanceMutation.mutate()); }}>
+                <Select3D label='Decision' value={acceptanceDraft.decision} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, decision: e.target.value }))} options={[{ value: 'ACCEPTED', label: 'Accept instructions' }, { value: 'DECLINED', label: 'Decline instructions' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }]} required />
+                <Select3D label='Engagement preparation stage' value={acceptanceDraft.engagement_status} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, engagement_status: e.target.value }))} options={[{ value: 'DRAFTING', label: 'Drafting' }, { value: 'SENT_TO_CLIENT', label: 'Sent to client' }, { value: 'SIGNED', label: 'Signed document received (formal approval still required)' }, { value: 'FEE_ARRANGEMENT_CONFIRMED', label: 'Fee terms confirmed (formal approval still required)' }]} />
+                {acceptanceDraft.decision !== 'ACCEPTED' && <Select3D label='Reason category' value={acceptanceDraft.reason_category} onChange={(e) => setAcceptanceDraft((v) => ({ ...v, reason_category: e.target.value }))} options={[{ value: 'OUTSIDE_EXPERTISE', label: 'Outside expertise' }, { value: 'CAPACITY_CONSTRAINT', label: 'Capacity constraint' }, { value: 'COMMERCIAL_TERMS', label: 'Commercial terms' }, { value: 'CLIENT_WITHDREW', label: 'Client withdrew' }, { value: 'CDD_RESTRICTED', label: 'CDD restricted' }, { value: 'OTHER', label: 'Other' }]} required />}
+                <TextArea label='Scope confirmation' value={acceptanceScope} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, scope_confirmation: value }))} required={acceptanceDraft.decision === 'ACCEPTED'} />
+                {acceptanceDraft.decision !== 'ACCEPTED' && <TextArea label='Restricted internal reason' value={acceptanceDraft.internal_reason} onChange={(value) => setAcceptanceDraft((v) => ({ ...v, internal_reason: value }))} required />}
+                <Button3D type='submit' variant='primary' disabled={acceptanceMutation.isPending}>
+                  {acceptanceMutation.isPending ? 'Recording...' : 'Record Acceptance Decision'}
+                </Button3D>
+              </form>
+            </Card>
+          )}
         </div>
-      </Card>
+      )}
 
-      <Card id='conflict-history' className='scroll-mt-28 p-6'>
-        <h3 className='mb-4 text-lg font-semibold'>Immutable History</h3>
-        <div className='space-y-3'>
-          {(check.history || []).map((item) => (
-            <div key={item.id} className='rounded-lg border border-border-light p-3 text-sm dark:border-border-dark'>
-              <p className='font-semibold'>{enumLabel(item.action)} - {item.to_status_label || enumLabel(item.to_status)}</p>
-              <p>{item.summary}</p>
-              <p className='text-text-muted-light dark:text-text-muted-dark'>{formatDateTime(item.created_at)} by {item.actor_name || 'System'}</p>
-            </div>
-          ))}
+      {activeTab === 'kyc' && (
+        <div className='space-y-6'>
+          {!isLawyer && check.status === 'CLEARED' && complianceReview && (
+            <Card id='client-compliance-review' className='scroll-mt-28 p-6'>
+              <h3 className='mb-2 text-lg font-semibold'>KYC, Authority and Due-Diligence Review</h3>
+              <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                Final decisions are recorded in immutable history. A blocked or incomplete review prevents matter opening.
+              </p>
+              <form className='grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); complianceMutation.mutate(); }}>
+                <Select3D label='Identity verification' value={complianceDraft.identity_status || complianceReview.identity_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, identity_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
+                <Select3D label='Authority to instruct' value={complianceDraft.authority_status || complianceReview.authority_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, authority_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
+                <Select3D label='Beneficial ownership' value={complianceDraft.beneficial_ownership_status || complianceReview.beneficial_ownership_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, beneficial_ownership_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'NOT_APPLICABLE', label: 'Not applicable' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
+                <Select3D label='Due-diligence decision' value={complianceDraft.due_diligence_status || complianceReview.due_diligence_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, due_diligence_status: e.target.value }))} options={[{ value: 'CLEARED', label: 'Cleared' }, { value: 'ENHANCED_DUE_DILIGENCE', label: 'Enhanced due diligence required' }, { value: 'RESTRICTED', label: 'Opening restricted' }]} required />
+                <label className='flex items-center gap-2 text-sm md:col-span-2'>
+                  <input type='checkbox' checked={complianceDraft.source_of_funds_required ?? complianceReview.source_of_funds_required} onChange={(e) => setComplianceDraft((value) => ({ ...value, source_of_funds_required: e.target.checked, source_of_funds_status: e.target.checked ? 'UNKNOWN' : 'NOT_APPLICABLE' }))} />
+                  Source-of-funds verification is required
+                </label>
+                {(complianceDraft.source_of_funds_required ?? complianceReview.source_of_funds_required) && (
+                  <Select3D label='Source-of-funds verification' value={complianceDraft.source_of_funds_status || complianceReview.source_of_funds_status} onChange={(e) => setComplianceDraft((value) => ({ ...value, source_of_funds_status: e.target.value }))} options={[{ value: 'VERIFIED', label: 'Verified' }, { value: 'BLOCKED', label: 'Blocked' }]} required />
+                )}
+                <TextArea label='Restriction or escalation reason' value={complianceDraft.restriction_reason || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, restriction_reason: value }))} />
+                <TextArea label='Review notes and evidence references' value={complianceDraft.review_notes || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, review_notes: value }))} />
+                <TextArea label='Reason for this decision' value={complianceDraft.reason || ''} onChange={(value) => setComplianceDraft((current) => ({ ...current, reason: value }))} required />
+                <Button3D type='submit' variant='primary' disabled={complianceMutation.isPending || !complianceDraft.reason?.trim()}>
+                  {complianceMutation.isPending ? 'Recording...' : 'Record Compliance Decision'}
+                </Button3D>
+              </form>
+              {complianceReview.reviewed_at && <p className='mt-4 text-sm'>Last reviewed by {complianceReview.reviewed_by_name || 'Authorised reviewer'} on {formatDateTime(complianceReview.reviewed_at)}</p>}
+            </Card>
+          )}
+
+          {!isLawyer && check.status === 'CLEARED' && (
+            <Card id='engagement-management' className='scroll-mt-28 p-6'>
+              <h3 className='mb-2 text-lg font-semibold'>Formal Engagement</h3>
+              <p className='mb-4 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                Scope, fees, signature, approval and exceptions are versioned. Marking the intake stage “signed” does not authorise opening.
+              </p>
+              {engagements.length > 0 && (
+                <div className='mb-6 space-y-3'>
+                  {engagements.map((engagement) => (
+                    <div key={engagement.id} className='rounded-xl border border-border-light p-4 dark:border-border-dark'>
+                      <div className='flex flex-wrap items-center justify-between gap-2'>
+                        <p className='font-semibold'>Version {engagement.version} · {enumLabel(engagement.status)}</p>
+                        <span className={engagement.permits_opening ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'}>{engagement.permits_opening ? 'Opening control satisfied' : 'Not approved for opening'}</span>
+                      </div>
+                      <p className='mt-2 text-sm'><strong>Scope:</strong> {engagement.scope_of_work}</p>
+                      <p className='text-sm'><strong>Fee terms:</strong> {enumLabel(engagement.fee_arrangement_type)} — {engagement.fee_arrangement_description}</p>
+                      {Number(engagement.required_retainer || 0) > 0 && (
+                        <div className='mt-3 rounded-lg border border-border-light p-3 dark:border-border-dark'>
+                          <p className='text-sm'><strong>Required retainer:</strong> {engagement.required_retainer} · {engagement.retainer_received ? 'Received and verified' : 'Awaiting verified receipt'}</p>
+                          {!engagement.retainer_received && !['SUPERSEDED', 'CANCELLED'].includes(engagement.status) && (
+                            <form className='mt-3 grid gap-3 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); confirmThen({ title: 'Post this retainer receipt?', text: 'It is held as unallocated client money until the matter opens. Once posted it cannot be edited; a correction needs a linked reversal.', confirmText: 'Post receipt', tone: 'warning' }, () => receiveRetainerMutation.mutate(engagement.id)); }}>
+                              <Select3D label='Client account' value={retainerDraft.account} onChange={(event) => setRetainerDraft((value) => ({ ...value, account: event.target.value }))} options={clientAccountOptions} required />
+                              <Input3D label='Receipt number' value={retainerDraft.receipt_number} onChange={(event) => setRetainerDraft((value) => ({ ...value, receipt_number: event.target.value }))} required />
+                              <Input3D label='Amount received' type='number' value={retainerDraft.amount_received} onChange={(event) => setRetainerDraft((value) => ({ ...value, amount_received: event.target.value }))} required />
+                              <Input3D label='Currency' value={retainerDraft.currency} onChange={(event) => setRetainerDraft((value) => ({ ...value, currency: event.target.value.toUpperCase() }))} required />
+                              <Input3D label='Payment date' type='date' value={retainerDraft.payment_date} onChange={(event) => setRetainerDraft((value) => ({ ...value, payment_date: event.target.value }))} required />
+                              <Select3D label='Payment method' value={retainerDraft.payment_method} onChange={(event) => setRetainerDraft((value) => ({ ...value, payment_method: event.target.value }))} options={[{ value: 'BANK_TRANSFER', label: 'Bank transfer' }, { value: 'CARD', label: 'Card' }, { value: 'CHEQUE', label: 'Cheque' }, { value: 'CASH', label: 'Cash' }, { value: 'MOBILE_MONEY', label: 'Mobile money' }, { value: 'OTHER', label: 'Other' }]} required />
+                              <Input3D label='Bank or transaction reference' value={retainerDraft.bank_transaction_reference} onChange={(event) => setRetainerDraft((value) => ({ ...value, bank_transaction_reference: event.target.value }))} required />
+                              <Button3D type='submit' variant='primary' disabled={receiveRetainerMutation.isPending}>{receiveRetainerMutation.isPending ? 'Posting receipt...' : 'Post Retainer Receipt'}</Button3D>
+                            </form>
+                          )}
+                        </div>
+                      )}
+                      {engagement.exception_reason && <p className='text-sm'><strong>Exception:</strong> {engagement.exception_reason} ({engagement.exception_policy_basis})</p>}
+                      {!['SUPERSEDED', 'CANCELLED', 'READY', 'WAIVED', 'NOT_REQUIRED'].includes(engagement.status) && (
+                        <div className='mt-4 grid gap-3 md:grid-cols-2'>
+                          <Button3D type='button' variant='primary' onClick={() => confirmThen({ title: 'Approve the signed engagement?', text: 'You confirm the client has signed this version. It becomes the current engagement for opening the matter.', confirmText: 'Approve engagement' }, () => approveEngagementMutation.mutate(engagement.id))} disabled={approveEngagementMutation.isPending}>Approve Signed Engagement</Button3D>
+                          <Select3D label='Exception type' value={engagementAction.status} onChange={(e) => setEngagementAction((value) => ({ ...value, status: e.target.value }))} options={[{ value: 'WAIVED', label: 'Waived with approval' }, { value: 'NOT_REQUIRED', label: 'Not required under firm policy' }]} />
+                          <TextArea label='Exception reason' value={engagementAction.reason} onChange={(value) => setEngagementAction((current) => ({ ...current, reason: value }))} />
+                          <TextArea label='Firm policy basis' value={engagementAction.policy_basis} onChange={(value) => setEngagementAction((current) => ({ ...current, policy_basis: value }))} />
+                          <Button3D type='button' variant='secondary' onClick={() => confirmThen({ title: 'Approve this engagement exception?', text: `The matter may open without a signed engagement (${enumLabel(engagementAction.status)}). The reason and policy basis are recorded.`, confirmText: 'Approve exception', tone: 'warning' }, () => exceptionEngagementMutation.mutate(engagement.id))} disabled={exceptionEngagementMutation.isPending || !engagementAction.reason.trim() || !engagementAction.policy_basis.trim()}>Approve Exception</Button3D>
+                          <TextArea label='Supersession reason' value={engagementAction.supersede_reason} onChange={(value) => setEngagementAction((current) => ({ ...current, supersede_reason: value }))} />
+                          <Button3D type='button' variant='secondary' onClick={() => confirmThen({ title: 'Supersede this engagement version?', text: 'It stops being current. The version is kept in the history.', confirmText: 'Supersede', tone: 'warning' }, () => supersedeEngagementMutation.mutate(engagement.id))} disabled={supersedeEngagementMutation.isPending || !engagementAction.supersede_reason.trim()}>Supersede Version</Button3D>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!engagements.some((item) => !['SUPERSEDED', 'CANCELLED'].includes(item.status)) && (
+                <EngagementForm
+                  client={clientData?.client}
+                  lawyerOptions={lawyerOptions}
+                  defaultAdvocate={check.responsible_lawyer || (lawyerOptions.length === 1 ? lawyerOptions[0].value : '')}
+                  defaultScope={check.scope_confirmation || check.proposed_instructions}
+                  busy={createEngagementMutation.isPending}
+                  onSubmit={(payload) => createEngagementMutation.mutate(payload)}
+                />
+              )}
+              {unallocatedFundsData?.ledger && (
+                <p className='mt-4 rounded-lg bg-surface-muted-light p-3 text-sm dark:bg-surface-muted-dark'>
+                  Client funds awaiting matter allocation: <strong>{unallocatedFundsData.ledger.currency} {unallocatedFundsData.ledger.cleared_balance}</strong>. These funds move to the matter ledger atomically when the matter opens.
+                </p>
+              )}
+            </Card>
+          )}
         </div>
-      </Card>
+      )}
+
+      {activeTab === 'jurisdiction' && (
+        <div className='space-y-6'>
+          {check.status === 'CLEARED' && (
+            <Card id='conflict-jurisdiction' className='scroll-mt-28 p-6'>
+              <h3 className='text-lg font-semibold'>Jurisdiction Suggestion and Advocate Decision</h3>
+              <p className='mt-2 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                This is a system-generated jurisdiction suggestion. The responsible advocate must independently review and confirm the appropriate court or tribunal.
+              </p>
+              {!check.jurisdiction?.is_final && (
+                <form className='mt-5 grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); jurisdictionSuggestionMutation.mutate(); }}>
+                  <Select3D label='Dispute category' value={jurisdictionFacts.dispute_category} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, dispute_category: e.target.value }))} options={DISPUTE_CATEGORIES} placeholder='Select what the dispute is about' />
+                  <Select3D label='Practice area' value={jurisdictionFacts.practice_area} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, practice_area: e.target.value }))} options={PRACTICE_AREAS} placeholder='Select the proposed matter practice area' required />
+                  <Input3D
+                    label='Claim value (KES)'
+                    type='number'
+                    min='0'
+                    step='0.01'
+                    value={jurisdictionFacts.claim_value}
+                    onChange={(e) => setJurisdictionFacts((v) => ({ ...v, claim_value: e.target.value }))}
+                    onWheel={(event) => event.currentTarget.blur()}
+                    onKeyDown={(event) => {
+                      if (['ArrowUp', 'ArrowDown'].includes(event.key)) event.preventDefault();
+                    }}
+                  />
+                  <Input3D label='Cause-of-action location' value={jurisdictionFacts.cause_of_action_location} onChange={(e) => setJurisdictionFacts((v) => ({ ...v, cause_of_action_location: e.target.value }))} />
+                  <TextArea label='Relief sought' value={jurisdictionFacts.relief_sought} onChange={(value) => setJurisdictionFacts((v) => ({ ...v, relief_sought: value }))} />
+                  <Button3D
+                    type='submit'
+                    variant='primary'
+                    className='md:self-end md:justify-self-start'
+                    disabled={jurisdictionSuggestionMutation.isPending}
+                  >
+                    {jurisdictionSuggestionMutation.isPending ? 'Generating...' : 'Generate / Refresh Suggestion'}
+                  </Button3D>
+                </form>
+              )}
+
+              {check.jurisdiction?.suggestion?.label && (
+                <div className='mt-5 rounded-xl border border-border-light p-4 dark:border-border-dark'>
+                  <p><strong>System suggestion:</strong> {check.jurisdiction.suggestion.label}</p>
+                  <p><strong>Level:</strong> {enumLabel(check.jurisdiction.suggestion.court_level)}</p>
+                  <p><strong>Possible station:</strong> {check.jurisdiction.suggestion.station || 'Advocate input required'}</p>
+                  <p><strong>Completeness:</strong> {check.jurisdiction.completeness}%</p>
+                  {(check.jurisdiction.suggestion.reasons || []).map((reason) => <p key={reason} className='mt-2'>{reason}</p>)}
+                  {(check.jurisdiction.missing_information || []).length > 0 && (
+                    <p className='mt-2 text-amber-700 dark:text-amber-300'><strong>Missing information:</strong> {check.jurisdiction.missing_information.map(enumLabel).join(', ')}</p>
+                  )}
+                  {(check.jurisdiction.warnings || []).map((warning) => <p key={warning} className='mt-2 text-amber-700 dark:text-amber-300'>{warning}</p>)}
+                  <p className='mt-2 text-xs'>Rules: {check.jurisdiction.rule_version}</p>
+                </div>
+              )}
+
+              {check.jurisdiction && !check.jurisdiction.is_final && (
+                <form className='mt-5 grid gap-4 md:grid-cols-2' onSubmit={(event) => { event.preventDefault(); jurisdictionDecisionMutation.mutate(); }}>
+                  <Select3D label='Advocate action' value={jurisdictionDecision.action} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, action: e.target.value }))} options={[
+                    { value: 'ACCEPT', label: 'Accept suggestion' },
+                    { value: 'MODIFY', label: 'Modify suggested jurisdiction' },
+                    { value: 'REJECT', label: 'Reject and select another forum' },
+                    { value: 'REQUEST_INFORMATION', label: 'Request more information' },
+                    { value: 'DEFER', label: 'Defer decision' },
+                  ]} />
+                  {jurisdictionDecision.action !== 'ACCEPT' && <TextArea label='Override / decision reason' value={jurisdictionDecision.override_reason} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, override_reason: value }))} required={['MODIFY', 'REJECT'].includes(jurisdictionDecision.action)} />}
+                  {['MODIFY', 'REJECT'].includes(jurisdictionDecision.action) && <>
+                    <Input3D label='Selected forum' value={jurisdictionDecision.final_forum} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, final_forum: e.target.value }))} required />
+                    <Input3D label='Selected court / tribunal' value={jurisdictionDecision.final_court_type} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, final_court_type: e.target.value }))} required />
+                    <Input3D label='Court level' value={jurisdictionDecision.final_court_level} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, final_court_level: e.target.value }))} required />
+                    <Input3D label='Station' value={jurisdictionDecision.final_station} onChange={(e) => setJurisdictionDecision((v) => ({ ...v, final_station: e.target.value }))} />
+                  </>}
+                  <TextArea label='Subject-matter basis' value={jurisdictionDecision.subject_matter_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, subject_matter_basis: value }))} />
+                  <TextArea label='Pecuniary basis' value={jurisdictionDecision.pecuniary_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, pecuniary_basis: value }))} />
+                  <TextArea label='Territorial basis' value={jurisdictionDecision.territorial_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, territorial_basis: value }))} />
+                  <TextArea label='Legal / procedural basis' value={jurisdictionDecision.legal_basis} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, legal_basis: value }))} />
+                  <TextArea label='Advocate findings' value={jurisdictionDecision.advocate_findings} onChange={(value) => setJurisdictionDecision((v) => ({ ...v, advocate_findings: value }))} />
+                  <Button3D
+                    type='submit'
+                    variant='primary'
+                    className='md:self-end md:justify-self-start'
+                    disabled={jurisdictionDecisionMutation.isPending}
+                  >
+                    Record Advocate Decision
+                  </Button3D>
+                  {['ACCEPTED', 'MODIFIED', 'REJECTED'].includes(check.jurisdiction.status) && (
+                    <Button3D type='button' variant='primary' onClick={() => confirmThen({ title: 'Confirm the jurisdiction?', text: 'The forum and jurisdiction become final for opening this matter. Reopening them needs a recorded reason.', confirmText: 'Confirm jurisdiction' }, () => jurisdictionConfirmMutation.mutate())} disabled={jurisdictionConfirmMutation.isPending}>
+                      Confirm Final Jurisdiction
+                    </Button3D>
+                  )}
+                </form>
+              )}
+
+              {check.jurisdiction?.is_final && (
+                <div className='mt-5 rounded-xl border border-green-300 bg-green-50 p-4 text-green-900 dark:bg-green-950/40 dark:text-green-200 dark:border-green-800'>
+                  <p><strong>Advocate-confirmed jurisdiction:</strong> {enumLabel(check.jurisdiction.final_court_type)}</p>
+                  <p>{enumLabel(check.jurisdiction.final_court_level)} · {check.jurisdiction.final_station || 'Station not recorded'}</p>
+                  <p>Confirmed by {check.jurisdiction.confirmed_by_name} on {formatDateTime(check.jurisdiction.confirmed_at)}</p>
+                </div>
+              )}
+            </Card>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'history' && (
+        <div className='space-y-6'>
+          <Card id='conflict-history' className='scroll-mt-28 p-6'>
+            <h3 className='mb-4 text-lg font-semibold'>Immutable History</h3>
+            <div className='space-y-3'>
+              {(check.history || []).map((item) => (
+                <div key={item.id} className='rounded-lg border border-border-light p-3 text-sm dark:border-border-dark'>
+                  <p className='font-semibold'>{enumLabel(item.action)} - {item.to_status_label || enumLabel(item.to_status)}</p>
+                  <p>{item.summary}</p>
+                  <p className='text-text-muted-light dark:text-text-muted-dark'>{formatDateTime(item.created_at)} by {item.actor_name || 'System'}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

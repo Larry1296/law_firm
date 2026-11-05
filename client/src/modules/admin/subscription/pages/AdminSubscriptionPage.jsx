@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Minus, Smartphone } from 'lucide-react';
 
 import Card from '@/components/ui/Card';
-import PageSectionNav from '@/components/ui/PageSectionNav';
+import PageTabs from '@/components/ui/PageTabs';
 import SectionHeading from '@/components/ui/SectionHeading';
 import Swal from '@/core/utils/themedSwal';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
@@ -153,7 +153,15 @@ function PlanCard({ plan, cycle, current, onChoose, busy, subscription }) {
   );
 }
 
+// Each tab is a page of its own.
+const SUBSCRIPTION_TABS = [
+  ['current', 'Current plan'],
+  ['plans', 'Plans'],
+  ['invoices', 'Invoices'],
+];
+
 export default function AdminSubscriptionPage() {
+  const [activeTab, setActiveTab] = useState('current');
   const queryClient = useQueryClient();
   const { subscription, isLoading, isError } = useSubscription();
   const [cycle, setCycle] = useState('MONTHLY');
@@ -193,120 +201,132 @@ export default function AdminSubscriptionPage() {
         as='h1'
       />
 
-      <PageSectionNav
-        ariaLabel='Subscription sections'
-        sections={[
-          { id: 'subscription-current', label: 'Current plan' },
-          { id: 'subscription-pending', label: 'Payment awaiting confirmation', hidden: !pending },
-          { id: 'subscription-plans', label: 'Plans' },
-          { id: 'subscription-invoices', label: 'Invoices', hidden: invoices.length === 0 },
-        ]}
+      <PageTabs
+        ariaLabel='Subscription'
+        tabs={SUBSCRIPTION_TABS.filter(([key]) => key !== 'invoices' || invoices.length > 0)}
+        active={activeTab}
+        onChange={setActiveTab}
+        sections={{
+          current: [{ id: 'subscription-current', label: 'Current plan' }, { id: 'subscription-pending', label: 'Payment awaiting confirmation', hidden: !pending }],
+        }[activeTab] || []}
       />
 
-      <Card id='subscription-current' className='scroll-mt-28 p-6'>
-        <div className='flex flex-wrap items-start justify-between gap-4'>
-          <div>
-            <p className='text-sm text-gray-500 dark:text-gray-400'>Current plan</p>
-            <p className='text-2xl font-bold'>{subscription.plan.name}</p>
-            <p className='mt-1 text-sm'>{subscription.is_complimentary ? 'Complimentary · ' : ''}{STATUS_LABELS[subscription.effective_status] || subscription.effective_status}</p>
-          </div>
-          <div className='text-sm sm:text-right'>
-            <p className='text-gray-500 dark:text-gray-400'>{periodLabel}</p>
-            <p className='font-semibold'>{periodDate ? formatSubscriptionDate(periodDate) : 'No expiry'}</p>
-            <p className='mt-1 text-gray-500 dark:text-gray-400'>{subscription.is_complimentary ? 'No subscription charge' : `Billed ${subscription.billing_cycle.toLowerCase()}`}</p>
-            {!subscription.is_complimentary && <p className='font-medium'>{formatKes(subscription.billing_cycle === 'ANNUAL' ? subscription.effective_annual_price : subscription.effective_monthly_price)} excl. VAT</p>}
-            {Number(subscription.credit_balance) > 0 && <p className='mt-1 font-medium text-emerald-700 dark:text-emerald-300'>Credit {formatKes(subscription.credit_balance)}, used on your next invoice</p>}
-          </div>
-        </div>
-        <div className='mt-6 grid gap-5 sm:grid-cols-2'>
-          {Object.keys(LIMIT_LABELS).map((key) => (
-            <UsageMeter key={key} label={LIMIT_LABELS[key]} used={subscription.usage[key]} limit={subscription.plan.limits[key]} />
-          ))}
-        </div>
-      </Card>
+      {activeTab === 'current' && (
+        <div className='space-y-6'>
+          <Card id='subscription-current' className='scroll-mt-28 p-6'>
+            <div className='flex flex-wrap items-start justify-between gap-4'>
+              <div>
+                <p className='text-sm text-gray-500 dark:text-gray-400'>Current plan</p>
+                <p className='text-2xl font-bold'>{subscription.plan.name}</p>
+                <p className='mt-1 text-sm'>{subscription.is_complimentary ? 'Complimentary · ' : ''}{STATUS_LABELS[subscription.effective_status] || subscription.effective_status}</p>
+              </div>
+              <div className='text-sm sm:text-right'>
+                <p className='text-gray-500 dark:text-gray-400'>{periodLabel}</p>
+                <p className='font-semibold'>{periodDate ? formatSubscriptionDate(periodDate) : 'No expiry'}</p>
+                <p className='mt-1 text-gray-500 dark:text-gray-400'>{subscription.is_complimentary ? 'No subscription charge' : `Billed ${subscription.billing_cycle.toLowerCase()}`}</p>
+                {!subscription.is_complimentary && <p className='font-medium'>{formatKes(subscription.billing_cycle === 'ANNUAL' ? subscription.effective_annual_price : subscription.effective_monthly_price)} excl. VAT</p>}
+                {Number(subscription.credit_balance) > 0 && <p className='mt-1 font-medium text-emerald-700 dark:text-emerald-300'>Credit {formatKes(subscription.credit_balance)}, used on your next invoice</p>}
+              </div>
+            </div>
+            <div className='mt-6 grid gap-5 sm:grid-cols-2'>
+              {Object.keys(LIMIT_LABELS).map((key) => (
+                <UsageMeter key={key} label={LIMIT_LABELS[key]} used={subscription.usage[key]} limit={subscription.plan.limits[key]} />
+              ))}
+            </div>
+          </Card>
 
-      {pending && (
-        <div id='subscription-pending' className='scroll-mt-28'>
-          <PendingInvoice invoice={pending} instructions={subscription.payment_instructions} onPaid={refresh} />
+          {pending && (
+            <div id='subscription-pending' className='scroll-mt-28'>
+              <PendingInvoice invoice={pending} instructions={subscription.payment_instructions} onPaid={refresh} />
+            </div>
+          )}
         </div>
       )}
 
-      <section id='subscription-plans' aria-labelledby='plans-heading' className='scroll-mt-28 space-y-4'>
-        <div className='flex flex-wrap items-center justify-between gap-3'>
-          <h2 id='plans-heading' className='text-xl font-bold'>Plans</h2>
-          <div role='group' aria-label='Billing cycle' className='inline-flex rounded-lg border border-border-light p-1 dark:border-border-dark'>
-            {[['MONTHLY', 'Monthly'], ['ANNUAL', 'Annual']].map(([value, label]) => (
-              <button
-                key={value}
-                type='button'
-                aria-pressed={cycle === value}
-                onClick={() => setCycle(value)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${cycle === value ? 'bg-brand-primary text-white dark:bg-blue-500' : ''}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className='grid gap-6 md:grid-cols-2 xl:grid-cols-4'>
-          {plans.map((plan) => (
-            <PlanCard
-              key={plan.code}
-              plan={plan}
-              subscription={subscription}
-              cycle={cycle}
-              current={plan.code === subscription.plan.code}
-              busy={invoiceMutation.isPending}
-              onChoose={(chosen) => invoiceMutation.mutate(chosen)}
-            />
-          ))}
-        </div>
-        {plansQuery.data?.included_in_every_plan && (
-          <Card className='p-6'>
-            <h3 className='font-semibold'>Included in every plan</h3>
-            <p className='mt-1 text-sm text-gray-600 dark:text-gray-300'>
-              Statutory and professional obligations are never tiered.
-            </p>
-            <ul className='mt-3 grid gap-2 text-sm sm:grid-cols-2'>
-              {plansQuery.data.included_in_every_plan.map((line) => (
-                <li key={line} className='flex gap-2'>
-                  <Check size={16} className='mt-0.5 shrink-0 text-green-600 dark:text-green-400' aria-hidden='true' />
-                  {line}
-                </li>
+      {activeTab === 'plans' && (
+        <div className='space-y-6'>
+          <section id='subscription-plans' aria-labelledby='plans-heading' className='scroll-mt-28 space-y-4'>
+            <div className='flex flex-wrap items-center justify-between gap-3'>
+              <h2 id='plans-heading' className='text-xl font-bold'>Plans</h2>
+              <div role='group' aria-label='Billing cycle' className='inline-flex rounded-lg border border-border-light p-1 dark:border-border-dark'>
+                {[['MONTHLY', 'Monthly'], ['ANNUAL', 'Annual']].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type='button'
+                    aria-pressed={cycle === value}
+                    onClick={() => setCycle(value)}
+                    className={`rounded-md px-3 py-1.5 text-sm font-medium ${cycle === value ? 'bg-brand-primary text-white dark:bg-blue-500' : ''}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className='grid gap-6 md:grid-cols-2 xl:grid-cols-4'>
+              {plans.map((plan) => (
+                <PlanCard
+                  key={plan.code}
+                  plan={plan}
+                  subscription={subscription}
+                  cycle={cycle}
+                  current={plan.code === subscription.plan.code}
+                  busy={invoiceMutation.isPending}
+                  onChoose={(chosen) => invoiceMutation.mutate(chosen)}
+                />
               ))}
-            </ul>
-          </Card>
-        )}
-      </section>
+            </div>
+            {plansQuery.data?.included_in_every_plan && (
+              <Card className='p-6'>
+                <h3 className='font-semibold'>Included in every plan</h3>
+                <p className='mt-1 text-sm text-gray-600 dark:text-gray-300'>
+                  Statutory and professional obligations are never tiered.
+                </p>
+                <ul className='mt-3 grid gap-2 text-sm sm:grid-cols-2'>
+                  {plansQuery.data.included_in_every_plan.map((line) => (
+                    <li key={line} className='flex gap-2'>
+                      <Check size={16} className='mt-0.5 shrink-0 text-green-600 dark:text-green-400' aria-hidden='true' />
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+          </section>
+        </div>
+      )}
 
-      {invoices.length > 0 && (
-        <Card id='subscription-invoices' className='scroll-mt-28 overflow-x-auto p-6'>
-          <h2 className='mb-4 text-lg font-semibold'>Invoices</h2>
-          <table className='w-full min-w-[640px] text-left text-sm'>
-            <thead className='text-gray-500 dark:text-gray-400'>
-              <tr>
-                <th className='py-2 pr-4 font-medium'>Number</th>
-                <th className='py-2 pr-4 font-medium'>Plan</th>
-                <th className='py-2 pr-4 font-medium'>Date</th>
-                <th className='py-2 pr-4 text-right font-medium'>Total</th>
-                <th className='py-2 pr-4 font-medium'>M-Pesa code</th>
-                <th className='py-2 font-medium'>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((invoice) => (
-                <tr key={invoice.id} className='border-t border-border-light dark:border-border-dark'>
-                  <td className='py-2 pr-4 font-medium'>{invoice.number}</td>
-                  <td className='py-2 pr-4'>{invoice.plan_name} ({invoice.billing_cycle.toLowerCase()})</td>
-                  <td className='py-2 pr-4'>{formatSubscriptionDate(invoice.created_at)}</td>
-                  <td className='py-2 pr-4 text-right tabular-nums'>{formatKes(invoice.total)}</td>
-                  <td className='py-2 pr-4'>{invoice.mpesa_receipt || '—'}</td>
-                  <td className='py-2'>{invoice.status_label}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+      {activeTab === 'invoices' && (
+        <div className='space-y-6'>
+          {invoices.length > 0 && (
+            <Card id='subscription-invoices' className='scroll-mt-28 overflow-x-auto p-6'>
+              <h2 className='mb-4 text-lg font-semibold'>Invoices</h2>
+              <table className='w-full min-w-[640px] text-left text-sm'>
+                <thead className='text-gray-500 dark:text-gray-400'>
+                  <tr>
+                    <th className='py-2 pr-4 font-medium'>Number</th>
+                    <th className='py-2 pr-4 font-medium'>Plan</th>
+                    <th className='py-2 pr-4 font-medium'>Date</th>
+                    <th className='py-2 pr-4 text-right font-medium'>Total</th>
+                    <th className='py-2 pr-4 font-medium'>M-Pesa code</th>
+                    <th className='py-2 font-medium'>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.map((invoice) => (
+                    <tr key={invoice.id} className='border-t border-border-light dark:border-border-dark'>
+                      <td className='py-2 pr-4 font-medium'>{invoice.number}</td>
+                      <td className='py-2 pr-4'>{invoice.plan_name} ({invoice.billing_cycle.toLowerCase()})</td>
+                      <td className='py-2 pr-4'>{formatSubscriptionDate(invoice.created_at)}</td>
+                      <td className='py-2 pr-4 text-right tabular-nums'>{formatKes(invoice.total)}</td>
+                      <td className='py-2 pr-4'>{invoice.mpesa_receipt || '—'}</td>
+                      <td className='py-2'>{invoice.status_label}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );

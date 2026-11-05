@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -16,7 +16,7 @@ import {
   StatTile,
   StatusBadge,
 } from '@/modules/platform/components/ui';
-import PageSectionNav from '@/components/ui/PageSectionNav';
+import PageTabs from '@/components/ui/PageTabs';
 import { formatDateTime } from '@/modules/platform/components/styles';
 
 // Validated against the light and dark chart surfaces (single series, no legend).
@@ -85,7 +85,15 @@ function CountList({ rows }) {
   );
 }
 
+// Each tab is a page of its own.
+const OVERVIEW_TABS = [
+  ['figures', 'Figures & charts'],
+  ['firms', 'Recent firms & trials'],
+  ['activity', 'Platform activity'],
+];
+
 export default function PlatformOverviewPage() {
+  const [activeTab, setActiveTab] = useState('figures');
   const { data, isLoading, error } = useQuery({ queryKey: ['platform', 'overview'], queryFn: platformService.getOverview });
 
   if (isLoading) return <p role='status' className='text-sm text-text-muted-light dark:text-text-muted-dark'>Loading the platform overview…</p>;
@@ -119,97 +127,105 @@ export default function PlatformOverviewPage() {
         </div>
       )}
 
-      <PageSectionNav
-        ariaLabel='Overview sections'
-        className='mb-6'
-        sections={[
-          { id: 'overview-figures', label: 'Key figures' },
-          { id: 'overview-new-firms', label: 'New firms per month' },
-          { id: 'overview-status', label: 'Subscriptions by status' },
-          { id: 'overview-plans', label: 'Firms by plan' },
-          { id: 'overview-recent', label: 'Recently registered' },
-          { id: 'overview-trials', label: 'Trials ending soon' },
-          { id: 'overview-activity', label: 'Recent activity' },
-        ]}
+      <PageTabs
+        ariaLabel='Overview'
+        tabs={OVERVIEW_TABS}
+        active={activeTab}
+        onChange={setActiveTab}
+        sections={{
+          firms: [{ id: 'overview-recent', label: 'Recently registered' }, { id: 'overview-trials', label: 'Trials ending soon' }],
+        }[activeTab] || []}
       />
 
-      <div id='overview-figures' className='grid scroll-mt-28 gap-4 sm:grid-cols-2 xl:grid-cols-4'>
-        <StatTile label='Law firms' value={firms.total} hint={`${firms.new_this_month} new this month · ${firms.suspended} suspended`} icon={Building2} />
-        <StatTile label='Monthly recurring revenue' value={formatKes(subscriptions.monthly_recurring_revenue)} hint='Active and grace-period subscriptions, excluding VAT' icon={TrendingUp} />
-        <StatTile label='Firm owners' value={owners.total} hint={`${owners.active} active accounts`} icon={Users} />
-        <StatTile label='Owners signed in, last 30 days' value={owners.signed_in_last_30_days} hint={`${signedInShare}% of firm owners`} icon={Users} />
-      </div>
-
-      <div className='mt-6 grid gap-6 xl:grid-cols-3'>
-        <Panel id='overview-new-firms' title='New firms per month' description='Last twelve months' className='xl:col-span-2'>
-          <NewFirmsChart data={data.new_firms_by_month} />
-        </Panel>
+      {activeTab === 'figures' && (
         <div className='space-y-6'>
-          <Panel id='overview-status' title='Subscriptions by status'>
-            <ul className='space-y-2'>
-              {subscriptions.by_status.map((row) => (
-                <li key={row.status} className='flex items-center justify-between text-sm'>
-                  <StatusBadge status={row.status} />
-                  <span className='font-semibold tabular-nums'>{row.count}</span>
-                </li>
-              ))}
-            </ul>
-          </Panel>
-          <Panel id='overview-plans' title='Firms by plan'>
-            {subscriptions.by_plan.length
-              ? <CountList rows={subscriptions.by_plan.map((row) => ({ key: row.plan, label: row.plan, count: row.count }))} />
-              : <EmptyState>No firms yet.</EmptyState>}
+          <div id='overview-figures' className='grid scroll-mt-28 gap-4 sm:grid-cols-2 xl:grid-cols-4'>
+            <StatTile label='Law firms' value={firms.total} hint={`${firms.new_this_month} new this month · ${firms.suspended} suspended`} icon={Building2} />
+            <StatTile label='Monthly recurring revenue' value={formatKes(subscriptions.monthly_recurring_revenue)} hint='Active and grace-period subscriptions, excluding VAT' icon={TrendingUp} />
+            <StatTile label='Firm owners' value={owners.total} hint={`${owners.active} active accounts`} icon={Users} />
+            <StatTile label='Owners signed in, last 30 days' value={owners.signed_in_last_30_days} hint={`${signedInShare}% of firm owners`} icon={Users} />
+          </div>
+
+          <div className='grid gap-6 xl:grid-cols-3'>
+            <Panel id='overview-new-firms' title='New firms per month' description='Last twelve months' className='xl:col-span-2'>
+              <NewFirmsChart data={data.new_firms_by_month} />
+            </Panel>
+            <div className='space-y-6'>
+              <Panel id='overview-status' title='Subscriptions by status'>
+                <ul className='space-y-2'>
+                  {subscriptions.by_status.map((row) => (
+                    <li key={row.status} className='flex items-center justify-between text-sm'>
+                      <StatusBadge status={row.status} />
+                      <span className='font-semibold tabular-nums'>{row.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+              <Panel id='overview-plans' title='Firms by plan'>
+                {subscriptions.by_plan.length
+                  ? <CountList rows={subscriptions.by_plan.map((row) => ({ key: row.plan, label: row.plan, count: row.count }))} />
+                  : <EmptyState>No firms yet.</EmptyState>}
+              </Panel>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'firms' && (
+        <div className='space-y-6'>
+          <div className='grid gap-6 xl:grid-cols-2'>
+            <Panel id='overview-recent' title='Recently registered' bodyClassName='p-0'>
+              {data.recent_firms.length ? (
+                <ul className='divide-y divide-border-light dark:divide-border-dark'>
+                  {data.recent_firms.map((firm) => (
+                    <li key={firm.id}>
+                      <Link to={`/platform/firms/${firm.id}`} className='block px-5 py-3 hover:bg-background-light dark:hover:bg-background-dark'>
+                        <div className='flex items-center justify-between gap-3'>
+                          <span className='truncate text-sm font-semibold'>{firm.name}</span>
+                          <StatusBadge status={firm.subscription_status} />
+                        </div>
+                        <p className='mt-0.5 text-xs text-text-muted-light dark:text-text-muted-dark'>{firm.plan_name} · {formatSubscriptionDate(firm.created_at)}</p>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : <EmptyState>No firms registered yet.</EmptyState>}
+            </Panel>
+
+            <Panel id='overview-trials' title='Trials ending within 7 days' bodyClassName='p-0'>
+              {data.trials_ending_soon.length ? (
+                <ul className='divide-y divide-border-light dark:divide-border-dark'>
+                  {data.trials_ending_soon.map((firm) => (
+                    <li key={firm.id}>
+                      <Link to={`/platform/firms/${firm.id}`} className='block px-5 py-3 hover:bg-background-light dark:hover:bg-background-dark'>
+                        <p className='truncate text-sm font-semibold'>{firm.name}</p>
+                        <p className='mt-0.5 text-xs text-text-muted-light dark:text-text-muted-dark'>Trial ends {formatSubscriptionDate(firm.trial_ends_at)} · {firm.owner_email}</p>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : <EmptyState>No trials end this week.</EmptyState>}
+            </Panel>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'activity' && (
+        <div className='space-y-6'>
+          <Panel id='overview-activity' title='Recent platform activity' bodyClassName='p-0'>
+            {data.recent_activity.length ? (
+              <ul className='divide-y divide-border-light dark:divide-border-dark'>
+                {data.recent_activity.map((item) => (
+                  <li key={item.id} className='flex flex-col gap-1 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between'>
+                    <span>{item.summary}</span>
+                    <span className='shrink-0 text-xs text-text-muted-light dark:text-text-muted-dark'>{item.actor ? `${item.actor} · ` : ''}{formatDateTime(item.created_at)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : <EmptyState>Nothing has happened yet.</EmptyState>}
           </Panel>
         </div>
-      </div>
-
-      <div className='mt-6 grid gap-6 xl:grid-cols-2'>
-        <Panel id='overview-recent' title='Recently registered' bodyClassName='p-0'>
-          {data.recent_firms.length ? (
-            <ul className='divide-y divide-border-light dark:divide-border-dark'>
-              {data.recent_firms.map((firm) => (
-                <li key={firm.id}>
-                  <Link to={`/platform/firms/${firm.id}`} className='block px-5 py-3 hover:bg-background-light dark:hover:bg-background-dark'>
-                    <div className='flex items-center justify-between gap-3'>
-                      <span className='truncate text-sm font-semibold'>{firm.name}</span>
-                      <StatusBadge status={firm.subscription_status} />
-                    </div>
-                    <p className='mt-0.5 text-xs text-text-muted-light dark:text-text-muted-dark'>{firm.plan_name} · {formatSubscriptionDate(firm.created_at)}</p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : <EmptyState>No firms registered yet.</EmptyState>}
-        </Panel>
-
-        <Panel id='overview-trials' title='Trials ending within 7 days' bodyClassName='p-0'>
-          {data.trials_ending_soon.length ? (
-            <ul className='divide-y divide-border-light dark:divide-border-dark'>
-              {data.trials_ending_soon.map((firm) => (
-                <li key={firm.id}>
-                  <Link to={`/platform/firms/${firm.id}`} className='block px-5 py-3 hover:bg-background-light dark:hover:bg-background-dark'>
-                    <p className='truncate text-sm font-semibold'>{firm.name}</p>
-                    <p className='mt-0.5 text-xs text-text-muted-light dark:text-text-muted-dark'>Trial ends {formatSubscriptionDate(firm.trial_ends_at)} · {firm.owner_email}</p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : <EmptyState>No trials end this week.</EmptyState>}
-        </Panel>
-      </div>
-
-      <Panel id='overview-activity' title='Recent platform activity' className='mt-6' bodyClassName='p-0'>
-        {data.recent_activity.length ? (
-          <ul className='divide-y divide-border-light dark:divide-border-dark'>
-            {data.recent_activity.map((item) => (
-              <li key={item.id} className='flex flex-col gap-1 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between'>
-                <span>{item.summary}</span>
-                <span className='shrink-0 text-xs text-text-muted-light dark:text-text-muted-dark'>{item.actor ? `${item.actor} · ` : ''}{formatDateTime(item.created_at)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : <EmptyState>Nothing has happened yet.</EmptyState>}
-      </Panel>
+      )}
     </>
   );
 }

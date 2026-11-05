@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import StatsCard from '@/components/ui/StatsCard';
-import PageSectionNav from '@/components/ui/PageSectionNav';
+import PageTabs from '@/components/ui/PageTabs';
 import SectionHeading from '@/components/ui/SectionHeading';
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
@@ -20,8 +20,18 @@ import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
 import CaseCourtroomPanel from '@/modules/courtroom/components/CaseCourtroomPanel';
 import ClientDocumentWorkspace from '@/modules/client/documents/pages/ClientDocumentWorkspace';
 
+// Each tab is a page of its own.
+const MATTER_TABS = [
+  ['overview', 'Overview'],
+  ['court', 'Court & parties'],
+  ['progress', 'Progress'],
+  ['documents', 'Documents'],
+  ['communication', 'Communication'],
+];
+
 export default function ClientCaseDetailsPage() {
   const { id } = useParams();
+  const [activeTab, setActiveTab] = useState('overview');
 
   const { caseData, loading, error } = useClientCaseDetails(id);
   const caseThreadQuery = useCaseThread(id);
@@ -82,193 +92,201 @@ export default function ClientCaseDetailsPage() {
         subtitle='Your legal matter overview'
       />
 
-      <PageSectionNav
-        ariaLabel='Matter page sections'
-        sections={[
-          { id: 'matter-details', label: 'Matter details' },
-          { id: 'matter-court', label: 'Court registry' },
-          { id: 'matter-parties', label: 'Parties' },
-          { id: 'matter-progress', label: 'Progress' },
-          { id: 'matter-documents', label: 'Documents' },
-          { id: 'matter-courtroom', label: 'Courtroom' },
-          { id: 'matter-summary', label: 'Summary' },
-          { id: 'matter-communication', label: 'Communication' },
-        ]}
+      <PageTabs
+        ariaLabel='Matter'
+        tabs={MATTER_TABS}
+        active={activeTab}
+        onChange={setActiveTab}
+        sections={{
+          court: [{ id: 'matter-court', label: 'Court registry' }, { id: 'matter-parties', label: 'Parties' }, { id: 'matter-courtroom', label: 'Courtroom' }],
+        }[activeTab] || []}
       />
 
-      <div className='md:hidden'>
-        <Link to={`/client/cases/${id}/communication`}>
-          <Button3D className='w-full justify-center'>
-            Open case communication
-          </Button3D>
-        </Link>
-      </div>
-
-      <Card id='matter-details' className='scroll-mt-28 p-6'>
-        <div className='grid gap-6 md:grid-cols-2'>
-          <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p>
-              <strong>Internal Matter Number:</strong> {safe(caseData.case_number, 'Not recorded')}
-            </p>
-            <p>
-              <strong>Official Court Case Number:</strong> {safe(officialCourtNumber, 'Not recorded')}
-            </p>
-            <p>
-              <strong>Title:</strong> {safe(caseData.title)}
-            </p>
-            <p>
-              <strong>Matter Status:</strong> {safe(matterStatus, 'Not recorded')}
-            </p>
-            <p>
-              <strong>Court Stage:</strong> {safe(courtStage, 'Not recorded')}
-            </p>
-            <p>
-              <strong>Priority:</strong> {friendly(caseData.priority)}
-            </p>
-            <p>
-              <strong>Practice Area:</strong> {safe(caseData.practice_area_label || friendly(caseData.practice_area), friendly(caseData.case_type))}
-            </p>
-            <p>
-              <strong>Court:</strong> {safe(courtName, 'Not Set')}
-            </p>
-          </div>
-
-          <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p>
-              <strong>Court Location:</strong> {safe(courtLocation, 'Not Set')}
-            </p>
-            <p>
-              <strong>Filing Date:</strong> {firstValue(caseData.filing_date, courtProceeding.filing_date) ? formatDate(firstValue(caseData.filing_date, courtProceeding.filing_date)) : 'Not Set'}
-            </p>
-            <p>
-              <strong>Firm:</strong> {safe(caseData.firm?.name, 'Not Set')}
-            </p>
-            <p>
-              <strong>Firm Email:</strong> {safe(caseData.firm?.email, 'Not Set')}
-            </p>
-            <p>
-              <strong>Created:</strong> {formatDateTime(caseData.created_at)}
-            </p>
-            <p>
-              <strong>Updated:</strong> {formatDateTime(caseData.updated_at)}
-            </p>
-          </div>
-        </div>
-
-        <div className='mt-6'>
-          <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
-            Description
-          </p>
-          <p className='mt-2 text-text-muted-light dark:text-text-muted-dark'>
-            {safe(caseData.description)}
-          </p>
-        </div>
-      </Card>
-
-      <Card id='matter-court' className='scroll-mt-28 p-6'>
-        <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-          Court Registry
-        </h3>
-
-        <div className='grid gap-6 md:grid-cols-2'>
-          <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p><strong>Procedure:</strong> {safe(caseData.procedure_type_label || friendly(caseData.procedure_type || caseData.procedure_track), 'Not Set')}</p>
-            <p><strong>Court Division:</strong> {friendly(firstValue(caseData.court_division, courtProceeding.division), 'Not Set')}</p>
-            <p><strong>Court Station:</strong> {safe(firstValue(caseData.court_station, courtProceeding.court_station), 'Not Set')}</p>
-            <p><strong>Registry:</strong> {safe(firstValue(caseData.registry, courtProceeding.registry), 'Not Set')}</p>
-          </div>
-          <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
-            <p><strong>Courtroom:</strong> {safe(firstValue(caseData.courtroom, courtProceeding.courtroom), 'Not Set')}</p>
-            <p><strong>Judicial Officer:</strong> {safe(firstValue(caseData.judicial_officer, courtProceeding.judicial_officer), 'Not Set')}</p>
-            <p><strong>Next Court Date:</strong> {caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not Set'}</p>
-            <p><strong>Next Action:</strong> {safe(caseData.next_action, 'No further action')}</p>
-          </div>
-        </div>
-
-        <div className='mt-4 grid gap-6 md:grid-cols-2'>
-          <p><strong>eFiling Ref:</strong> {safe(firstValue(caseData.efiling_reference, courtProceeding.efiling_reference), 'Not Set')}</p>
-          <p><strong>Payment Ref:</strong> {safe(firstValue(caseData.payment_reference, courtProceeding.payment_reference), 'Not Set')}</p>
-          <p><strong>CTS Ref:</strong> {safe(firstValue(caseData.cts_reference, courtProceeding.cts_reference), 'Pending verification')}</p>
-        </div>
-      </Card>
-
-      <Card id='matter-parties' className='scroll-mt-28 p-6'>
-        <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-          Parties
-        </h3>
-
-        {caseData.parties?.length ? (
-          <div className='grid gap-4 md:grid-cols-2'>
-            {caseData.parties.map((party) => (
-              <div key={party.id} className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
-                <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>{safe(party.name)}</p>
-                <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
-                  {party.role_label || friendly(party.party_role)}
-                  {party.is_our_client ? ' • Your Party' : party.is_adverse ? ' • Other Party' : ''}
+      {activeTab === 'overview' && (
+        <div className='space-y-6'>
+          <Card id='matter-details' className='scroll-mt-28 p-6'>
+            <div className='grid gap-6 md:grid-cols-2'>
+              <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
+                <p>
+                  <strong>Internal Matter Number:</strong> {safe(caseData.case_number, 'Not recorded')}
+                </p>
+                <p>
+                  <strong>Official Court Case Number:</strong> {safe(officialCourtNumber, 'Not recorded')}
+                </p>
+                <p>
+                  <strong>Title:</strong> {safe(caseData.title)}
+                </p>
+                <p>
+                  <strong>Matter Status:</strong> {safe(matterStatus, 'Not recorded')}
+                </p>
+                <p>
+                  <strong>Court Stage:</strong> {safe(courtStage, 'Not recorded')}
+                </p>
+                <p>
+                  <strong>Priority:</strong> {friendly(caseData.priority)}
+                </p>
+                <p>
+                  <strong>Practice Area:</strong> {safe(caseData.practice_area_label || friendly(caseData.practice_area), friendly(caseData.case_type))}
+                </p>
+                <p>
+                  <strong>Court:</strong> {safe(courtName, 'Not Set')}
                 </p>
               </div>
-            ))}
+
+              <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
+                <p>
+                  <strong>Court Location:</strong> {safe(courtLocation, 'Not Set')}
+                </p>
+                <p>
+                  <strong>Filing Date:</strong> {firstValue(caseData.filing_date, courtProceeding.filing_date) ? formatDate(firstValue(caseData.filing_date, courtProceeding.filing_date)) : 'Not Set'}
+                </p>
+                <p>
+                  <strong>Firm:</strong> {safe(caseData.firm?.name, 'Not Set')}
+                </p>
+                <p>
+                  <strong>Firm Email:</strong> {safe(caseData.firm?.email, 'Not Set')}
+                </p>
+                <p>
+                  <strong>Created:</strong> {formatDateTime(caseData.created_at)}
+                </p>
+                <p>
+                  <strong>Updated:</strong> {formatDateTime(caseData.updated_at)}
+                </p>
+              </div>
+            </div>
+
+            <div className='mt-6'>
+              <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>
+                Description
+              </p>
+              <p className='mt-2 text-text-muted-light dark:text-text-muted-dark'>
+                {safe(caseData.description)}
+              </p>
+            </div>
+          </Card>
+
+          <div id='matter-summary' className='grid scroll-mt-28 gap-4 sm:grid-cols-3'>
+            <StatsCard title='Events' value={caseData.analytics?.events_count || 0} />
+            <StatsCard title='Status' value={safe(matterStatus, friendly(caseData.status))} />
+            <StatsCard title='Priority' value={friendly(caseData.priority)} />
           </div>
-        ) : (
-          <p className='text-text-muted-light dark:text-text-muted-dark'>No structured party records yet.</p>
-        )}
-      </Card>
 
-      <div id='matter-progress' className='scroll-mt-28'><CaseProcedurePanels caseData={caseData} /></div>
+          <Card className='p-6'>
+            <h3 className='text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+              Case Overview
+            </h3>
 
-      <div id='matter-documents' className='scroll-mt-28'><ClientDocumentWorkspace caseId={id} compact /></div>
-
-      <div id='matter-courtroom' className='scroll-mt-28'><CaseCourtroomPanel
-        caseId={id}
-        title='Case Courtroom'
-        emptyMessage='Your firm has not attached a courtroom session to this case yet.'
-      /></div>
-
-      <div id='matter-summary' className='grid scroll-mt-28 gap-4 sm:grid-cols-3'>
-        <StatsCard title='Events' value={caseData.analytics?.events_count || 0} />
-        <StatsCard title='Status' value={safe(matterStatus, friendly(caseData.status))} />
-        <StatsCard title='Priority' value={friendly(caseData.priority)} />
-      </div>
-
-      <Card className='p-6'>
-        <h3 className='text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
-          Case Overview
-        </h3>
-
-        <p className='mt-2 text-text-muted-light dark:text-text-muted-dark'>
-          This is your case overview. You can track updates, documents, and
-          legal progress as your firm works on your matter.
-        </p>
-      </Card>
-
-      <div id='matter-communication' className='scroll-mt-28'>
-        {/* On a phone the conversation opens on its own page. */}
-        <Link to={`/client/cases/${id}/communication`} className='md:hidden'>
-          <Button3D className='w-full justify-center'>
-            Open case communication
-          </Button3D>
-        </Link>
-        <div className='hidden md:block'>
-        <ChatWorkspace
-          title='Case Communication'
-          subtitle='Secure communication for this legal matter.'
-          threads={caseThreads}
-          selectedThreadId={caseThread?.id}
-          onSelectThread={() => {}}
-          messages={caseMessagesQuery.data?.messages || []}
-          onSendMessage={handleSendCaseMessage}
-          isLoadingThreads={caseThreadQuery.isLoading}
-          isLoadingMessages={caseMessagesQuery.isLoading}
-          isSending={sendCaseMessage.isPending}
-          onRefresh={() => {
-            caseThreadQuery.refetch();
-            caseMessagesQuery.refetch();
-          }}
-          emptyThreadMessage='No case communication thread yet.'
-          hideSingleThreadSidebarOnMobile
-        />
+            <p className='mt-2 text-text-muted-light dark:text-text-muted-dark'>
+              This is your case overview. You can track updates, documents, and
+              legal progress as your firm works on your matter.
+            </p>
+          </Card>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'court' && (
+        <div className='space-y-6'>
+          <Card id='matter-court' className='scroll-mt-28 p-6'>
+            <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+              Court Registry
+            </h3>
+
+            <div className='grid gap-6 md:grid-cols-2'>
+              <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
+                <p><strong>Procedure:</strong> {safe(caseData.procedure_type_label || friendly(caseData.procedure_type || caseData.procedure_track), 'Not Set')}</p>
+                <p><strong>Court Division:</strong> {friendly(firstValue(caseData.court_division, courtProceeding.division), 'Not Set')}</p>
+                <p><strong>Court Station:</strong> {safe(firstValue(caseData.court_station, courtProceeding.court_station), 'Not Set')}</p>
+                <p><strong>Registry:</strong> {safe(firstValue(caseData.registry, courtProceeding.registry), 'Not Set')}</p>
+              </div>
+              <div className='space-y-2 text-text-primary-light dark:text-text-primary-dark'>
+                <p><strong>Courtroom:</strong> {safe(firstValue(caseData.courtroom, courtProceeding.courtroom), 'Not Set')}</p>
+                <p><strong>Judicial Officer:</strong> {safe(firstValue(caseData.judicial_officer, courtProceeding.judicial_officer), 'Not Set')}</p>
+                <p><strong>Next Court Date:</strong> {caseData.next_court_date ? formatDateTime(caseData.next_court_date) : 'Not Set'}</p>
+                <p><strong>Next Action:</strong> {safe(caseData.next_action, 'No further action')}</p>
+              </div>
+            </div>
+
+            <div className='mt-4 grid gap-6 md:grid-cols-2'>
+              <p><strong>eFiling Ref:</strong> {safe(firstValue(caseData.efiling_reference, courtProceeding.efiling_reference), 'Not Set')}</p>
+              <p><strong>Payment Ref:</strong> {safe(firstValue(caseData.payment_reference, courtProceeding.payment_reference), 'Not Set')}</p>
+              <p><strong>CTS Ref:</strong> {safe(firstValue(caseData.cts_reference, courtProceeding.cts_reference), 'Pending verification')}</p>
+            </div>
+          </Card>
+
+          <Card id='matter-parties' className='scroll-mt-28 p-6'>
+            <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
+              Parties
+            </h3>
+
+            {caseData.parties?.length ? (
+              <div className='grid gap-4 md:grid-cols-2'>
+                {caseData.parties.map((party) => (
+                  <div key={party.id} className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
+                    <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>{safe(party.name)}</p>
+                    <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
+                      {party.role_label || friendly(party.party_role)}
+                      {party.is_our_client ? ' • Your Party' : party.is_adverse ? ' • Other Party' : ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className='text-text-muted-light dark:text-text-muted-dark'>No structured party records yet.</p>
+            )}
+          </Card>
+
+          <div id='matter-courtroom' className='scroll-mt-28'><CaseCourtroomPanel
+            caseId={id}
+            title='Case Courtroom'
+            emptyMessage='Your firm has not attached a courtroom session to this case yet.'
+          /></div>
+        </div>
+      )}
+
+      {activeTab === 'progress' && (
+        <div className='space-y-6'>
+          <div id='matter-progress' className='scroll-mt-28'><CaseProcedurePanels caseData={caseData} /></div>
+        </div>
+      )}
+
+      {activeTab === 'documents' && (
+        <div className='space-y-6'>
+          <div id='matter-documents' className='scroll-mt-28'><ClientDocumentWorkspace caseId={id} compact /></div>
+        </div>
+      )}
+
+      {activeTab === 'communication' && (
+        <div className='space-y-6'>
+          <div id='matter-communication' className='scroll-mt-28'>
+            {/* On a phone the conversation opens on its own page. */}
+            <Link to={`/client/cases/${id}/communication`} className='md:hidden'>
+              <Button3D className='w-full justify-center'>
+                Open case communication
+              </Button3D>
+            </Link>
+            <div className='hidden md:block'>
+            <ChatWorkspace
+              title='Case Communication'
+              subtitle='Secure communication for this legal matter.'
+              threads={caseThreads}
+              selectedThreadId={caseThread?.id}
+              onSelectThread={() => {}}
+              messages={caseMessagesQuery.data?.messages || []}
+              onSendMessage={handleSendCaseMessage}
+              isLoadingThreads={caseThreadQuery.isLoading}
+              isLoadingMessages={caseMessagesQuery.isLoading}
+              isSending={sendCaseMessage.isPending}
+              onRefresh={() => {
+                caseThreadQuery.refetch();
+                caseMessagesQuery.refetch();
+              }}
+              emptyThreadMessage='No case communication thread yet.'
+              hideSingleThreadSidebarOnMobile
+            />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

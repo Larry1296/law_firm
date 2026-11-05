@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import staffService from '@/modules/admin/staff/services/adminStaffService';
 import StatsCard from '@/components/ui/StatsCard';
-import PageSectionNav from '@/components/ui/PageSectionNav';
+import PageTabs from '@/components/ui/PageTabs';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { Input3D } from '@/components/ui/Input3D';
@@ -22,7 +22,16 @@ const staffKeys = {
   detail: (id) => ['admin-staff', id],
 };
 
+// Each tab is a page of its own.
+const STAFF_TABS = [
+  ['profile', 'Profile & membership'],
+  ['permissions', 'Permissions'],
+  ['duties', 'Reception & advocates'],
+  ['work', 'Work & activity'],
+];
+
 const SingleStaffDetailsPage = () => {
+  const [activeTab, setActiveTab] = useState('profile');
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -115,344 +124,357 @@ const SingleStaffDetailsPage = () => {
         title={pageTitle}
         subtitle={`${safe(membership.role, 'Staff')} details and permissions`}
       />
-      <PageSectionNav
-        ariaLabel='Staff page sections'
-        className='mb-6'
-        sections={[
-          { id: 'staff-profile', label: 'Profile' },
-          { id: 'staff-summary', label: 'Membership' },
-          { id: 'staff-permissions', label: 'Permissions' },
-          { id: 'staff-reception', label: 'Reception duties', hidden: membership.role !== 'SECRETARY' },
-          { id: 'staff-advocates', label: 'Advocates supported', hidden: membership.role !== 'SECRETARY' },
-          { id: 'staff-workload', label: 'Workload', hidden: membership.role !== 'LAWYER' },
-          { id: 'staff-secretary-metrics', label: 'Secretary metrics', hidden: membership.role !== 'SECRETARY' },
-          { id: 'staff-it', label: 'IT management', hidden: membership.role !== 'IT' },
-          { id: 'staff-recent-cases', label: 'Recent cases', hidden: membership.role !== 'LAWYER' },
-          { id: 'staff-recent-activity', label: 'Recent activity', hidden: membership.role !== 'SECRETARY' },
-        ]}
+      <PageTabs
+        ariaLabel='Staff member'
+        // Only the tabs this staff member's role has.
+        tabs={STAFF_TABS.filter(([key]) => (key !== 'duties' || membership.role === 'SECRETARY') && (key !== 'work' || ['LAWYER', 'SECRETARY', 'IT'].includes(membership.role)))}
+        active={activeTab}
+        onChange={setActiveTab}
+        sections={{
+          profile: [{ id: 'staff-profile', label: 'Profile' }, { id: 'staff-summary', label: 'Membership' }],
+          duties: [{ id: 'staff-reception', label: 'Reception duties' }, { id: 'staff-advocates', label: 'Advocates supported' }],
+          work: [{ id: 'staff-workload', label: 'Workload', hidden: membership.role !== 'LAWYER' }, { id: 'staff-secretary-metrics', label: 'Secretary metrics', hidden: membership.role !== 'SECRETARY' }, { id: 'staff-it', label: 'IT management', hidden: membership.role !== 'IT' }, { id: 'staff-recent-cases', label: 'Recent cases', hidden: membership.role !== 'LAWYER' }, { id: 'staff-recent-activity', label: 'Recent activity', hidden: membership.role !== 'SECRETARY' }],
+        }[activeTab] || []}
       />
-      {/* STAFF HEADER */}
-      <div
-        id='staff-profile'
-        className='scroll-mt-28'
-        style={{
-          marginBottom: 24,
-          padding: 20,
-          border: '1px solid #e5e7eb',
-          borderRadius: 12,
-        }}
-      >
-        <h2 style={{ marginBottom: 8 }}>{user.full_name}</h2>
-
-        <p>
-          <strong>Email:</strong> {safe(user.email)}
-        </p>
-        <p>
-          <strong>System Role:</strong> {safe(user.system_role)}
-        </p>
-        <p>
-          <strong>Firm Role:</strong> {safe(user.firm_role)}
-        </p>
-        <p>
-          <strong>Status:</strong> {safe(user.status)}
-        </p>
-        <p>
-          <strong>Active:</strong> {user.is_active ? 'Yes' : 'No'}
-        </p>
-        <p>
-          <strong>Verified:</strong> {user.is_verified ? 'Yes' : 'No'}
-        </p>
-        <p>
-          <strong>Phone:</strong> {safe(user.phone_number)}
-        </p>
-        <p>
-          <strong>National ID:</strong> {safe(user.national_id)}
-        </p>
-        <p>
-          <strong>Created:</strong> {formatDateTime(user.created_at)}
-        </p>
-        <FormButton
-          type='button'
-          className='mt-3'
-          variant='secondary'
-          disabled={!user.email || !user.is_active}
-          loading={sendSignInLinkMutation.isPending}
-          loadingText='Sending…'
-          onClick={() => sendSignInLinkMutation.mutate(user.email)}
-        >
-          Send password reset link
-        </FormButton>
-        <ResendTemporaryPasswordButton email={user.email} disabled={!user.email || !user.is_active} />
-      </div>
-      {/* MEMBERSHIP + SUMMARY */}
-      <div
-        id='staff-summary'
-        className='scroll-mt-28'
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 12,
-          marginBottom: 24,
-        }}
-      >
-        <StatsCard title='Role' value={membership.role || 'N/A'} />
-        <StatsCard
-          title='Active Membership'
-          value={membership.is_active ? 'Yes' : 'No'}
-        />
-        <StatsCard title='Permissions' value={permissions.length} />
-      </div>
-
-      <Card id='staff-permissions' className='mb-6 scroll-mt-28 space-y-4 p-5'>
-        <div>
-          <h2 className='text-lg font-bold'>Permissions</h2>
-          <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
-            Tick what this person may do, then save. Approvals always need someone other than the person who prepared the entry.
-          </p>
-        </div>
-        <StaffPermissionPicker
-          role={membership.role}
-          selected={permissionDraft ?? permissions}
-          disabled={updatePermissionsMutation.isPending}
-          onChange={setPermissionDraft}
-        />
-        {(updatePermissionsMutation.isError && !updatePermissionsMutation.error?.isActionCancelled) && (
-          <p role='alert' className='text-sm text-error'>{getApiErrorMessage(updatePermissionsMutation.error)}</p>
-        )}
-        <div className='flex gap-3'>
-          <button
-            type='button'
-            className='rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50'
-            disabled={permissionDraft === null || updatePermissionsMutation.isPending}
-            onClick={() => {
-              // Keep grants the picker does not list (e.g. paused AI tools) instead of silently revoking them.
-              const listed = permissionCodesFor(membership.role);
-              const unlisted = permissions.filter((code) => !listed.includes(code));
-              updatePermissionsMutation.mutate([...unlisted, ...permissionDraft]);
+      {activeTab === 'profile' && (
+        <div className='space-y-6'>
+          {/* STAFF HEADER */}
+          <div
+            id='staff-profile'
+            className='scroll-mt-28'
+            style={{
+              marginBottom: 24,
+              padding: 20,
+              border: '1px solid #e5e7eb',
+              borderRadius: 12,
             }}
           >
-            {updatePermissionsMutation.isPending ? 'Saving…' : 'Save permissions'}
-          </button>
-          {permissionDraft !== null && (
-            <button type='button' className='text-sm font-semibold' onClick={() => setPermissionDraft(null)}>Discard changes</button>
-          )}
-        </div>
-      </Card>
+            <h2 style={{ marginBottom: 8 }}>{user.full_name}</h2>
 
-      {membership.role === 'SECRETARY' && (
-        <Card id='staff-reception' className='mb-6 scroll-mt-28 space-y-3 p-5'>
-          <h2 className='text-lg font-bold'>Reception duties</h2>
-          <label className='flex items-center gap-2'>
-            <input type='checkbox' checked={Boolean(staff.secretary?.is_receptionist)} disabled={updateReceptionistMutation.isPending} onChange={(event) => updateReceptionistMutation.mutate(event.target.checked)} />
-            Designated receptionist account
-          </label>
-          <p className='text-sm'>An active receptionist with client-intake access handles preliminary intake. Without one, the secretary records arrival and the advocate asks the intake questions.</p>
-          {(updateReceptionistMutation.isError && !updateReceptionistMutation.error?.isActionCancelled) && <p role='alert'>Unable to update reception duties. Please try again.</p>}
-        </Card>
-      )}
-
-      {membership.role === 'SECRETARY' && (
-        <Card id='staff-advocates' className='mb-6 scroll-mt-28 space-y-4 p-5'>
-          <div>
-            <h2 className='text-lg font-bold'>Advocates supported</h2>
-            <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
-              The secretary works on these advocates&apos; matters: filing register, client document requests and the diary.
+            <p>
+              <strong>Email:</strong> {safe(user.email)}
             </p>
+            <p>
+              <strong>System Role:</strong> {safe(user.system_role)}
+            </p>
+            <p>
+              <strong>Firm Role:</strong> {safe(user.firm_role)}
+            </p>
+            <p>
+              <strong>Status:</strong> {safe(user.status)}
+            </p>
+            <p>
+              <strong>Active:</strong> {user.is_active ? 'Yes' : 'No'}
+            </p>
+            <p>
+              <strong>Verified:</strong> {user.is_verified ? 'Yes' : 'No'}
+            </p>
+            <p>
+              <strong>Phone:</strong> {safe(user.phone_number)}
+            </p>
+            <p>
+              <strong>National ID:</strong> {safe(user.national_id)}
+            </p>
+            <p>
+              <strong>Created:</strong> {formatDateTime(user.created_at)}
+            </p>
+            <FormButton
+              type='button'
+              className='mt-3'
+              variant='secondary'
+              disabled={!user.email || !user.is_active}
+              loading={sendSignInLinkMutation.isPending}
+              loadingText='Sending…'
+              onClick={() => sendSignInLinkMutation.mutate(user.email)}
+            >
+              Send password reset link
+            </FormButton>
+            <ResendTemporaryPasswordButton email={user.email} disabled={!user.email || !user.is_active} />
           </div>
-          <AdvocateChecklist
-            lawyers={lawyers}
-            selected={advocateDraft ?? (staff.secretary?.assigned_lawyers || []).map((lawyer) => String(lawyer.id))}
-            disabled={updateAdvocatesMutation.isPending}
-            onChange={setAdvocateDraft}
-          />
-          {(updateAdvocatesMutation.isError && !updateAdvocatesMutation.error?.isActionCancelled) && (
-            <p role='alert' className='text-sm text-error'>{getApiErrorMessage(updateAdvocatesMutation.error)}</p>
-          )}
-          <button
-            type='button'
-            className='rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50'
-            disabled={advocateDraft === null || updateAdvocatesMutation.isPending}
-            onClick={() => updateAdvocatesMutation.mutate(advocateDraft)}
-          >
-            {updateAdvocatesMutation.isPending ? 'Saving…' : 'Save advocates'}
-          </button>
-        </Card>
-      )}
-      {/* ROLE-SPECIFIC METRICS */}
-      {membership.role === 'LAWYER' && (
-        <div
-          id='staff-workload'
-          className='scroll-mt-28'
-          style={{
-            marginBottom: 24,
-            padding: 20,
-            border: '1px solid #e5e7eb',
-            borderRadius: 12,
-          }}
-        >
-          <h3>Workload</h3>
-
+          {/* MEMBERSHIP + SUMMARY */}
           <div
+            id='staff-summary'
+            className='scroll-mt-28'
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(3, 1fr)',
               gap: 12,
-              marginTop: 12,
+              marginBottom: 24,
             }}
           >
+            <StatsCard title='Role' value={membership.role || 'N/A'} />
             <StatsCard
-              title='Active Cases'
-              value={workload.active_cases || 0}
+              title='Active Membership'
+              value={membership.is_active ? 'Yes' : 'No'}
             />
-            <StatsCard
-              title='Closed Cases'
-              value={workload.closed_cases || 0}
-            />
-            <StatsCard title='Total Cases' value={workload.total_cases || 0} />
+            <StatsCard title='Permissions' value={permissions.length} />
           </div>
         </div>
       )}
-      {membership.role === 'SECRETARY' && (
-        <div
-          id='staff-secretary-metrics'
-          className='scroll-mt-28'
-          style={{
-            marginBottom: 24,
-            padding: 20,
-            border: '1px solid #e5e7eb',
-            borderRadius: 12,
-          }}
-        >
-          <h3>Secretary Metrics</h3>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 12,
-              marginTop: 12,
-            }}
-          >
-            <StatsCard
-              title='Assigned Tasks'
-              value={secretaryMetrics.assigned_tasks || 0}
+      {activeTab === 'permissions' && (
+        <div className='space-y-6'>
+          <Card id='staff-permissions' className='mb-6 scroll-mt-28 space-y-4 p-5'>
+            <div>
+              <h2 className='text-lg font-bold'>Permissions</h2>
+              <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
+                Tick what this person may do, then save. Approvals always need someone other than the person who prepared the entry.
+              </p>
+            </div>
+            <StaffPermissionPicker
+              role={membership.role}
+              selected={permissionDraft ?? permissions}
+              disabled={updatePermissionsMutation.isPending}
+              onChange={setPermissionDraft}
             />
-            <StatsCard
-              title='Completed Tasks'
-              value={secretaryMetrics.completed_tasks || 0}
-            />
-            <StatsCard
-              title='Appointments'
-              value={secretaryMetrics.managed_appointments || 0}
-            />
-            <StatsCard
-              title='Documents'
-              value={secretaryMetrics.documents_processed || 0}
-            />
-          </div>
-        </div>
-      )}
-      {membership.role === 'IT' && (
-        <div
-          id='staff-it'
-          className='scroll-mt-28'
-          style={{
-            marginBottom: 24,
-            padding: 20,
-            border: '1px solid #e5e7eb',
-            borderRadius: 12,
-          }}
-        >
-          <h3>IT Management</h3>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 12,
-              marginTop: 12,
-            }}
-          >
-            <StatsCard
-              title='Managed By'
-              value={
-                itManagement.source === 'it_department'
-                  ? 'IT Department'
-                  : 'Admin Fallback'
-              }
-            />
-            <StatsCard
-              title='Department'
-              value={itManagement.department_name || 'Not created'}
-            />
-            <StatsCard
-              title='Active Permissions'
-              value={staff.analytics?.active_permissions || permissions.length}
-            />
-          </div>
-
-          <p className='mt-3 text-sm text-slate-500 dark:text-slate-300'>
-            {itManagement.message ||
-              'No IT department exists, so admin handles IT matters.'}
-          </p>
-        </div>
-      )}
-      {/* RECENT CASES */}
-      {membership.role === 'LAWYER' && (
-        <section
-          id='staff-recent-cases'
-          className='scroll-mt-28'
-          style={{
-            padding: 20,
-            border: '1px solid #e5e7eb',
-            borderRadius: 12,
-          }}
-        >
-          <h3>Recent Cases</h3>
-
-          {recentCases.length === 0 ? (
-            <p>No cases found</p>
-          ) : (
-            recentCases.map((c, index) => (
-              <div
-                key={c.id || index}
-                style={{
-                  padding: 12,
-                  marginBottom: 10,
-                  border: '1px solid #e5e7eb',
-                  borderRadius: 8,
+            {(updatePermissionsMutation.isError && !updatePermissionsMutation.error?.isActionCancelled) && (
+              <p role='alert' className='text-sm text-error'>{getApiErrorMessage(updatePermissionsMutation.error)}</p>
+            )}
+            <div className='flex gap-3'>
+              <button
+                type='button'
+                className='rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50'
+                disabled={permissionDraft === null || updatePermissionsMutation.isPending}
+                onClick={() => {
+                  // Keep grants the picker does not list (e.g. paused AI tools) instead of silently revoking them.
+                  const listed = permissionCodesFor(membership.role);
+                  const unlisted = permissions.filter((code) => !listed.includes(code));
+                  updatePermissionsMutation.mutate([...unlisted, ...permissionDraft]);
                 }}
               >
-                <div>
-                  <strong>{c.title}</strong>
-                </div>
-                <div>Status: {c.status}</div>
-              </div>
-            ))
-          )}
-        </section>
+                {updatePermissionsMutation.isPending ? 'Saving…' : 'Save permissions'}
+              </button>
+              {permissionDraft !== null && (
+                <button type='button' className='text-sm font-semibold' onClick={() => setPermissionDraft(null)}>Discard changes</button>
+              )}
+            </div>
+          </Card>
+        </div>
       )}
-      {/* SECRETARY ACTIVITY */}
-      {membership.role === 'SECRETARY' && (
-        <section
-          id='staff-recent-activity'
-          className='scroll-mt-28'
-          style={{
-            padding: 20,
-            border: '1px solid #e5e7eb',
-            borderRadius: 12,
-          }}
-        >
-          <h3>Recent Activity</h3>
 
-          {staff.recent_activity?.length ? (
-            staff.recent_activity.map((a, index) => (
-              <div key={index}>• {JSON.stringify(a)}</div>
-            ))
-          ) : (
-            <p>No activity available</p>
+      {activeTab === 'duties' && (
+        <div className='space-y-6'>
+          {membership.role === 'SECRETARY' && (
+            <Card id='staff-reception' className='mb-6 scroll-mt-28 space-y-3 p-5'>
+              <h2 className='text-lg font-bold'>Reception duties</h2>
+              <label className='flex items-center gap-2'>
+                <input type='checkbox' checked={Boolean(staff.secretary?.is_receptionist)} disabled={updateReceptionistMutation.isPending} onChange={(event) => updateReceptionistMutation.mutate(event.target.checked)} />
+                Designated receptionist account
+              </label>
+              <p className='text-sm'>An active receptionist with client-intake access handles preliminary intake. Without one, the secretary records arrival and the advocate asks the intake questions.</p>
+              {(updateReceptionistMutation.isError && !updateReceptionistMutation.error?.isActionCancelled) && <p role='alert'>Unable to update reception duties. Please try again.</p>}
+            </Card>
           )}
-        </section>
+
+          {membership.role === 'SECRETARY' && (
+            <Card id='staff-advocates' className='mb-6 scroll-mt-28 space-y-4 p-5'>
+              <div>
+                <h2 className='text-lg font-bold'>Advocates supported</h2>
+                <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>
+                  The secretary works on these advocates&apos; matters: filing register, client document requests and the diary.
+                </p>
+              </div>
+              <AdvocateChecklist
+                lawyers={lawyers}
+                selected={advocateDraft ?? (staff.secretary?.assigned_lawyers || []).map((lawyer) => String(lawyer.id))}
+                disabled={updateAdvocatesMutation.isPending}
+                onChange={setAdvocateDraft}
+              />
+              {(updateAdvocatesMutation.isError && !updateAdvocatesMutation.error?.isActionCancelled) && (
+                <p role='alert' className='text-sm text-error'>{getApiErrorMessage(updateAdvocatesMutation.error)}</p>
+              )}
+              <button
+                type='button'
+                className='rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50'
+                disabled={advocateDraft === null || updateAdvocatesMutation.isPending}
+                onClick={() => updateAdvocatesMutation.mutate(advocateDraft)}
+              >
+                {updateAdvocatesMutation.isPending ? 'Saving…' : 'Save advocates'}
+              </button>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'work' && (
+        <div className='space-y-6'>
+          {/* ROLE-SPECIFIC METRICS */}
+          {membership.role === 'LAWYER' && (
+            <div
+              id='staff-workload'
+              className='scroll-mt-28'
+              style={{
+                marginBottom: 24,
+                padding: 20,
+                border: '1px solid #e5e7eb',
+                borderRadius: 12,
+              }}
+            >
+              <h3>Workload</h3>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 12,
+                  marginTop: 12,
+                }}
+              >
+                <StatsCard
+                  title='Active Cases'
+                  value={workload.active_cases || 0}
+                />
+                <StatsCard
+                  title='Closed Cases'
+                  value={workload.closed_cases || 0}
+                />
+                <StatsCard title='Total Cases' value={workload.total_cases || 0} />
+              </div>
+            </div>
+          )}
+          {membership.role === 'SECRETARY' && (
+            <div
+              id='staff-secretary-metrics'
+              className='scroll-mt-28'
+              style={{
+                marginBottom: 24,
+                padding: 20,
+                border: '1px solid #e5e7eb',
+                borderRadius: 12,
+              }}
+            >
+              <h3>Secretary Metrics</h3>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: 12,
+                  marginTop: 12,
+                }}
+              >
+                <StatsCard
+                  title='Assigned Tasks'
+                  value={secretaryMetrics.assigned_tasks || 0}
+                />
+                <StatsCard
+                  title='Completed Tasks'
+                  value={secretaryMetrics.completed_tasks || 0}
+                />
+                <StatsCard
+                  title='Appointments'
+                  value={secretaryMetrics.managed_appointments || 0}
+                />
+                <StatsCard
+                  title='Documents'
+                  value={secretaryMetrics.documents_processed || 0}
+                />
+              </div>
+            </div>
+          )}
+          {membership.role === 'IT' && (
+            <div
+              id='staff-it'
+              className='scroll-mt-28'
+              style={{
+                marginBottom: 24,
+                padding: 20,
+                border: '1px solid #e5e7eb',
+                borderRadius: 12,
+              }}
+            >
+              <h3>IT Management</h3>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 12,
+                  marginTop: 12,
+                }}
+              >
+                <StatsCard
+                  title='Managed By'
+                  value={
+                    itManagement.source === 'it_department'
+                      ? 'IT Department'
+                      : 'Admin Fallback'
+                  }
+                />
+                <StatsCard
+                  title='Department'
+                  value={itManagement.department_name || 'Not created'}
+                />
+                <StatsCard
+                  title='Active Permissions'
+                  value={staff.analytics?.active_permissions || permissions.length}
+                />
+              </div>
+
+              <p className='mt-3 text-sm text-slate-500 dark:text-slate-300'>
+                {itManagement.message ||
+                  'No IT department exists, so admin handles IT matters.'}
+              </p>
+            </div>
+          )}
+          {/* RECENT CASES */}
+          {membership.role === 'LAWYER' && (
+            <section
+              id='staff-recent-cases'
+              className='scroll-mt-28'
+              style={{
+                padding: 20,
+                border: '1px solid #e5e7eb',
+                borderRadius: 12,
+              }}
+            >
+              <h3>Recent Cases</h3>
+
+              {recentCases.length === 0 ? (
+                <p>No cases found</p>
+              ) : (
+                recentCases.map((c, index) => (
+                  <div
+                    key={c.id || index}
+                    style={{
+                      padding: 12,
+                      marginBottom: 10,
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 8,
+                    }}
+                  >
+                    <div>
+                      <strong>{c.title}</strong>
+                    </div>
+                    <div>Status: {c.status}</div>
+                  </div>
+                ))
+              )}
+            </section>
+          )}
+          {/* SECRETARY ACTIVITY */}
+          {membership.role === 'SECRETARY' && (
+            <section
+              id='staff-recent-activity'
+              className='scroll-mt-28'
+              style={{
+                padding: 20,
+                border: '1px solid #e5e7eb',
+                borderRadius: 12,
+              }}
+            >
+              <h3>Recent Activity</h3>
+
+              {staff.recent_activity?.length ? (
+                staff.recent_activity.map((a, index) => (
+                  <div key={index}>• {JSON.stringify(a)}</div>
+                ))
+              ) : (
+                <p>No activity available</p>
+              )}
+            </section>
+          )}
+        </div>
       )}
     </div>
   );

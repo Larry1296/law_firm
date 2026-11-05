@@ -128,6 +128,7 @@ describe('platform console', () => {
     platformService.updateSubscription.mockResolvedValue(FIRM);
     renderPage(<PlatformFirmDetailPage />, { path: '/platform/firms/:id', route: '/platform/firms/firm-1' });
     const user = userEvent.setup();
+    await user.click(await screen.findByRole('tab', { name: 'Subscription' }));
     await user.selectOptions(await screen.findByLabelText(/Billing arrangement/), 'COMPLIMENTARY');
     expect(screen.getByLabelText(/Status/)).toHaveValue('ACTIVE');
     expect(screen.getByLabelText(/Complimentary until/)).toHaveValue('');
@@ -145,6 +146,7 @@ describe('platform console', () => {
     platformService.updateSubscription.mockResolvedValue(FIRM);
     renderPage(<PlatformFirmDetailPage />, { path: '/platform/firms/:id', route: '/platform/firms/firm-1' });
     const user = userEvent.setup();
+    await user.click(await screen.findByRole('tab', { name: 'Subscription' }));
     await user.selectOptions(await screen.findByLabelText(/Billing arrangement/), 'CUSTOM');
     await user.type(screen.getByLabelText(/Custom monthly total/), '1200');
     await user.type(screen.getByLabelText(/Reason for billing arrangement/), 'Negotiated fee');
@@ -188,6 +190,7 @@ describe('platform console', () => {
     expect(await screen.findByRole('heading', { name: 'Platform overview' })).toBeInTheDocument();
     expect(screen.getByText(/M-Pesa payments waiting/)).toBeInTheDocument();
     expect(screen.getByText(/12,500/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'Platform activity' }));
     expect(screen.getByText('Registered Kilonzo Advocates on the Pro plan.')).toBeInTheDocument();
   });
 
@@ -287,6 +290,7 @@ describe('platform console', () => {
     expect(screen.getByText('Has not signed in yet')).toBeInTheDocument();
     expect(screen.queryByText('1 / 3')).not.toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Firm staff' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'Subscription' }));
     expect(screen.getByRole('button', { name: 'Update subscription' })).toBeDisabled();
   });
 

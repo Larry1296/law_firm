@@ -11,7 +11,7 @@ import {
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
 import Select3D from '@/components/ui/Select3D';
-import PageSectionNav from '@/components/ui/PageSectionNav';
+import PageTabs from '@/components/ui/PageTabs';
 import {
   useCreateCourtroomAttendance,
   useCreateCourtroomCauseListSync,
@@ -61,7 +61,16 @@ const emptyCauseList = {
   status: 'QUEUED',
 };
 
+// Each tab is a page of its own.
+const COURTROOM_TABS = [
+  ['overview', 'Overview'],
+  ['setup', 'Setup and providers'],
+  ['live', 'Live sessions'],
+  ['cause', 'Cause list'],
+];
+
 export default function AdminVirtualCourtroomPage() {
+  const [chosenTab, setActiveTab] = useState(null);
   const [eventForm, setEventForm] = useState(emptyEvent);
   const [providerForm, setProviderForm] = useState(emptyProvider);
   const [causeListForm, setCauseListForm] = useState(emptyCauseList);
@@ -73,6 +82,8 @@ export default function AdminVirtualCourtroomPage() {
   const sessionsQuery = useCourtroomSessions();
   // Attendance analytics and cause-list sync come with the advanced courtroom feature.
   const advanced = useSubscription().hasFeature('COURTROOM_ADVANCED');
+  // The overview and cause list come with the advanced courtroom; without it the page opens on setup.
+  const activeTab = chosenTab || (advanced ? 'overview' : 'setup');
   const analyticsQuery = useCourtroomAnalytics({ enabled: advanced });
   const causeListQuery = useCourtroomCauseListSyncs({ enabled: advanced });
 
@@ -220,24 +231,12 @@ export default function AdminVirtualCourtroomPage() {
 
   return (
     <div className='space-y-6 p-4 md:p-6 animate-fadeIn'>
-      <PageSectionNav
-        ariaLabel='Courtroom workspace sections'
-        sections={[
-          ...(advanced ? [{ id: 'courtroom-overview', label: 'Overview' }] : []),
-          { id: 'courtroom-setup', label: 'Setup and providers' },
-          { id: 'courtroom-live', label: 'Live sessions' },
-          ...(advanced ? [{ id: 'courtroom-cause-list', label: 'Cause list' }] : []),
-        ]}
+      <PageTabs
+        ariaLabel='Virtual courtroom'
+        tabs={COURTROOM_TABS.filter(([key]) => advanced || !['overview', 'cause'].includes(key))}
+        active={activeTab}
+        onChange={setActiveTab}
       />
-      {advanced && <div id='courtroom-overview' className='scroll-mt-28 grid gap-4 lg:grid-cols-5'>
-        {stats.map(([label, value]) => (
-          <Card key={label} className='p-4'>
-            <p className='text-xs font-semibold uppercase text-slate-400'>{label}</p>
-            <p className='mt-2 text-2xl font-black text-slate-900 dark:text-white'>{value}</p>
-          </Card>
-        ))}
-      </div>}
-
       {feedback && (
         <div
           className={`rounded-xl px-4 py-3 text-sm ${
@@ -250,168 +249,193 @@ export default function AdminVirtualCourtroomPage() {
         </div>
       )}
 
-      <div id='courtroom-setup' className='scroll-mt-28 grid gap-6 xl:grid-cols-[1.2fr_.8fr]'>
-        <Card className='p-5'>
-          <div className='mb-4 flex items-center gap-3'>
-            <Video size={22} className='text-blue-600 dark:text-blue-400' />
-            <div>
-              <h1 className='text-xl font-bold text-slate-900 dark:text-white'>Courtroom Operations</h1>
-              <p className='text-sm text-slate-500 dark:text-slate-300'>Attach verified official links to upcoming scheduled court events.</p>
-            </div>
-          </div>
-
-          <form onSubmit={handleCreateCourtroom} className='grid gap-3 lg:grid-cols-2'>
-            <Select3D
-              name='eventId'
-              value={eventForm.eventId}
-              onChange={handleEventSelect}
-              wrapperClassName='mb-0 lg:col-span-2'
-              placeholder={todayEventsQuery.isLoading ? 'Loading upcoming court events...' : 'Choose an upcoming court event'}
-              options={todayEvents.map((courtEvent) => ({
-                value: courtEvent.id,
-                label: `${courtEvent.case?.case_number} - ${courtEvent.title} - ${courtEvent.starts_at ? formatDateTime(courtEvent.starts_at) : 'Time not set'}`,
-              }))}
-            />
-
-            {selectedEvent && (
-              <div className='rounded-xl border border-border-light bg-slate-50 p-4 text-sm text-slate-600 dark:border-border-dark dark:bg-slate-900 dark:text-slate-300 lg:col-span-2'>
-                <p className='font-semibold text-slate-900 dark:text-white'>
-                  {selectedEvent.case?.case_number} - {selectedEvent.case?.title}
-                </p>
-                <p className='mt-1'>
-                  {formatDateTime(selectedEvent.starts_at)} · {selectedEvent.court_station || 'Court not set'} · {selectedEvent.courtroom || 'Room not set'}
-                </p>
-                {selectedSession && (
-                  <p className='mt-1 text-emerald-600 dark:text-emerald-300'>
-                    Existing session found. Saving will update it.
-                  </p>
-                )}
-              </div>
-            )}
-
-            <Select3D
-              name='provider'
-              value={eventForm.provider}
-              onChange={updateEventForm}
-              wrapperClassName='mb-0'
-              placeholder='No provider selected'
-              options={providers.map((provider) => ({ value: provider.id, label: provider.name }))}
-            />
-
-            <input name='virtual_courtroom_label' value={eventForm.virtual_courtroom_label} onChange={updateEventForm} placeholder='Link label' className='form-control h-12 text-sm' />
-            <input name='join_url' value={eventForm.join_url} onChange={updateEventForm} placeholder='Participant courtroom link' className='form-control h-12 text-sm lg:col-span-2' />
-            <Select3D name='link_source' value={eventForm.link_source} onChange={updateEventForm} wrapperClassName='mb-0 lg:col-span-2' options={[['CAUSE_LIST','Cause list'],['REGISTRY_EMAIL','Registry email'],['JUDICIARY_WEBSITE','Judiciary website'],['OFFICIAL_COMMUNICATION','Other official communication']].map(([value,label]) => ({ value, label }))} />
-            <Select3D name='client_attendance_requirement' value={eventForm.client_attendance_requirement} onChange={updateEventForm} wrapperClassName='mb-0' options={[['NOT_REQUIRED','Not required'],['OPTIONAL','Optional'],['REQUIRED','Required'],['RESTRICTED','Restricted'],['TO_BE_CONFIRMED','To be confirmed']].map(([value,label]) => ({ value, label }))} />
-            <label className='flex items-center gap-3 rounded-xl border px-4 text-sm font-semibold'><input name='client_access_enabled' type='checkbox' checked={eventForm.client_access_enabled} onChange={updateEventForm}/>Enable authorised client access</label>
-            <label className='text-sm font-semibold'>Client access from<input name='client_access_from' type='datetime-local' value={eventForm.client_access_from} onChange={updateEventForm} className='form-control mt-1 h-11 w-full'/></label>
-            <label className='text-sm font-semibold'>Client access until<input name='client_access_until' type='datetime-local' value={eventForm.client_access_until} onChange={updateEventForm} className='form-control mt-1 h-11 w-full'/></label>
-
-            <Button3D type='submit' disabled={createSession.isPending || updateSession.isPending}>
-              <Link2 size={16} />
-              {selectedSession ? 'Update Courtroom' : 'Attach Courtroom'}
-            </Button3D>
-          </form>
-        </Card>
-
-        <Card className='p-5'>
-          <div className='mb-4 flex items-center gap-3'>
-            <Radio size={20} className='text-emerald-600 dark:text-emerald-400' />
-            <h2 className='text-lg font-bold text-slate-900 dark:text-white'>Providers</h2>
-          </div>
-          <form onSubmit={handleCreateProvider} className='space-y-3'>
-            <input value={providerForm.name} onChange={(event) => setProviderForm((current) => ({ ...current, name: event.target.value }))} placeholder='Provider name' className='form-control h-11 w-full text-sm' />
-            <Select3D
-              value={providerForm.provider_type}
-              onChange={(event) => setProviderForm((current) => ({ ...current, provider_type: event.target.value }))}
-              wrapperClassName='mb-0'
-              className='h-11 min-h-11 rounded-xl px-3'
-              options={providerTypes.map((type) => ({ value: type, label: type.replaceAll('_', ' ') }))}
-            />
-            <input value={providerForm.base_url} onChange={(event) => setProviderForm((current) => ({ ...current, base_url: event.target.value }))} placeholder='Provider portal URL' className='form-control h-11 w-full text-sm' />
-            <label className='flex items-center gap-3 text-sm dark:text-white'>
-              <input type='checkbox' checked={providerForm.is_default} onChange={(event) => setProviderForm((current) => ({ ...current, is_default: event.target.checked }))} />
-              Default provider
-            </label>
-            <Button3D type='submit' disabled={createProvider.isPending}>Save Provider</Button3D>
-          </form>
-        </Card>
-      </div>
-
-      <Card id='courtroom-live' className='scroll-mt-28 p-5'>
-        <div className='mb-4 flex items-center justify-between gap-3'>
-          <div className='flex items-center gap-3'>
-            <BarChart3 size={20} className='text-indigo-600 dark:text-indigo-400' />
-            <h2 className='text-lg font-bold text-slate-900 dark:text-white'>Live Sessions</h2>
-          </div>
-          <button type='button' onClick={() => sessionsQuery.refetch()} className='rounded-xl border border-border-light px-3 py-2 text-sm font-semibold dark:border-border-dark dark:text-white'>Refresh</button>
+      {activeTab === 'overview' && (
+        <div className='space-y-6'>
+          {advanced && <div id='courtroom-overview' className='scroll-mt-28 grid gap-4 lg:grid-cols-5'>
+            {stats.map(([label, value]) => (
+              <Card key={label} className='p-4'>
+                <p className='text-xs font-semibold uppercase text-slate-400'>{label}</p>
+                <p className='mt-2 text-2xl font-black text-slate-900 dark:text-white'>{value}</p>
+              </Card>
+            ))}
+          </div>}
         </div>
+      )}
 
-        {sessions.length === 0 && <p className='rounded-xl bg-slate-50 p-4 text-sm text-slate-500 dark:bg-slate-900 dark:text-slate-300'>No courtroom sessions for today.</p>}
-
-        <div className='space-y-4'>
-          {sessions.map((session) => (
-            <div key={session.id} className='rounded-xl border border-border-light p-4 dark:border-border-dark'>
-              <div className='grid gap-4 xl:grid-cols-[1fr_220px]'>
+      {activeTab === 'setup' && (
+        <div className='space-y-6'>
+          <div id='courtroom-setup' className='scroll-mt-28 grid gap-6 xl:grid-cols-[1.2fr_.8fr]'>
+            <Card className='p-5'>
+              <div className='mb-4 flex items-center gap-3'>
+                <Video size={22} className='text-blue-600 dark:text-blue-400' />
                 <div>
-                  <p className='font-semibold text-slate-900 dark:text-white'>{session.event_summary?.internal_matter_number} · {session.event_summary?.official_court_case_number || 'Official number not recorded'}</p>
-                  <p className='mt-1 text-sm text-slate-500 dark:text-slate-300'>{formatDateTime(session.event_summary?.starts_at)} · {session.event_summary?.court_station || 'Court not set'} · {session.event_summary?.courtroom || 'Room not set'}</p>
-                  <p className='mt-1 text-xs text-slate-400'>{session.provider_type || 'No provider detected'} · {session.link_verified ? 'Verified link' : 'Link awaiting verification'}</p>
+                  <h1 className='text-xl font-bold text-slate-900 dark:text-white'>Courtroom Operations</h1>
+                  <p className='text-sm text-slate-500 dark:text-slate-300'>Attach verified official links to upcoming scheduled court events.</p>
                 </div>
+              </div>
 
+              <form onSubmit={handleCreateCourtroom} className='grid gap-3 lg:grid-cols-2'>
                 <Select3D
-                  value={session.status}
-                  onChange={(event) => handleStatusChange(session, event.target.value)}
-                  wrapperClassName='mb-0'
-                  className='h-11 min-h-11 rounded-xl px-3'
-                  options={statuses.map((status) => ({ value: status, label: status }))}
+                  name='eventId'
+                  value={eventForm.eventId}
+                  onChange={handleEventSelect}
+                  wrapperClassName='mb-0 lg:col-span-2'
+                  placeholder={todayEventsQuery.isLoading ? 'Loading upcoming court events...' : 'Choose an upcoming court event'}
+                  options={todayEvents.map((courtEvent) => ({
+                    value: courtEvent.id,
+                    label: `${courtEvent.case?.case_number} - ${courtEvent.title} - ${courtEvent.starts_at ? formatDateTime(courtEvent.starts_at) : 'Time not set'}`,
+                  }))}
                 />
 
-                <div className='space-y-2'>
-                  <input value={attendanceDrafts[session.id]?.attendee_name || ''} onChange={(event) => setAttendanceDrafts((current) => ({ ...current, [session.id]: { ...current[session.id], attendee_name: event.target.value } }))} placeholder='Attendee name' className='form-control h-10 w-full text-sm' />
-                  <button type='button' onClick={() => handleAttendance(session.id)} className='inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white dark:bg-white dark:text-slate-900'>
-                    <Users size={15} />
-                    Log Attendance
-                  </button>
-                </div>
+                {selectedEvent && (
+                  <div className='rounded-xl border border-border-light bg-slate-50 p-4 text-sm text-slate-600 dark:border-border-dark dark:bg-slate-900 dark:text-slate-300 lg:col-span-2'>
+                    <p className='font-semibold text-slate-900 dark:text-white'>
+                      {selectedEvent.case?.case_number} - {selectedEvent.case?.title}
+                    </p>
+                    <p className='mt-1'>
+                      {formatDateTime(selectedEvent.starts_at)} · {selectedEvent.court_station || 'Court not set'} · {selectedEvent.courtroom || 'Room not set'}
+                    </p>
+                    {selectedSession && (
+                      <p className='mt-1 text-emerald-600 dark:text-emerald-300'>
+                        Existing session found. Saving will update it.
+                      </p>
+                    )}
+                  </div>
+                )}
 
+                <Select3D
+                  name='provider'
+                  value={eventForm.provider}
+                  onChange={updateEventForm}
+                  wrapperClassName='mb-0'
+                  placeholder='No provider selected'
+                  options={providers.map((provider) => ({ value: provider.id, label: provider.name }))}
+                />
+
+                <input name='virtual_courtroom_label' value={eventForm.virtual_courtroom_label} onChange={updateEventForm} placeholder='Link label' className='form-control h-12 text-sm' />
+                <input name='join_url' value={eventForm.join_url} onChange={updateEventForm} placeholder='Participant courtroom link' className='form-control h-12 text-sm lg:col-span-2' />
+                <Select3D name='link_source' value={eventForm.link_source} onChange={updateEventForm} wrapperClassName='mb-0 lg:col-span-2' options={[['CAUSE_LIST','Cause list'],['REGISTRY_EMAIL','Registry email'],['JUDICIARY_WEBSITE','Judiciary website'],['OFFICIAL_COMMUNICATION','Other official communication']].map(([value,label]) => ({ value, label }))} />
+                <Select3D name='client_attendance_requirement' value={eventForm.client_attendance_requirement} onChange={updateEventForm} wrapperClassName='mb-0' options={[['NOT_REQUIRED','Not required'],['OPTIONAL','Optional'],['REQUIRED','Required'],['RESTRICTED','Restricted'],['TO_BE_CONFIRMED','To be confirmed']].map(([value,label]) => ({ value, label }))} />
+                <label className='flex items-center gap-3 rounded-xl border px-4 text-sm font-semibold'><input name='client_access_enabled' type='checkbox' checked={eventForm.client_access_enabled} onChange={updateEventForm}/>Enable authorised client access</label>
+                <label className='text-sm font-semibold'>Client access from<input name='client_access_from' type='datetime-local' value={eventForm.client_access_from} onChange={updateEventForm} className='form-control mt-1 h-11 w-full'/></label>
+                <label className='text-sm font-semibold'>Client access until<input name='client_access_until' type='datetime-local' value={eventForm.client_access_until} onChange={updateEventForm} className='form-control mt-1 h-11 w-full'/></label>
+
+                <Button3D type='submit' disabled={createSession.isPending || updateSession.isPending}>
+                  <Link2 size={16} />
+                  {selectedSession ? 'Update Courtroom' : 'Attach Courtroom'}
+                </Button3D>
+              </form>
+            </Card>
+
+            <Card className='p-5'>
+              <div className='mb-4 flex items-center gap-3'>
+                <Radio size={20} className='text-emerald-600 dark:text-emerald-400' />
+                <h2 className='text-lg font-bold text-slate-900 dark:text-white'>Providers</h2>
               </div>
-              <div className='mt-4'><CourtroomLauncher session={session} /></div>
+              <form onSubmit={handleCreateProvider} className='space-y-3'>
+                <input value={providerForm.name} onChange={(event) => setProviderForm((current) => ({ ...current, name: event.target.value }))} placeholder='Provider name' className='form-control h-11 w-full text-sm' />
+                <Select3D
+                  value={providerForm.provider_type}
+                  onChange={(event) => setProviderForm((current) => ({ ...current, provider_type: event.target.value }))}
+                  wrapperClassName='mb-0'
+                  className='h-11 min-h-11 rounded-xl px-3'
+                  options={providerTypes.map((type) => ({ value: type, label: type.replaceAll('_', ' ') }))}
+                />
+                <input value={providerForm.base_url} onChange={(event) => setProviderForm((current) => ({ ...current, base_url: event.target.value }))} placeholder='Provider portal URL' className='form-control h-11 w-full text-sm' />
+                <label className='flex items-center gap-3 text-sm dark:text-white'>
+                  <input type='checkbox' checked={providerForm.is_default} onChange={(event) => setProviderForm((current) => ({ ...current, is_default: event.target.checked }))} />
+                  Default provider
+                </label>
+                <Button3D type='submit' disabled={createProvider.isPending}>Save Provider</Button3D>
+              </form>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'live' && (
+        <div className='space-y-6'>
+          <Card id='courtroom-live' className='scroll-mt-28 p-5'>
+            <div className='mb-4 flex items-center justify-between gap-3'>
+              <div className='flex items-center gap-3'>
+                <BarChart3 size={20} className='text-indigo-600 dark:text-indigo-400' />
+                <h2 className='text-lg font-bold text-slate-900 dark:text-white'>Live Sessions</h2>
+              </div>
+              <button type='button' onClick={() => sessionsQuery.refetch()} className='rounded-xl border border-border-light px-3 py-2 text-sm font-semibold dark:border-border-dark dark:text-white'>Refresh</button>
             </div>
-          ))}
-        </div>
-      </Card>
 
-      {advanced && <Card id='courtroom-cause-list' className='scroll-mt-28 p-5'>
-        <div className='mb-4 flex items-center gap-3'>
-          <ListChecks size={20} className='text-amber-600 dark:text-amber-400' />
-          <h2 className='text-lg font-bold text-slate-900 dark:text-white'>Cause List Sync</h2>
-        </div>
+            {sessions.length === 0 && <p className='rounded-xl bg-slate-50 p-4 text-sm text-slate-500 dark:bg-slate-900 dark:text-slate-300'>No courtroom sessions for today.</p>}
 
-        <form onSubmit={handleCauseListSync} className='grid gap-3 lg:grid-cols-5'>
-          <Select3D
-            value={causeListForm.provider}
-            onChange={(event) => setCauseListForm((current) => ({ ...current, provider: event.target.value }))}
-            wrapperClassName='mb-0'
-            className='h-11 min-h-11 rounded-xl px-3'
-            placeholder='Provider'
-            options={providers.map((provider) => ({ value: provider.id, label: provider.name }))}
-          />
-          <input value={causeListForm.court_station} onChange={(event) => setCauseListForm((current) => ({ ...current, court_station: event.target.value }))} placeholder='Court station' className='form-control h-11 text-sm' />
-          <input value={causeListForm.source_url} onChange={(event) => setCauseListForm((current) => ({ ...current, source_url: event.target.value }))} placeholder='Cause list URL' className='form-control h-11 text-sm' />
-          <input value={causeListForm.cause_list_date} onChange={(event) => setCauseListForm((current) => ({ ...current, cause_list_date: event.target.value }))} type='date' className='form-control h-11 text-sm' />
-          <Button3D type='submit' disabled={createCauseListSync.isPending}>Log Sync</Button3D>
-        </form>
+            <div className='space-y-4'>
+              {sessions.map((session) => (
+                <div key={session.id} className='rounded-xl border border-border-light p-4 dark:border-border-dark'>
+                  <div className='grid gap-4 xl:grid-cols-[1fr_220px]'>
+                    <div>
+                      <p className='font-semibold text-slate-900 dark:text-white'>{session.event_summary?.internal_matter_number} · {session.event_summary?.official_court_case_number || 'Official number not recorded'}</p>
+                      <p className='mt-1 text-sm text-slate-500 dark:text-slate-300'>{formatDateTime(session.event_summary?.starts_at)} · {session.event_summary?.court_station || 'Court not set'} · {session.event_summary?.courtroom || 'Room not set'}</p>
+                      <p className='mt-1 text-xs text-slate-400'>{session.provider_type || 'No provider detected'} · {session.link_verified ? 'Verified link' : 'Link awaiting verification'}</p>
+                    </div>
 
-        <div className='mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3'>
-          {causeListSyncs.slice(0, 6).map((sync) => (
-            <div key={sync.id} className='rounded-xl border border-border-light p-3 text-sm dark:border-border-dark dark:text-white'>
-              <p className='font-semibold'>{sync.court_station || sync.source_name || 'Cause list'}</p>
-              <p className='text-slate-500 dark:text-slate-300'>{sync.cause_list_date} · {sync.status}</p>
-              <p className='text-xs text-slate-400'>{sync.matched_events} matched · {sync.created_events} created</p>
+                    <Select3D
+                      value={session.status}
+                      onChange={(event) => handleStatusChange(session, event.target.value)}
+                      wrapperClassName='mb-0'
+                      className='h-11 min-h-11 rounded-xl px-3'
+                      options={statuses.map((status) => ({ value: status, label: status }))}
+                    />
+
+                    <div className='space-y-2'>
+                      <input value={attendanceDrafts[session.id]?.attendee_name || ''} onChange={(event) => setAttendanceDrafts((current) => ({ ...current, [session.id]: { ...current[session.id], attendee_name: event.target.value } }))} placeholder='Attendee name' className='form-control h-10 w-full text-sm' />
+                      <button type='button' onClick={() => handleAttendance(session.id)} className='inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white dark:bg-white dark:text-slate-900'>
+                        <Users size={15} />
+                        Log Attendance
+                      </button>
+                    </div>
+
+                  </div>
+                  <div className='mt-4'><CourtroomLauncher session={session} /></div>
+                </div>
+              ))}
             </div>
-          ))}
+          </Card>
         </div>
-      </Card>}
+      )}
+
+      {activeTab === 'cause' && (
+        <div className='space-y-6'>
+          {advanced && <Card id='courtroom-cause-list' className='scroll-mt-28 p-5'>
+            <div className='mb-4 flex items-center gap-3'>
+              <ListChecks size={20} className='text-amber-600 dark:text-amber-400' />
+              <h2 className='text-lg font-bold text-slate-900 dark:text-white'>Cause List Sync</h2>
+            </div>
+
+            <form onSubmit={handleCauseListSync} className='grid gap-3 lg:grid-cols-5'>
+              <Select3D
+                value={causeListForm.provider}
+                onChange={(event) => setCauseListForm((current) => ({ ...current, provider: event.target.value }))}
+                wrapperClassName='mb-0'
+                className='h-11 min-h-11 rounded-xl px-3'
+                placeholder='Provider'
+                options={providers.map((provider) => ({ value: provider.id, label: provider.name }))}
+              />
+              <input value={causeListForm.court_station} onChange={(event) => setCauseListForm((current) => ({ ...current, court_station: event.target.value }))} placeholder='Court station' className='form-control h-11 text-sm' />
+              <input value={causeListForm.source_url} onChange={(event) => setCauseListForm((current) => ({ ...current, source_url: event.target.value }))} placeholder='Cause list URL' className='form-control h-11 text-sm' />
+              <input value={causeListForm.cause_list_date} onChange={(event) => setCauseListForm((current) => ({ ...current, cause_list_date: event.target.value }))} type='date' className='form-control h-11 text-sm' />
+              <Button3D type='submit' disabled={createCauseListSync.isPending}>Log Sync</Button3D>
+            </form>
+
+            <div className='mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3'>
+              {causeListSyncs.slice(0, 6).map((sync) => (
+                <div key={sync.id} className='rounded-xl border border-border-light p-3 text-sm dark:border-border-dark dark:text-white'>
+                  <p className='font-semibold'>{sync.court_station || sync.source_name || 'Cause list'}</p>
+                  <p className='text-slate-500 dark:text-slate-300'>{sync.cause_list_date} · {sync.status}</p>
+                  <p className='text-xs text-slate-400'>{sync.matched_events} matched · {sync.created_events} created</p>
+                </div>
+              ))}
+            </div>
+          </Card>}
+        </div>
+      )}
     </div>
   );
 }

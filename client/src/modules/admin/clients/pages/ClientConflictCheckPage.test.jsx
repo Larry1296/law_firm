@@ -76,6 +76,9 @@ const baseConflictCheck = {
   history: [],
 };
 
+// Each step of the check is its own tab.
+const openTab = async (user, name) => user.click(await screen.findByRole('tab', { name }));
+
 function renderPage(conflictCheck = {}) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -206,29 +209,32 @@ describe('ClientConflictCheckPage source checks', () => {
   });
 
   it('displays saved sources with friendly labels on the detail page', async () => {
-    renderPage({
+    const user = renderPage({
       source_categories_checked: ['CURRENT_CLIENTS', 'FORMER_CLIENTS', 'FIRM_ADVOCATES_AND_STAFF'],
     });
+    await openTab(user, 'Overview');
 
     expect(await screen.findByText(/Current clients, Former clients, Firm advocates and staff/)).toBeInTheDocument();
   });
 
   it('lists every saved party with its role, not only the adverse party', async () => {
-    renderPage({
+    const user = renderPage({
       parties: [
         { id: 'p0', name: 'Wanjiru Mwangi Architects', party_type: 'ORGANISATION', role: 'PROSPECTIVE_CLIENT' },
         { id: 'p1', name: 'Baraka Hardware Ltd', party_type: 'ORGANISATION', role: 'PROPOSED_ADVERSE_PARTY' },
         { id: 'p2', name: 'James Otieno', party_type: 'PERSON', role: 'DIRECTOR' },
       ],
     });
+    await openTab(user, 'Overview');
 
     expect(await screen.findByText(/Wanjiru Mwangi Architects \(Prospective client\), Baraka Hardware Ltd \(Proposed adverse party\), James Otieno \(Director\)/)).toBeInTheDocument();
   });
 
   it('shows history actions as readable labels, not raw codes', async () => {
-    renderPage({
+    const user = renderPage({
       history: [{ id: 'h1', action: 'CHECK_STARTED', to_status: 'IN_PROGRESS', to_status_label: 'In progress', summary: 'Conflict check started.', actor_name: 'Grace Wanjiku', created_at: '2026-10-27T04:24:00Z' }],
     });
+    await openTab(user, 'History');
 
     expect(await screen.findByText('Check Started - In progress')).toBeInTheDocument();
     expect(screen.queryByText(/CHECK_STARTED/)).not.toBeInTheDocument();
@@ -243,7 +249,8 @@ describe('ClientConflictCheckPage source checks', () => {
   });
 
   it('offers engagement once the conflict check is cleared', async () => {
-    renderPage({ status: 'CLEARED', permitted_next_statuses: [] });
+    const user = renderPage({ status: 'CLEARED', permitted_next_statuses: [] });
+    await openTab(user, 'KYC & engagement');
 
     expect(await screen.findByText('Formal Engagement')).toBeInTheDocument();
   });
@@ -266,7 +273,7 @@ describe('ClientConflictCheckPage source checks', () => {
   });
 
   it('does not display misleading findings for direct clearance', async () => {
-    renderPage({
+    const user = renderPage({
       status: 'CLEARED',
       status_label: 'Cleared',
       first_reviewer_findings: '',
@@ -276,6 +283,7 @@ describe('ClientConflictCheckPage source checks', () => {
       decided_by_name: 'Daniel Advocate',
       decided_at: '2026-07-23T12:30:00Z',
     });
+    await openTab(user, 'Overview');
 
     expect(await screen.findByText(/First-reviewer findings:/)).toBeInTheDocument();
     expect(screen.getByText(/Not applicable/)).toBeInTheDocument();
@@ -287,19 +295,20 @@ describe('ClientConflictCheckPage source checks', () => {
   });
 
   it('displays potential-conflict findings when present', async () => {
-    renderPage({
+    const user = renderPage({
       status: 'POTENTIAL_CONFLICT',
       status_label: 'Potential conflict',
       first_reviewer_findings: 'Former client appeared in related transaction.',
       result_summary: '',
     });
+    await openTab(user, 'Overview');
 
     expect(await screen.findByText(/First-reviewer findings:/)).toBeInTheDocument();
     expect(screen.getByText(/Former client appeared in related transaction./)).toBeInTheDocument();
   });
 
   it('separates the system suggestion from the advocate decision controls', async () => {
-    renderPage({
+    const user = renderPage({
       status: 'CLEARED',
       status_label: 'Cleared',
       jurisdiction: {
@@ -317,6 +326,7 @@ describe('ClientConflictCheckPage source checks', () => {
         warnings: ['Advocate review remains required.'],
       },
     });
+    await openTab(user, 'Jurisdiction');
 
     expect(await screen.findByText(/system-generated jurisdiction suggestion/i)).toBeInTheDocument();
     expect(screen.getByText(/System suggestion:/)).toBeInTheDocument();

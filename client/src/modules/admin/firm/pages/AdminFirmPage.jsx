@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { withConfirmation } from '@/core/utils/confirmationContext';
 import QueueConfiguration from '@/modules/clients/shared/QueueConfiguration';
 
@@ -14,7 +15,7 @@ import {
 import adminFirmService from '@/modules/admin/firm/services/adminFirmService';
 
 import Card from '@/components/ui/Card';
-import PageSectionNav from '@/components/ui/PageSectionNav';
+import PageTabs from '@/components/ui/PageTabs';
 import SectionHeading from '@/components/ui/SectionHeading';
 import StatsCard from '@/components/ui/StatsCard';
 import TableHeaderText from '@/components/ui/TableHeaderText';
@@ -97,7 +98,18 @@ function FieldRow({
   );
 }
 
+// Each tab is a page of its own.
+const FIRM_TABS = [
+  ['profile', 'Firm profile'],
+  ['offices', 'Offices & reception'],
+  ['settings', 'Firm settings'],
+  ['branches', 'Branches'],
+  ['structure', 'Departments & roles'],
+  ['delegation', 'Administrative delegation'],
+];
+
 export default function AdminFirmPage() {
+  const [activeTab, setActiveTab] = useState('profile');
   const { hasFeature } = useSubscription();
   const queryClient = useQueryClient();
 
@@ -719,633 +731,654 @@ export default function AdminFirmPage() {
         as='h1'
       />
 
-      <PageSectionNav
-        ariaLabel='Firm page sections'
-        sections={[
-          { id: 'firm-offices', label: 'Offices & reception' },
-          { id: 'firm-summary', label: 'Summary' },
-          { id: 'firm-profile', label: 'Firm profile' },
-          { id: 'firm-delegation', label: 'Administrative delegation' },
-          { id: 'firm-settings', label: 'Firm settings' },
-          { id: 'firm-branches', label: 'Branches' },
-          { id: 'firm-departments', label: 'Departments' },
-          { id: 'firm-roles', label: 'Role breakdown' },
-        ]}
+      <PageTabs
+        ariaLabel='Firm'
+        tabs={FIRM_TABS}
+        active={activeTab}
+        onChange={setActiveTab}
+        sections={{
+          profile: [{ id: 'firm-summary', label: 'Summary' }, { id: 'firm-profile', label: 'Firm profile' }],
+          structure: [{ id: 'firm-departments', label: 'Departments' }, { id: 'firm-roles', label: 'Role breakdown' }],
+        }[activeTab] || []}
       />
 
-      <div id='firm-offices' className='scroll-mt-28'><QueueConfiguration /></div>
-
-      <div id='firm-summary' className='grid scroll-mt-28 gap-4 md:grid-cols-2 xl:grid-cols-4'>
-        <StatsCard
-          title='Active Staff'
-          value={staffSummary.active_members ?? 0}
-          subtitle={`${staffSummary.total_members ?? 0} total members`}
-          icon={<Users size={22} />}
-          color='blue'
-        />
-        <StatsCard
-          title='Departments'
-          value={organizationSummary.departments ?? departments.length}
-          subtitle={`${organizationSummary.branches ?? 0} branches`}
-          icon={<FolderTree size={22} />}
-          color='green'
-        />
-        <StatsCard
-          title='Practice Areas'
-          value={organizationSummary.practice_areas ?? 0}
-          subtitle={organizationSummary.structure_type || 'Not set'}
-          icon={<Landmark size={22} />}
-          color='yellow'
-        />
-        <StatsCard
-          title='Firm Stage'
-          value={firmInsights.maturity_stage || 'Not set'}
-          subtitle={`Complexity: ${firmInsights.complexity_level || 'not set'}`}
-          icon={<Building2 size={22} />}
-          color='red'
-        />
-      </div>
-
-      <Card id='firm-profile' className='scroll-mt-28 p-6'>
-        <div className='mb-2'>
-          <SectionHeading
-            hero={false}
-            title='Firm Profile'
-            subtitle='Firm identity and public contact information.'
-            size='compact'
-          />
-        </div>
-
-        <FieldRow
-          label='Firm Name'
-          value={firm.name}
-          onUpdate={() =>
-            updateFirmField({
-              field: 'name',
-              label: 'Firm Name',
-              value: firm.name,
-              required: true,
-            })
-          }
-        />
-        <FieldRow
-          label='Registration Number'
-          value={firm.registration_number}
-        />
-        <FieldRow
-          label='KRA PIN'
-          value={firm.kra_pin}
-          onUpdate={() =>
-            updateFirmField({
-              field: 'kra_pin',
-              label: 'KRA PIN',
-              value: firm.kra_pin,
-            })
-          }
-        />
-        <FieldRow
-          label='Email'
-          value={firm.email}
-          onUpdate={() =>
-            updateFirmField({
-              field: 'email',
-              label: 'Email',
-              value: firm.email,
-              input: 'email',
-            })
-          }
-        />
-        <FieldRow
-          label='Phone Number'
-          value={firm.phone_number}
-          onUpdate={() =>
-            updateFirmField({
-              field: 'phone_number',
-              label: 'Phone Number',
-              value: firm.phone_number,
-            })
-          }
-        />
-        <FieldRow
-          label='Website'
-          value={firm.website}
-          onUpdate={() =>
-            updateFirmField({
-              field: 'website',
-              label: 'Website',
-              value: firm.website,
-              input: 'url',
-            })
-          }
-        />
-        <FieldRow
-          label='Postal Address'
-          value={firm.postal_address}
-          onUpdate={() =>
-            updateFirmField({
-              field: 'postal_address',
-              label: 'Postal Address',
-              value: firm.postal_address,
-            })
-          }
-        />
-        <FieldRow
-          label='Physical Address'
-          value={firm.physical_address}
-          multiline
-          onUpdate={() =>
-            updateFirmField({
-              field: 'physical_address',
-              label: 'Physical Address',
-              value: firm.physical_address,
-              input: 'textarea',
-            })
-          }
-        />
-        <FieldRow
-          label='Description'
-          value={firm.description}
-          multiline
-          onUpdate={() =>
-            updateFirmField({
-              field: 'description',
-              label: 'Description',
-              value: firm.description,
-              input: 'textarea',
-            })
-          }
-        />
-        <FieldRow
-          label='Firm Active'
-          value={firm.is_active}
-          onUpdate={() => toggleFirmActive(firm)}
-          actionLabel={firm.is_active ? 'Deactivate Firm' : 'Activate Firm'}
-        />
-        <FieldRow label='Owner' value={firm.owner_name} />
-        <FieldRow label='Owner Email' value={firm.owner_email} />
-        <FieldRow label='Owner System Role' value={firm.owner_user_role} />
-        <FieldRow label='Owner Firm Role' value={firm.owner_firm_role} />
-        <FieldRow
-          label='Owner Registered Lawyer'
-          value={firm.owner_is_registered_lawyer}
-          onUpdate={
-            firm.owner_is_registered_lawyer ? null : openOwnerLawyerForm
-          }
-        />
-        <FieldRow
-          label='Owner Admission Number'
-          value={firm.owner_lawyer_admission_number}
-        />
-      </Card>
-
-      <Card id='firm-delegation' className='scroll-mt-28 p-6'>
-        <div className='mb-2'>
-          <SectionHeading
-            hero={false}
-            title='Administrative Delegation'
-            subtitle='Transfer Administrative Role to a trusted Staff Member.'
-            size='compact'
-          />
-        </div>
-
-        <div className='flex flex-col gap-4 border-b border-border-light py-4 dark:border-border-dark md:flex-row md:items-start md:justify-between'>
-          <div>
-            <p className='text-sm font-semibold text-gray-500 dark:text-gray-400'>
-              Current Delegated Admins
-            </p>
-            {delegatedAdmins.length > 0 ? (
-              <div className='mt-3 space-y-2'>
-                {delegatedAdmins.map((admin) => (
-                  <div
-                    key={admin.user_id}
-                    className='flex flex-wrap items-center gap-3 rounded-lg border border-border-light px-3 py-2 dark:border-border-dark'
-                  >
-                    <span className='text-sm font-medium text-gray-900 dark:text-white'>
-                      {admin.full_name} (
-                      {admin.firm_role_label || admin.firm_role}
-                      {admin.department ? ` - ${admin.department}` : ''})
-                    </span>
-                    <button
-                      type='button'
-                      onClick={() => revokeDelegatedAdmin(admin)}
-                      className='rounded-lg border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:text-white'
-                    >
-                      Revoke
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className='mt-2 text-sm font-medium text-gray-900 dark:text-white'>
-                None
-              </p>
-            )}
-          </div>
-
-          {!adminDelegationQuery.error && (
-            <button
-              type='button'
-              onClick={openAdminDelegationForm}
-              className='w-fit rounded-lg border border-brand-primary px-3 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary hover:text-white'
-            >
-              Delegate
-            </button>
-          )}
-        </div>
-      </Card>
-
-      <Card id='firm-settings' className='scroll-mt-28 p-6'>
-        <div className='mb-2'>
-          <SectionHeading
-            hero={false}
-            title='Firm Settings'
-            subtitle='Operating rules, portal behavior, and security options.'
-            size='compact'
-          />
-        </div>
-
-        <FieldRow
-          label='Timezone'
-          value={settings.timezone}
-          onUpdate={() =>
-            updateSettingField({
-              field: 'timezone',
-              label: 'Timezone',
-              value: settings.timezone,
-              input: 'select',
-              inputOptions: timezoneOptions,
-            })
-          }
-        />
-        <FieldRow
-          label='Language'
-          value={settings.language}
-          onUpdate={() =>
-            updateSettingField({
-              field: 'language',
-              label: 'Language',
-              value: settings.language,
-              input: 'select',
-              inputOptions: languageOptions,
-            })
-          }
-        />
-        <FieldRow
-          label='Currency'
-          value={settings.currency}
-          onUpdate={() =>
-            updateSettingField({
-              field: 'currency',
-              label: 'Currency',
-              value: settings.currency,
-              input: 'select',
-              inputOptions: currencyOptions,
-            })
-          }
-        />
-        <FieldRow
-          label='Opening Time'
-          value={settings.opening_time}
-          onUpdate={() =>
-            updateSettingField({
-              field: 'opening_time',
-              label: 'Opening Time',
-              value: settings.opening_time,
-              input: 'text',
-            })
-          }
-        />
-        <FieldRow
-          label='Closing Time'
-          value={settings.closing_time}
-          onUpdate={() =>
-            updateSettingField({
-              field: 'closing_time',
-              label: 'Closing Time',
-              value: settings.closing_time,
-              input: 'text',
-            })
-          }
-        />
-        <FieldRow
-          label='Session Timeout Minutes'
-          value={settings.session_timeout_minutes}
-          onUpdate={() =>
-            updateSettingField({
-              field: 'session_timeout_minutes',
-              label: 'Session Timeout Minutes',
-              value: settings.session_timeout_minutes,
-              input: 'number',
-              parser: (newValue) => Number(newValue) || 60,
-            })
-          }
-        />
-        <FieldRow
-          label='Conflict Records'
-          value={conflictRecordsOptions[settings.conflict_records_scope]}
-          onUpdate={() =>
-            updateSettingField({
-              field: 'conflict_records_scope',
-              label: 'Conflict Records',
-              value: settings.conflict_records_scope,
-              input: 'select',
-              inputOptions: conflictRecordsOptions,
-            })
-          }
-        />
-        <FieldRow
-          label='AI Conflict Matching'
-          value={settings.conflict_ai_matching_enabled}
-          actionLabel={`${settings.conflict_ai_matching_enabled ? 'Disable' : 'Enable'} AI Conflict Matching`}
-          onUpdate={() => toggleConflictAiMatching(settings.conflict_ai_matching_enabled)}
-        />
-        {[
-          ['work_on_saturday', 'Work On Saturday'],
-          ['work_on_sunday', 'Work On Sunday'],
-          ['email_notifications', 'Email Notifications'],
-          ['sms_notifications', 'SMS Notifications'],
-          ['browser_notifications', 'Browser Notifications'],
-          ['allow_client_registration', 'Allow Client Registration'],
-          ['allow_client_document_upload', 'Allow Client Document Upload'],
-          ['allow_client_case_tracking', 'Allow Client Case Tracking'],
-          ['require_password_change', 'Require Password Change'],
-          ['enable_two_factor_authentication', 'Two Factor Authentication'],
-          // INTERNAL AI TEMPORARILY PAUSED
-          // Uncomment these settings when internal AI development resumes.
-          // ['enable_ai_assistant', 'AI Assistant'],
-          // ['enable_ai_case_suggestions', 'AI Case Suggestions'],
-          // ['enable_ai_deadline_reminders', 'AI Deadline Reminders'],
-          ['is_active', 'Firm Settings Active'],
-        ].filter(([field]) => hasFeature('CLIENT_PORTAL') || !CLIENT_PORTAL_SETTINGS.includes(field)).map(([field, label]) => (
-          <FieldRow
-            key={field}
-            label={label}
-            value={settings[field]}
-            actionLabel={`${settings[field] ? 'Disable' : 'Enable'} ${label}`}
-            onUpdate={() =>
-              toggleSettingField({
-                field,
-                label,
-                value: settings[field],
-              })
-            }
-          />
-        ))}
-      </Card>
-
-      <Card id='firm-branches' className='scroll-mt-28 p-6'>
-        <div className='mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-          <div className='flex items-center gap-3'>
-            <Building2 className='text-brand-primary' size={24} />
-            <SectionHeading
-              hero={false}
-              title='Branches'
-              subtitle='Create and manage branch offices. A branch can operate as a representative office of the main firm.'
-              size='compact'
+      {activeTab === 'profile' && (
+        <div className='space-y-6'>
+          <div id='firm-summary' className='grid scroll-mt-28 gap-4 md:grid-cols-2 xl:grid-cols-4'>
+            <StatsCard
+              title='Active Staff'
+              value={staffSummary.active_members ?? 0}
+              subtitle={`${staffSummary.total_members ?? 0} total members`}
+              icon={<Users size={22} />}
+              color='blue'
+            />
+            <StatsCard
+              title='Departments'
+              value={organizationSummary.departments ?? departments.length}
+              subtitle={`${organizationSummary.branches ?? 0} branches`}
+              icon={<FolderTree size={22} />}
+              color='green'
+            />
+            <StatsCard
+              title='Practice Areas'
+              value={organizationSummary.practice_areas ?? 0}
+              subtitle={organizationSummary.structure_type || 'Not set'}
+              icon={<Landmark size={22} />}
+              color='yellow'
+            />
+            <StatsCard
+              title='Firm Stage'
+              value={firmInsights.maturity_stage || 'Not set'}
+              subtitle={`Complexity: ${firmInsights.complexity_level || 'not set'}`}
+              icon={<Building2 size={22} />}
+              color='red'
             />
           </div>
-          <button
-            type='button'
-            onClick={() => openBranchForm()}
-            className='w-fit rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700'
-          >
-            Add Branch
-          </button>
-        </div>
 
-        <div className='overflow-hidden rounded-xl border border-border-light dark:border-border-dark'>
-          <table className='w-full text-left text-sm'>
-            <thead className='bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-300'>
-              <tr>
-                {['Name', 'Branch Head', 'Location', 'Status', 'Actions'].map((label) => <th key={label} className={`px-4 py-3 font-semibold ${label === 'Actions' ? 'text-right' : ''}`}><TableHeaderText>{label}</TableHeaderText></th>)}
-              </tr>
-            </thead>
-            <tbody className='divide-y divide-border-light dark:divide-border-dark'>
-              {branches.length > 0 ? (
-                branches.map((branch) => (
-                  <tr key={branch.id}>
-                    <td className='px-4 py-3 text-gray-900 dark:text-white'>
-                      {branch.name}
-                      {branch.is_head_office ? (
-                        <span className='ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'>
-                          Head office
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className='px-4 py-3 text-gray-600 dark:text-gray-300'>
-                      {branch.branch_leader_name || 'Not assigned'}
-                    </td>
-                    <td className='max-w-xs px-4 py-3 text-gray-600 dark:text-gray-300'>
-                      {branch.physical_address || 'Not set'}
-                    </td>
-                    <td className='px-4 py-3'>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          branch.is_active
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                            : 'bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-slate-200'
-                        }`}
-                      >
-                        {branch.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className='px-4 py-3'>
-                      <div className='flex flex-wrap justify-end gap-2'>
-                        <button
-                          type='button'
-                          onClick={() => openBranchForm(branch)}
-                          className='rounded-lg border border-brand-primary px-3 py-1.5 text-xs font-semibold text-brand-primary transition hover:bg-brand-primary hover:text-white'
-                        >
-                          Update
-                        </button>
-                        <button
-                          type='button'
-                          onClick={() =>
-                            branchMutation.mutate({
-                              action: 'update',
-                              id: branch.id,
-                              payload: { is_active: !branch.is_active },
-                            })
-                          }
-                          className='rounded-lg border border-yellow-600 px-3 py-1.5 text-xs font-semibold text-yellow-700 transition hover:bg-yellow-600 hover:text-white dark:text-yellow-300 dark:hover:text-white'
-                        >
-                          {branch.is_active ? 'Disable' : 'Enable'}
-                        </button>
-                        <button
-                          type='button'
-                          onClick={() => deleteBranch(branch)}
-                          className='rounded-lg border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:text-white'
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan='5'
-                    className='px-4 py-8 text-center text-gray-500 dark:text-slate-400'
-                  >
-                    No branches yet. The firm can still operate as one main
-                    office.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      <div className='grid gap-6 xl:grid-cols-[1.2fr_0.8fr]'>
-        <Card id='firm-departments' className='scroll-mt-28 p-6'>
-          <div className='mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-            <div className='flex items-center gap-3'>
-              <FolderTree className='text-brand-primary' size={24} />
+          <Card id='firm-profile' className='scroll-mt-28 p-6'>
+            <div className='mb-2'>
               <SectionHeading
                 hero={false}
-                title='Departments'
-                subtitle='Create, update, disable, or remove firm departments.'
+                title='Firm Profile'
+                subtitle='Firm identity and public contact information.'
                 size='compact'
               />
             </div>
-            <button
-              type='button'
-              onClick={() => openDepartmentForm()}
-              className='w-fit rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700'
-            >
-              Add Department
-            </button>
-          </div>
 
-          <div className='overflow-hidden rounded-xl border border-border-light dark:border-border-dark'>
-            <table className='w-full text-left text-sm'>
-              <thead className='bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-300'>
-                <tr>
-                  {['Name', 'Description', 'Branch', 'Head', 'Status'].map((label) => <th key={label} className='px-4 py-3 font-semibold'><TableHeaderText>{label}</TableHeaderText></th>)}
-                  <th className='px-4 py-3 text-right font-semibold'>
-                    <TableHeaderText>Actions</TableHeaderText>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className='divide-y divide-border-light dark:divide-border-dark'>
-                {departments.length > 0 ? (
-                  departments.map((department) => (
-                    <tr key={department.id}>
-                      <td className='px-4 py-3 text-gray-900 dark:text-white'>
-                        {department.name}
-                      </td>
-                      <td className='max-w-xs px-4 py-3 text-gray-600 dark:text-gray-300'>
-                        {department.description || 'Not set'}
-                      </td>
-                      <td className='px-4 py-3 text-gray-600 dark:text-gray-300'>
-                        {department.branch_name || 'Main firm'}
-                      </td>
-                      <td className='px-4 py-3 text-gray-600 dark:text-gray-300'>
-                        {department.head_name || 'Not assigned'}
-                      </td>
-                      <td className='px-4 py-3'>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            department.is_active
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                              : 'bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-slate-200'
-                          }`}
-                        >
-                          {department.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className='px-4 py-3'>
-                        <div className='flex flex-wrap justify-end gap-2'>
-                          <button
-                            type='button'
-                            onClick={() => openDepartmentForm(department)}
-                            className='rounded-lg border border-brand-primary px-3 py-1.5 text-xs font-semibold text-brand-primary transition hover:bg-brand-primary hover:text-white'
+            <FieldRow
+              label='Firm Name'
+              value={firm.name}
+              onUpdate={() =>
+                updateFirmField({
+                  field: 'name',
+                  label: 'Firm Name',
+                  value: firm.name,
+                  required: true,
+                })
+              }
+            />
+            <FieldRow
+              label='Registration Number'
+              value={firm.registration_number}
+            />
+            <FieldRow
+              label='KRA PIN'
+              value={firm.kra_pin}
+              onUpdate={() =>
+                updateFirmField({
+                  field: 'kra_pin',
+                  label: 'KRA PIN',
+                  value: firm.kra_pin,
+                })
+              }
+            />
+            <FieldRow
+              label='Email'
+              value={firm.email}
+              onUpdate={() =>
+                updateFirmField({
+                  field: 'email',
+                  label: 'Email',
+                  value: firm.email,
+                  input: 'email',
+                })
+              }
+            />
+            <FieldRow
+              label='Phone Number'
+              value={firm.phone_number}
+              onUpdate={() =>
+                updateFirmField({
+                  field: 'phone_number',
+                  label: 'Phone Number',
+                  value: firm.phone_number,
+                })
+              }
+            />
+            <FieldRow
+              label='Website'
+              value={firm.website}
+              onUpdate={() =>
+                updateFirmField({
+                  field: 'website',
+                  label: 'Website',
+                  value: firm.website,
+                  input: 'url',
+                })
+              }
+            />
+            <FieldRow
+              label='Postal Address'
+              value={firm.postal_address}
+              onUpdate={() =>
+                updateFirmField({
+                  field: 'postal_address',
+                  label: 'Postal Address',
+                  value: firm.postal_address,
+                })
+              }
+            />
+            <FieldRow
+              label='Physical Address'
+              value={firm.physical_address}
+              multiline
+              onUpdate={() =>
+                updateFirmField({
+                  field: 'physical_address',
+                  label: 'Physical Address',
+                  value: firm.physical_address,
+                  input: 'textarea',
+                })
+              }
+            />
+            <FieldRow
+              label='Description'
+              value={firm.description}
+              multiline
+              onUpdate={() =>
+                updateFirmField({
+                  field: 'description',
+                  label: 'Description',
+                  value: firm.description,
+                  input: 'textarea',
+                })
+              }
+            />
+            <FieldRow
+              label='Firm Active'
+              value={firm.is_active}
+              onUpdate={() => toggleFirmActive(firm)}
+              actionLabel={firm.is_active ? 'Deactivate Firm' : 'Activate Firm'}
+            />
+            <FieldRow label='Owner' value={firm.owner_name} />
+            <FieldRow label='Owner Email' value={firm.owner_email} />
+            <FieldRow label='Owner System Role' value={firm.owner_user_role} />
+            <FieldRow label='Owner Firm Role' value={firm.owner_firm_role} />
+            <FieldRow
+              label='Owner Registered Lawyer'
+              value={firm.owner_is_registered_lawyer}
+              onUpdate={
+                firm.owner_is_registered_lawyer ? null : openOwnerLawyerForm
+              }
+            />
+            <FieldRow
+              label='Owner Admission Number'
+              value={firm.owner_lawyer_admission_number}
+            />
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'offices' && (
+        <div className='space-y-6'>
+          <div id='firm-offices' className='scroll-mt-28'><QueueConfiguration /></div>
+        </div>
+      )}
+
+      {activeTab === 'settings' && (
+        <div className='space-y-6'>
+          <Card id='firm-settings' className='scroll-mt-28 p-6'>
+            <div className='mb-2'>
+              <SectionHeading
+                hero={false}
+                title='Firm Settings'
+                subtitle='Operating rules, portal behavior, and security options.'
+                size='compact'
+              />
+            </div>
+
+            <FieldRow
+              label='Timezone'
+              value={settings.timezone}
+              onUpdate={() =>
+                updateSettingField({
+                  field: 'timezone',
+                  label: 'Timezone',
+                  value: settings.timezone,
+                  input: 'select',
+                  inputOptions: timezoneOptions,
+                })
+              }
+            />
+            <FieldRow
+              label='Language'
+              value={settings.language}
+              onUpdate={() =>
+                updateSettingField({
+                  field: 'language',
+                  label: 'Language',
+                  value: settings.language,
+                  input: 'select',
+                  inputOptions: languageOptions,
+                })
+              }
+            />
+            <FieldRow
+              label='Currency'
+              value={settings.currency}
+              onUpdate={() =>
+                updateSettingField({
+                  field: 'currency',
+                  label: 'Currency',
+                  value: settings.currency,
+                  input: 'select',
+                  inputOptions: currencyOptions,
+                })
+              }
+            />
+            <FieldRow
+              label='Opening Time'
+              value={settings.opening_time}
+              onUpdate={() =>
+                updateSettingField({
+                  field: 'opening_time',
+                  label: 'Opening Time',
+                  value: settings.opening_time,
+                  input: 'text',
+                })
+              }
+            />
+            <FieldRow
+              label='Closing Time'
+              value={settings.closing_time}
+              onUpdate={() =>
+                updateSettingField({
+                  field: 'closing_time',
+                  label: 'Closing Time',
+                  value: settings.closing_time,
+                  input: 'text',
+                })
+              }
+            />
+            <FieldRow
+              label='Session Timeout Minutes'
+              value={settings.session_timeout_minutes}
+              onUpdate={() =>
+                updateSettingField({
+                  field: 'session_timeout_minutes',
+                  label: 'Session Timeout Minutes',
+                  value: settings.session_timeout_minutes,
+                  input: 'number',
+                  parser: (newValue) => Number(newValue) || 60,
+                })
+              }
+            />
+            <FieldRow
+              label='Conflict Records'
+              value={conflictRecordsOptions[settings.conflict_records_scope]}
+              onUpdate={() =>
+                updateSettingField({
+                  field: 'conflict_records_scope',
+                  label: 'Conflict Records',
+                  value: settings.conflict_records_scope,
+                  input: 'select',
+                  inputOptions: conflictRecordsOptions,
+                })
+              }
+            />
+            <FieldRow
+              label='AI Conflict Matching'
+              value={settings.conflict_ai_matching_enabled}
+              actionLabel={`${settings.conflict_ai_matching_enabled ? 'Disable' : 'Enable'} AI Conflict Matching`}
+              onUpdate={() => toggleConflictAiMatching(settings.conflict_ai_matching_enabled)}
+            />
+            {[
+              ['work_on_saturday', 'Work On Saturday'],
+              ['work_on_sunday', 'Work On Sunday'],
+              ['email_notifications', 'Email Notifications'],
+              ['sms_notifications', 'SMS Notifications'],
+              ['browser_notifications', 'Browser Notifications'],
+              ['allow_client_registration', 'Allow Client Registration'],
+              ['allow_client_document_upload', 'Allow Client Document Upload'],
+              ['allow_client_case_tracking', 'Allow Client Case Tracking'],
+              ['require_password_change', 'Require Password Change'],
+              ['enable_two_factor_authentication', 'Two Factor Authentication'],
+              // INTERNAL AI TEMPORARILY PAUSED
+              // Uncomment these settings when internal AI development resumes.
+              // ['enable_ai_assistant', 'AI Assistant'],
+              // ['enable_ai_case_suggestions', 'AI Case Suggestions'],
+              // ['enable_ai_deadline_reminders', 'AI Deadline Reminders'],
+              ['is_active', 'Firm Settings Active'],
+            ].filter(([field]) => hasFeature('CLIENT_PORTAL') || !CLIENT_PORTAL_SETTINGS.includes(field)).map(([field, label]) => (
+              <FieldRow
+                key={field}
+                label={label}
+                value={settings[field]}
+                actionLabel={`${settings[field] ? 'Disable' : 'Enable'} ${label}`}
+                onUpdate={() =>
+                  toggleSettingField({
+                    field,
+                    label,
+                    value: settings[field],
+                  })
+                }
+              />
+            ))}
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'branches' && (
+        <div className='space-y-6'>
+          <Card id='firm-branches' className='scroll-mt-28 p-6'>
+            <div className='mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+              <div className='flex items-center gap-3'>
+                <Building2 className='text-brand-primary' size={24} />
+                <SectionHeading
+                  hero={false}
+                  title='Branches'
+                  subtitle='Create and manage branch offices. A branch can operate as a representative office of the main firm.'
+                  size='compact'
+                />
+              </div>
+              <button
+                type='button'
+                onClick={() => openBranchForm()}
+                className='w-fit rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700'
+              >
+                Add Branch
+              </button>
+            </div>
+
+            <div className='overflow-hidden rounded-xl border border-border-light dark:border-border-dark'>
+              <table className='w-full text-left text-sm'>
+                <thead className='bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-300'>
+                  <tr>
+                    {['Name', 'Branch Head', 'Location', 'Status', 'Actions'].map((label) => <th key={label} className={`px-4 py-3 font-semibold ${label === 'Actions' ? 'text-right' : ''}`}><TableHeaderText>{label}</TableHeaderText></th>)}
+                  </tr>
+                </thead>
+                <tbody className='divide-y divide-border-light dark:divide-border-dark'>
+                  {branches.length > 0 ? (
+                    branches.map((branch) => (
+                      <tr key={branch.id}>
+                        <td className='px-4 py-3 text-gray-900 dark:text-white'>
+                          {branch.name}
+                          {branch.is_head_office ? (
+                            <span className='ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'>
+                              Head office
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className='px-4 py-3 text-gray-600 dark:text-gray-300'>
+                          {branch.branch_leader_name || 'Not assigned'}
+                        </td>
+                        <td className='max-w-xs px-4 py-3 text-gray-600 dark:text-gray-300'>
+                          {branch.physical_address || 'Not set'}
+                        </td>
+                        <td className='px-4 py-3'>
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                              branch.is_active
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                : 'bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-slate-200'
+                            }`}
                           >
-                            Update
-                          </button>
-                          <button
-                            type='button'
-                            onClick={() => toggleDepartmentStatus(department)}
-                            className='rounded-lg border border-yellow-600 px-3 py-1.5 text-xs font-semibold text-yellow-700 transition hover:bg-yellow-600 hover:text-white dark:text-yellow-300 dark:hover:text-white'
-                          >
-                            {department.is_active ? 'Disable' : 'Enable'}
-                          </button>
-                          <button
-                            type='button'
-                            onClick={() => deleteDepartment(department)}
-                            className='rounded-lg border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:text-white'
-                          >
-                            Delete
-                          </button>
-                        </div>
+                            {branch.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className='px-4 py-3'>
+                          <div className='flex flex-wrap justify-end gap-2'>
+                            <button
+                              type='button'
+                              onClick={() => openBranchForm(branch)}
+                              className='rounded-lg border border-brand-primary px-3 py-1.5 text-xs font-semibold text-brand-primary transition hover:bg-brand-primary hover:text-white'
+                            >
+                              Update
+                            </button>
+                            <button
+                              type='button'
+                              onClick={() =>
+                                branchMutation.mutate({
+                                  action: 'update',
+                                  id: branch.id,
+                                  payload: { is_active: !branch.is_active },
+                                })
+                              }
+                              className='rounded-lg border border-yellow-600 px-3 py-1.5 text-xs font-semibold text-yellow-700 transition hover:bg-yellow-600 hover:text-white dark:text-yellow-300 dark:hover:text-white'
+                            >
+                              {branch.is_active ? 'Disable' : 'Enable'}
+                            </button>
+                            <button
+                              type='button'
+                              onClick={() => deleteBranch(branch)}
+                              className='rounded-lg border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:text-white'
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan='5'
+                        className='px-4 py-8 text-center text-gray-500 dark:text-slate-400'
+                      >
+                        No branches yet. The firm can still operate as one main
+                        office.
                       </td>
                     </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'structure' && (
+        <div className='space-y-6'>
+          <div className='grid gap-6 xl:grid-cols-[1.2fr_0.8fr]'>
+            <Card id='firm-departments' className='scroll-mt-28 p-6'>
+              <div className='mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+                <div className='flex items-center gap-3'>
+                  <FolderTree className='text-brand-primary' size={24} />
+                  <SectionHeading
+                    hero={false}
+                    title='Departments'
+                    subtitle='Create, update, disable, or remove firm departments.'
+                    size='compact'
+                  />
+                </div>
+                <button
+                  type='button'
+                  onClick={() => openDepartmentForm()}
+                  className='w-fit rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700'
+                >
+                  Add Department
+                </button>
+              </div>
+
+              <div className='overflow-hidden rounded-xl border border-border-light dark:border-border-dark'>
+                <table className='w-full text-left text-sm'>
+                  <thead className='bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-300'>
+                    <tr>
+                      {['Name', 'Description', 'Branch', 'Head', 'Status'].map((label) => <th key={label} className='px-4 py-3 font-semibold'><TableHeaderText>{label}</TableHeaderText></th>)}
+                      <th className='px-4 py-3 text-right font-semibold'>
+                        <TableHeaderText>Actions</TableHeaderText>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className='divide-y divide-border-light dark:divide-border-dark'>
+                    {departments.length > 0 ? (
+                      departments.map((department) => (
+                        <tr key={department.id}>
+                          <td className='px-4 py-3 text-gray-900 dark:text-white'>
+                            {department.name}
+                          </td>
+                          <td className='max-w-xs px-4 py-3 text-gray-600 dark:text-gray-300'>
+                            {department.description || 'Not set'}
+                          </td>
+                          <td className='px-4 py-3 text-gray-600 dark:text-gray-300'>
+                            {department.branch_name || 'Main firm'}
+                          </td>
+                          <td className='px-4 py-3 text-gray-600 dark:text-gray-300'>
+                            {department.head_name || 'Not assigned'}
+                          </td>
+                          <td className='px-4 py-3'>
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                department.is_active
+                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                  : 'bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-slate-200'
+                              }`}
+                            >
+                              {department.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className='px-4 py-3'>
+                            <div className='flex flex-wrap justify-end gap-2'>
+                              <button
+                                type='button'
+                                onClick={() => openDepartmentForm(department)}
+                                className='rounded-lg border border-brand-primary px-3 py-1.5 text-xs font-semibold text-brand-primary transition hover:bg-brand-primary hover:text-white'
+                              >
+                                Update
+                              </button>
+                              <button
+                                type='button'
+                                onClick={() => toggleDepartmentStatus(department)}
+                                className='rounded-lg border border-yellow-600 px-3 py-1.5 text-xs font-semibold text-yellow-700 transition hover:bg-yellow-600 hover:text-white dark:text-yellow-300 dark:hover:text-white'
+                              >
+                                {department.is_active ? 'Disable' : 'Enable'}
+                              </button>
+                              <button
+                                type='button'
+                                onClick={() => deleteDepartment(department)}
+                                className='rounded-lg border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:text-white'
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan='6'
+                          className='px-4 py-8 text-center text-gray-500 dark:text-slate-400'
+                        >
+                          No departments found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <Card id='firm-roles' className='scroll-mt-28 p-6'>
+              <div className='mb-5 flex items-center gap-3'>
+                <ShieldCheck className='text-brand-primary' size={24} />
+                <SectionHeading
+                  hero={false}
+                  title='Role Breakdown'
+                  subtitle='Active firm structure by system role.'
+                  size='compact'
+                />
+              </div>
+
+              <div className='space-y-3'>
+                {Object.entries(staffSummary.by_role || {}).length > 0 ? (
+                  Object.entries(staffSummary.by_role).map(([role, count]) => (
+                    <div
+                      key={role}
+                      className='flex items-center justify-between rounded-xl border border-border-light px-4 py-3 dark:border-border-dark'
+                    >
+                      <span className='font-medium text-gray-900 dark:text-white'>
+                        {role.replace(/_/g, ' ')}
+                      </span>
+                      <span className='rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'>
+                        {count}
+                      </span>
+                    </div>
                   ))
                 ) : (
-                  <tr>
-                    <td
-                      colSpan='6'
-                      className='px-4 py-8 text-center text-gray-500 dark:text-slate-400'
-                    >
-                      No departments found.
-                    </td>
-                  </tr>
+                  <p className='rounded-xl border border-border-light px-4 py-6 text-center text-gray-500 dark:border-border-dark dark:text-slate-400'>
+                    No role breakdown available.
+                  </p>
                 )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        <Card id='firm-roles' className='scroll-mt-28 p-6'>
-          <div className='mb-5 flex items-center gap-3'>
-            <ShieldCheck className='text-brand-primary' size={24} />
-            <SectionHeading
-              hero={false}
-              title='Role Breakdown'
-              subtitle='Active firm structure by system role.'
-              size='compact'
-            />
-          </div>
-
-          <div className='space-y-3'>
-            {Object.entries(staffSummary.by_role || {}).length > 0 ? (
-              Object.entries(staffSummary.by_role).map(([role, count]) => (
-                <div
-                  key={role}
-                  className='flex items-center justify-between rounded-xl border border-border-light px-4 py-3 dark:border-border-dark'
-                >
-                  <span className='font-medium text-gray-900 dark:text-white'>
-                    {role.replace(/_/g, ' ')}
-                  </span>
-                  <span className='rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'>
-                    {count}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className='rounded-xl border border-border-light px-4 py-6 text-center text-gray-500 dark:border-border-dark dark:text-slate-400'>
-                No role breakdown available.
-              </p>
-            )}
-          </div>
-
-          <div className='mt-6 rounded-xl border border-border-light p-4 dark:border-border-dark'>
-            <div className='flex items-center gap-3'>
-              <Sparkles size={20} className='text-brand-primary' />
-              <div>
-                <p className='font-semibold text-gray-900 dark:text-white'>
-                  Engagement Health
-                </p>
-                <p className='text-sm text-gray-500 dark:text-gray-400'>
-                  {staffSummary.engagement_health || 'No data'}
-                </p>
               </div>
-            </div>
+
+              <div className='mt-6 rounded-xl border border-border-light p-4 dark:border-border-dark'>
+                <div className='flex items-center gap-3'>
+                  <Sparkles size={20} className='text-brand-primary' />
+                  <div>
+                    <p className='font-semibold text-gray-900 dark:text-white'>
+                      Engagement Health
+                    </p>
+                    <p className='text-sm text-gray-500 dark:text-gray-400'>
+                      {staffSummary.engagement_health || 'No data'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </div>
-        </Card>
-      </div>
+        </div>
+      )}
+
+      {activeTab === 'delegation' && (
+        <div className='space-y-6'>
+          <Card id='firm-delegation' className='scroll-mt-28 p-6'>
+            <div className='mb-2'>
+              <SectionHeading
+                hero={false}
+                title='Administrative Delegation'
+                subtitle='Transfer Administrative Role to a trusted Staff Member.'
+                size='compact'
+              />
+            </div>
+
+            <div className='flex flex-col gap-4 border-b border-border-light py-4 dark:border-border-dark md:flex-row md:items-start md:justify-between'>
+              <div>
+                <p className='text-sm font-semibold text-gray-500 dark:text-gray-400'>
+                  Current Delegated Admins
+                </p>
+                {delegatedAdmins.length > 0 ? (
+                  <div className='mt-3 space-y-2'>
+                    {delegatedAdmins.map((admin) => (
+                      <div
+                        key={admin.user_id}
+                        className='flex flex-wrap items-center gap-3 rounded-lg border border-border-light px-3 py-2 dark:border-border-dark'
+                      >
+                        <span className='text-sm font-medium text-gray-900 dark:text-white'>
+                          {admin.full_name} (
+                          {admin.firm_role_label || admin.firm_role}
+                          {admin.department ? ` - ${admin.department}` : ''})
+                        </span>
+                        <button
+                          type='button'
+                          onClick={() => revokeDelegatedAdmin(admin)}
+                          className='rounded-lg border border-red-600 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-600 hover:text-white dark:text-red-400 dark:hover:text-white'
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className='mt-2 text-sm font-medium text-gray-900 dark:text-white'>
+                    None
+                  </p>
+                )}
+              </div>
+
+              {!adminDelegationQuery.error && (
+                <button
+                  type='button'
+                  onClick={openAdminDelegationForm}
+                  className='w-fit rounded-lg border border-brand-primary px-3 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary hover:text-white'
+                >
+                  Delegate
+                </button>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
