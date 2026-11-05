@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { sectionLinkClass } from '@/components/ui/sectionLinkClass';
+
 // How long a clicked link stays active while the page scrolls to it, so a short last section is not overtaken.
 const CLICK_HOLD_MS = 900;
 
 // topClass sets where the bar pins; pages under a fixed site header pin it below that header.
-export default function PageSectionNav({ sections, ariaLabel = 'Page sections', className = '', topClass = 'top-2' }) {
+// pinned={false} renders the links bare, for a page that pins them inside its own bar (e.g. under its tabs).
+export default function PageSectionNav({ sections, ariaLabel = 'Page sections', className = '', topClass = 'top-2', pinned = true }) {
   const visibleSections = useMemo(
     () => sections.filter((section) => section && section.id && section.label && section.hidden !== true),
     [sections],
@@ -21,7 +24,8 @@ export default function PageSectionNav({ sections, ariaLabel = 'Page sections', 
         .map(({ id }) => ({ id, element: document.getElementById(id) }))
         .filter(({ element }) => element);
       if (!targets.length) return;
-      const line = (navRef.current?.getBoundingClientRect().bottom ?? 0) + 24;
+      const bar = navRef.current?.closest('.sticky') || navRef.current;
+      const line = (bar?.getBoundingClientRect().bottom ?? 0) + 24;
       let current = targets[0].id;
       targets.forEach(({ id, element }) => {
         if (element.getBoundingClientRect().top <= line) current = id;
@@ -49,9 +53,10 @@ export default function PageSectionNav({ sections, ariaLabel = 'Page sections', 
     const target = document.getElementById(sectionId);
     if (!target) return;
     // Land the section just below the bar, however many rows of links it has.
-    const nav = navRef.current;
-    const pinnedAt = nav ? parseFloat(window.getComputedStyle(nav).top) || 0 : 0;
-    target.style.scrollMarginTop = `${pinnedAt + (nav?.offsetHeight || 0) + 16}px`;
+    // The pinned bar is this nav, or the page's own bar it sits in.
+    const bar = navRef.current?.closest('.sticky') || navRef.current;
+    const pinnedAt = bar ? parseFloat(window.getComputedStyle(bar).top) || 0 : 0;
+    target.style.scrollMarginTop = `${pinnedAt + (bar?.offsetHeight || 0) + 16}px`;
     const reduceMotion = typeof window.matchMedia === 'function'
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     heldUntil.current = event.timeStamp + CLICK_HOLD_MS;
@@ -62,14 +67,14 @@ export default function PageSectionNav({ sections, ariaLabel = 'Page sections', 
 
   return (
     // Sections sit in even columns in page order, a part-filled last row centred, and stay in view while scrolling.
-    <nav ref={navRef} aria-label={ariaLabel} className={`sticky ${topClass} z-20 flex flex-wrap justify-center rounded-xl border border-border-light bg-surface-light/95 p-1.5 shadow-sm backdrop-blur dark:border-border-dark dark:bg-surface-dark/95 ${className}`}>
+    <nav ref={navRef} aria-label={ariaLabel} className={`${pinned ? `sticky ${topClass} z-20 rounded-xl border border-border-light bg-surface-light/95 p-1.5 shadow-sm backdrop-blur dark:border-border-dark dark:bg-surface-dark/95` : ''} flex flex-wrap justify-center ${className}`}>
       {visibleSections.map(({ id, label }) => (
         <div key={id} className='w-1/2 p-0.5 sm:w-1/3 lg:w-1/4'>
           <a
             href={`#${id}`}
             onClick={(event) => scrollToSection(event, id)}
             aria-current={activeSection === id ? 'location' : undefined}
-            className={`block rounded-lg border px-3 py-2 text-center text-base font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${activeSection === id ? 'border-brand-primary bg-brand-primary text-white shadow-sm' : 'border-brand-primary/30 bg-brand-primary/5 text-brand-primary underline-offset-4 hover:border-brand-primary/60 hover:bg-brand-primary/10 hover:underline'}`}
+            className={sectionLinkClass(activeSection === id)}
           >
             {label}
           </a>

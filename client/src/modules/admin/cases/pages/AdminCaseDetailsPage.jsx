@@ -32,6 +32,7 @@ const MATTER_TABS = [
 import { COURT_LEVELS, COURT_TYPES } from '@/modules/cases/shared/create/caseCreateOptions';
 import CourtProgressPanel from '@/modules/cases/shared/CourtProgressPanel';
 import PageSectionNav from '@/components/ui/PageSectionNav';
+import { sectionLinkClass } from '@/components/ui/sectionLinkClass';
 
 const PRIORITIES = [
   { value: 'LOW', label: 'Low' },
@@ -139,21 +140,21 @@ const MatterHeader = ({ caseData }) => {
   );
 };
 
+// The matter's tabs, in the same look as page section links, in even columns.
 const MatterTabs = ({ tabs, active, onChange }) => (
-  <div role='tablist' aria-label='Matter' className='flex gap-1 overflow-x-auto border-b border-border-light dark:border-border-dark'>
+  <div role='tablist' aria-label='Matter' className='flex flex-wrap justify-center'>
     {tabs.map(([key, label]) => (
-      <button
-        key={key}
-        type='button'
-        role='tab'
-        aria-selected={active === key}
-        onClick={() => onChange(key)}
-        className={`whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition ${active === key
-          ? 'border-brand-primary text-brand-primary'
-          : 'border-transparent text-text-muted-light hover:text-text-primary-light dark:text-text-muted-dark dark:hover:text-text-primary-dark'}`}
-      >
-        {label}
-      </button>
+      <div key={key} className='w-1/2 p-0.5 sm:w-1/3 lg:w-1/6'>
+        <button
+          type='button'
+          role='tab'
+          aria-selected={active === key}
+          onClick={() => onChange(key)}
+          className={sectionLinkClass(active === key)}
+        >
+          {label}
+        </button>
+      </div>
     ))}
   </div>
 );
@@ -923,7 +924,42 @@ const AdminCaseDetailsPage = () => {
     <div className='mx-auto max-w-[1200px] space-y-6 p-4 md:p-6 animate-fadeIn'>
 
       <MatterHeader caseData={caseData} />
-      <MatterTabs tabs={visibleTabs} active={activeTab} onChange={setActiveTab} />
+      {/* Tabs and the open tab's section links stay pinned together while the page scrolls. */}
+      <div className='sticky top-2 z-20 space-y-1.5 rounded-xl border border-border-light bg-surface-light/95 p-1.5 shadow-sm backdrop-blur dark:border-border-dark dark:bg-surface-dark/95'>
+        <MatterTabs tabs={visibleTabs} active={activeTab} onChange={setActiveTab} />
+        {activeTab === 'court' && (
+          <PageSectionNav
+            key='court'
+            pinned={false}
+            className='border-t border-border-light pt-1.5 dark:border-border-dark'
+            ariaLabel='Court tab sections'
+            sections={[
+              { id: 'court-record', label: 'Court proceeding record', hidden: !isCourtMatter },
+              { id: 'court-progress', label: 'Court progress & filing register' },
+              { id: 'court-next-date', label: 'Record the next date' },
+              { id: 'court-events', label: 'Court events' },
+              { id: 'court-activity', label: 'Hearings, filings, tasks & notes' },
+            ]}
+          />
+        )}
+        {activeTab === 'record' && (
+          <PageSectionNav
+            key='record'
+            pinned={false}
+            className='border-t border-border-light pt-1.5 dark:border-border-dark'
+            ariaLabel='Matter record sections'
+            sections={[
+              { id: 'record-details', label: 'Matter details' },
+              { id: 'record-conflict', label: 'Conflict check' },
+              { id: 'record-parties', label: 'Parties' },
+              { id: 'record-relief', label: 'Monetary relief' },
+              { id: 'record-lifecycle', label: 'Lifecycles' },
+              { id: 'record-transitions', label: 'Lifecycle transitions' },
+              { id: 'record-controls', label: 'Deadlines, workstream & closing' },
+            ]}
+          />
+        )}
+      </div>
 
       {activeTab === 'overview' && (
         <div className='space-y-6'>
@@ -1001,16 +1037,6 @@ const AdminCaseDetailsPage = () => {
 
       {activeTab === 'court' && (
         <div className='space-y-6'>
-          <PageSectionNav
-            ariaLabel='Court tab sections'
-            sections={[
-              { id: 'court-record', label: 'Court proceeding record', hidden: !isCourtMatter },
-              { id: 'court-progress', label: 'Court progress & filing register' },
-              { id: 'court-next-date', label: 'Record the next date' },
-              { id: 'court-events', label: 'Court events' },
-              { id: 'court-activity', label: 'Hearings, filings, tasks & notes' },
-            ]}
-          />
           {isCourtMatter && (
             <Card id='court-record' className='scroll-mt-28 p-6'>
               <div className='mb-5 flex flex-col gap-2 md:flex-row md:items-start md:justify-between'>
@@ -1647,18 +1673,6 @@ const AdminCaseDetailsPage = () => {
 
       {activeTab === 'record' && (
         <div className='space-y-6'>
-          <PageSectionNav
-            ariaLabel='Matter record sections'
-            sections={[
-              { id: 'record-details', label: 'Matter details' },
-              { id: 'record-conflict', label: 'Conflict check' },
-              { id: 'record-parties', label: 'Parties' },
-              { id: 'record-relief', label: 'Monetary relief' },
-              { id: 'record-lifecycle', label: 'Lifecycles' },
-              { id: 'record-transitions', label: 'Lifecycle transitions' },
-              { id: 'record-controls', label: 'Deadlines, workstream & closing' },
-            ]}
-          />
           <Card id='record-details' className='scroll-mt-28 p-6'>
             <div className='mb-5 flex flex-col gap-3 border-b border-border-light pb-5 dark:border-border-dark md:flex-row md:items-start md:justify-between'>
               <div>
