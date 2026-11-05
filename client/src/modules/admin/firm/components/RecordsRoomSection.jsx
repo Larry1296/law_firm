@@ -4,6 +4,7 @@ import { Archive, FolderOpen, Lock, Pencil, Plus, RotateCcw, Warehouse } from 'l
 
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import adminFirmService from '@/modules/admin/firm/services/adminFirmService';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 // What can be added inside each kind, matching the physical nesting.
 const CHILD_KINDS = {
@@ -35,7 +36,7 @@ function LocationForm({ kinds, purposes, initial, submitLabel, onSubmit, onCance
       )}
       <label className='min-w-40 flex-1 text-sm'>
         <span className='block font-semibold'>Label, as written on it</span>
-        <input required maxLength={80} autoFocus className='form-control mt-1 w-full' value={label} onChange={(event) => setLabel(event.target.value)} placeholder={`e.g. ${EXAMPLE_LABEL[kind]}`} />
+        <CaptionedInput required maxLength={80} autoFocus className='form-control mt-1 w-full' value={label} onChange={(event) => setLabel(event.target.value)} placeholder={`e.g. ${EXAMPLE_LABEL[kind]}`} />
       </label>
       <label className='text-sm'>
         <span className='block font-semibold'>Holds</span>

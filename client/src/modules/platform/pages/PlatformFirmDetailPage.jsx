@@ -28,6 +28,7 @@ import {
 } from '@/modules/platform/components/ui';
 import { cellClass, formatDateTime, inputClass } from '@/modules/platform/components/styles';
 import { localDateInput } from '@/core/utils/dateFormatter';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 const toDateInput = (value) => (value ? localDateInput(value) : '');
 const fromDateInput = (value) => (value ? new Date(`${value}T23:59:00`).toISOString() : null);
@@ -207,10 +208,10 @@ function SubscriptionPanel({ firm, meta, onSaved }) {
         </Field>
         {selectedMode === 'CUSTOM' && <>
           <Field label='Custom monthly total (KES, excl. VAT)'>
-            <input type='number' min='0' step='0.01' value={draft.custom_monthly_price} onChange={set('custom_monthly_price')} placeholder='Use plan price' className={inputClass} />
+            <CaptionedInput type='number' min='0' step='0.01' value={draft.custom_monthly_price} onChange={set('custom_monthly_price')} placeholder='Use plan price' className={inputClass} />
           </Field>
           <Field label='Custom annual total (KES, excl. VAT)'>
-            <input type='number' min='0' step='0.01' value={draft.custom_annual_price} onChange={set('custom_annual_price')} placeholder='Use plan price' className={inputClass} />
+            <CaptionedInput type='number' min='0' step='0.01' value={draft.custom_annual_price} onChange={set('custom_annual_price')} placeholder='Use plan price' className={inputClass} />
           </Field>
         </>}
         <Field label='Reason for billing arrangement' required={pricingChanged} className='sm:col-span-2'>

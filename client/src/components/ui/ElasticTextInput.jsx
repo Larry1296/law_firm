@@ -56,6 +56,7 @@ export default function ElasticTextInput({
         autoCorrect={autoCorrect ?? (supportsWritingAssist ? 'on' : 'off')}
         autoCapitalize={autoCapitalize ?? (supportsWritingAssist ? 'sentences' : 'none')}
         spellCheck={spellCheck ?? supportsWritingAssist}
+        caption={!label}
         {...props}
         className={`form-control floating-input-field min-h-[44px] ${textareaClassName}`}
       />

@@ -32,6 +32,7 @@ const MATTER_TABS = [
 import { COURT_LEVELS, COURT_TYPES } from '@/modules/cases/shared/create/caseCreateOptions';
 import CourtProgressPanel from '@/modules/cases/shared/CourtProgressPanel';
 import PageTabs from '@/components/ui/PageTabs';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 const PRIORITIES = [
   { value: 'LOW', label: 'Low' },
@@ -1103,7 +1104,7 @@ const AdminCaseDetailsPage = () => {
                       <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                         CTS reference
                       </label>
-                      <input
+                      <CaptionedInput
                         value={ctsDraft.cts_reference}
                         onChange={(event) => setCtsDraft((current) => ({ ...current, cts_reference: event.target.value.toUpperCase() }))}
                         placeholder='e.g. CTS-HCCOMM-2026-001248'
@@ -1115,7 +1116,7 @@ const AdminCaseDetailsPage = () => {
                       <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                         Verification source
                       </label>
-                      <input
+                      <CaptionedInput
                         value={ctsDraft.verification_source}
                         onChange={(event) => setCtsDraft((current) => ({ ...current, verification_source: event.target.value }))}
                         placeholder='Judiciary eFiling portal, court registry, cause list, stamped pleading'
@@ -1235,7 +1236,7 @@ const AdminCaseDetailsPage = () => {
                       <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                         Judicial officer rank, where relevant
                       </label>
-                      <input
+                      <CaptionedInput
                         value={jurisdictionValues.judicial_officer_rank}
                         onChange={(event) => setJurisdictionDraft((current) => ({ ...current, judicial_officer_rank: event.target.value }))}
                         placeholder='Judge, magistrate, chairperson, or leave blank'
@@ -1430,7 +1431,7 @@ const AdminCaseDetailsPage = () => {
                   <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                     Court / tribunal
                   </label>
-                  <input
+                  <CaptionedInput
                     value={eventDraft.court}
                     onChange={(event) => setEventDraft((current) => ({ ...current, court: event.target.value }))}
                     placeholder={courtName || 'High Court of Kenya'}
@@ -1442,7 +1443,7 @@ const AdminCaseDetailsPage = () => {
                   <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                     Court station
                   </label>
-                  <input
+                  <CaptionedInput
                     value={eventDraft.court_station}
                     onChange={(event) => setEventDraft((current) => ({ ...current, court_station: event.target.value }))}
                     placeholder={caseData.court_station || 'Nairobi'}
@@ -1454,7 +1455,7 @@ const AdminCaseDetailsPage = () => {
                   <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                     Courtroom / virtual courtroom label
                   </label>
-                  <input
+                  <CaptionedInput
                     value={eventDraft.courtroom}
                     onChange={(event) => setEventDraft((current) => ({ ...current, courtroom: event.target.value }))}
                     placeholder='Leave blank if not allocated'
@@ -1466,7 +1467,7 @@ const AdminCaseDetailsPage = () => {
                   <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                     Judicial officer
                   </label>
-                  <input
+                  <CaptionedInput
                     value={eventDraft.judicial_officer}
                     onChange={(event) => setEventDraft((current) => ({ ...current, judicial_officer: event.target.value }))}
                     placeholder='Judge, deputy registrar, magistrate, chairperson, or leave blank'
@@ -1480,7 +1481,7 @@ const AdminCaseDetailsPage = () => {
                       <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                         Virtual link, if supplied by court
                       </label>
-                      <input
+                      <CaptionedInput
                         value={eventDraft.virtual_meeting_url}
                         onChange={(event) => setEventDraft((current) => ({ ...current, virtual_meeting_url: event.target.value }))}
                         placeholder='Do not enter public links unless authorized'
@@ -1506,7 +1507,7 @@ const AdminCaseDetailsPage = () => {
                     <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                       Physical venue
                     </label>
-                    <input
+                    <CaptionedInput
                       value={eventDraft.physical_venue}
                       onChange={(event) => setEventDraft((current) => ({ ...current, physical_venue: event.target.value }))}
                       placeholder={courtLocation || 'Milimani Law Courts, Nairobi'}
@@ -2085,21 +2086,21 @@ const AdminCaseDetailsPage = () => {
                 {selectedTransition?.to_state === 'FILED' && (
                   <div className='grid gap-4 rounded-xl border border-border-light p-4 dark:border-border-dark lg:col-span-2 md:grid-cols-2'>
                     <input type='date' value={transitionMetadata.filing_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, filing_date: event.target.value }))} className='form-control' />
-                    <input placeholder='Official court case number' value={transitionMetadata.official_court_case_number} onChange={(event) => setTransitionMetadata((current) => ({ ...current, official_court_case_number: event.target.value }))} className='form-control' />
-                    <input placeholder='eFiling reference' value={transitionMetadata.efiling_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, efiling_reference: event.target.value }))} className='form-control' />
-                    <input placeholder='Assessment reference' value={transitionMetadata.assessment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, assessment_reference: event.target.value }))} className='form-control' />
-                    <input placeholder='Payment reference' value={transitionMetadata.payment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_reference: event.target.value }))} className='form-control' />
+                    <CaptionedInput placeholder='Official court case number' value={transitionMetadata.official_court_case_number} onChange={(event) => setTransitionMetadata((current) => ({ ...current, official_court_case_number: event.target.value }))} className='form-control' />
+                    <CaptionedInput placeholder='eFiling reference' value={transitionMetadata.efiling_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, efiling_reference: event.target.value }))} className='form-control' />
+                    <CaptionedInput placeholder='Assessment reference' value={transitionMetadata.assessment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, assessment_reference: event.target.value }))} className='form-control' />
+                    <CaptionedInput placeholder='Payment reference' value={transitionMetadata.payment_reference} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_reference: event.target.value }))} className='form-control' />
                     <input type='date' value={transitionMetadata.payment_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, payment_date: event.target.value }))} className='form-control' />
-                    <input type='number' min='0' placeholder='Court fee amount' value={transitionMetadata.court_fee_amount} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_fee_amount: event.target.value }))} className='form-control' />
-                    <input placeholder='Court station' value={transitionMetadata.court_station} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_station: event.target.value }))} className='form-control' />
-                    <input placeholder='Registry' value={transitionMetadata.registry} onChange={(event) => setTransitionMetadata((current) => ({ ...current, registry: event.target.value }))} className='form-control' />
+                    <CaptionedInput type='number' min='0' placeholder='Court fee amount' value={transitionMetadata.court_fee_amount} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_fee_amount: event.target.value }))} className='form-control' />
+                    <CaptionedInput placeholder='Court station' value={transitionMetadata.court_station} onChange={(event) => setTransitionMetadata((current) => ({ ...current, court_station: event.target.value }))} className='form-control' />
+                    <CaptionedInput placeholder='Registry' value={transitionMetadata.registry} onChange={(event) => setTransitionMetadata((current) => ({ ...current, registry: event.target.value }))} className='form-control' />
                   </div>
                 )}
                 {selectedTransition?.to_state === 'AWAITING_SERVICE' && (
                   <div className='grid gap-4 rounded-xl border border-border-light p-4 dark:border-border-dark lg:col-span-2 md:grid-cols-2'>
                     <label className='flex items-center gap-2 text-sm'><input type='checkbox' checked={transitionMetadata.sealed_documents_received} onChange={(event) => setTransitionMetadata((current) => ({ ...current, sealed_documents_received: event.target.checked }))} /> Sealed documents received</label>
                     <label className='flex items-center gap-2 text-sm'><input type='checkbox' checked={transitionMetadata.service_package_prepared} onChange={(event) => setTransitionMetadata((current) => ({ ...current, service_package_prepared: event.target.checked }))} /> Service package prepared</label>
-                    <input placeholder='Responsible person' value={transitionMetadata.responsible_person} onChange={(event) => setTransitionMetadata((current) => ({ ...current, responsible_person: event.target.value }))} className='form-control' />
+                    <CaptionedInput placeholder='Responsible person' value={transitionMetadata.responsible_person} onChange={(event) => setTransitionMetadata((current) => ({ ...current, responsible_person: event.target.value }))} className='form-control' />
                     <input type='date' value={transitionMetadata.target_service_date} onChange={(event) => setTransitionMetadata((current) => ({ ...current, target_service_date: event.target.value }))} className='form-control' />
                   </div>
                 )}

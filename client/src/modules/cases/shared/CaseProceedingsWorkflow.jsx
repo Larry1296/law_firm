@@ -6,6 +6,7 @@ import axiosInstance from '@/core/api/axios';
 import { formatDateTime } from '@/core/utils/dateFormatter';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { currentProceeding } from './caseProceedingsUtils';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 // The court's outcome codes, named as the server names them (apps/common/choices.py).
 const OUTCOME_CODES = [
@@ -196,7 +197,7 @@ export default function CaseProceedingsWorkflow({ caseData }) {
               {OUTCOME_CODES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
             <AutoGrowTextarea required className='form-control md:col-span-2' placeholder='Outcome' value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })} />
-            <input className='form-control' placeholder='Appearances, comma-separated' value={form.attendance} onChange={(e) => setForm({ ...form, attendance: e.target.value })} />
+            <CaptionedInput className='form-control' placeholder='Appearances, comma-separated' value={form.attendance} onChange={(e) => setForm({ ...form, attendance: e.target.value })} />
             <AutoGrowTextarea className='form-control' placeholder='Court orders and directions' value={form.orders_directions} onChange={(e) => setForm({ ...form, orders_directions: e.target.value })} />
             {form.outcome_code === 'ADJOURNED' && <AutoGrowTextarea required className='form-control md:col-span-2' placeholder='Adjournment reason (carried into the re-listed event)' value={form.adjournment_reason} onChange={(e) => setForm({ ...form, adjournment_reason: e.target.value })} />}
             <select className='form-control' value={form.next_event_type} onChange={(e) => {

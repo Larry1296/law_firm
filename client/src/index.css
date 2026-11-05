@@ -1217,6 +1217,62 @@ html:not(.dark) .public-home #home [class*="via-black"] {
   .auth-back:focus-visible {
     color: var(--form-primary);
   }
+
+  /* A placeholder rises onto the box's top border as a caption once text is typed in (PlaceholderField). */
+  .placeholder-field {
+    position: relative;
+    min-width: 0;
+  }
+
+  .placeholder-field[data-caption]::after {
+    content: attr(data-caption);
+    position: absolute;
+    top: 0;
+    left: 10px;
+    z-index: 1;
+    max-width: calc(100% - 20px);
+    overflow: hidden;
+    padding: 0 4px;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    transform: translateY(-50%);
+    animation: placeholder-rise 150ms ease-out;
+  }
+
+  .placeholder-field[data-caption]:focus-within::after {
+    color: var(--brand-primary);
+  }
+
+  /* An uncontrolled box with nothing typed still shows its placeholder; a box in a <label> keeps the label. */
+  .placeholder-field:has(> :placeholder-shown)::after,
+  label .placeholder-field::after {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .placeholder-field::after {
+      animation: none;
+    }
+  }
+
+  @keyframes placeholder-rise {
+    from {
+      opacity: 0;
+      transform: translateY(60%);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(-50%);
+    }
+  }
 }
 
 input.form-control:-webkit-autofill,

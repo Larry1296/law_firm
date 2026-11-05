@@ -9,6 +9,7 @@ import {
   useCreateCourtroomSession,
   useUpdateCourtroomSession,
 } from '@/modules/courtroom/hooks/useCourtroom';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 const COURT_EVENT_TYPES = new Set(['MENTION', 'HEARING', 'DIRECTIONS', 'PRE_TRIAL', 'RULING', 'JUDGMENT', 'TAXATION']);
 const OPEN_STATUSES = new Set(['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS']);
@@ -137,7 +138,7 @@ export default function CourtroomLinkForm({ caseId }) {
 
           <label className='space-y-1 text-sm font-semibold md:col-span-2'>
             <span>Court link (Teams, Zoom or Judiciary)</span>
-            <input
+            <CaptionedInput
               name='join_url'
               type='url'
               inputMode='url'

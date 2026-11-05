@@ -12,6 +12,7 @@ import platformService from '@/modules/platform/services/platformService';
 import PlanOptions from '@/modules/subscription/components/PlanOptions';
 import PageSectionNav from '@/components/ui/PageSectionNav';
 import subscriptionService from '@/modules/subscription/services/subscriptionService';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 const FirmSignup = lazy(() => import('@/modules/auth/pages/FirmSignup'));
 
@@ -230,7 +231,7 @@ function OnboardingRequestForm({ plans, includedInEveryPlan, onSent }) {
         <div className='flex gap-2 sm:col-span-2'>
           <label className='flex-1'>
             <span className='sr-only'>Another practice area</span>
-            <input
+            <CaptionedInput
               name='practice_areas'
               value={customArea}
               onChange={(event) => setCustomArea(event.target.value)}

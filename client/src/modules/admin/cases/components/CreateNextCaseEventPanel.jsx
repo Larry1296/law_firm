@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import Swal from '@/core/utils/themedSwal';
 import Button3D from '@/components/ui/Button3D';
 import Select3D from '@/components/ui/Select3D';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 /**
  * Valid next event types per court stage.
@@ -294,7 +295,7 @@ export default function CreateNextCaseEventPanel({
           <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
             Title *
           </label>
-          <input
+          <CaptionedInput
             type="text"
             value={draft.title}
             onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
@@ -370,7 +371,7 @@ export default function CreateNextCaseEventPanel({
             <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
               Court Station
             </label>
-            <input
+            <CaptionedInput
               type="text"
               value={draft.court_station}
               onChange={(e) => setDraft((d) => ({ ...d, court_station: e.target.value }))}
@@ -389,7 +390,7 @@ export default function CreateNextCaseEventPanel({
             <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
               Courtroom
             </label>
-            <input
+            <CaptionedInput
               type="text"
               value={draft.courtroom}
               onChange={(e) => setDraft((d) => ({ ...d, courtroom: e.target.value }))}
@@ -403,7 +404,7 @@ export default function CreateNextCaseEventPanel({
             <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
               Judicial Officer
             </label>
-            <input
+            <CaptionedInput
               type="text"
               value={draft.judicial_officer}
               onChange={(e) => setDraft((d) => ({ ...d, judicial_officer: e.target.value }))}
@@ -422,7 +423,7 @@ export default function CreateNextCaseEventPanel({
             <label className="mb-1 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
               Virtual Meeting URL
             </label>
-            <input
+            <CaptionedInput
               type="url"
               value={draft.virtual_meeting_url}
               onChange={(e) => setDraft((d) => ({ ...d, virtual_meeting_url: e.target.value }))}

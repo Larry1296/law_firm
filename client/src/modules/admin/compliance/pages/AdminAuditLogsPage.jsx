@@ -5,6 +5,7 @@ import Card from '@/components/ui/Card';
 import SectionHeading from '@/components/ui/SectionHeading';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import adminReportsService from '@/modules/admin/reports/services/adminReportsService';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 const humanise = (value) => String(value || '').replaceAll('_', ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 
@@ -49,7 +50,7 @@ export default function AdminAuditLogsPage() {
       <Card className='p-4 sm:p-6'>
         <label className='block max-w-md text-sm'>
           <span className='mb-1 block font-medium'>Filter by action, person, role or record</span>
-          <input
+          <CaptionedInput
             className='form-control w-full text-sm'
             value={search}
             onChange={(event) => setSearch(event.target.value)}

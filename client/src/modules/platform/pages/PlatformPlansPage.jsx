@@ -15,6 +15,7 @@ import {
   StatusBadge,
 } from '@/modules/platform/components/ui';
 import { inputClass } from '@/modules/platform/components/styles';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 const LIMIT_FIELDS = [
   ['max_advocates', 'Advocates'],
@@ -85,7 +86,7 @@ function PlanForm({ initial, features, onDone, onCancel }) {
         <legend className='mb-2 text-sm font-medium'>Limits <span className='font-normal text-text-muted-light dark:text-text-muted-dark'>(leave empty for unlimited)</span></legend>
         {LIMIT_FIELDS.map(([key, label]) => (
           <Field key={key} label={label}>
-            <input type='number' min='0' value={draft[key]} onChange={set(key)} placeholder='Unlimited' className={inputClass} />
+            <CaptionedInput type='number' min='0' value={draft[key]} onChange={set(key)} placeholder='Unlimited' className={inputClass} />
           </Field>
         ))}
       </fieldset>

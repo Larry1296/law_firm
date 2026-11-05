@@ -31,6 +31,7 @@ import PhysicalMatterFileCard from '@/modules/cases/shared/PhysicalMatterFileCar
 import PageTabs from '@/components/ui/PageTabs';
 import MatterLifecycleControls from '@/modules/admin/cases/components/MatterLifecycleControls';
 import CourtProgressPanel from '@/modules/cases/shared/CourtProgressPanel';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 const CASE_STATUS_OPTIONS = [
   { value: 'PENDING', label: 'Pending Review' },
@@ -857,7 +858,7 @@ export default function LawyerCaseDetailsPage() {
                   <label className='mb-2 block text-sm font-medium text-text-primary-light dark:text-text-primary-dark'>
                     Event Title
                   </label>
-                  <input
+                  <CaptionedInput
                     value={nextEvent.title}
                     onChange={(event) =>
                       setNextEvent((current) => ({

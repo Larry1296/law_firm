@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '@/core/api/axios';
 import SectionHeading from '@/components/ui/SectionHeading';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 const priorityStyle = { CRITICAL: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200', HIGH: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200', MEDIUM: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200', LOW: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200' };
 
@@ -17,7 +18,7 @@ export default function AdminCasePredictionsPage() {
     <SectionHeading title='AI Matter Intelligence' subtitle='Firm-wide, explainable preparedness, risk and assessed-outlook oversight' size='compact' />
     <div role='note' className='rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800'>{data?.disclaimer || 'This is an AI-assisted preparedness, risk and matter-outlook assessment. It is not legal advice, a judicial decision, or a guarantee of the court’s outcome. The responsible advocate must independently verify the facts, documents, deadlines, authorities and recommendations.'}</div>
     <section aria-label='Matter intelligence filters' className='grid gap-3 rounded-xl border p-4 sm:grid-cols-2 lg:grid-cols-4'>
-      <label className='text-sm'>Search<input value={filters.search} onChange={update('search')} className='form-control mt-1 w-full' placeholder='Matter, client or advocate' /></label>
+      <label className='text-sm'>Search<CaptionedInput value={filters.search} onChange={update('search')} className='form-control mt-1 w-full' placeholder='Matter, client or advocate' /></label>
       <label className='text-sm'>Priority<select value={filters.priority} onChange={update('priority')} className='form-control mt-1 w-full'><option value=''>All</option>{['CRITICAL','HIGH','MEDIUM','LOW'].map(x => <option key={x}>{x}</option>)}</select></label>
       <label className='text-sm'>Assessment state<select value={filters.freshness} onChange={update('freshness')} className='form-control mt-1 w-full'><option value=''>All</option><option value='stale'>Requires reassessment</option></select></label>
       <label className='text-sm'>Sort<select value={filters.sort} onChange={update('sort')} className='form-control mt-1 w-full'><option value='priority'>Priority</option><option value='deadline'>Next event</option><option value='preparedness'>Preparedness</option><option value='severity'>Consequence</option></select></label>

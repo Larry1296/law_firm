@@ -16,6 +16,7 @@ import {
   Panel,
 } from '@/modules/platform/components/ui';
 import { inputClass } from '@/modules/platform/components/styles';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 const KRA_PIN = /^[AP]\d{9}[A-Z]$/;
 const MPESA_CODE = /^[A-Z0-9]{10}$/;
@@ -383,7 +384,7 @@ export default function PlatformRegisterFirmPage() {
           {step === 'firm' && (
             <div className='grid gap-5 md:grid-cols-2'>
               <Field label='Registered firm name' required error={err('firm.name')} className='md:col-span-2'>
-                <input value={form.firm.name} onChange={set('firm', 'name')} className={inputClass} placeholder='e.g. Achieng & Mwangi Advocates' />
+                <CaptionedInput value={form.firm.name} onChange={set('firm', 'name')} className={inputClass} placeholder='e.g. Achieng & Mwangi Advocates' />
               </Field>
               <Field label='Business structure' required error={err('firm.business_structure')}>
                 <select value={form.firm.business_structure} onChange={set('firm', 'business_structure')} className={inputClass}>
@@ -391,10 +392,10 @@ export default function PlatformRegisterFirmPage() {
                 </select>
               </Field>
               <Field label='BRS registration number' required hint='Business name or partnership number from the Business Registration Service.' error={err('firm.registration_number')}>
-                <input value={form.firm.registration_number} onChange={set('firm', 'registration_number')} className={inputClass} placeholder='e.g. BN-2026-0042' />
+                <CaptionedInput value={form.firm.registration_number} onChange={set('firm', 'registration_number')} className={inputClass} placeholder='e.g. BN-2026-0042' />
               </Field>
               <Field label='KRA PIN' required hint='Used on the firm’s tax invoices (eTIMS).' error={err('firm.kra_pin')}>
-                <input value={form.firm.kra_pin} onChange={set('firm', 'kra_pin')} className={`${inputClass} uppercase`} placeholder='P051234567X' maxLength={11} />
+                <CaptionedInput value={form.firm.kra_pin} onChange={set('firm', 'kra_pin')} className={`${inputClass} uppercase`} placeholder='P051234567X' maxLength={11} />
               </Field>
               <Field label='Logo' hint='PNG or JPG, up to 2 MB. Shown on the firm’s dashboard.'>
                 <span className='flex items-center gap-3'>
@@ -421,16 +422,16 @@ export default function PlatformRegisterFirmPage() {
           {step === 'contact' && (
             <div className='grid gap-5 md:grid-cols-2'>
               <Field label='Firm email' required error={err('firm.email')}>
-                <input type='email' value={form.firm.email} onChange={set('firm', 'email')} className={inputClass} placeholder='info@firm.co.ke' />
+                <CaptionedInput type='email' value={form.firm.email} onChange={set('firm', 'email')} className={inputClass} placeholder='info@firm.co.ke' />
               </Field>
               <Field label='Firm phone' required error={err('firm.phone_number')}>
-                <input type='tel' value={form.firm.phone_number} onChange={set('firm', 'phone_number')} className={inputClass} placeholder='+254 7XX XXX XXX' />
+                <CaptionedInput type='tel' value={form.firm.phone_number} onChange={set('firm', 'phone_number')} className={inputClass} placeholder='+254 7XX XXX XXX' />
               </Field>
               <Field label='Website' error={err('firm.website')}>
-                <input type='url' value={form.firm.website} onChange={set('firm', 'website')} className={inputClass} placeholder='https://' />
+                <CaptionedInput type='url' value={form.firm.website} onChange={set('firm', 'website')} className={inputClass} placeholder='https://' />
               </Field>
               <Field label='Postal address' error={err('firm.postal_address')}>
-                <input value={form.firm.postal_address} onChange={set('firm', 'postal_address')} className={inputClass} placeholder='P.O. Box 1234-00100 Nairobi' />
+                <CaptionedInput value={form.firm.postal_address} onChange={set('firm', 'postal_address')} className={inputClass} placeholder='P.O. Box 1234-00100 Nairobi' />
               </Field>
               <Field label='Physical address' required hint='Building, floor and street of the head office.' error={err('firm.physical_address')} className='md:col-span-2'>
                 <AutoGrowTextarea value={form.firm.physical_address} onChange={set('firm', 'physical_address')} className={inputClass} />
@@ -493,7 +494,7 @@ export default function PlatformRegisterFirmPage() {
               <div className='mt-5 flex max-w-lg gap-2'>
                 <label className='flex-1'>
                   <span className='sr-only'>Another practice area</span>
-                  <input
+                  <CaptionedInput
                     value={customArea}
                     onChange={(event) => setCustomArea(event.target.value)}
                     onKeyDown={(event) => {
@@ -536,7 +537,7 @@ export default function PlatformRegisterFirmPage() {
                 <input value={form.owner.admission_number} onChange={set('owner', 'admission_number')} className={inputClass} />
               </Field>
               <Field label='Office / room label' error={err('owner.office_location')} hint='Shown to reception when the managing partner calls a client.'>
-                <input value={form.owner.office_location || ''} onChange={set('owner', 'office_location')} className={inputClass} placeholder='e.g. Room 201, second floor' maxLength={255} />
+                <CaptionedInput value={form.owner.office_location || ''} onChange={set('owner', 'office_location')} className={inputClass} placeholder='e.g. Room 201, second floor' maxLength={255} />
               </Field>
               <Field label='Title' error={err('owner.job_title')}>
                 <input value={form.owner.job_title} onChange={set('owner', 'job_title')} className={inputClass} />
@@ -574,7 +575,7 @@ export default function PlatformRegisterFirmPage() {
                 ) : (
                   <>
                     <Field label='M-Pesa confirmation code' required hint='Check it against the Paybill statement first. It is recorded as a paid invoice.' error={err('subscription.mpesa_receipt')}>
-                      <input value={form.subscription.mpesa_receipt} onChange={set('subscription', 'mpesa_receipt')} className={`${inputClass} font-mono uppercase`} maxLength={10} placeholder='SIB7XK2LQ9' />
+                      <CaptionedInput value={form.subscription.mpesa_receipt} onChange={set('subscription', 'mpesa_receipt')} className={`${inputClass} font-mono uppercase`} maxLength={10} placeholder='SIB7XK2LQ9' />
                     </Field>
                     <Field label='Paid from phone number'>
                       <input type='tel' value={form.subscription.payer_phone} onChange={set('subscription', 'payer_phone')} className={inputClass} />

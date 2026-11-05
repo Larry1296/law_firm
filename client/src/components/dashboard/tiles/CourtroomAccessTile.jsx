@@ -2,6 +2,7 @@ import { Link2, Video, ExternalLink, Radio } from 'lucide-react';
 
 import DashboardTile from '@/components/dashboard/DashboardTile';
 import FloatingInput from '@/components/ui/FloatingInput';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 export default function CourtroomAccessTile() {
   const sessions = [
@@ -68,7 +69,7 @@ export default function CourtroomAccessTile() {
           <div className='flex items-center gap-3'>
             <Link2 size={18} className='text-white/80' />
 
-            {/* <input
+            {/* <CaptionedInput
               type='text'
               placeholder='Paste Zoom, Teams, Google Meet, or Courtroom Link'
               className='

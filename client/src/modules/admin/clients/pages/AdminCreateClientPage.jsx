@@ -5,6 +5,7 @@ import { buildProspectivePayload, onboardingReducer, onboardingStateFromSearch }
 import { prospectiveClientService as service, creationError } from '@/modules/clients/shared/prospectiveClientService';
 import { AddressFields, ContactFields } from '../clientCreation/ContactDetailsFields';
 import { filledFields, freshAddress, freshContact } from '../clientCreation/contactDetailsDefaults';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 // An address or contact counts as given once any of its own details is typed in (not the preset type or country).
 const ADDRESS_DETAILS = ['county', 'city', 'street', 'building_or_plot', 'postal_address', 'postal_code', 'full_address'];
@@ -150,8 +151,8 @@ export default function AdminCreateClientPage() {
         </StepPanel>
         <StepPanel title='Privacy notice delivery'><div className='grid gap-4 sm:grid-cols-2'>
           {!metadata.intake_privacy && <p role='alert' className='rounded-lg bg-amber-50 p-3 text-amber-900 sm:col-span-2 dark:bg-amber-950/40 dark:text-amber-200'>An approved active firm intake-privacy configuration is required before creation. Ask your firm administrator to configure and approve it. Lawful basis and privacy notice version are filled automatically and cannot be typed here.</p>}
-          <label className='block text-sm text-[color:var(--text-primary)]'><span className='mb-1 block font-medium'>Lawful basis</span><input className='form-control w-full' placeholder='No approved configuration' readOnly value={metadata.intake_privacy?.lawful_basis_label || ''} /></label>
-          <label className='block text-sm text-[color:var(--text-primary)]'><span className='mb-1 block font-medium'>Privacy notice version</span><input className='form-control w-full' placeholder='No approved configuration' readOnly value={metadata.intake_privacy?.policy_version || ''} /></label>
+          <label className='block text-sm text-[color:var(--text-primary)]'><span className='mb-1 block font-medium'>Lawful basis</span><CaptionedInput className='form-control w-full' placeholder='No approved configuration' readOnly value={metadata.intake_privacy?.lawful_basis_label || ''} /></label>
+          <label className='block text-sm text-[color:var(--text-primary)]'><span className='mb-1 block font-medium'>Privacy notice version</span><CaptionedInput className='form-control w-full' placeholder='No approved configuration' readOnly value={metadata.intake_privacy?.policy_version || ''} /></label>
           <SelectField label='Delivery method' required options={DELIVERY_OPTIONS} value={state.privacy.delivery_method} onChange={(delivery_method) => setObject('privacy', { delivery_method })} />
           <p>Acknowledgement is optional and is not consent. The delivering staff member and time are recorded automatically.</p>
           <Field label='Privacy notice delivered' type='checkbox' required value={state.privacy.privacy_notice_delivered} onChange={(privacy_notice_delivered) => setObject('privacy', { privacy_notice_delivered })} />

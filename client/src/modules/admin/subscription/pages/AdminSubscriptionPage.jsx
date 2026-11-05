@@ -16,6 +16,7 @@ import {
   formatLimit,
   formatSubscriptionDate,
 } from '@/modules/admin/subscription/utils/subscriptionFormatting';
+import CaptionedInput from '@/components/ui/CaptionedInput';
 
 const INVOICES_QUERY_KEY = ['subscription', 'invoices'];
 const primaryButton =
@@ -98,11 +99,11 @@ function PendingInvoice({ invoice, instructions, onPaid }) {
       >
         <label className='text-sm'>
           <span className='mb-1 block font-medium'>M-Pesa confirmation code</span>
-          <input className={inputClass} value={receipt} onChange={(e) => setReceipt(e.target.value.toUpperCase())} maxLength={10} placeholder='e.g. SIB7XK2LQ9' required />
+          <CaptionedInput className={inputClass} value={receipt} onChange={(e) => setReceipt(e.target.value.toUpperCase())} maxLength={10} placeholder='e.g. SIB7XK2LQ9' required />
         </label>
         <label className='text-sm'>
           <span className='mb-1 block font-medium'>Paying phone number</span>
-          <input className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder='07XX XXX XXX' inputMode='tel' />
+          <CaptionedInput className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder='07XX XXX XXX' inputMode='tel' />
         </label>
         <button type='submit' className={primaryButton} disabled={mutation.isPending || receipt.length !== 10}>
           {mutation.isPending ? 'Submitting…' : 'Submit payment'}

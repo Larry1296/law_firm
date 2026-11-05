@@ -1,14 +1,17 @@
 import { forwardRef, useCallback, useLayoutEffect, useRef } from 'react';
 
 import { fitTextarea } from '@/components/ui/autoGrow';
+import PlaceholderField from '@/components/ui/PlaceholderField';
+import { fillsRow, showsCaption, splitLayoutClasses } from '@/components/ui/placeholderCaption';
 
 /**
  * The textarea used across the app. It starts as a single line and grows as
  * text is entered. It takes every native textarea prop, plus `minRows` and
- * `maxRows`; `rows` is ignored so every box starts the same way.
+ * `maxRows`; `rows` is ignored so every box starts the same way. Its placeholder rises to a caption
+ * once text is typed in; caption={false} for a box that already shows a label.
  */
 const AutoGrowTextarea = forwardRef(function AutoGrowTextarea(
-  { minRows = 1, rows: _rows, maxRows, value, onInput, className = '', style, ...props },
+  { minRows = 1, rows: _rows, maxRows, value, onInput, className = '', style, caption = true, ...props },
   forwardedRef,
 ) {
   const localRef = useRef(null);
@@ -43,7 +46,10 @@ const AutoGrowTextarea = forwardRef(function AutoGrowTextarea(
     return () => observer.disconnect();
   }, [fit]);
 
-  return (
+  const captioned = Boolean(caption && props.placeholder);
+  const { control, layout } = splitLayoutClasses(className);
+  const fullWidth = fillsRow(className, layout);
+  const box = (
     <textarea
       ref={setRef}
       rows={startRows}
@@ -54,10 +60,16 @@ const AutoGrowTextarea = forwardRef(function AutoGrowTextarea(
         onInput?.(event);
       }}
       data-autogrow=''
-      className={`resize-none ${className}`}
+      className={`resize-none ${captioned ? `${control}${fullWidth ? ' w-full' : ''}` : className}`}
       style={style}
       {...props}
     />
+  );
+  if (!captioned) return box;
+  return (
+    <PlaceholderField className={className} placeholder={props.placeholder} show={showsCaption(props.placeholder, value)} fullWidth={fullWidth}>
+      {box}
+    </PlaceholderField>
   );
 });
 
