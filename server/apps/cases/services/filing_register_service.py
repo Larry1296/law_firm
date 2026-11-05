@@ -400,6 +400,44 @@ class FilingRegisterService:
             ),
         )
 
+    ELRC_DECREE_APPROVAL_DAYS = 7
+
+    @classmethod
+    def record_decree_extraction(cls, *, case, actor, served_on=None):
+        """Called when the matter moves to Decree extraction: the draft decree has gone to the other side.
+
+        Enforcement waits on the sealed decree, so it moves to Decree pending. At the ELRC the other side
+        approves, amends or rejects the draft within 7 days of service; with no answer the advocate notifies
+        the Registrar in writing to sign and seal it (ELRC (Procedure) Rules, 2024, rule 72(4)-(5)).
+        """
+        from apps.cases.models import CaseLifecycleTransition
+        from apps.cases.services.case_lifecycle_service import CaseLifecycleService
+
+        case.refresh_from_db()
+        if case.enforcement_status in {Case.EnforcementStatus.NOT_APPLICABLE, Case.EnforcementStatus.NOT_STARTED}:
+            try:
+                with transaction.atomic():
+                    CaseLifecycleService.transition(
+                        case=case, actor=actor, dimension=CaseLifecycleTransition.Dimension.ENFORCEMENT_STATUS,
+                        to_state=Case.EnforcementStatus.DECREE_PENDING,
+                        reason="Draft decree sent for approval; enforcement waits on the sealed decree.",
+                    )
+            except (PermissionDenied, ValidationError):
+                pass
+            case.refresh_from_db()
+        if case.procedure_track != Case.ProcedureTrack.EMPLOYMENT_CLAIM:
+            return
+        served = timezone.localdate(served_on) if served_on else timezone.localdate()
+        cls._deadline(
+            case, actor, key=f"DECREE_APPROVAL:{case.id}",
+            due=served + timedelta(days=cls.ELRC_DECREE_APPROVAL_DAYS),
+            deadline_type=MatterDeadline.Type.COURT, priority="HIGH",
+            description=(
+                "Other side's approval of the draft decree due (ELRC (Procedure) Rules, 2024, rule 72(4)-(5): "
+                "7 days after service). If none is received, notify the Registrar in writing to sign and seal the decree."
+            ),
+        )
+
     @classmethod
     def record_pre_trial_date(cls, *, case, actor):
         """A case management or pre-trial date taken from the court answers the rule 40(1) step."""

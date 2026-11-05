@@ -552,6 +552,24 @@ class CaseLifecycleFrameworkTests(TestCase):
         # The judgment is registered, which opens the appeal window.
         self.assertTrue(case.filings.filter(filing_type="JUDGMENT").exists())
 
+    def test_decree_extraction_waits_on_the_decree_and_diarises_the_elrc_approval_period(self):
+        from apps.cases.models import MatterDeadline
+        from apps.cases.services.case_lifecycle_service import CaseLifecycleService
+
+        case = self.create_case()
+        case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
+        case.court_stage = Case.CourtStage.JUDGMENT_DELIVERED
+        case.save(update_fields=["procedure_track", "court_stage"])
+        CaseLifecycleService.transition(
+            case=case, actor=self.admin, dimension="COURT_STAGE", to_state=Case.CourtStage.DECREE_EXTRACTION,
+            reason="Draft decree sent to the respondent's advocates.",
+        )
+        case.refresh_from_db()
+        self.assertEqual(case.enforcement_status, Case.EnforcementStatus.DECREE_PENDING)
+        approval = MatterDeadline.objects.get(matter=case, source=f"DECREE_APPROVAL:{case.id}")
+        self.assertEqual(timezone.localdate(approval.due_at), timezone.localdate() + timedelta(days=7))
+        self.assertIn("rule 72(4)-(5)", approval.description)
+
     def test_a_judgment_date_put_off_leaves_judgment_reserved(self):
         case = self.create_case()
         case.court_stage = Case.CourtStage.JUDGMENT_RESERVED

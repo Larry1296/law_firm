@@ -1655,6 +1655,10 @@ class CaseLifecycleService:
                 from apps.cases.services.filing_register_service import FilingRegisterService
 
                 FilingRegisterService.record_judgment(case=case, actor=actor, delivered_at=effective_at)
+            elif to_state == Case.CourtStage.DECREE_EXTRACTION:
+                from apps.cases.services.filing_register_service import FilingRegisterService
+
+                FilingRegisterService.record_decree_extraction(case=case, actor=actor, served_on=effective_at)
 
                 # ======================================================
         # CREATE TRANSITION RECORD
