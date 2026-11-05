@@ -6,6 +6,13 @@ import { formatDateTime } from '@/core/utils/dateFormatter';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { currentProceeding } from './caseProceedingsUtils';
 
+// The court's outcome codes, named as the server names them (apps/common/choices.py).
+const OUTCOME_CODES = [
+  ['PROCEEDED', 'Proceeded'], ['ADJOURNED', 'Adjourned'], ['PART_HEARD', 'Part-heard'], ['DIRECTIONS_ISSUED', 'Directions issued'],
+  ['DATE_ISSUED', 'Next date issued'], ['RULING_DELIVERED', 'Ruling delivered'], ['JUDGMENT_DELIVERED', 'Judgment delivered'],
+  ['SETTLED', 'Settled'], ['WITHDRAWN', 'Withdrawn'], ['DISMISSED', 'Dismissed'], ['DID_NOT_PROCEED', 'Did not proceed'], ['OTHER', 'Other'],
+];
+
 // A date written out in words ("Wednesday, 3 February 2027 at 09:00"), so a day/month mix-up in the picker shows before saving.
 const spelledOut = (value) => {
   const date = value ? new Date(value) : null;
@@ -175,10 +182,10 @@ export default function CaseProceedingsWorkflow({ caseData }) {
         <form className={box} onSubmit={submit}>
           <h2 className='text-lg font-semibold'>Proceedings · Record Outcome</h2>
           <div className='mt-3 grid gap-3 md:grid-cols-2'>
-            <select className='form-control' value={form.proceeded ? 'yes' : 'no'} onChange={(e) => setForm({ ...form, proceeded: e.target.value === 'yes' })}>
+            <select className='form-control' aria-label='Did the sitting proceed' value={form.proceeded ? 'yes' : 'no'} onChange={(e) => setForm({ ...form, proceeded: e.target.value === 'yes' })}>
               <option value='yes'>Proceeded</option><option value='no'>Did not proceed</option>
             </select>
-            <select className='form-control' value={form.outcome_code} onChange={(e) => {
+            <select className='form-control' aria-label='Outcome of the sitting' value={form.outcome_code} onChange={(e) => {
               const outcomeCode = e.target.value;
               const shouldRelist = ['ADJOURNED', 'DID_NOT_PROCEED'].includes(outcomeCode);
               setForm({
@@ -188,7 +195,7 @@ export default function CaseProceedingsWorkflow({ caseData }) {
                 next_event_title: shouldRelist ? current.event_type_label : form.next_event_title,
               });
             }}>
-              {['PROCEEDED', 'ADJOURNED', 'PART_HEARD', 'DIRECTIONS_ISSUED', 'DATE_ISSUED', 'RULING_DELIVERED', 'JUDGMENT_DELIVERED', 'SETTLED', 'WITHDRAWN', 'DISMISSED', 'DID_NOT_PROCEED', 'OTHER'].map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
+              {OUTCOME_CODES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
             <AutoGrowTextarea required className='form-control md:col-span-2' placeholder='Outcome' value={form.outcome} onChange={(e) => setForm({ ...form, outcome: e.target.value })} />
             <input className='form-control' placeholder='Appearances, comma-separated' value={form.attendance} onChange={(e) => setForm({ ...form, attendance: e.target.value })} />
