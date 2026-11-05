@@ -148,6 +148,8 @@ class FilingRegisterService:
         )
         if filing_type == CaseFiling.FilingType.AFFIDAVIT_OF_SERVICE and proves_summons:
             cls._advance_to_awaiting_response(case, user)
+        elif filing_type == CaseFiling.FilingType.DECREE:
+            cls._decree_issued(case, user)
         elif filing_type == CaseFiling.FilingType.DEFENCE:
             case.refresh_from_db()
             if case.court_stage == Case.CourtStage.AWAITING_RESPONSE:
@@ -401,6 +403,29 @@ class FilingRegisterService:
         )
 
     ELRC_DECREE_APPROVAL_DAYS = 7
+
+    @classmethod
+    def _decree_issued(cls, case, actor):
+        """The sealed decree is what can be enforced: enforcement moves from waiting on it to Decree issued."""
+        from apps.cases.models import CaseLifecycleTransition
+        from apps.cases.services.case_lifecycle_service import CaseLifecycleService
+
+        case.refresh_from_db()
+        path = {
+            Case.EnforcementStatus.NOT_APPLICABLE: [Case.EnforcementStatus.DECREE_PENDING, Case.EnforcementStatus.DECREE_ISSUED],
+            Case.EnforcementStatus.NOT_STARTED: [Case.EnforcementStatus.DECREE_PENDING, Case.EnforcementStatus.DECREE_ISSUED],
+            Case.EnforcementStatus.DECREE_PENDING: [Case.EnforcementStatus.DECREE_ISSUED],
+        }.get(case.enforcement_status, [])
+        try:
+            with transaction.atomic():
+                for state in path:
+                    CaseLifecycleService.transition(
+                        case=case, actor=actor, dimension=CaseLifecycleTransition.Dimension.ENFORCEMENT_STATUS,
+                        to_state=state, reason="Sealed decree recorded in the filing register.",
+                    )
+                    case.refresh_from_db()
+        except (PermissionDenied, ValidationError):
+            case.refresh_from_db()
 
     @classmethod
     def record_decree_extraction(cls, *, case, actor, served_on=None):

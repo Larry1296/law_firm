@@ -569,6 +569,12 @@ class CaseLifecycleFrameworkTests(TestCase):
         approval = MatterDeadline.objects.get(matter=case, source=f"DECREE_APPROVAL:{case.id}")
         self.assertEqual(timezone.localdate(approval.due_at), timezone.localdate() + timedelta(days=7))
         self.assertIn("rule 72(4)-(5)", approval.description)
+        # The sealed decree, once recorded, is what can be enforced.
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
+        FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "DECREE", "title": "Decree"})
+        case.refresh_from_db()
+        self.assertEqual(case.enforcement_status, Case.EnforcementStatus.DECREE_ISSUED)
 
     def test_a_judgment_date_put_off_leaves_judgment_reserved(self):
         case = self.create_case()

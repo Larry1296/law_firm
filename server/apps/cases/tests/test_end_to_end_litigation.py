@@ -539,10 +539,13 @@ class EndToEndLitigationTests(TestCase):
             "action": "COMPLETE", "reason": "Appeal period under section 79G lapsed; no memorandum of appeal was served.",
         }, format="json"))
         self.transition(self.advocate_user, matter, "WON", "Judgment for KES 1,850,000, interest and costs.", dimension="OUTCOME_STATUS")
-        self.transition(self.advocate_user, matter, "DECREE_PENDING", "Draft decree sent to the defendant for approval.", dimension="ENFORCEMENT_STATUS")
-        self.transition(self.advocate_user, matter, "DECREE_EXTRACTION", "Decree being extracted.")
+        # Extracting the decree sets enforcement waiting on it; recording the sealed decree issues it.
+        self.transition(self.advocate_user, matter, "DECREE_EXTRACTION", "Draft decree sent to the defendant for approval.")
+        matter.refresh_from_db()
+        self.assertEqual(matter.enforcement_status, "DECREE_PENDING")
         self.register(self.advocate_user, matter, "DECREE", title="Decree issued by the Deputy Registrar")
-        self.transition(self.advocate_user, matter, "DECREE_ISSUED", "Decree signed and sealed.", dimension="ENFORCEMENT_STATUS")
+        matter.refresh_from_db()
+        self.assertEqual(matter.enforcement_status, "DECREE_ISSUED")
         self.register(self.advocate_user, matter, "BILL_OF_COSTS", title="Plaintiff's bill of costs")
         self.register(self.advocate_user, matter, "CERTIFICATE_OF_COSTS", title="Certificate of costs after taxation")
         self.transition(self.advocate_user, matter, "DEMAND_FOR_COMPLIANCE", "Decree and certificate of costs served with a demand.", dimension="ENFORCEMENT_STATUS")
