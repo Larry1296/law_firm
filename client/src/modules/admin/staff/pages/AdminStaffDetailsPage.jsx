@@ -125,6 +125,7 @@ const SingleStaffDetailsPage = () => {
         subtitle={`${safe(membership.role, 'Staff')} details and permissions`}
       />
       <PageTabs
+        title={pageTitle}
         ariaLabel='Staff member'
         // Only the tabs this staff member's role has.
         tabs={STAFF_TABS.filter(([key]) => (key !== 'duties' || membership.role === 'SECRETARY') && (key !== 'work' || ['LAWYER', 'SECRETARY', 'IT'].includes(membership.role)))}
@@ -134,7 +135,7 @@ const SingleStaffDetailsPage = () => {
           profile: [{ id: 'staff-profile', label: 'Profile' }, { id: 'staff-summary', label: 'Membership' }],
           duties: [{ id: 'staff-reception', label: 'Reception duties' }, { id: 'staff-advocates', label: 'Advocates supported' }],
           work: [{ id: 'staff-workload', label: 'Workload', hidden: membership.role !== 'LAWYER' }, { id: 'staff-secretary-metrics', label: 'Secretary metrics', hidden: membership.role !== 'SECRETARY' }, { id: 'staff-it', label: 'IT management', hidden: membership.role !== 'IT' }, { id: 'staff-recent-cases', label: 'Recent cases', hidden: membership.role !== 'LAWYER' }, { id: 'staff-recent-activity', label: 'Recent activity', hidden: membership.role !== 'SECRETARY' }],
-        }[activeTab] || []}
+        }}
       />
       {activeTab === 'profile' && (
         <div className='space-y-6'>

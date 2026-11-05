@@ -430,6 +430,7 @@ export default function LawyerCaseDetailsPage() {
         subtitle='Your assigned legal matter overview'
       />
       <PageTabs
+        title={caseData.title || caseData.case_number}
         ariaLabel='Matter'
         tabs={LAWYER_MATTER_TABS.filter(([key]) => key !== 'coordination' || matterChatEnabled)}
         active={activeTab}
@@ -438,7 +439,7 @@ export default function LawyerCaseDetailsPage() {
           documents: [{ id: 'lawyer-physical-file', label: 'Physical file' }, { id: 'lawyer-documents', label: 'Documents' }],
           court: [{ id: 'lawyer-registry', label: 'Court registry' }, { id: 'lawyer-proceedings', label: 'Proceedings, filing register & courtroom' }],
           record: [{ id: 'lawyer-matter-record', label: 'Matter details' }, { id: 'lawyer-parties', label: 'Parties' }, { id: 'lawyer-conflict', label: 'Conflict clearance' }, { id: 'lawyer-lifecycle', label: 'Lifecycle' }, { id: 'lawyer-controls', label: 'Deadlines, workstream & closing' }],
-        }[activeTab] || []}
+        }}
       />
       {activeTab === 'overview' && (
         <div className='space-y-6'>

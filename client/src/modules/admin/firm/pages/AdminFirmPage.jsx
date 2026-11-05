@@ -739,7 +739,7 @@ export default function AdminFirmPage() {
         sections={{
           profile: [{ id: 'firm-summary', label: 'Summary' }, { id: 'firm-profile', label: 'Firm profile' }],
           structure: [{ id: 'firm-departments', label: 'Departments' }, { id: 'firm-roles', label: 'Role breakdown' }],
-        }[activeTab] || []}
+        }}
       />
 
       {activeTab === 'profile' && (

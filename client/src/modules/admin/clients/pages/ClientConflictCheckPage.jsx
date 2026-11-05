@@ -554,6 +554,7 @@ export default function ClientConflictCheckPage() {
     <div className='space-y-6 p-4 md:p-6'>
       <SectionHeading title={check.reference_number} subtitle={check.proposed_matter_title} />
       <PageTabs
+        title={check.reference_number}
         ariaLabel='Conflict check'
         // Only the steps this check has reached and this user may take.
         tabs={CONFLICT_TABS.filter(([key]) => ({
@@ -568,7 +569,7 @@ export default function ClientConflictCheckPage() {
           overview: [{ id: 'conflict-overview', label: 'Overview' }, { id: 'matter-opening-readiness', label: 'Opening readiness' }],
           search: [{ id: 'conflict-search', label: 'Conflict search', hidden: !hasSearch }, { id: 'conflict-outcome', label: 'Conflict decision', hidden: nextOptions.length === 0 }],
           kyc: [{ id: 'client-compliance-review', label: 'KYC review', hidden: !complianceReview }, { id: 'engagement-management', label: 'Engagement' }],
-        }[activeTab] || []}
+        }}
       />
 
       {activeTab === 'overview' && (

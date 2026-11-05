@@ -906,6 +906,7 @@ const AdminCaseDetailsPage = () => {
 
       <MatterHeader caseData={caseData} />
       <PageTabs
+        title={caseData.title || caseData.case_number}
         ariaLabel='Matter'
         tabs={visibleTabs}
         active={activeTab}
@@ -927,7 +928,7 @@ const AdminCaseDetailsPage = () => {
               { id: 'record-transitions', label: 'Lifecycle transitions' },
               { id: 'record-controls', label: 'Deadlines, workstream & closing' },
             ],
-        }[activeTab] || []}
+        }}
       />
 
       {activeTab === 'overview' && (

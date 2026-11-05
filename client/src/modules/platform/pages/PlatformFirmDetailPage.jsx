@@ -367,6 +367,7 @@ export default function PlatformFirmDetailPage() {
       {actionError && <div className='mb-4'><ErrorNotice>{actionError}</ErrorNotice></div>}
 
       <PageTabs
+        title={firm.name}
         ariaLabel='Firm'
         tabs={FIRM_TABS}
         active={activeTab}
@@ -374,7 +375,7 @@ export default function PlatformFirmDetailPage() {
         sections={{
           firm: [{ id: 'platform-firm-details', label: 'Firm details' }, { id: 'platform-firm-owner', label: 'Firm owner' }],
           subscription: [{ id: 'platform-firm-subscription', label: 'Subscription' }, { id: 'platform-firm-plan', label: 'Change plan' }, { id: 'platform-firm-invoices', label: 'Subscription invoices' }],
-        }[activeTab] || []}
+        }}
       />
 
       {activeTab === 'firm' && (

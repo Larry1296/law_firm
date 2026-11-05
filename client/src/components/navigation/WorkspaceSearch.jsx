@@ -1,14 +1,16 @@
-import { Briefcase, CornerDownLeft, FileSearch, Search, User, UserCog, X, Zap } from 'lucide-react';
+import { Briefcase, CornerDownLeft, FileSearch, Hash, Search, User, UserCog, X, Zap } from 'lucide-react';
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import axios from '@/core/api/axios';
 import AuthContext from '@/core/store/AuthContext';
 import { matchFeatures, useWorkspaceFeatures, workspaceActions } from '@/core/navigation/workspaceFeatures';
+import { gotoSection, matchPageSections, usePageSections } from '@/core/navigation/pageSections';
 
 // Search the workspace like the search box in a word processor: type what you want to do or find and go straight
 // there. It finds the features this person's sidebar shows (and the actions inside those pages) and, from the
-// server, records of the firm the workspace belongs to only; a search in Mutiso Advocates never reaches another firm.
+// tabs and sections of the page open and of the record pages opened before (e.g. "Deadlines, workstream & closing"
+// on the last matter), and, from the server, records of the firm the workspace belongs to only; a search in Mutiso Advocates never reaches another firm.
 
 // Where each kind of record opens in each workspace. A workspace not listed here has no record pages to open.
 const RECORD_PATHS = {
@@ -61,12 +63,12 @@ export default function WorkspaceSearch({ className = '' }) {
         <span className='hidden md:inline'>Search</span>
         <kbd className='hidden md:inline text-[11px] px-1.5 py-0.5 rounded bg-white/10'>Ctrl K</kbd>
       </button>
-      {open && <SearchDialog base={base} firmName={user?.firm?.name || ''} onClose={() => setOpen(false)} />}
+      {open && <SearchDialog base={base} path={location.pathname} firmName={user?.firm?.name || ''} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function SearchDialog({ base, firmName, onClose }) {
+function SearchDialog({ base, path, firmName, onClose }) {
   const navigate = useNavigate();
   const links = useWorkspaceFeatures();
   const [query, setQuery] = useState('');
@@ -78,6 +80,11 @@ function SearchDialog({ base, firmName, onClose }) {
 
   const features = useMemo(() => [...links, ...workspaceActions(base, links)], [links, base]);
   const featureHits = useMemo(() => matchFeatures(features, query), [features, query]);
+  const pageSections = usePageSections();
+  const sectionHits = useMemo(
+    () => matchPageSections(pageSections, query, path).filter((hit) => hit.to.startsWith(`/${base}/`)),
+    [pageSections, query, path, base],
+  );
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
@@ -100,14 +107,23 @@ function SearchDialog({ base, firmName, onClose }) {
   const loading = lookUp && records.query !== q;
 
   const items = useMemo(() => [
+    ...sectionHits.map((hit) => ({ key: hit.key, group: 'Tabs & sections', title: hit.title, detail: hit.detail, icon: Hash, to: hit.to, here: hit.here, section: hit.id })),
     ...featureHits.map((feature) => ({ key: `f:${feature.path}`, group: 'Features', title: feature.name, detail: feature.section || '', icon: feature.icon || Zap, to: feature.path })),
     ...recordRows.map((row) => ({ key: `${row.kind}:${row.id}`, group: KIND[row.kind]?.label || row.kind, title: row.title, detail: row.detail, icon: KIND[row.kind]?.icon || FileSearch, to: recordPaths[row.kind](row) })),
-  ], [featureHits, recordRows, recordPaths]);
+  ], [sectionHits, featureHits, recordRows, recordPaths]);
 
   const current = Math.min(active, Math.max(items.length - 1, 0));
   useEffect(() => { listRef.current?.querySelector(`[data-index="${current}"]`)?.scrollIntoView?.({ block: 'nearest' }); }, [current]);
 
-  const go = (item) => { if (item) { onClose(); navigate(item.to); } };
+  const go = (item) => {
+    if (!item) return;
+    onClose();
+    // A section of the page already open is opened in place; another page opens at that section.
+    if (item.here) {
+      window.history.replaceState(null, '', item.to);
+      gotoSection(item.section);
+    } else navigate(item.to);
+  };
   const onKeyDown = (event) => {
     if (event.key === 'Escape') { event.preventDefault(); onClose(); }
     else if (event.key === 'ArrowDown') { event.preventDefault(); setActive(Math.min(current + 1, items.length - 1)); }
@@ -157,7 +173,7 @@ function SearchDialog({ base, firmName, onClose }) {
               <li key={item.key} role='presentation'>
                 {heading && (
                   <p className='px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-widest' style={{ color: 'var(--text-muted)' }}>
-                    {heading}{heading !== 'Features' && firm ? ` · ${firm}` : ''}
+                    {heading}{!['Features', 'Tabs & sections'].includes(heading) && firm ? ` · ${firm}` : ''}
                   </p>
                 )}
                 <button

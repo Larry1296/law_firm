@@ -134,7 +134,7 @@ export default function PlatformOverviewPage() {
         onChange={setActiveTab}
         sections={{
           firms: [{ id: 'overview-recent', label: 'Recently registered' }, { id: 'overview-trials', label: 'Trials ending soon' }],
-        }[activeTab] || []}
+        }}
       />
 
       {activeTab === 'figures' && (

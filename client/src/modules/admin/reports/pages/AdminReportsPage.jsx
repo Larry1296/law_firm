@@ -71,7 +71,7 @@ export default function AdminReportsPage() {
         onChange={setActiveTab}
         sections={{
           people: [{ id: 'report-workload', label: 'Advocate workload' }, { id: 'report-clients', label: 'Clients with the most matters' }],
-        }[activeTab] || []}
+        }}
       />
 
       {activeTab === 'matters' && (

@@ -236,6 +236,7 @@ export default function AdminClientDetailsPage() {
       {client.portal_access_exists && <ResendTemporaryPasswordButton clientId={id} />}
       <div className='flex justify-end'><Button3D variant='primary' onClick={() => navigate(`/admin/clients/${id}/documents`)}>Open Physical Document Register</Button3D></div>
       <PageTabs
+        title={pageTitle}
         ariaLabel='Client'
         tabs={CLIENT_TABS}
         active={activeTab}
@@ -264,7 +265,7 @@ export default function AdminClientDetailsPage() {
             { id: 'client-addresses', label: 'Addresses' },
             { id: 'client-contacts', label: 'Contacts' },
           ],
-        }[activeTab] || []}
+        }}
       />
 
       {activeTab === 'overview' && (

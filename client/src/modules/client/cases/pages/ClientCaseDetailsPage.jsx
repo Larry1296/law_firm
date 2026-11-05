@@ -93,13 +93,14 @@ export default function ClientCaseDetailsPage() {
       />
 
       <PageTabs
+        title={pageTitle}
         ariaLabel='Matter'
         tabs={MATTER_TABS}
         active={activeTab}
         onChange={setActiveTab}
         sections={{
           court: [{ id: 'matter-court', label: 'Court registry' }, { id: 'matter-parties', label: 'Parties' }, { id: 'matter-courtroom', label: 'Courtroom' }],
-        }[activeTab] || []}
+        }}
       />
 
       {activeTab === 'overview' && (

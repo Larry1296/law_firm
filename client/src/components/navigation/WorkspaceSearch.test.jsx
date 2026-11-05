@@ -9,6 +9,7 @@ import axios from '@/core/api/axios';
 import AuthContext from '@/core/store/AuthContext';
 import WorkspaceSearch from '@/components/navigation/WorkspaceSearch';
 import { matchFeatures, publishWorkspaceFeatures } from '@/core/navigation/workspaceFeatures';
+import { publishPageSections } from '@/core/navigation/pageSections';
 
 const LINKS = [
   { name: 'Dashboard', path: '/admin/dashboard', section: 'Overview' },
@@ -19,7 +20,7 @@ const LINKS = [
 
 function Where() {
   const location = useLocation();
-  return <p data-testid='where'>{location.pathname}{location.search}</p>;
+  return <p data-testid='where'>{location.pathname}{location.search}{location.hash}</p>;
 }
 
 const start = (path = '/admin/dashboard') => render(
@@ -79,5 +80,24 @@ describe('WorkspaceSearch', () => {
     await user.type(screen.getByRole('combobox'), 'kamau');
     await waitFor(() => expect(screen.getByText(/Nothing found for “kamau”/)).toBeInTheDocument());
     expect(axios.get).not.toHaveBeenCalled();
+  });
+
+  it('opens a section of the last matter opened from anywhere, in its tab', async () => {
+    act(() => publishPageSections({
+      path: '/admin/cases/m1',
+      title: 'Grace Mwende v Baraka Supplies Ltd',
+      entries: [
+        { id: 'tab-record', label: 'Matter record', tab: 'Matter record', isTab: true },
+        { id: 'record-controls', label: 'Deadlines, workstream & closing', tab: 'Matter record' },
+      ],
+    }));
+    const user = userEvent.setup();
+    start();
+    await user.keyboard('{Control>}k{/Control}');
+    await user.type(screen.getByRole('combobox'), 'Deadlines, workstream & closing');
+    const option = screen.getByRole('option', { name: /Deadlines, workstream & closing/ });
+    expect(option).toHaveTextContent('Grace Mwende v Baraka Supplies Ltd · Matter record tab');
+    await user.click(option);
+    expect(screen.getByTestId('where')).toHaveTextContent('/admin/cases/m1#record-controls');
   });
 });

@@ -208,7 +208,7 @@ export default function AdminSubscriptionPage() {
         onChange={setActiveTab}
         sections={{
           current: [{ id: 'subscription-current', label: 'Current plan' }, { id: 'subscription-pending', label: 'Payment awaiting confirmation', hidden: !pending }],
-        }[activeTab] || []}
+        }}
       />
 
       {activeTab === 'current' && (
