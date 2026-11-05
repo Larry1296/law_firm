@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 const links = [
-  { name: 'Client arrivals', path: '/secretary/arrivals', icon: Calendar, section: 'Overview' },
+// In the order the work happens: a client arrives and is registered before their matter is diarised.
   {
     name: 'Dashboard',
     path: '/secretary/dashboard',
@@ -28,6 +28,7 @@ const links = [
     end: true,
     section: 'Overview',
   },
+  { name: 'Client arrivals', path: '/secretary/arrivals', icon: Calendar, section: 'Clients' },
   {
     name: 'Clients',
     path: '/secretary/clients',

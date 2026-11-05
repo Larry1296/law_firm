@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 
 export const adminSidebarLinks = [
-  { name: 'Client arrivals', path: '/admin/arrivals', icon: Users, section: 'Clients', ownerOnly: true },
+// Links run in the order the work happens: a client arrives, is taken on, their matter is opened,
+// diarised and argued, then documented and billed; firm running and account settings come last.
   {
     name: 'Dashboard',
     path: '/admin/dashboard',
@@ -28,6 +29,8 @@ export const adminSidebarLinks = [
     end: true,
     section: 'Overview',
   },
+
+  { name: 'Client arrivals', path: '/admin/arrivals', icon: Users, section: 'Clients', ownerOnly: true },
 
   {
     name: 'Clients',
@@ -38,8 +41,8 @@ export const adminSidebarLinks = [
   },
 
   { name: 'Cases', path: '/admin/cases', icon: Briefcase, section: 'Cases', ownerOnly: true },
-  { name: 'Courtroom', path: '/admin/courtroom', icon: Scale, section: 'Cases', ownerOnly: true },
   { name: 'Calendar', path: '/admin/calendar', icon: Calendar, section: 'Cases', ownerOnly: true },
+  { name: 'Courtroom', path: '/admin/courtroom', icon: Scale, section: 'Cases', ownerOnly: true },
   // INTERNAL AI TEMPORARILY PAUSED
   // Uncomment this block when internal AI development resumes after the
   // essential Sheria Master law-firm workflows have been completed and verified.

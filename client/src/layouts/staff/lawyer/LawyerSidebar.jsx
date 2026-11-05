@@ -29,7 +29,7 @@ import {
 
 //* ================= LAWYER NAVIGATION ================= */
 const links = [
-  { name: 'My consultations', path: '/lawyer/arrivals', icon: Calendar, section: 'Overview' },
+// In the order the work happens: consultations, the matter, its diary, preparing for court, then court.
   {
     name: 'Dashboard',
     path: '/lawyer/dashboard',
@@ -37,6 +37,7 @@ const links = [
     end: true,
     section: 'Overview',
   },
+  { name: 'My consultations', path: '/lawyer/arrivals', icon: Calendar, section: 'Overview' },
   {
     name: 'Cases',
     path: '/lawyer/cases',
@@ -51,18 +52,18 @@ const links = [
   },
 
   {
-    name: 'Courtroom',
-    path: '/lawyer/courtroom',
-    icon: Gavel,
-    section: 'Cases',
-  },
-
-  {
     name: 'Court Preparation',
     path: '/lawyer/court-preparation',
     icon: Scale,
     section: 'Cases',
     feature: 'AI_CASE_ANALYSIS',
+  },
+
+  {
+    name: 'Courtroom',
+    path: '/lawyer/courtroom',
+    icon: Gavel,
+    section: 'Cases',
   },
 
   {
