@@ -464,6 +464,32 @@ class FilingRegisterService:
         )
 
     @classmethod
+    def record_demand_for_compliance(cls, *, case, actor, served_on=None, period_days=None):
+        """Called when enforcement moves to Demand for compliance: the sealed decree has gone to the
+        judgment debtor with a demand to pay within the period chosen (7, 14 or 21 days, as for a demand
+        letter). The payment date is diarised; if it passes unpaid the advocate applies for execution,
+        which the Registrar issues under the Civil Procedure Rules (ELRC (Procedure) Rules, 2024, rule 73(1)-(2)).
+        """
+        if period_days not in cls.DEMAND_PERIODS:
+            raise ValidationError({"demand_period_days": "Choose a demand period of 7, 14 or 21 days."})
+        served = timezone.localdate(served_on) if served_on else timezone.localdate()
+        cls._deadline(
+            case, actor, key=f"DECREE_DEMAND:{case.id}",
+            due=served + timedelta(days=period_days),
+            deadline_type=MatterDeadline.Type.RESPONSE, priority="HIGH",
+            description=(
+                f"Payment of the decretal sum due under the demand served with the decree ({period_days} days). "
+                "If unpaid, apply for execution (ELRC (Procedure) Rules, 2024, rule 73(1)-(2): the Registrar "
+                "issues execution under the Civil Procedure Rules)."
+            ),
+        )
+
+    @classmethod
+    def close_demand_for_compliance(cls, *, case, actor):
+        """Payment in full or execution answers the demand; a part payment leaves it open."""
+        cls._complete(case, actor, key=f"DECREE_DEMAND:{case.id}")
+
+    @classmethod
     def record_pre_trial_date(cls, *, case, actor):
         """A case management or pre-trial date taken from the court answers the rule 40(1) step."""
         cls._complete(case, actor, key=f"PRE_TRIAL:{case.id}")

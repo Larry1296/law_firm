@@ -202,6 +202,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
   });
   const [filing, setFiling] = useState(freshFiling);
   const [serviceFiled, setServiceFiled] = useState(false);
+  const [demandPeriod, setDemandPeriod] = useState('7');
   // What is recorded has just happened, so its times start at now; at the ELRC the response is due 28 days after service.
   const freshEntry = () => {
     const now = nowLocal();
@@ -261,6 +262,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
     let metadata = {};
     if (dimension === 'COURT_STAGE' && toState === 'FILED') metadata = compact(filing);
     if (dimension === 'COURT_STAGE' && toState === 'AWAITING_RESPONSE') metadata = { affidavit_of_service_filed: serviceFiled };
+    if (dimension === 'ENFORCEMENT_STATUS' && toState === 'DEMAND_FOR_COMPLIANCE') metadata = { demand_period_days: Number(demandPeriod) };
     setBusy(true);
     try {
       await axiosInstance.post(`/cases/${caseId}/transitions/`, { dimension, to_state: toState, reason, metadata });
@@ -269,6 +271,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
       setReason('');
       setFiling(freshFiling());
       setServiceFiled(false);
+      setDemandPeriod('7');
       refresh();
     } catch (error) { if (error?.isActionCancelled) return;
       setStageFeedback({ tone: 'error', text: getApiErrorMessage(error, 'The update could not be saved.') });
@@ -504,6 +507,17 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
             <input type='checkbox' checked={serviceFiled} onChange={(event) => setServiceFiled(event.target.checked)} className='mt-1' required />
             <span>The affidavit of service has been filed.</span>
           </label>
+        )}
+
+        {dimension === 'ENFORCEMENT_STATUS' && toState === 'DEMAND_FOR_COMPLIANCE' && (
+          // The days given to pay before execution is applied for; the payment date is diarised.
+          <Field label='Demand period'>
+            <select value={demandPeriod} onChange={(event) => setDemandPeriod(event.target.value)} className={inputClass}>
+              <option value='7'>7 days</option>
+              <option value='14'>14 days</option>
+              <option value='21'>21 days</option>
+            </select>
+          </Field>
         )}
 
         <Field label='Reason / note for the record' wide>

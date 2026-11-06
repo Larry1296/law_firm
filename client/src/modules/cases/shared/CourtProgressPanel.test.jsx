@@ -101,5 +101,20 @@ describe('summons service diary', () => {
     render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={{ id: 'case-1', court_stage: 'PLEADINGS_OPEN', procedure_track: 'EMPLOYMENT_CLAIM', parties: [{ name: 'Acme Ltd', is_our_client: true, party_role: 'RESPONDENT' }], filings: [{ filing_type: 'ORIGINATING_CLAIM', filed_at: '2026-10-30T06:00:00Z' }] }} showStage={false} /></QueryClientProvider>);
     expect(screen.queryByRole('region', { name: 'Papers filed with the claim' })).toBeNull();
   });
+  it('sends the demand period with a demand for compliance so the payment date is diarised', async () => {
+    axios.post.mockResolvedValue({ data: {} });
+    const caseData = {
+      id: 'case-1', court_stage: 'DECREE_EXTRACTION', enforcement_status: 'DECREE_ISSUED', filings: [],
+      available_transitions: [{ dimension: 'ENFORCEMENT_STATUS', to_state: 'DEMAND_FOR_COMPLIANCE', label: 'Demand for compliance' }],
+    };
+    render(<QueryClientProvider client={new QueryClient()}><CourtProgressPanel caseData={caseData} /></QueryClientProvider>);
+    fireEvent.change(screen.getByLabelText('What has happened'), { target: { value: 'ENFORCEMENT_STATUS:DEMAND_FOR_COMPLIANCE' } });
+    fireEvent.change(screen.getByLabelText('Demand period'), { target: { value: '14' } });
+    fireEvent.change(screen.getByLabelText('Reason / note for the record'), { target: { value: 'Decree served with a demand.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save court progress' }));
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('/cases/case-1/transitions/', expect.objectContaining({
+      dimension: 'ENFORCEMENT_STATUS', to_state: 'DEMAND_FOR_COMPLIANCE', metadata: { demand_period_days: 14 },
+    })));
+  });
 });
 

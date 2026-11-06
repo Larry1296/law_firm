@@ -5,6 +5,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
+from rest_framework.exceptions import ValidationError
 
 from apps.cases.models import (
     Case,
@@ -581,6 +582,38 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertEqual(case.enforcement_status, Case.EnforcementStatus.DECREE_ISSUED)
         # The decree step is done, so the next step is to enforce it.
         self.assertEqual(case.next_action, "Execution")
+
+    def test_a_demand_for_compliance_diarises_the_payment_date_and_needs_a_period(self):
+        from apps.cases.models import MatterDeadline
+        from apps.cases.services.case_lifecycle_service import CaseLifecycleService
+
+        case = self.create_case()
+        case.court_stage = Case.CourtStage.DECREE_EXTRACTION
+        case.enforcement_status = Case.EnforcementStatus.DECREE_ISSUED
+        case.save(update_fields=["court_stage", "enforcement_status"])
+        with self.assertRaises(ValidationError) as refused:
+            CaseLifecycleService.transition(
+                case=case, actor=self.admin, dimension="ENFORCEMENT_STATUS",
+                to_state=Case.EnforcementStatus.DEMAND_FOR_COMPLIANCE, reason="Decree served with a demand.",
+            )
+        self.assertIn("demand_period_days", refused.exception.detail)
+        case.refresh_from_db()
+        self.assertEqual(case.enforcement_status, Case.EnforcementStatus.DECREE_ISSUED)
+        CaseLifecycleService.transition(
+            case=case, actor=self.admin, dimension="ENFORCEMENT_STATUS",
+            to_state=Case.EnforcementStatus.DEMAND_FOR_COMPLIANCE, reason="Decree served with a demand.",
+            metadata={"demand_period_days": 7},
+        )
+        demand = MatterDeadline.objects.get(matter=case, source=f"DECREE_DEMAND:{case.id}")
+        self.assertEqual(timezone.localdate(demand.due_at), timezone.localdate() + timedelta(days=7))
+        self.assertIn("rule 73(1)-(2)", demand.description)
+        # Execution answers the demand that went unpaid.
+        CaseLifecycleService.transition(
+            case=case, actor=self.admin, dimension="ENFORCEMENT_STATUS",
+            to_state=Case.EnforcementStatus.EXECUTION_IN_PROGRESS, reason="Execution applied for.",
+        )
+        demand.refresh_from_db()
+        self.assertEqual(demand.status, MatterDeadline.Status.COMPLETED)
 
     def test_a_judgment_date_put_off_leaves_judgment_reserved(self):
         case = self.create_case()

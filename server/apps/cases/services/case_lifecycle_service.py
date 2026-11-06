@@ -1659,6 +1659,20 @@ class CaseLifecycleService:
                 from apps.cases.services.filing_register_service import FilingRegisterService
 
                 FilingRegisterService.record_decree_extraction(case=case, actor=actor, served_on=effective_at)
+        if dimension == CaseLifecycleTransition.Dimension.ENFORCEMENT_STATUS:
+            from apps.cases.services.filing_register_service import FilingRegisterService
+
+            if to_state == Case.EnforcementStatus.DEMAND_FOR_COMPLIANCE:
+                FilingRegisterService.record_demand_for_compliance(
+                    case=case, actor=actor, served_on=effective_at,
+                    period_days=metadata.get("demand_period_days"),
+                )
+            elif to_state in {
+                Case.EnforcementStatus.SATISFIED,
+                Case.EnforcementStatus.EXECUTION_IN_PROGRESS,
+                Case.EnforcementStatus.CLOSED,
+            }:
+                FilingRegisterService.close_demand_for_compliance(case=case, actor=actor)
 
                 # ======================================================
         # CREATE TRANSITION RECORD

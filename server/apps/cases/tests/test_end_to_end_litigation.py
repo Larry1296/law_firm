@@ -15,7 +15,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.cases.models import Case, CaseEvent
+from apps.cases.models import Case, CaseEvent, MatterDeadline
 from apps.clients.models import ClientVisit, Client, ClientMatterConflictCheck, IntakePrivacyConfig
 from apps.common.choices import ConflictCheckSourceCategory, ConflictCheckStatus, UserRole
 from apps.firm.models import LawFirm
@@ -548,8 +548,15 @@ class EndToEndLitigationTests(TestCase):
         self.assertEqual(matter.enforcement_status, "DECREE_ISSUED")
         self.register(self.advocate_user, matter, "BILL_OF_COSTS", title="Plaintiff's bill of costs")
         self.register(self.advocate_user, matter, "CERTIFICATE_OF_COSTS", title="Certificate of costs after taxation")
-        self.transition(self.advocate_user, matter, "DEMAND_FOR_COMPLIANCE", "Decree and certificate of costs served with a demand.", dimension="ENFORCEMENT_STATUS")
+        self.transition(
+            self.advocate_user, matter, "DEMAND_FOR_COMPLIANCE", "Decree and certificate of costs served with a demand.",
+            metadata={"demand_period_days": 14}, dimension="ENFORCEMENT_STATUS",
+        )
+        demand = MatterDeadline.objects.get(matter=matter, source=f"DECREE_DEMAND:{matter.id}")
+        self.assertEqual(demand.status, MatterDeadline.Status.OPEN)
         self.transition(self.advocate_user, matter, "SATISFIED", "Defendant paid the decretal sum and costs into the client account.", dimension="ENFORCEMENT_STATUS")
+        demand.refresh_from_db()
+        self.assertEqual(demand.status, MatterDeadline.Status.COMPLETED)
         self.transition(self.advocate_user, matter, "CONCLUDED", "Decree satisfied without execution.")
         matter.refresh_from_db()
         self.assertEqual(matter.court_stage, Case.CourtStage.CONCLUDED)
