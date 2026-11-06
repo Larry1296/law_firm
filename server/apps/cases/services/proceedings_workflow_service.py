@@ -149,7 +149,8 @@ class ProceedingsWorkflowService:
         label = CourtEventType(event_type).label
         if event_type == CourtEventType.EXECUTION and repeated:
             label = "Execution — further attempt"
-        if track != CaseEvent.Track.TRIAL:
+        # The track is named only where it adds something: "Execution" on the execution track stays "Execution".
+        if track != CaseEvent.Track.TRIAL and not label.startswith(CaseEvent.Track(track).label):
             label = f"{label} — {CaseEvent.Track(track).label}"
         return label
 
@@ -239,6 +240,10 @@ class ProceedingsWorkflowService:
         )
         if current:
             options = cls._transition_options(current)
+            # The sealed decree is recorded in the filing register, not as a court sitting: once it is
+            # there, the decree step is done and the matter moves on to enforcing it.
+            if options and options[0][0] == CourtEventType.DECREE and case.filings.filter(filing_type="DECREE").exists():
+                options = options[1:]
             if not options:
                 return None
             event_type, track, label = options[0]

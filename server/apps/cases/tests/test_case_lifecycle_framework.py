@@ -560,6 +560,10 @@ class CaseLifecycleFrameworkTests(TestCase):
         case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
         case.court_stage = Case.CourtStage.JUDGMENT_DELIVERED
         case.save(update_fields=["procedure_track", "court_stage"])
+        CaseEvent.objects.create(
+            case=case, event_type=CaseEvent.EventType.JUDGMENT, title="Judgment", status=CaseEvent.EventStatus.COMPLETED,
+            starts_at=timezone.now() - timedelta(days=14), actual_end=timezone.now() - timedelta(days=14), created_by=self.admin,
+        )
         CaseLifecycleService.transition(
             case=case, actor=self.admin, dimension="COURT_STAGE", to_state=Case.CourtStage.DECREE_EXTRACTION,
             reason="Draft decree sent to the respondent's advocates.",
@@ -575,6 +579,8 @@ class CaseLifecycleFrameworkTests(TestCase):
         FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "DECREE", "title": "Decree"})
         case.refresh_from_db()
         self.assertEqual(case.enforcement_status, Case.EnforcementStatus.DECREE_ISSUED)
+        # The decree step is done, so the next step is to enforce it.
+        self.assertEqual(case.next_action, "Execution")
 
     def test_a_judgment_date_put_off_leaves_judgment_reserved(self):
         case = self.create_case()
