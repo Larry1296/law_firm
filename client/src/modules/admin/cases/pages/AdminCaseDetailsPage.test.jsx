@@ -23,6 +23,8 @@ vi.mock('@/modules/admin/cases/components/AssignedAdvocateMatterDesk', stub('Adv
 vi.mock('@/modules/admin/cases/components/MatterTasksCard', stub('Tasks card'));
 vi.mock('@/modules/admin/cases/components/MatterLifecycleControls', stub('Lifecycle controls'));
 vi.mock('@/modules/cases/shared/PhysicalMatterFileCard', stub('Physical file card'));
+// The server's clock, which may run ahead of the browser's (e.g. a matter tested months ahead).
+vi.mock('@/core/utils/serverClock', () => ({ serverNow: () => new Date('2027-06-14T06:00:00Z') }));
 
 const { caseData } = vi.hoisted(() => ({ caseData: {
   id: 'case-1',
@@ -42,7 +44,12 @@ const { caseData } = vi.hoisted(() => ({ caseData: {
   parties: [],
   documents: [],
   tasks: [],
-  events: [{ id: 'event-1', title: 'Mention', event_type: 'MENTION', is_client_visible: true, starts_at: '2099-11-18T06:00:00Z', client_awareness: { status: 'NOT_NOTIFIED' } }],
+  events: [
+    { id: 'event-0', title: 'Directions', event_type: 'DIRECTIONS', status: 'COMPLETED', is_client_visible: true, starts_at: '2026-11-18T06:00:00Z', client_awareness: { status: 'NOT_NOTIFIED' } },
+    // Before the server's today, though after the browser's: already past, so neither upcoming nor to tell.
+    { id: 'event-2', title: 'Submissions', event_type: 'SUBMISSIONS', status: 'SCHEDULED', is_client_visible: true, starts_at: '2027-03-10T06:00:00Z', client_awareness: { status: 'NOT_NOTIFIED' } },
+    { id: 'event-1', title: 'Mention', event_type: 'MENTION', status: 'SCHEDULED', is_client_visible: true, starts_at: '2099-11-18T06:00:00Z', client_awareness: { status: 'NOT_NOTIFIED' } },
+  ],
   timeline: [],
   activities: [],
 } }));
@@ -61,6 +68,11 @@ describe('AdminCaseDetailsPage', () => {
     expect(screen.queryByText('Physical file card')).not.toBeInTheDocument();
 
     expect(screen.getByText(/Tell Grace Mwende about the Mention on .*\(0711234567\)\./)).toBeInTheDocument();
+    expect(screen.queryByText(/Tell Grace Mwende about the (Submissions|Directions)/)).not.toBeInTheDocument();
+    // The upcoming sitting is the next one still to come, not the first in the list.
+    const upcoming = screen.getByRole('heading', { name: 'Upcoming Event' }).parentElement;
+    expect(upcoming).toHaveTextContent('Mention');
+    expect(upcoming).not.toHaveTextContent('Directions');
 
     await userEvent.click(screen.getByRole('button', { name: 'Open file →' }));
     expect(screen.getByText('Physical file card')).toBeInTheDocument();

@@ -9,6 +9,7 @@ import Select3D from '@/components/ui/Select3D';
 import ElasticTextInput from '@/components/ui/ElasticTextInput';
 import { formatDate, formatDateTime } from '@/core/utils/dateFormatter';
 import { displayEnum } from '@/core/utils/textFormatter';
+import { serverNow } from '@/core/utils/serverClock';
 
 import useCaseDetails from '@/modules/admin/cases/hooks/useAdminCaseDetails';
 import CaseProcedurePanels from '@/modules/cases/shared/CaseProcedurePanels';
@@ -141,10 +142,12 @@ const MatterHeader = ({ caseData }) => {
 };
 
 
-// Upcoming dates a client without the portal has not yet been told about.
+// Upcoming dates a client without the portal has not yet been told about. "Upcoming" is by the
+// server's clock, the same test the Court tab's "Tell the client" control uses.
 const untoldDates = (caseData) => (caseData.client?.portal_access_exists ? [] : (caseData.events || []).filter((event) => (
   event.is_client_visible
-  && new Date(event.starts_at) > new Date()
+  && event.status === 'SCHEDULED'
+  && new Date(event.starts_at) >= serverNow()
   && ['NOT_NOTIFIED', undefined].includes(event.client_awareness?.status)
 )));
 
@@ -316,6 +319,10 @@ const AdminCaseDetailsPage = () => {
 
   const timeline = caseData.timeline || [];
   const events = caseData.events || [];
+  // The next sitting still to come; a completed or cancelled one is never "upcoming".
+  const upcomingEvent = events
+    .filter((event) => ['SCHEDULED', 'CONFIRMED'].includes(event.status) && event.starts_at && new Date(event.starts_at) >= serverNow())
+    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))[0];
   const documents = caseData.documents || [];
   const tasks = caseData.tasks || [];
 
@@ -951,14 +958,14 @@ const AdminCaseDetailsPage = () => {
             <h3 className='mb-4 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark'>
               Upcoming Event
             </h3>
-            {events[0] ? (
+            {upcomingEvent ? (
               <div className='rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark'>
-                <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>{events[0].title}</p>
+                <p className='font-semibold text-text-primary-light dark:text-text-primary-dark'>{upcomingEvent.title}</p>
                 <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
-                  {friendly(events[0].event_type)} · {friendly(events[0].status)} · {events[0].starts_at ? formatDateTime(events[0].starts_at) : 'Time not set'}
+                  {friendly(upcomingEvent.event_type)} · {friendly(upcomingEvent.status)} · {upcomingEvent.starts_at ? formatDateTime(upcomingEvent.starts_at) : 'Time not set'}
                 </p>
                 <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>
-                  Hearing mode: {friendly(events[0].hearing_mode || 'NOT_APPLICABLE')}
+                  Hearing mode: {friendly(upcomingEvent.hearing_mode || 'NOT_APPLICABLE')}
                 </p>
               </div>
             ) : (
