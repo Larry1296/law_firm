@@ -440,6 +440,35 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertFalse(case.deadlines.filter(source=f"APPEARANCE:{case.id}").exists())
         self.assertEqual(case.next_action, "Hearing")
 
+    def test_the_bill_of_costs_and_notice_of_taxation_are_served_before_the_taxation(self):
+        from rest_framework.exceptions import ValidationError
+
+        from apps.cases.models import CaseParty
+        from apps.cases.services.filing_register_service import FilingRegisterService
+        from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
+        from apps.common.choices import CourtEventType
+
+        case = self.create_case()
+        case.procedure_track = Case.ProcedureTrack.EMPLOYMENT_CLAIM
+        case.court_stage = Case.CourtStage.DECREE_EXTRACTION
+        case.save(update_fields=["procedure_track", "court_stage"])
+        CaseParty.objects.create(case=case, name="Baraka Supplies Limited", party_role="RESPONDENT", is_adverse=True)
+        FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "BILL_OF_COSTS"})
+        taxation = CaseEvent.objects.create(
+            case=case, event_type=CourtEventType.TAXATION, title="Taxation",
+            starts_at=timezone.now() + timedelta(days=27), created_by=self.admin,
+        )
+        day = f"{timezone.localtime(taxation.starts_at):%d %b %Y}"
+        # ELRC Rules, 2024, rule 70(1) and the Advocates (Remuneration) Order: both sides get notice of the taxation date.
+        ProceedingsWorkflowService._resync_next_action(case, actor=self.admin)
+        self.assertEqual(case.next_action, f"Serve the bill of costs and notice of taxation for the taxation on {day}")
+        with self.assertRaises(ValidationError):
+            FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "NOTICE_OF_TAXATION"})
+        notice = FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "NOTICE_OF_TAXATION", "served_at": timezone.now()})
+        self.assertEqual(notice.status, "SERVED")
+        case.refresh_from_db()
+        self.assertEqual(case.next_action, "Taxation")
+
     def test_elrc_pleadings_follow_rule_29_and_their_close_starts_the_pre_trial_period(self):
         from apps.cases.services.filing_register_service import FilingRegisterService
         from apps.events.services import EventService

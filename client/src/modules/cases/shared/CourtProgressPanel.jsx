@@ -41,12 +41,13 @@ const REGISTER_TYPES = [
   ['CONSENT', 'Consent / settlement recorded'],
   ['DECREE', 'Decree issued'],
   ['BILL_OF_COSTS', 'Bill of costs filed'],
+  ['NOTICE_OF_TAXATION', 'Bill of costs and notice of taxation served'],
   ['CERTIFICATE_OF_COSTS', 'Certificate of costs issued'],
   ['WARRANT_OF_ATTACHMENT', 'Warrant of attachment issued'],
   ['NOTICE_OF_APPEAL', 'Notice of appeal filed'],
   ['OTHER', 'Other paper'],
 ];
-const SERVICE_TYPES = new Set(['SUMMONS', 'AFFIDAVIT_OF_SERVICE', 'HEARING_NOTICE']);
+const SERVICE_TYPES = new Set(['SUMMONS', 'AFFIDAVIT_OF_SERVICE', 'HEARING_NOTICE', 'NOTICE_OF_TAXATION']);
 // Papers whose service an affidavit of service proves.
 const SERVED_PAPER_TYPES = new Set(['SUMMONS', 'HEARING_NOTICE']);
 const shortDate = (value) => new Date(value).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -79,6 +80,10 @@ const nextPaper = (caseData) => {
     if (!notice) return 'HEARING_NOTICE';
     if (!(caseData.filings || []).some((filing) => filing.served_filing === notice.id)) return 'AFFIDAVIT_OF_SERVICE';
   }
+  // A filed bill of costs is served on the other side with the notice of the taxation date.
+  const bill = (caseData.filings || []).find((filing) => filing.filing_type === 'BILL_OF_COSTS');
+  const taxationNotice = (caseData.filings || []).some((filing) => filing.filing_type === 'NOTICE_OF_TAXATION' && filing.served_at && (!bill || new Date(filing.served_at) >= new Date(bill.filed_at)));
+  if (bill && !taxationNotice) return 'NOTICE_OF_TAXATION';
   return '';
 };
 // The papers a claimant files with the claim itself: ELRC (Procedure) Rules, 2024, rule 7(3), and for a
@@ -102,8 +107,8 @@ const claimPapersFor = (caseData) => {
     papers: CLAIM_PAPERS.map(([value, label]) => ({ value, label, filings: (caseData.filings || []).filter((filing) => filing.filing_type === value && !filing.filed_by_adverse) })),
   };
 };
-// A demand letter is not filed in court, and the other side's papers carry their own fees and receipts.
-const NOT_FILED_IN_COURT = new Set(['DEMAND_LETTER']);
+// A demand letter and a notice of taxation are served, not filed with a fee, and the other side's papers carry their own fees and receipts.
+const NOT_FILED_IN_COURT = new Set(['DEMAND_LETTER', 'NOTICE_OF_TAXATION']);
 const OTHER_SIDE_PAPERS = new Set(['DEFENCE', 'MEMORANDUM_OF_APPEARANCE']);
 // Papers either side files, e.g. the respondent's witness statements served under a court direction.
 const EITHER_SIDE_PAPERS = new Set(['LIST_OF_WITNESSES', 'WITNESS_STATEMENT', 'LIST_OF_DOCUMENTS', 'NOTICE_OF_MOTION', 'SUBMISSIONS', 'OTHER']);
@@ -162,6 +167,7 @@ const titleFor = (paper, caseData, label, filer) => {
     SUMMONS: `Summons and ${claim} served on ${other}`,
     AFFIDAVIT_OF_SERVICE: `Affidavit of service on ${other}`,
     HEARING_NOTICE: `Hearing notice${caseData.next_court_date ? ` for ${shortDate(caseData.next_court_date)}` : ''} served on ${other}`,
+    NOTICE_OF_TAXATION: `Bill of costs and notice of taxation${caseData.next_court_date ? ` for ${shortDate(caseData.next_court_date)}` : ''} served on ${other}`,
     MEMORANDUM_OF_APPEARANCE: `Memorandum of appearance by ${other}`,
     DEFENCE: `${elrc ? 'Response' : 'Defence'} by ${other}`,
     REPLY_TO_DEFENCE: `Reply to ${elrc ? 'response' : 'defence'} of ${other}`,

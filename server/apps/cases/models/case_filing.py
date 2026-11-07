@@ -39,6 +39,7 @@ class CaseFiling(TimestampedModel):
         JUDGMENT = "JUDGMENT", "Judgment"
         AFFIDAVIT_OF_SERVICE = "AFFIDAVIT_OF_SERVICE", "Affidavit of Service"
         HEARING_NOTICE = "HEARING_NOTICE", "Hearing notice"
+        NOTICE_OF_TAXATION = "NOTICE_OF_TAXATION", "Notice of taxation"
         ORIGINATING_CLAIM = "ORIGINATING_CLAIM", "Originating claim"
         OTHER = "OTHER", "Other"
 

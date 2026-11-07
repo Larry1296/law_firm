@@ -300,6 +300,7 @@ class ProceedingsWorkflowService:
             next_action = (
                 FilingRegisterService.step_due_before(case, pending.starts_at)
                 or FilingRegisterService.hearing_notice_step(case, pending)
+                or FilingRegisterService.taxation_notice_step(case, pending)
                 or next_action
             )
         next_date = pending.starts_at if pending else None

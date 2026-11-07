@@ -87,6 +87,8 @@ class FilingRegisterService:
         served_filing = cls._served_filing(case, filing_type, data.get("served_filing"))
         if filing_type == CaseFiling.FilingType.HEARING_NOTICE and not served_at:
             raise ValidationError({"served_at": "Record the date the hearing notice was served."})
+        if filing_type == CaseFiling.FilingType.NOTICE_OF_TAXATION and not served_at:
+            raise ValidationError({"served_at": "Record the date the bill of costs and notice of taxation were served."})
         if filing_type == CaseFiling.FilingType.DEMAND_LETTER:
             period = data.get("response_period_days")
             if period not in cls.DEMAND_PERIODS:
@@ -255,6 +257,26 @@ class FilingRegisterService:
         if not notice.service_affidavits.exists():
             return f"File affidavit of service of the hearing notice for {day}"
         return None
+
+    @classmethod
+    def taxation_notice_step(cls, case, sitting):
+        """Before a taxation: serve the bill of costs with the notice of the taxation date on the other side.
+
+        ELRC (Procedure) Rules, 2024, rule 70(1) applies the Advocates (Remuneration) Order, under which both
+        parties are given notice of the date fixed for taxation and may attend and be heard.
+        """
+        from apps.common.choices import CourtEventType
+
+        if sitting is None or sitting.event_type != CourtEventType.TAXATION:
+            return None
+        served = (
+            case.filings.filter(filing_type=CaseFiling.FilingType.NOTICE_OF_TAXATION, served_at__gte=sitting.created_at)
+            .exclude(status__in=[CaseFiling.FilingStatus.WITHDRAWN, CaseFiling.FilingStatus.REJECTED])
+            .exists()
+        )
+        if served:
+            return None
+        return f"Serve the bill of costs and notice of taxation for the taxation on {timezone.localtime(sitting.starts_at):%d %b %Y}"
 
     @classmethod
     def _filing_party(cls, case, filing_type, party_id):
