@@ -182,6 +182,10 @@ class EventCreateSerializer(serializers.Serializer):
         available_from = attrs.get("virtual_courtroom_available_from")
         available_until = attrs.get("virtual_courtroom_available_until")
 
+        # A new entry is diarised as Scheduled, so it must fall on a date still to come.
+        # A sitting already in the diary with a wrong date is fixed with "Correct date".
+        if starts_at and starts_at < timezone.now():
+            raise serializers.ValidationError({"starts_at": "A sitting being diarised must be on a date still to come. Check the day and month."})
         if ends_at and starts_at and ends_at <= starts_at:
             raise serializers.ValidationError("End time must be after start time.")
         if available_from and available_until and available_until <= available_from:

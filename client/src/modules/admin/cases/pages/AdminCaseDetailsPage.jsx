@@ -79,6 +79,18 @@ const EVENT_SUBTYPE_HINTS = {
   FILING: 'Registry follow-up / filing confirmation',
 };
 
+// The agenda and preparation each kind of sitting carries; a taxation is not a case management mention.
+const EVENT_AGENDA_HINTS = {
+  CASE_MANAGEMENT: 'For directions on pleadings, documents, witness statements, issues for determination and further case-management timelines.',
+  TAXATION: 'Taxation of the party-and-party bill of costs before the Deputy Registrar.',
+};
+// Types without their own agenda fall back to their purpose.
+const agendaFor = (eventType) => EVENT_AGENDA_HINTS[eventType] || EVENT_SUBTYPE_HINTS[eventType] || '';
+const EVENT_NEXT_ACTION_HINTS = {
+  CASE_MANAGEMENT: 'Prepare case management bundle and confirm service, pleadings and compliance status.',
+  TAXATION: 'Serve the bill of costs and notice of taxation on the other side; prepare to support each item.',
+};
+
 const panelClass =
   'rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark';
 
@@ -272,7 +284,7 @@ const AdminCaseDetailsPage = () => {
     event_type: 'CASE_MANAGEMENT',
     event_subtype: EVENT_SUBTYPE_HINTS.CASE_MANAGEMENT,
     title: 'Case management mention',
-    description: 'For directions on pleadings, documents, witness statements, issues for determination and further case-management timelines.',
+    description: EVENT_AGENDA_HINTS.CASE_MANAGEMENT,
     starts_at: '',
     ends_at: '',
     hearing_mode: 'VIRTUAL',
@@ -284,7 +296,7 @@ const AdminCaseDetailsPage = () => {
     virtual_access_instructions: '',
     physical_venue: '',
     orders_directions: '',
-    next_action: 'Prepare case management bundle and confirm service, pleadings and compliance status.',
+    next_action: EVENT_NEXT_ACTION_HINTS.CASE_MANAGEMENT,
     next_date: '',
     is_client_visible: true,
   });
@@ -701,6 +713,13 @@ const AdminCaseDetailsPage = () => {
       event_type: eventType,
       event_subtype: EVENT_SUBTYPE_HINTS[eventType] || '',
       title: COURT_EVENT_TYPES.find((option) => option.value === eventType)?.label || current.title,
+      // Swap in the new type's agenda and next action unless the advocate has written their own.
+      description: !current.description || current.description === agendaFor(current.event_type)
+        ? agendaFor(eventType)
+        : current.description,
+      next_action: !current.next_action || current.next_action === EVENT_NEXT_ACTION_HINTS[current.event_type]
+        ? EVENT_NEXT_ACTION_HINTS[eventType] || ''
+        : current.next_action,
       hearing_mode: ['HEARING', 'MENTION', 'CASE_MANAGEMENT', 'PRE_TRIAL', 'RULING', 'JUDGMENT'].includes(eventType)
         ? current.hearing_mode || 'VIRTUAL'
         : current.hearing_mode,
@@ -715,6 +734,7 @@ const AdminCaseDetailsPage = () => {
     if (!eventDraft.event_type) errors.event_type = 'Select the court event type.';
     if (!eventDraft.title.trim()) errors.title = 'Enter the event title.';
     if (!eventDraft.starts_at) errors.starts_at = 'Enter the court event date and time.';
+    else if (new Date(eventDraft.starts_at) < serverNow()) errors.starts_at = 'A sitting being diarised must be on a date still to come. Check the day and month.';
     if (!eventDraft.description.trim()) errors.description = 'Enter the agenda or purpose of the event.';
 
     if (eventDraft.ends_at && eventDraft.starts_at && new Date(eventDraft.ends_at) <= new Date(eventDraft.starts_at)) {
@@ -756,7 +776,7 @@ const AdminCaseDetailsPage = () => {
         event_type: 'CASE_MANAGEMENT',
         event_subtype: EVENT_SUBTYPE_HINTS.CASE_MANAGEMENT,
         title: 'Case management mention',
-        description: 'For directions on pleadings, documents, witness statements, issues for determination and further case-management timelines.',
+        description: EVENT_AGENDA_HINTS.CASE_MANAGEMENT,
         starts_at: '',
         ends_at: '',
         hearing_mode: 'VIRTUAL',
@@ -768,7 +788,7 @@ const AdminCaseDetailsPage = () => {
         virtual_access_instructions: '',
         physical_venue: '',
         orders_directions: '',
-        next_action: 'Prepare case management bundle and confirm service, pleadings and compliance status.',
+        next_action: EVENT_NEXT_ACTION_HINTS.CASE_MANAGEMENT,
         next_date: '',
         is_client_visible: true,
       });
@@ -1407,6 +1427,8 @@ const AdminCaseDetailsPage = () => {
                     onChange={(event) => setEventDraft((current) => ({ ...current, starts_at: event.target.value }))}
                     className='form-control w-full'
                   />
+                  {/* The picker may show month first; spell the date out so the day and month can be checked. */}
+                  {eventDraft.starts_at && <p className='mt-1 text-sm text-text-muted-light dark:text-text-muted-dark'>{new Date(eventDraft.starts_at).toLocaleString('en-KE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>}
                   {eventErrors.starts_at && <p className='mt-1 text-sm text-error'>{eventErrors.starts_at}</p>}
                 </div>
 

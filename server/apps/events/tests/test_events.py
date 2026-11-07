@@ -137,6 +137,24 @@ class EventApiTests(TestCase):
         self.assertEqual(awareness.status, EventClientAwareness.AwarenessStatus.NOTIFIED)
         self.assertIsNotNone(awareness.notified_at)
 
+    def test_new_sitting_cannot_be_diarised_in_the_past(self):
+        # A month-first picker turns 12/07 (12 Jul) into 7 Dec or 06/12 into 12 Jun; a past date is refused.
+        self.api.force_authenticate(user=self.admin)
+        response = self.api.post(
+            reverse("event-list-create"),
+            {
+                "case_id": str(self.case.id),
+                "event_type": CaseEvent.EventType.TAXATION,
+                "title": "Taxation",
+                "starts_at": (timezone.now() - timedelta(days=3)).isoformat(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("starts_at", response.data["errors"])
+        self.assertFalse(CaseEvent.objects.filter(case=self.case).exists())
+
     def test_client_sees_only_visible_upcoming_events(self):
         visible = CaseEvent.objects.create(
             case=self.case,
