@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from '@/core/api/axios';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import { subscribeToSessionLock } from '@/core/auth/sessionLock';
+import useLiveRefresh from '@/core/live/useLiveRefresh';
 
 export default function FinanceClosingReviews() {
   const [reviews, setReviews] = useState([]);
@@ -15,6 +16,8 @@ export default function FinanceClosingReviews() {
   const refresh = () => load().catch((err) => { if (err?.isActionCancelled) return; return setError(getApiErrorMessage(err, 'Financial-clearance access is required.')); });
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { refresh(); }, []);
+  // Reviews sent for clearance appear without a manual refresh.
+  useLiveRefresh(refresh);
   // A review list refused while the screen was locked loads again once it is unlocked.
   useEffect(() => subscribeToSessionLock((locked) => { if (!locked) refresh(); }), []);
   const approve = async (review) => {
@@ -22,13 +25,12 @@ export default function FinanceClosingReviews() {
     try {
       await axios.post(`/cases/${review.matter_id}/closure/${review.id}/approve-finance/`, {});
       await load();
-    } catch (err) { if (err?.isActionCancelled) return;  setError(getApiErrorMessage(err)); }
+    } catch (err) { if (err?.isActionCancelled) return; setError(getApiErrorMessage(err)); }
     finally { setBusy(false); }
   };
   return <section className='space-y-3 rounded-xl border p-4 dark:border-border-dark'>
     <h2 className='font-semibold'>Financial clearance for closing matters</h2>
     <p className='text-sm'>Check the ledger, final account and invoices before approving. The system blocks approval while client money or unresolved invoices remain.</p>
-    <button type='button' className='text-sm underline' disabled={busy} onClick={() => load().catch((err) => { if (err?.isActionCancelled) return; return setError(getApiErrorMessage(err)); })}>Refresh closing reviews</button>
     {error && <p role='alert'>{error}</p>}
     {!reviews.length && !error && <p className='text-sm'>No pending closing reviews.</p>}
     {reviews.map((review) => <div key={review.id} className='flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm'>
