@@ -13,9 +13,10 @@ import useLiveRefresh from '@/core/live/useLiveRefresh';
 const field = 'w-full rounded-lg border border-border-light bg-surface-light px-3 py-2 text-sm dark:border-border-dark dark:bg-surface-dark';
 const button = 'rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50';
 const linkButton = 'font-semibold text-brand-primary underline-offset-2 hover:underline dark:text-blue-300';
-const today = localDateInput();
+// Worked out when a form opens, not when this file loads: the server clock is only known after sign-in.
+const currentDay = () => localDateInput();
 // Each form starts from these values and returns to them once its record is saved.
-const BLANK = {
+const blankForms = (today = currentDay()) => ({
   invoice: { matter: '', invoice_number: '', invoice_date: today, due_date: '', currency: 'KES', description: '', amount: '' },
   receipt: { matter: '', paid_by_party: '', paid_by_name: '', account: '', receipt_number: '', amount_received: '', currency: 'KES', payment_date: today, payment_method: 'MOBILE_MONEY', bank_transaction_reference: '' },
   retainer: { target: '', account: '', receipt_number: '', amount_received: '', currency: 'KES', payment_date: today, payment_method: 'MOBILE_MONEY', bank_transaction_reference: '' },
@@ -28,7 +29,7 @@ const BLANK = {
   reconciliation: { account: '', period_end: today, statement_balance: '', reconciliation_data: {} },
   credit: { invoice: '', credit_note_number: '', credit_date: today, amount: '', reason: '' },
   tax: { effective_from: today, vat_registered: true, vat_registration_number: '', vat_rate: '16', tax_inclusive: false },
-};
+});
 const money = (currency, value) => `${currency || 'KES'} ${Number(value || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const PAYMENT_METHODS = [
@@ -95,18 +96,18 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   const [ledger, setLedger] = useState(null);
   const [busy, setBusy] = useState(false);
   const [unavailable, setUnavailable] = useState([]);
-  const [invoice, setInvoice] = useState(BLANK.invoice);
-  const [receipt, setReceipt] = useState(BLANK.receipt);
-  const [retainer, setRetainer] = useState(BLANK.retainer);
-  const [account, setAccount] = useState(BLANK.account);
-  const [payment, setPayment] = useState(BLANK.payment);
-  const [transfer, setTransfer] = useState(BLANK.transfer);
-  const [timeEntry, setTimeEntry] = useState(BLANK.timeEntry);
-  const [disbursement, setDisbursement] = useState(BLANK.disbursement);
-  const [officeReceipt, setOfficeReceipt] = useState(BLANK.officeReceipt);
-  const [reconciliation, setReconciliation] = useState(BLANK.reconciliation);
-  const [credit, setCredit] = useState(BLANK.credit);
-  const [tax, setTax] = useState(BLANK.tax);
+  const [invoice, setInvoice] = useState(blankForms().invoice);
+  const [receipt, setReceipt] = useState(blankForms().receipt);
+  const [retainer, setRetainer] = useState(blankForms().retainer);
+  const [account, setAccount] = useState(blankForms().account);
+  const [payment, setPayment] = useState(blankForms().payment);
+  const [transfer, setTransfer] = useState(blankForms().transfer);
+  const [timeEntry, setTimeEntry] = useState(blankForms().timeEntry);
+  const [disbursement, setDisbursement] = useState(blankForms().disbursement);
+  const [officeReceipt, setOfficeReceipt] = useState(blankForms().officeReceipt);
+  const [reconciliation, setReconciliation] = useState(blankForms().reconciliation);
+  const [credit, setCredit] = useState(blankForms().credit);
+  const [tax, setTax] = useState(blankForms().tax);
   const [ledgerMatter, setLedgerMatter] = useState('');
   const [modal, setModal] = useState(null);
   const [cleared, setCleared] = useState(0);
@@ -194,7 +195,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   };
   const transferInvoice = invoices.find((item) => item.id === transfer.invoice);
 
-  const createInvoice = clearing(setInvoice, BLANK.invoice, submit(() => adminBillingService.createInvoice({
+  const createInvoice = clearing(setInvoice, blankForms().invoice, submit(() => adminBillingService.createInvoice({
     client: clientForMatter(invoice.matter), matter: invoice.matter, invoice_number: invoice.invoice_number,
     invoice_date: invoice.invoice_date, due_date: invoice.due_date, currency: invoice.currency,
     line_items: [{ line_type: 'PROFESSIONAL_FEE', description: invoice.description, quantity: '1.00', unit_price: invoice.amount }],
@@ -218,7 +219,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       : Swal.fire('Nothing selected', 'Tick at least one approved time entry or disbursement to add to this fee note.', 'warning').then(() => false)),
   });
   // Newest first from the API; the one in use is the latest active version already in effect.
-  const currentTax = taxConfigurations.find((item) => item.is_active && item.effective_from <= today);
+  const currentTax = taxConfigurations.find((item) => item.is_active && item.effective_from <= currentDay());
   const taxSummary = currentTax?.vat_registered && Number(currentTax.vat_rate) > 0
     ? `VAT ${Number(currentTax.vat_rate)}%${currentTax.tax_inclusive ? ' (included in the fee)' : ' added on professional fees'}, from ${currentTax.effective_from}`
     : 'No VAT: the firm is not VAT-registered, or no tax setting is in effect';
@@ -265,7 +266,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
         <button className={button} disabled={busy}>Create draft</button>
       </form>
 
-      <form onSubmit={clearing(setReceipt, BLANK.receipt, submit(() => adminBillingService.receiveClientMoney({ ...receipt, paid_by_party: receipt.paid_by_party && receipt.paid_by_party !== OTHER_PERSON ? receipt.paid_by_party : null, paid_by_name: receipt.paid_by_party === OTHER_PERSON ? receipt.paid_by_name : '' }), 'Client money recorded and the matter ledger credited.', { title: 'Post this client-money receipt?', text: `${money(receipt.currency, receipt.amount_received || 0)} will be credited to the matter's client ledger. ${POSTED}` }))} className='space-y-3 rounded-xl border p-5 dark:border-border-dark'>
+      <form onSubmit={clearing(setReceipt, blankForms().receipt, submit(() => adminBillingService.receiveClientMoney({ ...receipt, paid_by_party: receipt.paid_by_party && receipt.paid_by_party !== OTHER_PERSON ? receipt.paid_by_party : null, paid_by_name: receipt.paid_by_party === OTHER_PERSON ? receipt.paid_by_name : '' }), 'Client money recorded and the matter ledger credited.', { title: 'Post this client-money receipt?', text: `${money(receipt.currency, receipt.amount_received || 0)} will be credited to the matter's client ledger. ${POSTED}` }))} className='space-y-3 rounded-xl border p-5 dark:border-border-dark'>
         <h2 className='font-semibold'>Record client-money receipt</h2>
         <Select label='Matter' name='matter' value={receipt.matter} onChange={(event) => setReceipt((current) => ({ ...current, matter: event.target.value, paid_by_party: '' }))} options={matterOptions} placeholder='Select the matter' emptyText='No open matter yet.' />
         {receipt.matter && (
@@ -312,7 +313,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
 
     <div className='grid gap-5 xl:grid-cols-2'>
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Retainer received before the matter is opened</summary>
-        <form className='mt-3 space-y-3' onSubmit={clearing(setRetainer, BLANK.retainer, submit(() => {
+        <form className='mt-3 space-y-3' onSubmit={clearing(setRetainer, blankForms().retainer, submit(() => {
           const { target, ...rest } = retainer;
           const chosen = registers.retainer_targets.find((item) => item.proposed_matter_id === target) || {};
           return adminBillingService.receivePreMatterRetainer({ ...rest, client: chosen.client_id, proposed_matter: chosen.proposed_matter_id, engagement: chosen.engagement_id });
@@ -331,7 +332,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Office and client bank accounts</summary>
-        <form className='mt-3 space-y-3' onSubmit={clearing(setAccount, BLANK.account, submit(() => adminBillingService.createAccount(account), 'Account added to the segregated register.'))}>
+        <form className='mt-3 space-y-3' onSubmit={clearing(setAccount, blankForms().account, submit(() => adminBillingService.createAccount(account), 'Account added to the segregated register.'))}>
           <Input label='Account name' name='name' value={account.name} onChange={update(setAccount)} />
           <Input label='Bank' name='bank_name' required={false} value={account.bank_name} onChange={update(setAccount)} />
           <Input label='Account number' name='account_reference' value={account.account_reference} onChange={update(setAccount)} />
@@ -343,7 +344,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>VAT and tax settings</summary>
         <p className='mt-3 text-sm text-text-muted-light dark:text-text-muted-dark'>Each invoice keeps the setting in effect on the day it is created, so a change never alters issued invoices. To change VAT, add a new setting with the date it takes effect. Have the firm&apos;s accountant confirm the VAT position with KRA first.</p>
-        <form className='mt-3 space-y-3' onSubmit={clearing(setTax, BLANK.tax, submit(() => adminBillingService.createTaxConfiguration({
+        <form className='mt-3 space-y-3' onSubmit={clearing(setTax, blankForms().tax, submit(() => adminBillingService.createTaxConfiguration({
           effective_from: tax.effective_from,
           vat_registered: tax.vat_registered,
           vat_registration_number: tax.vat_registered ? tax.vat_registration_number : '',
@@ -365,7 +366,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Client-money payment instruction</summary>
-        <form className='mt-3 space-y-3' onSubmit={clearing(setPayment, BLANK.payment, submit(() => adminBillingService.requestPayment({ ...payment, beneficiary_name: payeeName(payment), beneficiary_details: { reference: payment.beneficiary_reference } }), 'Payment instruction sent for independent approval.', { title: 'Send this payment for approval?', text: 'A second, independent person must approve it before client money leaves the account.', confirmText: 'Send for approval', tone: 'primary' }))}>
+        <form className='mt-3 space-y-3' onSubmit={clearing(setPayment, blankForms().payment, submit(() => adminBillingService.requestPayment({ ...payment, beneficiary_name: payeeName(payment), beneficiary_details: { reference: payment.beneficiary_reference } }), 'Payment instruction sent for independent approval.', { title: 'Send this payment for approval?', text: 'A second, independent person must approve it before client money leaves the account.', confirmText: 'Send for approval', tone: 'primary' }))}>
           <Select label='Matter' name='matter' value={payment.matter} onChange={(event) => setPayment((current) => ({ ...current, matter: event.target.value, pay_to: '', beneficiary_name: '' }))} options={matterOptions} emptyText='No open matter yet.' />
           <Select label='Client account' name='account' value={payment.account} onChange={update(setPayment)} options={accountOptions('CLIENT')} emptyText='No client account yet. Add it under Office and client bank accounts.' />
           {payment.matter && (
@@ -382,7 +383,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Transfer earned fees from client to office account</summary>
-        <form className='mt-3 space-y-3' onSubmit={clearing(setTransfer, BLANK.transfer, submit(() => adminBillingService.transferToOffice(transfer), 'Client debit and office credit posted against the issued invoice.', { title: 'Transfer client money to office?', text: `${money('KES', transfer.amount || 0)} moves from the client account to office against the issued invoice. ${POSTED}`, confirmText: 'Transfer' }))}>
+        <form className='mt-3 space-y-3' onSubmit={clearing(setTransfer, blankForms().transfer, submit(() => adminBillingService.transferToOffice(transfer), 'Client debit and office credit posted against the issued invoice.', { title: 'Transfer client money to office?', text: `${money('KES', transfer.amount || 0)} moves from the client account to office against the issued invoice. ${POSTED}`, confirmText: 'Transfer' }))}>
           <Select label='Issued invoice' name='invoice' value={transfer.invoice} onChange={chooseTransferInvoice} options={invoiceOptions(['ISSUED', 'PARTIALLY_PAID', 'OVERDUE'])} emptyText='No issued fee note has a balance to pay.' />
           {transferInvoice && <p className='text-sm text-text-muted-light dark:text-text-muted-dark'>Client money held for {transferInvoice.case_number}: {money(transferInvoice.currency, heldForMatter(transferInvoice.matter))}. Fee note balance: {money(transferInvoice.currency, transferInvoice.balance)}.</p>}
           <Select label='From client account' name='client_account' value={transfer.client_account} onChange={update(setTransfer)} options={accountOptions('CLIENT')} emptyText='No client account yet. Add it under Office and client bank accounts.' />
@@ -394,7 +395,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Time entry</summary>
-        <form className='mt-3 space-y-3' onSubmit={clearing(setTimeEntry, BLANK.timeEntry, submit(() => adminBillingService.createTimeEntry({ ...timeEntry, staff_member: timeEntry.staff_member || user?.id }), 'Time entry submitted for approval.'))}>
+        <form className='mt-3 space-y-3' onSubmit={clearing(setTimeEntry, blankForms().timeEntry, submit(() => adminBillingService.createTimeEntry({ ...timeEntry, staff_member: timeEntry.staff_member || user?.id }), 'Time entry submitted for approval.'))}>
           <Select label='Matter' name='matter' value={timeEntry.matter} onChange={update(setTimeEntry)} options={matterOptions} emptyText='No open matter yet.' />
           <Select label='Fee earner' name='staff_member' value={timeEntry.staff_member} onChange={update(setTimeEntry)} options={feeEarnerOptions} />
           <Input label='Activity' name='activity' value={timeEntry.activity} onChange={update(setTimeEntry)} />
@@ -411,7 +412,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Disbursement</summary>
-        <form className='mt-3 space-y-3' onSubmit={clearing(setDisbursement, BLANK.disbursement, submit(() => adminBillingService.createDisbursement(disbursement), 'Disbursement submitted for approval.'))}>
+        <form className='mt-3 space-y-3' onSubmit={clearing(setDisbursement, blankForms().disbursement, submit(() => adminBillingService.createDisbursement(disbursement), 'Disbursement submitted for approval.'))}>
           <Select label='Matter' name='matter' value={disbursement.matter} onChange={update(setDisbursement)} options={matterOptions} emptyText='No open matter yet.' />
           <Select label='Type' name='disbursement_type' value={disbursement.disbursement_type} onChange={update(setDisbursement)} options={[['COURT_FEES', 'Court filing fees'], ['PROCESS_SERVER', 'Process server'], ['SEARCH_FEES', 'Search fees (lands/companies)'], ['STAMP_DUTY', 'Stamp duty'], ['TRAVEL', 'Travel'], ['OTHER', 'Other']].map(([value, label]) => ({ value, label }))} />
           <Input label='Description' name='description' value={disbursement.description} onChange={update(setDisbursement)} />
@@ -427,7 +428,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Office-money receipt against an invoice</summary>
-        <form className='mt-3 space-y-3' onSubmit={clearing(setOfficeReceipt, BLANK.officeReceipt, submit(() => adminBillingService.receiveOfficeMoney({ ...officeReceipt, matter: matterForInvoice(officeReceipt.invoice), allocations: [{ allocation_type: 'INVOICE', amount: officeReceipt.amount_received, invoice: officeReceipt.invoice }] }), 'Office receipt allocated to the invoice.', { title: 'Post this office receipt?', text: `${money(officeReceipt.currency, officeReceipt.amount_received || 0)} will be allocated to the invoice. ${POSTED}` }))}>
+        <form className='mt-3 space-y-3' onSubmit={clearing(setOfficeReceipt, blankForms().officeReceipt, submit(() => adminBillingService.receiveOfficeMoney({ ...officeReceipt, matter: matterForInvoice(officeReceipt.invoice), allocations: [{ allocation_type: 'INVOICE', amount: officeReceipt.amount_received, invoice: officeReceipt.invoice }] }), 'Office receipt allocated to the invoice.', { title: 'Post this office receipt?', text: `${money(officeReceipt.currency, officeReceipt.amount_received || 0)} will be allocated to the invoice. ${POSTED}` }))}>
           <Select label='Invoice being paid' name='invoice' value={officeReceipt.invoice} onChange={update(setOfficeReceipt)} options={invoiceOptions(['ISSUED', 'PARTIALLY_PAID', 'OVERDUE'])} emptyText='No issued fee note has a balance to pay.' />
           <Select label='Office account' name='account' value={officeReceipt.account} onChange={update(setOfficeReceipt)} options={accountOptions('OFFICE')} emptyText='No office account yet. Add it under Office and client bank accounts.' />
           <div className='grid gap-3 sm:grid-cols-2'>
@@ -442,7 +443,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Credit note</summary>
-        <form className='mt-3 space-y-3' onSubmit={clearing(setCredit, BLANK.credit, submit(() => adminBillingService.createCreditNote(credit), 'Credit note submitted for independent approval.'))}>
+        <form className='mt-3 space-y-3' onSubmit={clearing(setCredit, blankForms().credit, submit(() => adminBillingService.createCreditNote(credit), 'Credit note submitted for independent approval.'))}>
           <Select label='Invoice' name='invoice' value={credit.invoice} onChange={update(setCredit)} options={invoiceOptions(['ISSUED', 'PARTIALLY_PAID', 'OVERDUE', 'PAID'])} emptyText='No issued fee note yet.' />
           <div className='grid gap-3 sm:grid-cols-3'>
             <Input label='Credit note number' name='credit_note_number' value={credit.credit_note_number} onChange={update(setCredit)} />
@@ -456,7 +457,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Bank reconciliation</summary>
-        <form className='mt-3 space-y-3' onSubmit={clearing(setReconciliation, BLANK.reconciliation, submit(() => adminBillingService.createReconciliation(reconciliation), 'Reconciliation prepared from the ledger.'))}>
+        <form className='mt-3 space-y-3' onSubmit={clearing(setReconciliation, blankForms().reconciliation, submit(() => adminBillingService.createReconciliation(reconciliation), 'Reconciliation prepared from the ledger.'))}>
           <Select label='Account' name='account' value={reconciliation.account} onChange={update(setReconciliation)} options={accountOptions()} />
           <Input label='Period end' type='date' name='period_end' value={reconciliation.period_end} onChange={update(setReconciliation)} />
           <Input label='Bank statement balance' type='number' step='0.01' name='statement_balance' value={reconciliation.statement_balance} onChange={update(setReconciliation)} />
