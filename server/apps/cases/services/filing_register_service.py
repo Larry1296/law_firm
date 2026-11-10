@@ -709,7 +709,7 @@ class FilingRegisterService:
         return None
 
     # Dated register steps that service_recommendation names.
-    DATED_STEP_KEYS = ("APPEARANCE", "DEFENCE", "REPLY", "PLEADINGS_CLOSE", "PRE_TRIAL")
+    DATED_STEP_KEYS = ("APPEARANCE", "DEFENCE", "REPLY", "PLEADINGS_CLOSE", "PRE_TRIAL", "DECREE_DEMAND")
 
     @classmethod
     def step_due_before(cls, case, when):
@@ -754,4 +754,9 @@ class FilingRegisterService:
                             return "Review request for judgment in default of a response for advocate decision"
                         return "Review default judgment (Order 10) for advocate decision"
                     return f"{deadline.description.split(' (')[0]} by {timezone.localtime(deadline.due_at):%d %b %Y}"
+        # The decree went to the judgment debtor with a demand to pay; unpaid by then, the advocate applies for
+        # execution (ELRC (Procedure) Rules, 2024, rule 73(1)-(2)).
+        demand = MatterDeadline.objects.filter(matter=case, source=f"DECREE_DEMAND:{case.id}", status=MatterDeadline.Status.OPEN).first()
+        if demand:
+            return f"Decretal sum due by {timezone.localtime(demand.due_at):%d %b %Y}; apply for execution if unpaid"
         return None

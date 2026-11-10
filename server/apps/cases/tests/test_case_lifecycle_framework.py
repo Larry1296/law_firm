@@ -638,6 +638,17 @@ class CaseLifecycleFrameworkTests(TestCase):
         demand = MatterDeadline.objects.get(matter=case, source=f"DECREE_DEMAND:{case.id}")
         self.assertEqual(timezone.localdate(demand.due_at), timezone.localdate() + timedelta(days=7))
         self.assertIn("rule 73(1)-(2)", demand.description)
+        # The payment date comes before a later taxation, so it leads the next action.
+        from apps.cases.services.proceedings_workflow_service import ProceedingsWorkflowService
+        from apps.common.choices import CourtEventType
+
+        CaseEvent.objects.create(
+            case=case, event_type=CourtEventType.TAXATION, title="Taxation",
+            starts_at=timezone.now() + timedelta(days=27), created_by=self.admin,
+        )
+        ProceedingsWorkflowService._resync_next_action(case, actor=self.admin)
+        case.refresh_from_db()
+        self.assertEqual(case.next_action, f"Decretal sum due by {timezone.localtime(demand.due_at):%d %b %Y}; apply for execution if unpaid")
         # Execution answers the demand that went unpaid.
         CaseLifecycleService.transition(
             case=case, actor=self.admin, dimension="ENFORCEMENT_STATUS",
