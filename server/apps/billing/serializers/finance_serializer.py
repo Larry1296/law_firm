@@ -153,11 +153,15 @@ class LedgerTransactionSerializer(serializers.ModelSerializer):
     transaction_type_label = serializers.CharField(source="get_transaction_type_display", read_only=True)
     direction_label = serializers.CharField(source="get_direction_display", read_only=True)
     receipt_number = serializers.SerializerMethodField()
+    reverses_receipt_number = serializers.SerializerMethodField()
 
     def get_receipt_number(self, obj):
-        # A reversal carries the number of the receipt it reverses.
-        receipt = obj.receipt or getattr(obj.original_transaction, "receipt", None)
-        return receipt.receipt_number if receipt else ""
+        # A reversal is not a receipt of its own, though it stays linked to the receipt it cancels.
+        return obj.receipt.receipt_number if obj.receipt_id and not obj.original_transaction_id else ""
+
+    def get_reverses_receipt_number(self, obj):
+        original = obj.original_transaction
+        return original.receipt.receipt_number if original and original.receipt_id else ""
 
     class Meta:
         model = LedgerTransaction
