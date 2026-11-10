@@ -418,7 +418,7 @@ export default function CourtProgressPanel({ caseData, canRecordFilings = true, 
             </Field>
           )}
           <Field label='Title'><input name='title' value={title} onChange={updateEntry} className={inputClass} /></Field>
-          <Field label={paper === 'DEMAND_LETTER' ? 'Date issued' : theirPaper ? 'Date served on us' : 'Date filed / received'}>
+          <Field label={NOT_FILED_IN_COURT.has(paper) ? 'Date issued' : theirPaper ? 'Date served on us' : 'Date filed / received'}>
             <input type='datetime-local' name='filed_at' max={nowLocal()} value={entry.filed_at} onChange={updateEntry} className={inputClass} />
           </Field>
           {paper === 'DEMAND_LETTER' && (
