@@ -112,6 +112,12 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   const [modal, setModal] = useState(null);
   const [cleared, setCleared] = useState(0);
 
+  // The matter whose ledger is on screen, so every reload redraws it too (a reversal shows at once).
+  const [shownLedgerMatter, setShownLedgerMatter] = useState('');
+  const reloadLedger = () => {
+    if (!shownLedgerMatter) return;
+    adminBillingService.getMatterLedger(shownLedgerMatter).then((data) => setLedger(data.ledger)).catch(() => {});
+  };
   const load = async () => {
     const calls = [
       ['Matter register', adminBillingService.getRegisters()],
@@ -141,6 +147,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   useEffect(() => { load(); }, []);
   // Invoices, receipts and transfers others record appear without a page refresh.
   useLiveRefresh(load);
+  useLiveRefresh(reloadLedger);
   // Requests refused while the screen was locked load again once it is unlocked.
   useEffect(() => subscribeToSessionLock((locked) => { if (!locked) load(); }), []);
 
@@ -148,7 +155,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   // Postings to the ledgers cannot be edited afterwards, so `confirm` asks before they are made.
   const run = async (command, message, confirm) => {
     setBusy(true);
-    try { await withCriticalAction(confirm, command); await load(); if (message) Swal.fire('Recorded', message, 'success'); return true; }
+    try { await withCriticalAction(confirm, command); await load(); reloadLedger(); if (message) Swal.fire('Recorded', message, 'success'); return true; }
     catch (error) { if (error?.isActionCancelled) return false; Swal.fire('Financial control rejected', getApiErrorMessage(error), 'error'); return false; }
     finally { setBusy(false); }
   };
@@ -225,7 +232,12 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
     : 'No VAT: the firm is not VAT-registered, or no tax setting is in effect';
 
   // A reversed entry shows no Reverse link: the server refuses a second reversal.
-  const inspectLedger = () => run(async () => { const data = await adminBillingService.getMatterLedger(ledgerMatter); setLedger(data.ledger); });
+  const inspectLedger = async () => {
+    setBusy(true);
+    try { const data = await adminBillingService.getMatterLedger(ledgerMatter); setShownLedgerMatter(ledgerMatter); setLedger(data.ledger); }
+    catch (error) { Swal.fire('Ledger not loaded', getApiErrorMessage(error), 'error'); }
+    finally { setBusy(false); }
+  };
 
   return <div className='space-y-6 p-4 text-text-primary-light dark:text-text-primary-dark sm:p-6'>
     <FinanceClosingReviews />
