@@ -464,7 +464,9 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertEqual(case.next_action, f"Serve the bill of costs and notice of taxation for the taxation on {day}")
         with self.assertRaises(ValidationError):
             FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "NOTICE_OF_TAXATION"})
-        notice = FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "NOTICE_OF_TAXATION", "served_at": timezone.now()})
+        # Service is counted by day: earlier on the day the taxation was diarised still answers it.
+        served_at = timezone.localtime(taxation.created_at).replace(hour=0, minute=1)
+        notice = FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "NOTICE_OF_TAXATION", "served_at": served_at})
         self.assertEqual(notice.status, "SERVED")
         case.refresh_from_db()
         self.assertEqual(case.next_action, "Taxation")

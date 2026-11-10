@@ -80,9 +80,9 @@ const nextPaper = (caseData) => {
     if (!notice) return 'HEARING_NOTICE';
     if (!(caseData.filings || []).some((filing) => filing.served_filing === notice.id)) return 'AFFIDAVIT_OF_SERVICE';
   }
-  // A filed bill of costs is served on the other side with the notice of the taxation date.
+  // A filed bill of costs is served on the other side with the notice of the taxation date (counted by day).
   const bill = (caseData.filings || []).find((filing) => filing.filing_type === 'BILL_OF_COSTS');
-  const taxationNotice = (caseData.filings || []).some((filing) => filing.filing_type === 'NOTICE_OF_TAXATION' && filing.served_at && (!bill || new Date(filing.served_at) >= new Date(bill.filed_at)));
+  const taxationNotice = (caseData.filings || []).some((filing) => filing.filing_type === 'NOTICE_OF_TAXATION' && filing.served_at && (!bill || new Date(filing.served_at).setHours(0, 0, 0, 0) >= new Date(bill.filed_at).setHours(0, 0, 0, 0)));
   if (bill && !taxationNotice) return 'NOTICE_OF_TAXATION';
   return '';
 };

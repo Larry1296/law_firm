@@ -270,7 +270,11 @@ class FilingRegisterService:
         if sitting is None or sitting.event_type != CourtEventType.TAXATION:
             return None
         served = (
-            case.filings.filter(filing_type=CaseFiling.FilingType.NOTICE_OF_TAXATION, served_at__gte=sitting.created_at)
+            # Counted by day: a notice served the day the taxation was diarised answers it, whatever the hour.
+            case.filings.filter(
+                filing_type=CaseFiling.FilingType.NOTICE_OF_TAXATION,
+                served_at__date__gte=timezone.localdate(sitting.created_at),
+            )
             .exclude(status__in=[CaseFiling.FilingStatus.WITHDRAWN, CaseFiling.FilingStatus.REJECTED])
             .exists()
         )
