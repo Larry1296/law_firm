@@ -43,6 +43,7 @@ const REGISTER_TYPES = [
   ['BILL_OF_COSTS', 'Bill of costs filed'],
   ['NOTICE_OF_TAXATION', 'Bill of costs and notice of taxation served'],
   ['CERTIFICATE_OF_COSTS', 'Certificate of costs issued'],
+  ['APPLICATION_FOR_EXECUTION', 'Application for execution filed'],
   ['WARRANT_OF_ATTACHMENT', 'Warrant of attachment issued'],
   ['NOTICE_OF_APPEAL', 'Notice of appeal filed'],
   ['OTHER', 'Other paper'],

@@ -34,6 +34,7 @@ class CaseFiling(TimestampedModel):
         DECREE = "DECREE", "Decree"
         BILL_OF_COSTS = "BILL_OF_COSTS", "Bill of costs"
         CERTIFICATE_OF_COSTS = "CERTIFICATE_OF_COSTS", "Certificate of costs"
+        APPLICATION_FOR_EXECUTION = "APPLICATION_FOR_EXECUTION", "Application for execution"
         WARRANT_OF_ATTACHMENT = "WARRANT_OF_ATTACHMENT", "Warrant of attachment and sale"
         RULING = "RULING", "Ruling"
         JUDGMENT = "JUDGMENT", "Judgment"

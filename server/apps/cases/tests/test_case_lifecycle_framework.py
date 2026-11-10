@@ -657,6 +657,27 @@ class CaseLifecycleFrameworkTests(TestCase):
         demand.refresh_from_db()
         self.assertEqual(demand.status, MatterDeadline.Status.COMPLETED)
 
+    def test_recording_an_application_for_execution_moves_enforcement_on_and_answers_the_demand(self):
+        from apps.cases.models import MatterDeadline
+        from apps.cases.services.case_lifecycle_service import CaseLifecycleService
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
+        case = self.create_case()
+        case.court_stage = Case.CourtStage.DECREE_EXTRACTION
+        case.enforcement_status = Case.EnforcementStatus.DECREE_ISSUED
+        case.save(update_fields=["court_stage", "enforcement_status"])
+        CaseLifecycleService.transition(
+            case=case, actor=self.admin, dimension="ENFORCEMENT_STATUS",
+            to_state=Case.EnforcementStatus.DEMAND_FOR_COMPLIANCE, reason="Decree served with a demand.",
+            metadata={"demand_period_days": 7},
+        )
+        # Civil Procedure Rules, 2010, Order 22 rule 6: the decree-holder applies for execution on Form No. 14.
+        FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "APPLICATION_FOR_EXECUTION"})
+        case.refresh_from_db()
+        self.assertEqual(case.enforcement_status, Case.EnforcementStatus.EXECUTION_IN_PROGRESS)
+        demand = MatterDeadline.objects.get(matter=case, source=f"DECREE_DEMAND:{case.id}")
+        self.assertEqual(demand.status, MatterDeadline.Status.COMPLETED)
+
     def test_a_judgment_date_put_off_leaves_judgment_reserved(self):
         case = self.create_case()
         case.court_stage = Case.CourtStage.JUDGMENT_RESERVED

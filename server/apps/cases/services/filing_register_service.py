@@ -152,6 +152,8 @@ class FilingRegisterService:
             cls._advance_to_awaiting_response(case, user)
         elif filing_type == CaseFiling.FilingType.DECREE:
             cls._decree_issued(case, user)
+        elif filing_type == CaseFiling.FilingType.APPLICATION_FOR_EXECUTION:
+            cls._execution_applied_for(case, user)
         elif filing_type == CaseFiling.FilingType.DEFENCE:
             case.refresh_from_db()
             if case.court_stage == Case.CourtStage.AWAITING_RESPONSE:
@@ -452,6 +454,35 @@ class FilingRegisterService:
                     case.refresh_from_db()
         except (PermissionDenied, ValidationError):
             case.refresh_from_db()
+
+    @classmethod
+    def _execution_applied_for(cls, case, actor):
+        """The decree-holder applies to the court that passed the decree (Civil Procedure Rules, 2010, Order 22
+        rule 6, Form No. 14 of Appendix A), and at the ELRC the Registrar issues execution under those Rules
+        (ELRC (Procedure) Rules, 2024, rule 73(1)-(2)). Enforcement moves to Execution in progress, which also
+        answers the unpaid demand.
+        """
+        from apps.cases.models import CaseLifecycleTransition
+        from apps.cases.services.case_lifecycle_service import CaseLifecycleService
+
+        case.refresh_from_db()
+        if case.enforcement_status not in {
+            Case.EnforcementStatus.DECREE_ISSUED,
+            Case.EnforcementStatus.DEMAND_FOR_COMPLIANCE,
+            Case.EnforcementStatus.PART_PAYMENT,
+            Case.EnforcementStatus.STAYED,
+        }:
+            return
+        try:
+            with transaction.atomic():
+                CaseLifecycleService.transition(
+                    case=case, actor=actor, dimension=CaseLifecycleTransition.Dimension.ENFORCEMENT_STATUS,
+                    to_state=Case.EnforcementStatus.EXECUTION_IN_PROGRESS,
+                    reason="Application for execution recorded in the filing register.",
+                )
+        except (PermissionDenied, ValidationError):
+            pass
+        case.refresh_from_db()
 
     @classmethod
     def record_decree_extraction(cls, *, case, actor, served_on=None):
