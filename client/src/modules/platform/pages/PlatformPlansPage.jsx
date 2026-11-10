@@ -16,6 +16,7 @@ import {
 } from '@/modules/platform/components/ui';
 import { inputClass } from '@/modules/platform/components/styles';
 import CaptionedInput from '@/components/ui/CaptionedInput';
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 
 const LIMIT_FIELDS = [
   ['max_advocates', 'Advocates'],
@@ -69,7 +70,7 @@ function PlanForm({ initial, features, onDone, onCancel }) {
       <Field label='Code' required hint={isNew ? 'Short identifier, e.g. BASIC. Cannot change later.' : 'Cannot change.'}>
         <input required value={draft.code} onChange={set('code')} disabled={!isNew} className={`${inputClass} uppercase`} />
       </Field>
-      <Field label='Tagline' className='sm:col-span-2'><input value={draft.tagline} onChange={set('tagline')} className={inputClass} /></Field>
+      <Field label='Tagline' className='sm:col-span-2'><AutoGrowTextarea value={draft.tagline} onChange={set('tagline')} className={inputClass} caption={false} /></Field>
       <Field label='Pricing basis' hint='Per advocate counts active advocates, including a practising owner, with a minimum of one.' className='sm:col-span-2'>
         <select value={draft.pricing_basis} onChange={set('pricing_basis')} className={inputClass}>
           <option value='FIRM'>Flat price per firm</option>

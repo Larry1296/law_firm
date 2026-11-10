@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from '@/core/api/axios';
 import { BellRing, History, Loader2, UserPlus } from 'lucide-react';
-import { TextInput, SelectInput } from '@/components/forms';
+import { TextArea, TextInput, SelectInput } from '@/components/forms';
 import Button3D from '@/components/ui/Button3D';
 import Card from '@/components/ui/Card';
 import Swal from '@/core/utils/themedSwal';
@@ -133,8 +133,8 @@ export default function ClientArrivalsPage() {
             <fieldset disabled={pending} className='grid gap-4 md:grid-cols-2'>
               {Object.entries(intakeLabels).map(([key, label]) => key === 'acting_capacity' ? <div key={key} className='space-y-4'>
                 <SelectInput name={`intake-${visit.id}-acting-mode`} label={label} placeholder='Select' options={actingOptions} value={intake.acting_mode || ''} onChange={(event) => setIntake({ ...intake, acting_mode: event.target.value })} />
-                {intake.acting_mode === 'ON_BEHALF' && <TextInput name={`intake-${visit.id}-acting-for`} label='Specify who and in what capacity' required maxLength={255 - ON_BEHALF.length} help='For example: director of Baraka Homes Limited, or administrator of the estate of the late J. Kamau.' value={intake.acting_for || ''} onChange={(event) => setIntake({ ...intake, acting_for: event.target.value })} />}
-              </div> : <TextInput key={key} name={`intake-${visit.id}-${key}`} label={label} type={key === 'deadline' ? 'date' : 'text'} required={key === 'broad_issue'} maxLength={key === 'other_parties' ? 1000 : key === 'broad_issue' ? 500 : 255} value={intake[key]} onChange={(event) => setIntake({ ...intake, [key]: event.target.value })} />)}
+                {intake.acting_mode === 'ON_BEHALF' && <TextArea name={`intake-${visit.id}-acting-for`} label='Specify who and in what capacity' required maxLength={255 - ON_BEHALF.length} help='For example: director of Baraka Homes Limited, or administrator of the estate of the late J. Kamau.' value={intake.acting_for || ''} onChange={(event) => setIntake({ ...intake, acting_for: event.target.value })} />}
+              </div> : key === 'deadline' ? <TextInput key={key} name={`intake-${visit.id}-${key}`} label={label} type='date' value={intake[key]} onChange={(event) => setIntake({ ...intake, [key]: event.target.value })} /> : <TextArea key={key} name={`intake-${visit.id}-${key}`} label={label} required={key === 'broad_issue'} maxLength={key === 'other_parties' ? 1000 : key === 'broad_issue' ? 500 : 255} value={intake[key]} onChange={(event) => setIntake({ ...intake, [key]: event.target.value })} />)}
             </fieldset>
             <div className='flex flex-wrap gap-3'>
               <Button3D type='submit' disabled={pending}>{mutation.isPending ? 'Saving…' : 'Save consultation intake'}</Button3D>
@@ -200,7 +200,7 @@ export default function ClientArrivalsPage() {
             <label className='flex cursor-pointer items-start gap-3 text-sm font-medium'>
               <input type='checkbox' className='mt-0.5 h-4 w-4 accent-[var(--form-primary)]' disabled={pending} checked={arrival.urgency_flag} onChange={(event) => setArrival({ ...arrival, urgency_flag: event.target.checked })} />Client has mentioned an urgent issue
             </label>
-            {arrival.urgency_flag && <TextInput name='urgency_note' label='Urgency mentioned' maxLength={500} disabled={pending} value={arrival.urgency_note} onChange={(event) => setArrival({ ...arrival, urgency_note: event.target.value })} />}
+            {arrival.urgency_flag && <TextArea name='urgency_note' label='Urgency mentioned' maxLength={500} disabled={pending} value={arrival.urgency_note} onChange={(event) => setArrival({ ...arrival, urgency_note: event.target.value })} />}
           </div>
           <div className='flex flex-col gap-3 border-t border-[color:var(--border)] pt-5 sm:flex-row sm:items-center sm:justify-between'>
             <p className='form-hint text-sm'>{data.self_reception ? 'If you are with another client, the visitor waits for you instead.' : 'The selected advocate will be notified of this arrival.'}</p>

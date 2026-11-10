@@ -7,6 +7,7 @@ import { Building2 } from 'lucide-react';
 import AuthContext from '@/core/store/AuthContext';
 import Button3D from '@/components/ui/Button3D';
 import FloatingInput from '@/components/ui/FloatingInput';
+import ElasticTextInput from '@/components/ui/ElasticTextInput';
 import AuthFormCard from '@/modules/auth/components/AuthFormCard';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import subscriptionService from '@/modules/subscription/services/subscriptionService';
@@ -101,7 +102,7 @@ export default function FirmSignup() {
             <FloatingInput label='Firm email' type='email' value={firm.email} onChange={firmField('email')} required />
             <FloatingInput label='Firm phone' type='tel' value={firm.phone_number} onChange={firmField('phone_number')} format='none' />
             <FloatingInput label='KRA PIN (optional)' value={firm.kra_pin} onChange={firmField('kra_pin')} format='none' />
-            <FloatingInput label='Physical address' value={firm.physical_address} onChange={firmField('physical_address')} />
+            <ElasticTextInput label='Physical address' value={firm.physical_address} onChange={firmField('physical_address')} />
           </fieldset>
 
           <hr className='form-divider' />

@@ -3,6 +3,7 @@
 import { useState, useContext } from "react";
 import { Send, Paperclip } from "lucide-react";
 import ThemeContext from "@/core/store/ThemeContext";
+import AutoGrowTextarea from "@/components/ui/AutoGrowTextarea";
 
 export default function ChatWindow({ title = "Chat", messages = [] }) {
   const { theme } = useContext(ThemeContext);
@@ -45,16 +46,19 @@ export default function ChatWindow({ title = "Chat", messages = [] }) {
       </div>
 
       {/* INPUT */}
-      <div className="p-4 flex items-center gap-2 border-t border-gray-200 dark:border-gray-700">
+      <div className="p-4 flex items-end gap-2 border-t border-gray-200 dark:border-gray-700">
         <button className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-slate-800/60">
           <Paperclip size={18} />
         </button>
 
-        <input
+        {/* Grows as the message is typed; Enter sends, Shift+Enter starts a new line. */}
+        <AutoGrowTextarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Type message..."
+          caption={false}
+          maxRows={6}
           className="flex-1 px-4 py-3 rounded-xl border outline-none"
         />
 

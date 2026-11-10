@@ -292,7 +292,7 @@ export default function PlatformFirmDetailPage() {
         icon: 'warning',
         title: `Suspend ${firm.name}?`,
         text: 'Nobody at the firm, including its clients, will be able to sign in until you reactivate it. Their records are kept.',
-        input: 'text',
+        input: 'textarea',
         inputLabel: 'Reason (recorded in the activity log)',
         showCancelButton: true,
         confirmButtonText: 'Suspend firm',

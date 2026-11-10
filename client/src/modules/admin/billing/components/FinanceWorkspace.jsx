@@ -7,6 +7,7 @@ import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import adminBillingService from '../services/adminBillingService';
 import ActionModal from '@/components/ui/ActionModal';
 import { localDateInput } from '@/core/utils/dateFormatter';
+import AutoGrowTextarea from '@/components/ui/AutoGrowTextarea';
 import { subscribeToSessionLock } from '@/core/auth/sessionLock';
 import useLiveRefresh from '@/core/live/useLiveRefresh';
 
@@ -51,6 +52,11 @@ function Input({ label, type, min, max, step, ...props }) {
     ? { type: 'text', inputMode: 'decimal', autoComplete: 'off', pattern: '[0-9]+([.][0-9]{1,2})?', title: 'Digits only, with up to two decimal places, e.g. 25000 or 25000.50' }
     : { type, min, max, step };
   return <Field label={label}><input className={field} required {...amount} {...props} /></Field>;
+}
+
+// Sentences (descriptions, purposes, reasons) go in the shared box that grows with its text.
+function Prose({ label, ...props }) {
+  return <Field label={label}><AutoGrowTextarea className={field} required caption={false} {...props} /></Field>;
 }
 
 // Who paid money in or is paid out: the client, another party on the matter, or someone else by name.
@@ -272,7 +278,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
           <Input label='Invoice date' type='date' name='invoice_date' value={invoice.invoice_date} onChange={update(setInvoice)} />
           <Input label='Due date' type='date' name='due_date' value={invoice.due_date} onChange={update(setInvoice)} />
         </div>
-        <Input label='Professional fees description' name='description' value={invoice.description} onChange={update(setInvoice)} />
+        <Prose label='Professional fees description' name='description' value={invoice.description} onChange={update(setInvoice)} />
         <Input label='Fee amount (KES, excl. VAT)' type='number' min='0' step='0.01' name='amount' value={invoice.amount} onChange={update(setInvoice)} />
         <p className='text-xs text-text-muted-light dark:text-text-muted-dark'>Tax in use: {taxSummary}. Change it under VAT and tax settings. Link approved time and disbursements after creating the draft.</p>
         <button className={button} disabled={busy}>Create draft</button>
@@ -387,8 +393,8 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
           )}
           <Input label='Beneficiary account / M-Pesa number' name='beneficiary_reference' value={payment.beneficiary_reference} onChange={update(setPayment)} />
           <Input label='Amount' type='number' min='0' step='0.01' name='amount' value={payment.amount} onChange={update(setPayment)} />
-          <Input label='Purpose' name='purpose' value={payment.purpose} onChange={update(setPayment)} />
-          <Input label='Client instruction or basis' name='payment_basis' value={payment.payment_basis} onChange={update(setPayment)} />
+          <Prose label='Purpose' name='purpose' value={payment.purpose} onChange={update(setPayment)} />
+          <Prose label='Client instruction or basis' name='payment_basis' value={payment.payment_basis} onChange={update(setPayment)} />
           <button disabled={busy} className={button}>Request payment</button>
         </form>
         <ul className='mt-3 space-y-1 text-sm'>{payments.map((item) => <li key={item.id}>{item.case_number} · {item.beneficiary_name} · {money(item.currency, item.amount)} · {item.status.replaceAll('_', ' ').toLowerCase()} {item.status === 'PENDING_APPROVAL' && <button className={linkButton} onClick={() => run(() => adminBillingService.approvePayment(item.id), 'Payment independently approved and posted.', { title: 'Approve this client-money payment?', text: `${money(item.currency, item.amount)} to ${item.beneficiary_name} will be paid out of client money. ${POSTED}`, confirmText: 'Approve payment' })}>Approve</button>}</li>)}</ul>
@@ -401,7 +407,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
           <Select label='From client account' name='client_account' value={transfer.client_account} onChange={update(setTransfer)} options={accountOptions('CLIENT')} emptyText='No client account yet. Add it under Office and client bank accounts.' />
           <Select label='To office account' name='office_account' value={transfer.office_account} onChange={update(setTransfer)} options={accountOptions('OFFICE')} emptyText='No office account yet. Add it under Office and client bank accounts.' />
           <Input label='Amount' type='number' min='0' step='0.01' name='amount' value={transfer.amount} onChange={update(setTransfer)} />
-          <Input label='Basis' name='basis' value={transfer.basis} onChange={update(setTransfer)} />
+          <Prose label='Basis' name='basis' value={transfer.basis} onChange={update(setTransfer)} />
           <button disabled={busy} className={button}>Post transfer</button>
         </form>
       </details>
@@ -416,7 +422,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
             <Input label='Minutes' type='number' min='1' name='duration_minutes' value={timeEntry.duration_minutes} onChange={update(setTimeEntry)} />
             <Input label='Hourly rate (KES)' type='number' min='0' step='0.01' name='hourly_rate' value={timeEntry.hourly_rate} onChange={update(setTimeEntry)} />
           </div>
-          <Input label='Narrative' name='narrative' value={timeEntry.narrative} onChange={update(setTimeEntry)} />
+          <Prose label='Narrative' name='narrative' value={timeEntry.narrative} onChange={update(setTimeEntry)} />
           <label className='text-sm'><input type='checkbox' checked={timeEntry.billable} onChange={(event) => setTimeEntry({ ...timeEntry, billable: event.target.checked })} /> Billable</label>
           <button disabled={busy} className={button}>Record time</button>
         </form>
@@ -427,7 +433,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
         <form className='mt-3 space-y-3' onSubmit={clearing(setDisbursement, blankForms().disbursement, submit(() => adminBillingService.createDisbursement(disbursement), 'Disbursement submitted for approval.'))}>
           <Select label='Matter' name='matter' value={disbursement.matter} onChange={update(setDisbursement)} options={matterOptions} emptyText='No open matter yet.' />
           <Select label='Type' name='disbursement_type' value={disbursement.disbursement_type} onChange={update(setDisbursement)} options={[['COURT_FEES', 'Court filing fees'], ['PROCESS_SERVER', 'Process server'], ['SEARCH_FEES', 'Search fees (lands/companies)'], ['STAMP_DUTY', 'Stamp duty'], ['TRAVEL', 'Travel'], ['OTHER', 'Other']].map(([value, label]) => ({ value, label }))} />
-          <Input label='Description' name='description' value={disbursement.description} onChange={update(setDisbursement)} />
+          <Prose label='Description' name='description' value={disbursement.description} onChange={update(setDisbursement)} />
           <Input label='Paid to' name='supplier_payee' value={disbursement.supplier_payee} onChange={update(setDisbursement)} />
           <div className='grid gap-3 sm:grid-cols-2'>
             <Input label='Amount' type='number' min='0' step='0.01' name='amount' value={disbursement.amount} onChange={update(setDisbursement)} />
@@ -462,7 +468,7 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
             <Input label='Date' type='date' name='credit_date' value={credit.credit_date} onChange={update(setCredit)} />
             <Input label='Amount' type='number' min='0' step='0.01' name='amount' value={credit.amount} onChange={update(setCredit)} />
           </div>
-          <Input label='Reason' name='reason' value={credit.reason} onChange={update(setCredit)} />
+          <Prose label='Reason' name='reason' value={credit.reason} onChange={update(setCredit)} />
           <button disabled={busy} className={button}>Create credit note</button>
         </form>
         <ul className='mt-3 space-y-1 text-xs'>{creditNotes.map((item) => <li key={item.id}>{item.credit_note_number} · {money('KES', item.amount)} · {item.status.replaceAll('_', ' ').toLowerCase()} {item.status === 'PENDING_APPROVAL' && <button className={linkButton} onClick={() => run(() => adminBillingService.creditNoteAction(item.id, 'approve'), 'Credit note approved.')}>Approve</button>} {item.status === 'APPROVED' && <button className={linkButton} onClick={() => run(() => adminBillingService.creditNoteAction(item.id, 'issue'), 'Credit note issued and invoice balance adjusted.', { title: 'Issue this credit note?', text: `${item.credit_note_number} reduces the invoice balance by ${money('KES', item.amount)}. ${POSTED}`, confirmText: 'Issue' })}>Issue</button>}</li>)}</ul>

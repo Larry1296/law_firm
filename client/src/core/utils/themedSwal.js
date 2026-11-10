@@ -1,5 +1,6 @@
 import Swal from 'sweetalert2';
 import { issueConfirmation } from './confirmationContext';
+import { autoGrow } from '@/components/ui/autoGrow';
 
 const getThemeValues = () => {
   const root = document.documentElement;
@@ -23,12 +24,18 @@ const withTheme = (options = {}) => {
   const theme = getThemeValues();
   const customClass = options.customClass || {};
 
+  const didOpen = options.didOpen;
   return {
     background: theme.background,
     color: theme.color,
     confirmButtonColor: options.confirmButtonColor || theme.primary,
     cancelButtonColor: options.cancelButtonColor || theme.muted,
     ...options,
+    // Every popup textarea grows with its text, like the textareas on the pages.
+    didOpen: (popup) => {
+      didOpen?.(popup);
+      popup.querySelectorAll('textarea').forEach((node) => autoGrow(node));
+    },
     customClass: {
       container: `app-swal-container ${theme.isDark ? 'app-swal-container-dark' : 'app-swal-container-light'} ${customClass.container || ''}`,
       popup: `app-swal-popup ${theme.isDark ? 'app-swal-dark' : 'app-swal-light'} ${customClass.popup || ''}`,

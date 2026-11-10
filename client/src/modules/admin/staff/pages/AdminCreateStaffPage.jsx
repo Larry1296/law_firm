@@ -9,6 +9,7 @@ import Card from '@/components/ui/Card';
 import { FormButton as Button3D } from '@/components/forms';
 import SectionHeading from '@/components/ui/SectionHeading';
 import FloatingInput from '@/components/ui/FloatingInput';
+import ElasticTextInput from '@/components/ui/ElasticTextInput';
 import Select3D from '@/components/ui/Select3D';
 
 import adminFirmService from '@/modules/admin/firm/services/adminFirmService';
@@ -565,7 +566,7 @@ export default function AdminCreateStaffPage() {
               )}
 
               {formData.firm_role !== 'LAWYER' && (
-                <FloatingInput
+                <ElasticTextInput
                   label='Notes'
                   name='notes'
                   error={fieldErrors.notes}

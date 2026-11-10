@@ -20,7 +20,6 @@ import SectionHeading from '@/components/ui/SectionHeading';
 import StatsCard from '@/components/ui/StatsCard';
 import TableHeaderText from '@/components/ui/TableHeaderText';
 import Swal from "@/core/utils/themedSwal";
-import { autoGrow } from '@/components/ui/autoGrow';
 import { getApiErrorMessage } from '@/core/utils/errorMessages';
 import useSubscription from '@/modules/subscription/hooks/useSubscription';
 import { localDateInput } from '@/core/utils/dateFormatter';
@@ -439,7 +438,6 @@ export default function AdminFirmPage() {
         popup.querySelector('#department-name').value = department?.name || '';
         popup.querySelector('#department-description').value =
           department?.description || '';
-        autoGrow(popup.querySelector('#department-description'));
       },
       preConfirm: () => {
         const popup = Swal.getPopup();
@@ -555,7 +553,6 @@ export default function AdminFirmPage() {
         popup.querySelector('#branch-phone').value = branch?.phone_number || '';
         popup.querySelector('#branch-address').value =
           branch?.physical_address || '';
-        autoGrow(popup.querySelector('#branch-address'));
         popup.querySelector('#branch-head-office').checked = Boolean(
           branch?.is_head_office,
         );
