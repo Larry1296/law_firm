@@ -17,10 +17,10 @@ const today = localDateInput();
 // Each form starts from these values and returns to them once its record is saved.
 const BLANK = {
   invoice: { matter: '', invoice_number: '', invoice_date: today, due_date: '', currency: 'KES', description: '', amount: '' },
-  receipt: { matter: '', account: '', receipt_number: '', amount_received: '', currency: 'KES', payment_date: today, payment_method: 'MOBILE_MONEY', bank_transaction_reference: '' },
+  receipt: { matter: '', paid_by_party: '', paid_by_name: '', account: '', receipt_number: '', amount_received: '', currency: 'KES', payment_date: today, payment_method: 'MOBILE_MONEY', bank_transaction_reference: '' },
   retainer: { target: '', account: '', receipt_number: '', amount_received: '', currency: 'KES', payment_date: today, payment_method: 'MOBILE_MONEY', bank_transaction_reference: '' },
   account: { name: '', account_type: 'CLIENT', currency: 'KES', bank_name: '', account_reference: '' },
-  payment: { matter: '', account: '', beneficiary_name: '', beneficiary_reference: '', amount: '', currency: 'KES', purpose: '', payment_basis: '' },
+  payment: { matter: '', pay_to: '', account: '', beneficiary_name: '', beneficiary_reference: '', amount: '', currency: 'KES', purpose: '', payment_basis: '' },
   transfer: { invoice: '', client_account: '', office_account: '', amount: '', basis: '' },
   timeEntry: { matter: '', staff_member: '', activity: '', entry_date: today, duration_minutes: '', hourly_rate: '', billable: true, narrative: '' },
   disbursement: { matter: '', disbursement_type: 'COURT_FEES', description: '', supplier_payee: '', amount: '', currency: 'KES', date_incurred: today, funding_source: 'FIRM', recoverable_from_client: true },
@@ -51,6 +51,21 @@ function Input({ label, type, min, max, step, ...props }) {
     : { type, min, max, step };
   return <Field label={label}><input className={field} required {...amount} {...props} /></Field>;
 }
+
+// Who paid money in or is paid out: the client, another party on the matter, or someone else by name.
+function PartyChoice({ label, matter, name, value, onChange, otherName, otherValue, onOtherChange }) {
+  const parties = (matter?.other_parties || []).map((party) => ({ value: party.id, label: `${party.name} (${party.role_label})` }));
+  return (
+    <>
+      <Select label={label} name={name} value={value} onChange={onChange} required={false}
+        placeholder={`${matter?.client_name || 'The client'} (our client)`}
+        options={[...parties, { value: OTHER_PERSON, label: 'Someone else' }]} />
+      {value === OTHER_PERSON && <Input label='Their full name' name={otherName} value={otherValue} onChange={onOtherChange} />}
+    </>
+  );
+}
+
+const OTHER_PERSON = 'OTHER';
 
 function Select({ label, options, placeholder = 'Select…', required = true, emptyText, ...props }) {
   if (options.length === 0 && emptyText) {
@@ -156,6 +171,14 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
   const feeEarnerOptions = registers.fee_earners.map((item) => ({ value: item.user_id, label: `${item.full_name} (${item.staff_number})` }));
   const accountOptions = (type) => accounts.filter((item) => !type || item.account_type === type).map((item) => ({ value: item.id, label: `${item.name} · ${item.account_reference}` }));
   const invoiceOptions = (statuses) => invoices.filter((item) => statuses.includes(item.status)).map((item) => ({ value: item.id, label: `${item.invoice_number} · ${item.client_name} · balance ${money(item.currency, item.balance)}` }));
+  const matterById = (matterId) => registers.matters.find((item) => item.id === matterId);
+  // The payee's name as it goes on the payment instruction.
+  const payeeName = (form) => {
+    const matter = matterById(form.matter);
+    if (form.pay_to === OTHER_PERSON) return form.beneficiary_name;
+    if (form.pay_to) return matter?.other_parties?.find((party) => party.id === form.pay_to)?.name || '';
+    return matter?.client_name || '';
+  };
   const clientForMatter = (matterId) => registers.matters.find((item) => item.id === matterId)?.client_id || '';
   const matterForInvoice = (invoiceId) => invoices.find((item) => item.id === invoiceId)?.matter || '';
   const heldForMatter = (matterId) => Number(registers.matters.find((item) => item.id === matterId)?.client_money_held || 0);
@@ -242,9 +265,13 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
         <button className={button} disabled={busy}>Create draft</button>
       </form>
 
-      <form onSubmit={clearing(setReceipt, BLANK.receipt, submit(() => adminBillingService.receiveClientMoney(receipt), 'Client money recorded and the matter ledger credited.', { title: 'Post this client-money receipt?', text: `${money(receipt.currency, receipt.amount_received || 0)} will be credited to the matter's client ledger. ${POSTED}` }))} className='space-y-3 rounded-xl border p-5 dark:border-border-dark'>
+      <form onSubmit={clearing(setReceipt, BLANK.receipt, submit(() => adminBillingService.receiveClientMoney({ ...receipt, paid_by_party: receipt.paid_by_party && receipt.paid_by_party !== OTHER_PERSON ? receipt.paid_by_party : null, paid_by_name: receipt.paid_by_party === OTHER_PERSON ? receipt.paid_by_name : '' }), 'Client money recorded and the matter ledger credited.', { title: 'Post this client-money receipt?', text: `${money(receipt.currency, receipt.amount_received || 0)} will be credited to the matter's client ledger. ${POSTED}` }))} className='space-y-3 rounded-xl border p-5 dark:border-border-dark'>
         <h2 className='font-semibold'>Record client-money receipt</h2>
-        <Select label='Matter' name='matter' value={receipt.matter} onChange={update(setReceipt)} options={matterOptions} placeholder='Select the matter' emptyText='No open matter yet.' />
+        <Select label='Matter' name='matter' value={receipt.matter} onChange={(event) => setReceipt((current) => ({ ...current, matter: event.target.value, paid_by_party: '' }))} options={matterOptions} placeholder='Select the matter' emptyText='No open matter yet.' />
+        {receipt.matter && (
+          <PartyChoice label='Paid by' matter={matterById(receipt.matter)} name='paid_by_party' value={receipt.paid_by_party} onChange={update(setReceipt)}
+            otherName='paid_by_name' otherValue={receipt.paid_by_name} onOtherChange={update(setReceipt)} />
+        )}
         <Select label='Client account' name='account' value={receipt.account} onChange={update(setReceipt)} options={accountOptions('CLIENT')} placeholder='Select client bank account' />
         <div className='grid gap-3 sm:grid-cols-2'>
           <Input label='Receipt number' name='receipt_number' value={receipt.receipt_number} onChange={update(setReceipt)} />
@@ -338,10 +365,13 @@ export default function FinanceWorkspace({ heading = 'Billing, Office Money and 
       </details>
 
       <details className='rounded-xl border p-5 dark:border-border-dark'><summary className='cursor-pointer font-semibold'>Client-money payment instruction</summary>
-        <form className='mt-3 space-y-3' onSubmit={clearing(setPayment, BLANK.payment, submit(() => adminBillingService.requestPayment({ ...payment, beneficiary_details: { reference: payment.beneficiary_reference } }), 'Payment instruction sent for independent approval.', { title: 'Send this payment for approval?', text: 'A second, independent person must approve it before client money leaves the account.', confirmText: 'Send for approval', tone: 'primary' }))}>
-          <Select label='Matter' name='matter' value={payment.matter} onChange={update(setPayment)} options={matterOptions} emptyText='No open matter yet.' />
+        <form className='mt-3 space-y-3' onSubmit={clearing(setPayment, BLANK.payment, submit(() => adminBillingService.requestPayment({ ...payment, beneficiary_name: payeeName(payment), beneficiary_details: { reference: payment.beneficiary_reference } }), 'Payment instruction sent for independent approval.', { title: 'Send this payment for approval?', text: 'A second, independent person must approve it before client money leaves the account.', confirmText: 'Send for approval', tone: 'primary' }))}>
+          <Select label='Matter' name='matter' value={payment.matter} onChange={(event) => setPayment((current) => ({ ...current, matter: event.target.value, pay_to: '', beneficiary_name: '' }))} options={matterOptions} emptyText='No open matter yet.' />
           <Select label='Client account' name='account' value={payment.account} onChange={update(setPayment)} options={accountOptions('CLIENT')} emptyText='No client account yet. Add it under Office and client bank accounts.' />
-          <Input label='Pay to' name='beneficiary_name' value={payment.beneficiary_name} onChange={update(setPayment)} />
+          {payment.matter && (
+            <PartyChoice label='Pay to' matter={matterById(payment.matter)} name='pay_to' value={payment.pay_to} onChange={update(setPayment)}
+              otherName='beneficiary_name' otherValue={payment.beneficiary_name} onOtherChange={update(setPayment)} />
+          )}
           <Input label='Beneficiary account / M-Pesa number' name='beneficiary_reference' value={payment.beneficiary_reference} onChange={update(setPayment)} />
           <Input label='Amount' type='number' min='0' step='0.01' name='amount' value={payment.amount} onChange={update(setPayment)} />
           <Input label='Purpose' name='purpose' value={payment.purpose} onChange={update(setPayment)} />

@@ -284,6 +284,10 @@ class Receipt(TimestampedModel):
     account = models.ForeignKey(FinancialAccount, on_delete=models.PROTECT, related_name="receipts")
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="recorded_receipts")
     supporting_proof = models.ForeignKey("clients.ClientDocument", on_delete=models.PROTECT, null=True, blank=True, related_name="supported_receipts")
+    # Who paid the money in, when not the client: a judgment debtor paying the decretal sum, for example.
+    paid_by_party = models.ForeignKey("cases.CaseParty", on_delete=models.PROTECT, null=True, blank=True, related_name="receipts")
+    # The payer's name: the party's, or someone outside the matter named by hand. Empty means the client paid.
+    paid_by_name = models.CharField(max_length=255, blank=True, default="")
     reversed_by = models.OneToOneField("self", on_delete=models.PROTECT, null=True, blank=True, related_name="reverses_receipt")
     reversal_reason = models.TextField(blank=True, default="")
 

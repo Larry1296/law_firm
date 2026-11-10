@@ -161,6 +161,33 @@ class FinancialControlTests(TestCase):
         invoice.refresh_from_db()
         self.assertEqual(invoice.status, Invoice.Status.PAID)
 
+    def test_a_receipt_records_another_party_who_paid_it_in(self):
+        from apps.cases.models import CaseParty
+
+        ours = CaseParty.objects.create(case=self.matter, name="Finance Client", party_role="CLAIMANT", is_our_client=True)
+        debtor = CaseParty.objects.create(case=self.matter, name="Baraka Supplies Limited", party_role="RESPONDENT", is_adverse=True)
+        data = {"receipt_number": "RCT-DEBTOR", "amount_received": Decimal("450000"), "currency": "KES",
+                "payment_date": date(2027, 7, 6), "payment_method": "BANK_TRANSFER", "bank_transaction_reference": "EFT-1"}
+        # Our own client is the default payer, not a party to pick.
+        with self.assertRaises(ValidationError):
+            ClientMoneyService.receive(user=self.owner, matter_id=self.matter.id, account_id=self.client_account.id,
+                                       receipt_data={**data, "paid_by_party": ours.id})
+        receipt, entry = ClientMoneyService.receive(
+            user=self.owner, matter_id=self.matter.id, account_id=self.client_account.id,
+            receipt_data={**data, "paid_by_party": debtor.id},
+        )
+        self.assertEqual(receipt.paid_by_party, debtor)
+        self.assertEqual(entry.narrative, "Client money receipt RCT-DEBTOR from Baraka Supplies Limited")
+        self.assertEqual(MatterClientLedger.objects.get(matter=self.matter).cleared_balance, Decimal("450000"))
+        # Someone outside the matter is named by hand.
+        receipt, entry = ClientMoneyService.receive(
+            user=self.owner, matter_id=self.matter.id, account_id=self.client_account.id,
+            receipt_data={**data, "receipt_number": "RCT-INSURER", "paid_by_name": " Jubilee Insurance "},
+        )
+        self.assertIsNone(receipt.paid_by_party)
+        self.assertEqual(receipt.paid_by_name, "Jubilee Insurance")
+        self.assertEqual(entry.narrative, "Client money receipt RCT-INSURER from Jubilee Insurance")
+
     def test_cross_firm_financial_access_is_blocked(self):
         other_owner = User.objects.create_user(
             email="other-finance@example.com", password="pass", first_name="Other", last_name="Owner",

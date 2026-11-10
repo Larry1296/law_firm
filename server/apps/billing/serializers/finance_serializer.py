@@ -102,6 +102,10 @@ class ClientMoneyReceiptSerializer(serializers.Serializer):
         queryset=Receipt._meta.get_field("supporting_proof").remote_field.model.objects.all(),
         allow_null=True, required=False,
     )
+    # Empty means the client paid; otherwise another party to the matter.
+    paid_by_party = serializers.UUIDField(required=False, allow_null=True)
+    # Someone outside the matter, named by hand.
+    paid_by_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
 
 
 class PreMatterRetainerReceiptSerializer(ClientMoneyReceiptSerializer):

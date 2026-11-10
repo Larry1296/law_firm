@@ -146,6 +146,9 @@ class PreMatterRetainerReceiptView(APIView):
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)
         data.pop("matter", None)
+        # Before a matter is opened there are no other parties on record: the client pays the retainer.
+        data.pop("paid_by_party", None)
+        data.pop("paid_by_name", None)
         firm = FinanceAccess.require(request.user, AccountantPermission.RECORD_RECEIPTS)
         client_id = data.pop("client")
         proposed_id = data.pop("proposed_matter")
@@ -345,6 +348,7 @@ class FinanceRegisterView(APIView):
             Case.objects.filter(firm=firm)
             .exclude(matter_status__in=[Case.MatterStatus.ARCHIVED, Case.MatterStatus.CANCELLED])
             .select_related("client", "client_ledger")
+            .prefetch_related("parties")
             .order_by("-created_at")
         )
         clients = Client.objects.filter(firm=firm, is_active=True).order_by("full_name")
@@ -372,6 +376,12 @@ class FinanceRegisterView(APIView):
                     "matter_status": matter.get_matter_status_display(),
                     # Client money held for the matter, so a transfer to office can offer it.
                     "client_money_held": str(getattr(getattr(matter, "client_ledger", None), "cleared_balance", 0) or 0),
+                    # Others on the matter who may pay money in, such as the judgment debtor.
+                    "other_parties": [
+                        {"id": str(party.id), "name": party.name, "role_label": party.get_party_role_display()}
+                        for party in matter.parties.all()
+                        if not party.is_our_client
+                    ],
                 }
                 for matter in matters
             ],

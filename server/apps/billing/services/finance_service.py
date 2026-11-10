@@ -438,6 +438,24 @@ class ClientMoneyService:
         )
 
     @classmethod
+    def _payer(cls, matter, receipt_data):
+        """Who paid the money in, when not the client: another party to the matter or someone named by hand.
+
+        Returns the payer's name for the ledger narrative, or None when the client paid.
+        """
+        party_id = receipt_data.pop("paid_by_party", None)
+        name = (receipt_data.pop("paid_by_name", "") or "").strip()
+        if party_id:
+            party = matter.parties.filter(id=party_id, is_our_client=False).first()
+            if party is None:
+                raise ValidationError({"paid_by_party": "Choose the client or another party to this matter."})
+            receipt_data["paid_by_party"] = party
+            name = party.name
+        if name:
+            receipt_data["paid_by_name"] = name
+        return name or None
+
+    @classmethod
     @transaction.atomic
     def receive(cls, *, user, matter_id, account_id, receipt_data):
         firm = FinanceAccess.require(user, AccountantPermission.RECORD_RECEIPTS)
@@ -450,6 +468,7 @@ class ClientMoneyService:
         proof = receipt_data.get("supporting_proof")
         if proof and (proof.firm_id != firm.id or proof.client_id != matter.client_id):
             raise ValidationError({"supporting_proof": "Supporting proof belongs to another firm or client."})
+        payer = cls._payer(matter, receipt_data)
         receipt = Receipt.objects.create(
             firm=firm, client=matter.client, matter=matter, account=account, recorded_by=user, **receipt_data
         )
@@ -460,7 +479,7 @@ class ClientMoneyService:
             firm=firm, account=account, ledger=ledger, matter=matter, client=matter.client,
             transaction_type=LedgerTransaction.TransactionType.CLIENT_RECEIPT,
             direction=LedgerTransaction.Direction.CREDIT, amount=amount, currency=receipt.currency,
-            narrative=f"Client money receipt {receipt.receipt_number}",
+            narrative=f"Client money receipt {receipt.receipt_number}" + (f" from {payer}" if payer else ""),
             bank_reference=receipt.bank_transaction_reference, receipt=receipt, posted_by=user,
         )
         ledger.cleared_balance += amount
@@ -736,6 +755,7 @@ class OperationalFinanceService:
         proof = receipt_data.get("supporting_proof")
         if proof and (proof.firm_id != firm.id or proof.client_id != matter.client_id):
             raise ValidationError({"supporting_proof": "Supporting proof belongs to another firm or client."})
+        payer = ClientMoneyService._payer(matter, receipt_data)
         receipt = Receipt.objects.create(firm=firm, client=matter.client, matter=matter, account=account, recorded_by=user, **receipt_data)
         correlation_id = None
         for item in allocations:
@@ -750,7 +770,7 @@ class OperationalFinanceService:
                 firm=firm, account=account, matter=matter, client=matter.client,
                 transaction_type=LedgerTransaction.TransactionType.OFFICE_RECEIPT,
                 direction=LedgerTransaction.Direction.CREDIT, amount=allocation_amount,
-                currency=receipt.currency, narrative=f"Office receipt {receipt.receipt_number} allocated to {invoice.invoice_number}",
+                currency=receipt.currency, narrative=f"Office receipt {receipt.receipt_number}" + (f" from {payer}" if payer else "") + f" allocated to {invoice.invoice_number}",
                 bank_reference=receipt.bank_transaction_reference, receipt=receipt, invoice=invoice,
                 correlation_id=correlation_id or uuid.uuid4(), posted_by=user,
             )
