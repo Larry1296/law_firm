@@ -483,6 +483,43 @@ class FilingRegisterService:
         except (PermissionDenied, ValidationError):
             pass
         case.refresh_from_db()
+        # The decree has been extracted and is now being executed.
+        if case.court_stage == Case.CourtStage.DECREE_EXTRACTION:
+            try:
+                with transaction.atomic():
+                    CaseLifecycleService.transition(
+                        case=case, actor=actor, dimension=CaseLifecycleTransition.Dimension.COURT_STAGE,
+                        to_state=Case.CourtStage.EXECUTION,
+                        reason="Application for execution recorded in the filing register.",
+                    )
+            except (PermissionDenied, ValidationError):
+                pass
+            case.refresh_from_db()
+
+    @classmethod
+    def execution_step(cls, case):
+        """Once execution is applied for, the court orders it and issues the warrant (Civil Procedure Rules, 2010,
+        Order 22 rule 13(4)); until a warrant is on the register, getting it is the advocate's next step.
+        """
+        if case.enforcement_status != Case.EnforcementStatus.EXECUTION_IN_PROGRESS:
+            return None
+        application = (
+            case.filings.filter(filing_type=CaseFiling.FilingType.APPLICATION_FOR_EXECUTION)
+            .exclude(status__in=[CaseFiling.FilingStatus.WITHDRAWN, CaseFiling.FilingStatus.REJECTED])
+            .order_by("-filed_at")
+            .first()
+        )
+        if application is None:
+            return None
+        warrant = (
+            case.filings.filter(
+                filing_type=CaseFiling.FilingType.WARRANT_OF_ATTACHMENT,
+                filed_at__date__gte=timezone.localdate(application.filed_at),
+            )
+            .exclude(status__in=[CaseFiling.FilingStatus.WITHDRAWN, CaseFiling.FilingStatus.REJECTED])
+            .exists()
+        )
+        return None if warrant else "Obtain the warrant of attachment and sale on the application for execution"
 
     @classmethod
     def record_decree_extraction(cls, *, case, actor, served_on=None):

@@ -291,14 +291,19 @@ class ProceedingsWorkflowService:
             .order_by("starts_at", "headline_priority", "created_at")
             .first()
         )
+        from apps.cases.services.filing_register_service import FilingRegisterService
+
         recommendation = None if pending else cls.recommended_next_action(case)
         next_action = pending.title if pending else (recommendation or {}).get("label", "")
+        # Getting the warrant on an application for execution is the advocate's job before any later sitting.
+        execution_step = FilingRegisterService.execution_step(case)
+        if not pending and execution_step:
+            next_action = execution_step
         if pending:
-            from apps.cases.services.filing_register_service import FilingRegisterService
-
             # A dated step such as the close of pleadings comes before a later court date.
             next_action = (
                 FilingRegisterService.step_due_before(case, pending.starts_at)
+                or execution_step
                 or FilingRegisterService.hearing_notice_step(case, pending)
                 or FilingRegisterService.taxation_notice_step(case, pending)
                 or next_action

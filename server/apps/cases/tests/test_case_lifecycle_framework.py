@@ -677,6 +677,12 @@ class CaseLifecycleFrameworkTests(TestCase):
         self.assertEqual(case.enforcement_status, Case.EnforcementStatus.EXECUTION_IN_PROGRESS)
         demand = MatterDeadline.objects.get(matter=case, source=f"DECREE_DEMAND:{case.id}")
         self.assertEqual(demand.status, MatterDeadline.Status.COMPLETED)
+        self.assertEqual(case.court_stage, Case.CourtStage.EXECUTION)
+        # Order 22 rule 13(4): the court orders execution and issues the warrant, which the advocate obtains.
+        self.assertEqual(case.next_action, "Obtain the warrant of attachment and sale on the application for execution")
+        FilingRegisterService.record(user=self.admin, case=case, data={"filing_type": "WARRANT_OF_ATTACHMENT"})
+        case.refresh_from_db()
+        self.assertNotEqual(case.next_action, "Obtain the warrant of attachment and sale on the application for execution")
 
     def test_a_judgment_date_put_off_leaves_judgment_reserved(self):
         case = self.create_case()
