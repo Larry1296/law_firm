@@ -1,4 +1,5 @@
 import ClientQueueDashboard from '@/modules/clients/shared/ClientQueueDashboard';
+import PrivacyNoticeSetupBanner from '@/modules/admin/settings/components/PrivacyNoticeSetupBanner';
 import {
   Activity,
   BarChart3,
@@ -231,6 +232,8 @@ export default function AdminDashboardPage() {
         statusTitle='Firm Operational'
         statusDescription={isFetching ? 'Refreshing dashboard metrics.' : 'Dashboard metrics are synced with firm data.'}
       />
+
+      <PrivacyNoticeSetupBanner active={dashboard?.clients?.privacy_notice_active} />
 
       <ClientQueueDashboard path='/admin/arrivals' />
 

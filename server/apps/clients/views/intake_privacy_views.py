@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied, MethodNotAllowed
 from rest_framework.response import Response
 from apps.clients.models import IntakePrivacyConfig, ClientPrivacyRecord
-from apps.clients.services.intake_privacy_service import create_config, transition_config
+from apps.clients.services.intake_privacy_service import create_config, standard_notice, transition_config
 from apps.firm.views.admin.admin_firm_base_view import AdminFirmBaseView
 from apps.audit_logs.services import AuditService
 
@@ -42,7 +42,8 @@ class IntakePrivacyConfigView(AdminFirmBaseView):
         configs = IntakePrivacyConfig.objects.filter(firm=firm).select_related('approved_by', 'activated_by', 'retired_by').order_by('-id')
         AuditService.record(firm=firm, user=request.user, action='INTAKE_PRIVACY_LISTED', obj=firm)
         return Response({'results': PrivacyConfigSerializer(configs, many=True).data,
-                         'lawful_bases': [{'value': value, 'label': label} for value, label in ClientPrivacyRecord.LawfulBasis.choices]})
+                         'lawful_bases': [{'value': value, 'label': label} for value, label in ClientPrivacyRecord.LawfulBasis.choices],
+                         'standard_notice': standard_notice(firm)})
 
     def post(self, request, pk=None, action=None):
         firm = self.get_firm()

@@ -1,7 +1,7 @@
 from rest_framework import status
 from rest_framework.response import Response
 
-from apps.clients.models import Client
+from apps.clients.models import Client, IntakePrivacyConfig
 from apps.clients.views.admin.client_admin_base_view import ClientAdminBaseView
 
 
@@ -23,6 +23,8 @@ class ClientAdminDashboardView(ClientAdminBaseView):
                     "official_clients": clients.filter(lifecycle_status__in=[Client.LifecycleStatus.OFFICIAL, Client.LifecycleStatus.OFFICIAL_CLIENT]).count(),
                     "archived_clients": clients.filter(lifecycle_status=Client.LifecycleStatus.ARCHIVED).count(),
                     "deleted_clients": clients.filter(soft_deleted_at__isnull=False).count(),
+                    # No client can be recorded until the firm has an approved privacy notice.
+                    "privacy_notice_active": IntakePrivacyConfig.active_for(firm) is not None,
                 }
             },
             status=status.HTTP_200_OK,
